@@ -1,0 +1,11 @@
+# @package apps.onlineshop
+defaults:
+  - default
+
+
+description: |
+  Ihr vertrauenswürdiger Open-Shop
+
+promotional_message: |
+  Bei uns ist jeder Kunde wichtig.
+

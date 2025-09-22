@@ -1,0 +1,17 @@
+# @package apps.onlineshop
+
+allowed_credit_cards:
+  - 'Visa'
+  - 'MasterCard'
+  # - 'Amex'
+enable_credit_card_check: false
+enable: False
+
+
+font_family: 'Arial'
+base_font_size: '16px'
+font_color: '#bb86fc'
+background_color: '#121212'
+button_background_color: '#FFFFFF'
+button_font_color: '#3700b3'
+highlight_font_color: '#bb86fc'

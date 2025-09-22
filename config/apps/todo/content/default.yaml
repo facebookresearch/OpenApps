@@ -1,0 +1,20 @@
+# @package apps.todo
+title: ${apps.start_page.apps.todo.title}
+description: ${apps.start_page.apps.todo.description}
+
+init_todos:
+  - ["Visit grandma", false]
+  - ["Sort medical papers", false]
+  - ["Plan weekly meals", false]
+  - ["Book doctor appointment.", true]
+  - ["Buy groceries", false]
+  - ["Call Aunt Lisa", true]
+  - ["Check budget", false]
+  - ["Tidy living room", true]
+  - ["Walk for 20 minutes", false]
+  - ["Meditate for 30", false]
+  - ["Update calendar", false]
+  - ["Answer emails", false]
+  - ["Water plants", true]
+  - ["Make fruit salad", false]
+  - ["Read before bed", false]

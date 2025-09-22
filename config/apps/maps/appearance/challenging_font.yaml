@@ -1,0 +1,14 @@
+# @package apps.maps
+
+enable_layer_control: True
+default_layer: 'OpenStreetMap'
+popup_display_rule: 'automatic'
+font_family: 'Brush Script MT'
+base_font_size: '16px'
+search_button_color: '#e74c3c'
+delete_button_color: '#3498db'
+return_button_color: '#95a5a6'
+zoom: 12
+granularity: 'coarse'
+allow_planning: False
+calculate_button_color: '#e74c3c'

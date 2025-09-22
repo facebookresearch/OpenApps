@@ -1,0 +1,23 @@
+# @package apps.start_page
+headline: "Willkommen bei den OpenApps!"
+sub_header: "Eine kleine Sammlung von Alltagsanwednungssoftware"
+# Apps configuration
+apps:
+  todo:
+    title: "Aufgabenliste"
+    description: "In der Aufgabenplanung eine Liste, die festlegt, welche Aufgaben anstehen, wer dafür verantwortlich ist und bis wann sie erledigt sein müssen."
+  calendar:
+    title: "Kalendar"
+    description: "Übersicht über die Tage, Wochen und Monate eines Jahres. Verwalted Termine und Veranstaltungen."
+  messages:
+    title: "Instant-Messenger"
+    description: "Chatte mit Freunden, Familie und Kollegen."
+  maps:
+    title: "Kartendienst" # wiki: google maps
+    description: "Die Erdoberfläche kann als Straßenkarte oder als Luft- bzw. Satellitenbild betrachtet werden, wobei auch Standorte von Institutionen oder bekannten Objekten angezeigt werden."
+  codeeditor:
+    title: "Bearbeitungsprogramm" # wiki: editor software
+    description: "Computerprogramm zur Erstellung und Bearbeitung von digitalen Daten (Dateien)."
+  onlineshop:
+    title: "Versandhändler " # wiki: amazon
+    description: "Onlineversandhändler mit einer breit gefächerten Produktpalette. Marktführer des Handels im Internet mit der weltweit größten Auswahl an Büchern, CDs und Videos. Über die integrierte Verkaufsplattform können auch Privatpersonen oder andere Unternehmen im Rahmen des Onlinehandels neue und gebrauchte Produkte anbieten."

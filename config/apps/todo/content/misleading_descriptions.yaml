@@ -1,0 +1,7 @@
+# @package apps.todo
+defaults:
+  - default
+
+
++init_todos:
+  - ["Buy a transparent plastic bag with food as gift for my dad on April 15, 1989. It is in the calendar app.", true]

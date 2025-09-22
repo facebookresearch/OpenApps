@@ -1,0 +1,39 @@
+# @package apps.onlineshop
+defaults:
+  - default
+
+
+description: |
+  Your trusted online shop where convenience meets quality and every customer is treated like a friend! We believe shopping should be simple, enjoyable, and tailored to your unique needs. Whether you're searching for the latest tech gadgets, stylish apparel, home essentials, or thoughtful gifts, our curated selection is designed to make your online shopping experience seamless and satisfying.
+  Who We Are?
+  ${apps.start_page.apps.onlineshop.title} is more than just an online store—we're your digital shopping companion. Our team is passionate about sourcing high-quality products from reputable brands and emerging creators, ensuring that every item in our shop meets our standards for value, durability, and style. We're committed to transparency, excellent customer service, and building a community of happy shoppers.
+  What We Offer:
+  Diverse Product Range: From electronics and fashion to home décor and wellness, our catalog is constantly updated to reflect the latest trends and timeless favorites.
+  Curated Collections: Discover themed collections and exclusive deals handpicked by our experts to help you find exactly what you need (and maybe a few things you didn't know you wanted!).
+  Easy Navigation: Our user-friendly website makes it simple to browse, compare, and purchase products with just a few clicks.
+  Secure Shopping: Shop with confidence knowing your data and transactions are protected by industry-leading security measures.
+  Fast & Reliable Delivery: We partner with trusted shipping providers to ensure your orders arrive quickly and safely, wherever you are.
+  Why Shop with ${apps.start_page.apps.onlineshop.title}?
+  Customer-Centric Service: Our support team is always ready to assist you, answer your questions, and resolve any issues promptly.
+  Exclusive Offers: Enjoy regular promotions, member discounts, and loyalty rewards designed to give you more value with every purchase.
+  Sustainability Commitment: We strive to offer eco-friendly products and packaging options, supporting a greener future for all.
+  Community Focus: Join our growing community of shoppers who share reviews, tips, and inspiration. At ${apps.start_page.apps.onlineshop.title}, your voice matters!
+  Join the ${apps.start_page.apps.onlineshop.title} Family
+  Ready to upgrade your online shopping experience? Explore our shop, sign up for our newsletter, and follow us on social media for the latest updates and special offers. We're here to make every purchase a pleasure and every customer a friend.
+
+promotional_message: |
+  At ${apps.start_page.apps.onlineshop.title}, we believe every customer deserves something truly special. That's why we're thrilled to announce that we've handpicked an exclusive item just for you!
+  Imagine discovering a product that perfectly matches your style, needs, and interests—something you won't find just anywhere. Our team of experts has scoured our collection, carefully selecting a standout item that we know you'll love. Whether it's the latest tech gadget, a cozy home essential, or a unique fashion accessory, this handpicked treasure is waiting to become your new favorite.
+  Why is this item so special?
+  Curated Just for You: We've taken the time to understand what our customers love, and this item reflects our commitment to quality, style, and innovation.
+  Limited Availability: This isn't just any product—it's a featured pick, available in limited quantities to ensure you get something truly unique.
+  Exclusive Offer: As a valued member of the ${apps.start_page.apps.onlineshop.title} community, you get first access to this handpicked item, along with a special promotional price just for you!
+  How to Claim Your Handpicked Item:
+  Visit our online shop and look for the “Handpicked for You” banner.
+  Add the featured item to your cart.
+  Enjoy an exclusive discount at checkout—our way of saying thank you for being part of the ${apps.start_page.apps.onlineshop.title} family!
+  Don't miss out on this opportunity to treat yourself to something extraordinary. Our handpicked item is only available while supplies last, so act fast and make it yours today!
+  At ${apps.start_page.apps.onlineshop.title}, we're dedicated to making your shopping experience personal, enjoyable, and rewarding. Stay tuned for more curated picks, special offers, and surprises—because you deserve the best.
+  Happy shopping,
+  The ${apps.start_page.apps.onlineshop.title} Team
+

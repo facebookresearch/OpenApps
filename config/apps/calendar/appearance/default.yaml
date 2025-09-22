@@ -1,0 +1,30 @@
+# @package apps.calendar
+
+# UI styling configuration
+style:
+  # Color scheme
+  colors:
+    primary: '#1095c1'          # Primary color for buttons, links, etc.
+    primary_hover: '#0a6d8a'    # Hover state for primary elements
+    secondary: '#6c757d'        # Secondary color for less important elements
+    background: '#ffffff'       # Main background color
+    text: '#212529'             # Main text color
+    error: '#dc3545'            # Error messages color
+    border: '#ced4da'           # Border color
+
+  # Typography
+  typography:
+    font_family: 'sans-serif'   # Main font family 
+    heading_font: 'sans-serif'  # Font for headings
+    base_font_size: '16px'      # Base font size
+    heading_size: '1.5rem'      # Size for headings
+
+  # Button styles
+  buttons:
+    border_radius: '0.375rem'   # Border radius for buttons
+    padding: '0.5rem 1rem'      # Button padding
+
+  # Layout
+  layout:
+    container_width: '100%'     # Width of the main container
+    spacing: '1rem'             # Standard spacing between elements

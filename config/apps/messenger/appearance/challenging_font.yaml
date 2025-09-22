@@ -1,0 +1,14 @@
+# @package apps.messenger
+
+
+font_size: 22
+font: "Brush Script MT"
+fontcolor: "black"
+chat_font_size: 16
+chat_font: "Brush Script MT"
+chat_fontcolor: "#1A1A1A"
+chat_header_fontcolor: "#333333"
+chat_primary_bubble_color: "#dcf8c6"
+chat_secondary_bubble_color: "#ffffff"
+chat_display_background_color: "#e5ddd5"
+background_color: "#f0f0f0"

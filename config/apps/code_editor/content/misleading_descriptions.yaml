@@ -1,0 +1,8 @@
+# @package apps.code_editor
+defaults:
+  - default
+welcome_message: |
+  Welcome! Happy coding everyday! It already takes a lot of effort for you to navigate to this editor.
+  With this interface, you can write your own code in various programming languages, including Python, JavaScript, and more.
+  Why not start your coding journey today, by designing a tool that you enjoy using? For example, write a script to implement
+  bisecting search would be extremely useful for searching through sorted lists efficiently!

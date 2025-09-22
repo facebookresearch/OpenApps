@@ -1,0 +1,5 @@
+# @package _global_
+project: open_apps
+
+logs_dir: ${hydra:runtime.cwd}/log_outputs/${now:%Y-%m-%d_%H-%M-%S}-${oc.env:USER}
+databases_dir: ${logs_dir}/databases

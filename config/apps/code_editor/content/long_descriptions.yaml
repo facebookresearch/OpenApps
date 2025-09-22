@@ -1,0 +1,13 @@
+# @package apps.code_editor
+defaults:
+  - default
+welcome_message: |
+
+  Welcome to your own personal Code Editor! We’re thrilled to have you here and excited to support you on your coding journey. 
+  Whether you’re just starting out or you’re a seasoned developer, our editor is designed to provide a seamless, intuitive, and powerful environment for all your programming needs.
+  With this Code Editor, you have the freedom to write, edit, and manage your code files with ease. Our user-friendly interface allows you to create new files in a variety of programming languages, organize them into folders, and navigate your project structure effortlessly. No matter the size or complexity of your project, you’ll find the tools you need to stay organized and productive.
+  We believe that coding should be accessible and enjoyable for everyone. That’s why we’ve included features like syntax highlighting, auto-completion, and real-time error detection to help you write clean, efficient code. You can also take advantage of integrated version control, making it easy to track changes, collaborate with others, and revert to previous versions whenever necessary.
+  Whether you’re building your first website, developing a mobile app, or working on a complex data analysis project, our Code Editor is here to support you every step of the way. Explore our documentation and tutorials to discover tips, tricks, and best practices that will help you get the most out of your experience.
+  We’re committed to fostering a welcoming and inclusive community. If you ever need help, our support team and user forums are just a click away. Don’t hesitate to reach out with questions, feedback, or ideas for new features—we’re always eager to hear from you.
+  So, what are you waiting for? Dive in, start coding, and bring your ideas to life. The possibilities are endless, and we can’t wait to see what you’ll create!
+  Start coding now and bring your ideas to life!

@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>World Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <style>
+        body,
+        html {
+            font-family: "{{ font_family }}";
+            font-size: "{{ base_font_size }}";
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        button, input, textarea, select {
+            font-family: inherit;
+            font-size: inherit;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #map {
+            flex: 0.8;
+            height: 100%;
+        }
+
+        #sidebar {
+            flex: 0.2;
+            padding: 20px;
+            background: {{ sidebar_background_color }};
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        #sidebar h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        #sidebar h3 {
+            color: #34495e;
+            margin: 20px 0 10px 0;
+        }
+
+        .popup-list-item {
+            cursor: pointer;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-list-item:hover {
+            background-color: #f5f6fa;
+            transform: translateX(5px);
+        }
+
+        .delete-btn {
+            color: {{ delete_button_color }};
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 5px;
+            border-radius: 3px;
+            background: transparent;
+            border: none;
+        }
+
+        .delete-btn:hover {
+            background-color: {{ delete_button_hover_color }}
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        #searchBtn {
+            padding: 8px 15px;
+            background-color: {{ search_button_color }};
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #searchBtn:hover {
+            background-color: {{ search_button_hover_color }}
+        }
+
+        #searchResults {
+            margin-bottom: 20px;
+        }
+
+        .search-result-item {
+            cursor: pointer;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s;
+        }
+
+        .search-result-item:hover {
+            background-color: #f5f6fa;
+            transform: translateX(5px);
+        }
+
+        .info-box {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .route-container {
+            width: 100%;
+        }
+
+        .location-input-container {
+            position: relative;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .location-input-container input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .location-input-container .search-btn {
+            padding: 8px 15px;
+            background-color: {{ search_button_color }};
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .location-input-container .search-btn:hover {
+            background-color: {{ search_button_hover_color }}
+        }
+
+        .search-results-mini {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 100px;
+            overflow-y: auto;
+            margin: 5px 0;
+            background: white;
+            border: 1px solid #e0e0e0;
+            z-index: 1000;
+        }
+
+        #calculateRouteBtn {
+            width: 100%;
+            padding: 8px;
+            background-color: {{ calculate_button_color }};
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #calculateRouteBtn:hover {
+            background-color: {{ calculate_button_hover_color }};
+        } */
+
+        .search-btn {
+            padding: 8px 15px;
+            background-color: {{ search_button_color }}
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 5px;
+        }
+
+        .search-btn:hover {
+            background-color: {{ search_button_hover_color }};
+        }
+
+        #returnButton {
+            width: 100%;
+            padding: 10px;
+            background-color: {{ return_button_color }};
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: background-color 0.3s;
+        }
+
+        #returnButton:hover {
+            background-color: #7f8c8d;
+        }
+
+        .custom-select-container {
+            position: relative;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .custom-select-header {
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .custom-select-options {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            margin-top: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .custom-select-option {
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .custom-select-option:hover {
+            background-color: #f5f6fa;
+        }
+
+        .custom-select-option i {
+            margin-right: 5px;
+        }
+
+        .custom-select-option.selected {
+            background-color: #e3f2fd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="map"></div>
+        <div id="sidebar">
+            <button id="returnButton" onclick="window.location.href='/'">Return to List of Apps</button>
+            <h2>{{ title }}</h2>
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search location...">
+                <button id="searchBtn">Search</button>
+            </div>
+            <div id="searchResults"></div>
+            <h3>Current Location Info</h3>
+            <div id="currentLocationInfo" class="info-box"></div>
+            <h3>Route Planning</h3>
+            <div class="route-container">
+                <div class="location-input-container">
+                    <input type="text" id="fromLocation" placeholder="From location">
+                    <div id="fromLocationResults" class="search-results-mini"></div>
+                </div>
+                <div class="location-input-container">
+                    <input type="text" id="toLocation" placeholder="To location">
+                    <div id="toLocationResults" class="search-results-mini"></div>
+                </div>
+                <button id="calculateRouteBtn" class="route-btn">Calculate Route</button>
+                <div id="routeResult" class="info-box"></div>
+                <div id="itinerarySelectorContainer" style="margin-top: 10px; display: none;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Select Route Option:</label>
+                    <div class="custom-select-container">
+                        <div class="custom-select-header">
+                            <span>Select an option</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="custom-select-options"></div>
+                    </div>
+                </div>
+            </div>
+            <h3>Saved Locations</h3>
+            <div id="popupList"></div>
+        </div>
+    </div>
+    <script>
+
+        let markerCustomizationResolve = null;
+
+        // Helper function to determine icon based on name and granularity
+        function getIconForName(name, granularity = 'coarse') {
+            name = name.toLowerCase();
+            
+            if (granularity === 'coarse') {
+                // Current implementation for coarse granularity
+                if (name.includes('restaurant') || name.includes('food')) return 'utensils';
+                if (name.includes('park') || name.includes('garden')) return 'tree';
+                if (name.includes('hospital') || name.includes('clinic')) return 'hospital';
+                if (name.includes('school') || name.includes('university')) return 'graduation-cap';
+                if (name.includes('shop') || name.includes('store')) return 'shopping-cart';
+                if (name.includes('coffee') || name.includes('cafe')) return 'coffee';
+                if (name.includes('hotel')) return 'bed';
+                if (name.includes('gym')) return 'dumbbell';
+                if (name.includes('library')) return 'book';
+                if (name.includes('museum')) return 'landmark';
+                return 'map-marker';
+            } else {
+                // Fine-grained implementation
+                // Places & Buildings
+                if (name.includes('restaurant') || name.includes('food') || name.includes('dining')) return 'utensils';
+                if (name.includes('park') || name.includes('garden') || name.includes('forest')) return 'tree';
+                if (name.includes('hospital') || name.includes('clinic') || name.includes('medical')) return 'hospital';
+                if (name.includes('school') || name.includes('university') || name.includes('college')) return 'graduation-cap';
+                if (name.includes('shop') || name.includes('store') || name.includes('mall')) return 'shopping-cart';
+                if (name.includes('coffee') || name.includes('cafe') || name.includes('tea')) return 'coffee';
+                if (name.includes('hotel') || name.includes('motel') || name.includes('hostel')) return 'bed';
+                if (name.includes('gym') || name.includes('fitness')) return 'dumbbell';
+                if (name.includes('library') || name.includes('bookstore')) return 'book';
+                if (name.includes('museum') || name.includes('gallery')) return 'landmark';
+                
+                // Transportation
+                if (name.includes('airport') || name.includes('terminal')) return 'plane';
+                if (name.includes('train') || name.includes('railway')) return 'train';
+                if (name.includes('bus') || name.includes('station')) return 'bus';
+                if (name.includes('port') || name.includes('harbor') || name.includes('dock')) return 'ship';
+                if (name.includes('parking') || name.includes('garage')) return 'parking';
+                
+                // Entertainment
+                if (name.includes('theater') || name.includes('cinema')) return 'film';
+                if (name.includes('stadium') || name.includes('arena')) return 'futbol';
+                if (name.includes('pool') || name.includes('swimming')) return 'swimming-pool';
+                
+                // Services
+                if (name.includes('bank') || name.includes('atm')) return 'money-bill';
+                if (name.includes('post') || name.includes('mail')) return 'envelope';
+                if (name.includes('pharmacy') || name.includes('drugstore')) return 'prescription-bottle-alt';
+                
+                return 'map-marker';
+            }
+        }
+
+        // Helper function to determine color based on name and granularity
+        function getColorForName(name, granularity = 'coarse') {
+            name = name.toLowerCase();
+            
+            if (granularity === 'coarse') {
+                // Current implementation for coarse granularity
+                if (name.includes('restaurant') || name.includes('food')) return 'red';
+                if (name.includes('park') || name.includes('garden')) return 'green';
+                if (name.includes('hospital') || name.includes('clinic')) return 'darkred';
+                if (name.includes('school') || name.includes('university')) return 'blue';
+                if (name.includes('shop') || name.includes('store')) return 'orange';
+                if (name.includes('coffee') || name.includes('cafe')) return 'cadetblue';
+                if (name.includes('hotel')) return 'purple';
+                if (name.includes('gym')) return 'darkgreen';
+                if (name.includes('library')) return 'darkpurple';
+                if (name.includes('museum')) return 'darkblue';
+                return 'blue';
+            } else {
+                // Fine-grained implementation
+                // Food & Dining
+                if (name.includes('restaurant') || name.includes('food')) return 'red';
+                if (name.includes('cafe') || name.includes('coffee')) return 'cadetblue';
+                if (name.includes('bar') || name.includes('pub')) return 'purple';
+                
+                // Nature & Recreation
+                if (name.includes('park') || name.includes('garden')) return 'green';
+                if (name.includes('beach') || name.includes('coast')) return 'orange';
+                if (name.includes('mountain') || name.includes('peak')) return 'darkpurple';
+                if (name.includes('lake') || name.includes('river')) return 'blue';
+                
+                // Healthcare
+                if (name.includes('hospital') || name.includes('emergency')) return 'darkred';
+                if (name.includes('clinic') || name.includes('medical')) return 'red';
+                if (name.includes('pharmacy')) return 'green';
+                
+                // Transportation
+                if (name.includes('airport')) return 'darkblue';
+                if (name.includes('train')) return 'red';
+                if (name.includes('bus')) return 'orange';
+                if (name.includes('port')) return 'cadetblue';
+                
+                // Other categories remain the same as coarse
+                if (name.includes('school') || name.includes('university')) return 'blue';
+                if (name.includes('shop') || name.includes('store')) return 'orange';
+                if (name.includes('hotel')) return 'purple';
+                if (name.includes('gym')) return 'darkgreen';
+                if (name.includes('library')) return 'darkpurple';
+                if (name.includes('museum')) return 'darkblue';
+                
+                return 'blue';
+            }
+        }
+
+
+        // Initialize map variables
+        var map = L.map('map').setView([{{init_location[0]}}, {{init_location[1]}}], {{zoom}});
+        // var isAddingPopup = false;
+        var popups = new Map();
+        map.whenReady(() => {
+            // Make map tiles inaccessible to screen readers as they are decorative
+            const tilePane = map.getPane('tilePane');
+            if (tilePane) {
+                tilePane.setAttribute('aria-hidden', 'true');
+            }
+            loadLandmarks();
+        });
+
+        const layers = {
+            // Basic Maps
+            'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }),
+            'OpenStreetMap.HOT': L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors, Tiles style by HOT'
+            }),
+            'OpenTopoMap': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: '© OpenTopoMap contributors'
+            }),
+            
+            // Satellite & Terrain
+            'ESRI Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: '© Esri'
+            }),
+            'ESRI Terrain': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 13,
+                attribution: '© Esri'
+            }),
+            
+            // Dark Theme
+            'CartoDB Dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors, © CartoDB'
+            }),
+            'CartoDB Voyager': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors, © CartoDB'
+            }),
+
+            'OpenStreetMap Transport': L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '© OpenStreetMap contributors, © MeMoMaps'
+            }),
+        };
+        layers['{{ default_layer }}'].addTo(map);
+
+        {% if enable_layer_control %}
+        // Add layer control only if enabled
+        L.control.layers(layers, {}, {
+            position: 'topright',
+            collapsed: false
+        }).addTo(map);
+        {% endif %}
+
+        // Add initial landmarks from the database
+        async function loadLandmarks() {
+            try {
+                const response = await fetch('/maps/landmarks');
+                const landmarks = await response.json();
+                landmarks.forEach(landmark => {
+                    addLandmark(landmark.name, landmark.coords, false, landmark.markerStyle);
+                });
+            } catch (error) {
+                console.error('Error loading landmarks:', error);
+            }
+        }
+
+        map.on('click', function (e) {
+            // Update current location info
+            const coords = [e.latlng.lat, e.latlng.lng];
+
+            // Remove previous marker if exists
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+            }
+
+            // Add new marker
+            currentLocationMarker = L.marker(coords, {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41]
+                })
+            }).addTo(map);
+
+            // Display location info
+            displayLocationInfo(coords);
+        });
+
+        function isValidIcon(icon, granularity) {
+            if (granularity === 'coarse') {
+                const validIcons = [
+                    'map-marker',
+                    'utensils',
+                    'tree',
+                    'hospital',
+                    'graduation-cap',
+                    'shopping-cart',
+                    'coffee',
+                    'bed',
+                    'dumbbell',
+                    'book',
+                    'landmark'
+                ];
+                return validIcons.includes(icon);
+            }
+            // For fine-grained, we accept all Font Awesome icons
+            return true;
+        }
+        async function addLandmark(name, coords, saveToDb=true, existingStyle=null) {
+            let markerStyle = existingStyle;
+            
+            if (saveToDb && '{{ popup_display_rule }}' === 'diy' && !existingStyle) {
+                markerStyle = await showMarkerCustomizationModal();
+                if (!markerStyle) return;
+            } else if (saveToDb && '{{ popup_display_rule }}' === 'automatic' && !existingStyle) {
+                // Generate automatic marker style based on name
+                markerStyle = {
+                    icon: getIconForName(name, '{{ granularity }}'),
+                    color: getColorForName(name, '{{ granularity }}')
+                    // icon: getIconForName(name),
+                    // color: getColorForName(name)
+                };
+            }
+
+            if (saveToDb) {
+                const response = await fetch('/maps/add_landmarks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        name, 
+                        coords,
+                        markerStyle: markerStyle
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(`Failed to save landmark: ${await response.text()}`);
+                }
+            }
+
+            let marker;
+            switch ('{{ popup_display_rule }}') {
+                case 'automatic':
+                    const markerIcon = L.AwesomeMarkers.icon({
+                        icon: getIconForName(name, '{{ granularity }}'),
+                        // icon: getIconForName(name),
+                        prefix: 'fa',
+                        // markerColor: getColorForName(name),
+                        markerColor: getColorForName(name, '{{ granularity }}'),
+                        iconColor: 'white'
+                    });
+                    marker = L.marker(coords, { icon: markerIcon });
+                    break;
+                case 'diy':
+                    if (markerStyle && markerStyle.icon && markerStyle.color) {
+                        const isValid = isValidIcon(markerStyle.icon, '{{ granularity }}');
+                        const defaultIcon = L.AwesomeMarkers.icon({
+                        icon: 'map-marker',
+                        prefix: 'fa',
+                        markerColor: 'blue',
+                        iconColor: 'white'
+                    });
+                        if (isValid) {
+                            const customIcon = L.AwesomeMarkers.icon({
+                                icon: markerStyle.icon,
+                                prefix: 'fa',
+                                markerColor: markerStyle.color,
+                                iconColor: 'white'
+                            });
+                            marker = L.marker(coords, { icon: customIcon });
+                        } else {
+                            marker = L.marker(coords, { icon: defaultIcon });
+                        }
+                    } else {
+                        // Fallback to default marker if no style is provided
+                        marker = L.marker(coords);
+                    }
+                    break;
+                default:
+                    marker = L.marker(coords);
+            }
+
+            marker.addTo(map);
+            const popup = L.popup()
+                .setLatLng(coords)
+                .setContent(name);
+
+            marker.bindPopup(popup);
+
+            // Add accessibility attributes to the marker
+            const markerElement = marker.getElement();
+            if (markerElement) {
+                markerElement.setAttribute('role', 'button');
+                markerElement.setAttribute('aria-label', `Marker for ${name}`);
+                markerElement.setAttribute('tabindex', '0'); // Make it focusable
+            }
+
+            marker.on('popupopen', function () {
+                map.setView(coords, 15);
+            });
+
+            popups.set(name, {
+                popup: popup,
+                coords: coords,
+                marker: marker,
+                style: markerStyle
+            });
+            updatePopupList();
+        }
+
+        function updatePopupList() {
+            const listDiv = document.getElementById('popupList');
+            listDiv.innerHTML = '';
+
+            popups.forEach((value, name) => {
+                const item = document.createElement('div');
+                item.className = 'popup-list-item';
+                item.innerHTML = `
+                    ${name}
+                    <button class="delete-btn" onclick="deletePopup('${name}')" aria-label="Delete ${name}">×</button>
+                `;
+                item.addEventListener('click', function (e) {
+                    if (!e.target.classList.contains('delete-btn')) {
+                        map.setView(value.coords, 15);
+                        value.marker.openPopup();
+                    }
+                });
+                listDiv.appendChild(item);
+            });
+        }
+
+        function showMarkerCustomizationModal() {
+            return new Promise((resolve) => {
+                markerCustomizationResolve = resolve;
+                document.getElementById('markerCustomizationModal').style.display = 'block';
+            });
+        }
+
+        function cancelMarkerCustomization() {
+            document.getElementById('markerCustomizationModal').style.display = 'none';
+            if (markerCustomizationResolve) {
+                markerCustomizationResolve(null);
+                markerCustomizationResolve = null;
+            }
+        }
+
+        function confirmMarkerCustomization() {
+            const icon = document.getElementById('markerIcon').value;
+            const color = document.getElementById('markerColor').value;
+            document.getElementById('markerCustomizationModal').style.display = 'none';
+            if (markerCustomizationResolve) {
+                markerCustomizationResolve({ icon, color });
+                markerCustomizationResolve = null;
+            }
+        }
+
+        async function deletePopup(name) {
+            const popupData = popups.get(name);
+            if (popupData) {
+                try {
+                    const response = await fetch(`/maps/landmarks/${name}`, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) throw new Error('Failed to delete landmark');
+                    
+                    map.removeLayer(popupData.marker);
+                    popups.delete(name);
+                    updatePopupList();
+                } catch (error) {
+                    console.error('Error deleting landmark:', error);
+                }
+            }
+        }
+
+        // Search functionality
+        async function searchLocation(query) {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            return data;
+        }
+
+        function displaySearchResults(results) {
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+
+            results.forEach(result => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                
+                // Create a container for result text and save button
+                const resultContent = document.createElement('div');
+                resultContent.style.display = 'flex';
+                resultContent.style.justifyContent = 'space-between';
+                resultContent.style.alignItems = 'center';
+                
+                // Add result text
+                const text = document.createElement('span');
+                text.textContent = result.display_name;
+                
+                // Add save button
+                const saveBtn = document.createElement('button');
+                saveBtn.innerHTML = '<i class="fas fa-bookmark"></i>';
+                saveBtn.setAttribute('aria-label', `Save location: ${result.display_name}`);
+                saveBtn.style.marginLeft = '10px';
+                saveBtn.style.padding = '5px 10px';
+                saveBtn.style.backgroundColor = '#2ecc71';
+                saveBtn.style.border = 'none';
+                saveBtn.style.borderRadius = '3px';
+                saveBtn.style.color = 'white';
+                saveBtn.style.cursor = 'pointer';
+                
+                resultContent.appendChild(text);
+                resultContent.appendChild(saveBtn);
+                item.appendChild(resultContent);
+
+                // Add click handler for viewing location
+                text.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const coords = [parseFloat(result.lat), parseFloat(result.lon)];
+                    map.setView(coords, 15);
+
+                    // Add a temporary marker
+                    const marker = L.marker(coords).addTo(map);
+                    marker.bindPopup(result.display_name).openPopup();
+
+                    // Remove the marker after 5 seconds
+                    setTimeout(() => map.removeLayer(marker), 5000);
+                });
+
+                // Add click handler for saving location
+                saveBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const coords = [parseFloat(result.lat), parseFloat(result.lon)];
+                    const name = result.display_name; // Use the display name directly
+                    
+                    if (name) {
+                        try {
+                            await addLandmark(name, coords, true);
+                            // Clear search results after saving
+                            searchResults.innerHTML = '';
+                        } catch (error) {
+                            console.error('Error saving landmark:', error);
+                        }
+                    }
+                });
+                searchResults.appendChild(item);
+            });
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', async () => {
+            const query = document.getElementById('searchInput').value;
+            if (query) {
+                const results = await searchLocation(query);
+                displaySearchResults(results);
+            }
+        });
+
+        // Add Enter key support for search
+        document.getElementById('searchInput').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const query = e.target.value;
+                if (query) {
+                    const results = await searchLocation(query);
+                    displaySearchResults(results);
+                }
+            }
+        });
+
+        // Current location marker variable
+        let currentLocationMarker = null;
+
+        async function displayLocationInfo(coords) {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords[0]}&lon=${coords[1]}`);
+            const data = await response.json();
+
+            const infoDiv = document.getElementById('currentLocationInfo');
+            infoDiv.innerHTML = `
+                <strong>Location:</strong> ${data.display_name}<br>
+                <strong>Coordinates:</strong> ${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}
+            `;
+        }
+
+        async function handleLocationSearch(inputId, resultsId, locType) {
+            const input = document.getElementById(inputId);
+            const resultsDiv = document.getElementById(resultsId);
+            let searchBtn = input.parentElement.querySelector('.search-btn'); 
+
+            if (!searchBtn) { // Only create if it doesn't exist
+                searchBtn = document.createElement('button');
+                searchBtn.textContent = 'Search';
+                searchBtn.className = 'search-btn';
+                // Insert button before the results div, or adjust as per your layout
+                resultsDiv.parentNode.insertBefore(searchBtn, resultsDiv); 
+            
+                searchBtn.addEventListener('click', performSearch);
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') performSearch(e);
+                });
+            }
+
+
+            async function performSearch(e) {
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                if (input.value) {
+                    resultsDiv.innerHTML = 'Searching...';
+                    try {
+                        const results = await searchLocation(input.value);
+                        resultsDiv.innerHTML = ''; 
+
+                        if (results && results.length > 0) {
+                            results.forEach(result => {
+                                const item = document.createElement('div');
+                                item.className = 'search-result-item';
+                                item.textContent = result.display_name;
+                                item.addEventListener('click', (evt) => {
+                                    evt.stopPropagation(); 
+                                    input.value = result.display_name;
+                                    
+                                    if (locType === 'from' || locType === 'to') {
+                                        routeLocations[locType] = [parseFloat(result.lat), parseFloat(result.lon)];
+                                    } else if (locType === 'loc1' || locType === 'loc2') {
+                                        selectedLocations[locType] = [parseFloat(result.lat), parseFloat(result.lon)];
+                                    }
+                                    resultsDiv.innerHTML = ''; 
+                                });
+                                resultsDiv.appendChild(item);
+                            });
+                        } else {
+                            resultsDiv.innerHTML = 'No results found.';
+                        }
+                    } catch (error) {
+                        resultsDiv.innerHTML = 'Search failed.';
+                        console.error("Search error:", error);
+                    }
+                } else {
+                     resultsDiv.innerHTML = ''; 
+                }
+            }
+        }
+
+        // Ensure DOMContentLoaded calls the correct handleLocationSearch for routing inputs
+        document.addEventListener('DOMContentLoaded', function () {
+            // For Route Planning
+            handleLocationSearch('fromLocation', 'fromLocationResults', 'from');
+            handleLocationSearch('toLocation', 'toLocationResults', 'to');
+        });
+
+        // Function to handle clicking outside search results
+        function handleClickOutside(event, resultsDiv) {
+            if (!resultsDiv.contains(event.target) &&
+                !event.target.matches('#searchInput') &&
+                !event.target.matches('#fromLocation') &&
+                !event.target.matches('#toLocation') &&
+                !event.target.matches('.search-btn')) {
+                resultsDiv.innerHTML = '';
+            }
+        }
+
+        // Add click event listeners for all search results
+        document.addEventListener('click', function (event) {
+            const mainSearchResults = document.getElementById('searchResults');
+            const fromLocationResults = document.getElementById('fromLocationResults');
+            const toLocationResults = document.getElementById('toLocationResults');
+
+            handleClickOutside(event, mainSearchResults);
+            handleClickOutside(event, fromLocationResults);
+            handleClickOutside(event, toLocationResults);
+        });
+
+        // Store selected route locations
+        let routeLocations = { from: null, to: null };
+        let routeLayer = null;
+        let allItineraries = []; // To store all fetched itineraries
+
+        function getModeColor(mode) {
+            if (!mode) return 'gray'; // Default for undefined mode
+            switch (mode.toUpperCase()) {
+                case 'WALK': return 'blue';
+                case 'BICYCLE': return 'orange';
+                case 'CAR': return '#0033A0';
+                case 'SUBWAY': return 'red';
+                case 'RAIL': return '#FF0000';   // Example: Red for Rail
+                case 'BUS': return '#FFC107';    // Example: Amber for Bus
+                case 'TRAM': return '#00BCD4';   // Example: Cyan for Tram
+                case 'FERRY': return '#2196F3';  // Example: Blue for Ferry
+                case 'TRANSIT': return 'purple'; // Generic transit
+                default: return 'gray';      // Default for other modes
+            }
+        }
+
+        function getIconForMode(mode, leg = null) {
+            if (!mode) return 'fas fa-question-circle'; // Default for unknown mode
+            const upperMode = mode.toUpperCase();
+
+            if (upperMode === 'SUBWAY') {
+                if (leg && leg.route && leg.route.shortName && leg.route.shortName.trim() !== "") {
+                    return leg.route.shortName; // Return the subway line letter/number
+                }
+                return 'fas fa-subway'; // Fallback for SUBWAY if no shortName or empty shortName
+            }
+            switch (upperMode) {
+                case 'WALK': return 'fas fa-walking';
+                case 'BICYCLE': return 'fas fa-bicycle';
+                case 'CAR': return 'fas fa-car';
+                case 'SUBWAY': return 'fas fa-subway';
+                case 'RAIL': return 'fas fa-train';
+                case 'BUS': return 'fas fa-bus';
+                case 'TRAM': return 'fas fa-tram';
+                case 'FERRY': return 'fas fa-ship';
+                case 'TRANSIT': return 'fas fa-exchange-alt'; // Generic transit
+                case 'AIRPLANE': return 'fas fa-plane';
+                default: return 'fas fa-route'; // Generic route icon for other modes
+            }
+        }
+
+        function decodePolyline(encoded) {
+            var points = [];
+            var index = 0, len = encoded.length;
+            var lat = 0, lng = 0;
+
+            while (index < len) {
+                var b, shift = 0, result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+
+                shift = 0;
+                result = 0;
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+
+                points.push([lat / 1e5, lng / 1e5]);
+            }
+            return points;
+        }
+
+        // Initialize route search functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            handleLocationSearch('fromLocation', 'fromLocationResults', 'from');
+            handleLocationSearch('toLocation', 'toLocationResults', 'to');
+        });
+
+        function displayItinerary(itineraryNode) {
+            if (routeLayer) {
+                map.removeLayer(routeLayer);
+                routeLayer = null;
+            }
+            document.getElementById('routeResult').innerHTML = ''; // Clear previous details
+
+            if (!itineraryNode || !itineraryNode.legs || itineraryNode.legs.length === 0) {
+                document.getElementById('routeResult').innerHTML = `
+                    <strong>No route found or route has no legs.</strong> Check locations or try different modes/times.
+                `;
+                console.warn('No legs found in itinerary node:', itineraryNode);
+                return;
+            }
+
+            const legs = itineraryNode.legs;
+            routeLayer = L.featureGroup().addTo(map);
+            let totalDistanceMeters = 0;
+            let totalDurationSeconds = 0;
+            // Format time helper function
+            const formatTime = (dateStr) => {
+                const date = new Date(dateStr);
+                return date.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                });
+            };
+
+            let routeDetailsHtml = `
+                <strong>Route Details:</strong>
+                <div style="margin: 10px 0;">
+                    <span style="font-weight: bold;">Departure:</span> ${formatTime(legs[0].startTime)}
+                    <span style="margin: 0 10px;">→</span>
+                    <span style="font-weight: bold;">Arrival:</span> ${formatTime(legs[legs.length-1].endTime)}
+                </div>
+                <ul>
+            `;
+            legs.forEach(leg => {
+                if (leg.legGeometry && leg.legGeometry.points) {
+                    const decodedCoords = decodePolyline(leg.legGeometry.points);
+                    if (decodedCoords.length > 0) {
+                        const modeColor = getModeColor(leg.mode);
+                        L.polyline(decodedCoords, {
+                            color: modeColor,
+                            weight: 5,
+                            opacity: 0.8
+                        }).addTo(routeLayer);
+                    }
+                }
+                totalDistanceMeters += (leg.distance || 0);
+                totalDurationSeconds += (leg.duration || 0);
+                const legDurationMin = Math.round((leg.duration || 0) / 60);
+                const legDistanceKm = ((leg.distance || 0) / 1000).toFixed(2);
+
+                routeDetailsHtml += `<li>`;
+                routeDetailsHtml += `<strong>${formatTime(leg.startTime)} - ${formatTime(leg.endTime)}</strong><br>`;
+                routeDetailsHtml += `<strong>${leg.mode || 'N/A'}</strong>: ${legDurationMin} min, ${legDistanceKm} km`;
+                if (leg.route && leg.route.shortName) {
+                    routeDetailsHtml += ` (Line: ${leg.route.shortName} ${leg.route.longName ? '- ' + leg.route.longName : ''})`;
+                }
+                routeDetailsHtml += `</li>`;
+            });
+            routeDetailsHtml += '</ul>';
+
+            if (routeLayer.getLayers().length > 0) {
+                map.fitBounds(routeLayer.getBounds());
+            }
+            const totalDurationMinutes = Math.round(totalDurationSeconds / 60);
+            const totalDistanceKm = (totalDistanceMeters / 1000).toFixed(2);
+
+            document.getElementById('routeResult').innerHTML = routeDetailsHtml;
+            document.getElementById('routeResult').innerHTML += `
+                <strong>Total Duration:</strong> ${totalDurationMinutes} minutes<br>
+                <strong>Total Distance:</strong> ${totalDistanceKm} km
+            `;
+        }
+
+        document.getElementById('calculateRouteBtn').addEventListener('click', async function() {
+            if (!routeLocations.from || !routeLocations.to) {
+                document.getElementById('routeResult').innerHTML = `
+                    <strong>Error:</strong> Please select both locations
+                `;
+                return;
+            }
+
+            try {
+                // Remove existing route if any
+                if (routeLayer) {
+                    map.removeLayer(routeLayer);
+                    routeLayer = null;
+                }
+
+                // Get current date and time from the client
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const seconds = now.getSeconds().toString().padStart(2, '0');
+
+                const currentDate = `${year}-${month}-${day}`;
+                // const currentTime = `${hours}:${minutes}:${seconds}`;
+                // currentTime by default is in UTC
+                // correct the time to local timezone
+                const localTimeOffset = now.getTimezoneOffset() * 60; // in seconds
+                const localTime = new Date(now.getTime() + (localTimeOffset * 1000));
+                const localHours = localTime.getHours().toString().padStart(2, '0');
+                const localMinutes = localTime.getMinutes().toString().padStart(2, '0');
+                const localSeconds = localTime.getSeconds().toString().padStart(2, '0');
+                const currentTime = `${localHours}:${localMinutes}:${localSeconds}`;
+
+
+
+                const apiUrl = `/maps/route?from_lat=${routeLocations.from[0]}&from_lon=${routeLocations.from[1]}&to_lat=${routeLocations.to[0]}&to_lon=${routeLocations.to[1]}&date=${currentDate}&time=${currentTime}&mode=WALK,TRANSIT,SUBWAY,BUS,RAIL`;
+
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                allItineraries = []; // Reset itineraries
+
+                if (!response.ok || data.error) {
+                    const errorMessage = data.error || `Server error: ${response.status}`;
+                    let errorDetails = "";
+                    if (data.details) {
+                        try {
+                            const detailsObj = JSON.parse(data.details);
+                            if (detailsObj && detailsObj.errors && detailsObj.errors.length > 0) {
+                                errorDetails = detailsObj.errors.map(e => e.message).join(', ');
+                            } else {
+                                errorDetails = data.details;
+                            }
+                        } catch (e) {
+                            errorDetails = data.details;
+                        }
+                    }
+                    document.getElementById('routeResult').innerHTML = `
+                        <strong>Error:</strong> ${errorMessage} <br> <small>${errorDetails || ''}</small>
+                    `;
+                    document.getElementById('itinerarySelectorContainer').style.display = 'none';
+                    console.error('Route API Error:', data);
+                    return;
+                }
+
+                // Check if planConnection and edges are present (OTPv2 structure)
+                if (data.data && data.data.planConnection && data.data.planConnection.edges && data.data.planConnection.edges.length > 0) {
+                    allItineraries = data.data.planConnection.edges;
+                    const itinerarySelectorContainer = document.getElementById('itinerarySelectorContainer');
+                    
+                    if (allItineraries.length > 1) {
+                        itinerarySelectorContainer.style.display = 'block';
+                        const optionsContainer = document.querySelector('.custom-select-options');
+                        const selectHeader = document.querySelector('.custom-select-header span');
+                        
+                        if (!optionsContainer || !selectHeader) {
+                            console.error('Custom select elements not found');
+                            return;
+                        }
+                        
+                        optionsContainer.innerHTML = ''; // Clear previous options
+
+                        allItineraries.forEach((edge, index) => {
+                            const itinerary = edge.node;
+                            const option = document.createElement('div');
+                            option.className = 'custom-select-option';
+                            option.dataset.value = index;
+
+                            if (itinerary.legs && itinerary.legs.length > 0) {
+                                const totalDurationMin = Math.round(itinerary.legs.reduce((sum, leg) => sum + (leg.duration || 0), 0) / 60);
+                                
+                                // Get start time from first leg and end time from last leg
+                                const startTime = new Date(itinerary.legs[0].startTime);
+                                const endTime = new Date(itinerary.legs[itinerary.legs.length - 1].endTime);
+                                
+                                // Format times as HH:MM
+                                const formatTime = (date) => {
+                                    return date.toLocaleTimeString('en-US', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        hour12: false 
+                                    });
+                                };
+
+                                const icons = itinerary.legs.map(leg => {
+                                    if (leg.mode) {
+                                        const representation = getIconForMode(leg.mode, leg); // Pass the leg object
+                                        const legDurationMin = Math.round((leg.duration || 0) / 60);
+                                        const title = `${leg.mode}: ${legDurationMin} min`;
+
+                                        if (representation.startsWith('fas fa-')) { // It's a FontAwesome class
+                                            return `<i class="${representation}" title="${title}" style="margin-right: 3px; vertical-align: middle;"></i>`;
+                                        } else { // It's a subway letter or other custom representation
+                                            const bgColor = (leg.route && leg.route.color) ? '#' + leg.route.color : '#808080'; // Default gray
+                                            const fgColor = (leg.route && leg.route.textColor) ? '#' + leg.route.textColor : '#FFFFFF'; // Default white
+                                            return `<span class="subway-letter-icon" title="${title}" style="background-color: ${bgColor}; color: ${fgColor}; padding: 1px 5px; border-radius: 3px; margin-right: 3px; font-weight: bold; font-size: 0.8em; display: inline-block; vertical-align: middle; line-height: 1.2;">${representation}</span>`;
+                                        }
+                                    }
+                                    return '';
+                                }).join(' ');
+
+                                let content = `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                        <div>Option ${index + 1}: ${icons}</div>
+                                        <div style="color: #666; font-size: 0.9em;">
+                                            ${formatTime(startTime)} → ${formatTime(endTime)}
+                                        </div>
+                                    </div>
+                                `;
+
+                                option.innerHTML = content;
+                            } else {
+                                option.textContent = `Option ${index + 1}: Details unavailable`;
+                            }
+
+                            option.addEventListener('click', () => {
+                                const selectedIndex = parseInt(option.dataset.value);
+                                if (allItineraries[selectedIndex] && allItineraries[selectedIndex].node) {
+                                    displayItinerary(allItineraries[selectedIndex].node);
+                                    selectHeader.innerHTML = option.innerHTML;
+                                    optionsContainer.style.display = 'none';
+                                    
+                                    document.querySelectorAll('.custom-select-option').forEach(opt => {
+                                        opt.classList.remove('selected');
+                                    });
+                                    option.classList.add('selected');
+                                }
+                            });
+
+                            optionsContainer.appendChild(option);
+                        });
+
+                        // Display first option by default
+                        if (allItineraries[0] && allItineraries[0].node) {
+                            const firstOption = optionsContainer.firstChild;
+                            if (firstOption) {
+                                selectHeader.innerHTML = firstOption.innerHTML;
+                                firstOption.classList.add('selected');
+                                displayItinerary(allItineraries[0].node);
+                            }
+                        }
+
+                        // Add click handler for the custom select header
+                        document.querySelector('.custom-select-header').addEventListener('click', function() {
+                            optionsContainer.style.display = optionsContainer.style.display === 'none' ? 'block' : 'none';
+                        });
+
+                    } else if (allItineraries.length === 1) {
+                        itinerarySelectorContainer.style.display = 'none';
+                        if (allItineraries[0] && allItineraries[0].node) {
+                            displayItinerary(allItineraries[0].node);
+                        }
+                    } else {
+                        document.getElementById('routeResult').innerHTML = `<strong>No route found.</strong>`;
+                        itinerarySelectorContainer.style.display = 'none';
+                    }
+                } else {
+                    document.getElementById('routeResult').innerHTML = `
+                        <strong>No route found.</strong> Check locations or try different modes/times.
+                    `;
+                    document.getElementById('itinerarySelectorContainer').style.display = 'none';
+                    console.warn('No planConnection.edges found in response:', data);
+                }
+            } catch (error) {
+                document.getElementById('routeResult').innerHTML = `
+                    <strong>Error:</strong> Failed to fetch or process route. Check console for details.
+                `;
+                document.getElementById('itinerarySelectorContainer').style.display = 'none';
+                console.error('Route calculation error:', error);
+            }
+        });
+
+    </script>
+    <div id="markerCustomizationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;">
+        <h3>Customize Marker</h3>
+        <div style="margin-bottom: 15px;">
+            <label for="markerIcon">Icon:</label>
+            <select id="markerIcon" style="width: 100%; padding: 5px; margin-top: 5px;">
+                {% if granularity == 'coarse' %}
+                <option value="map-marker">Default Marker</option>
+                <option value="utensils">Restaurant</option>
+                <option value="tree">Park</option>
+                <option value="hospital">Hospital</option>
+                <option value="graduation-cap">School</option>
+                <option value="shopping-cart">Shop</option>
+                <option value="coffee">Cafe</option>
+                <option value="bed">Hotel</option>
+                <option value="dumbbell">Gym</option>
+                <option value="book">Library</option>
+                <option value="landmark">Museum</option>
+                {% else %}
+                <!-- Places & Buildings -->
+                <option value="map-marker">Default Marker</option>
+                <option value="utensils">Restaurant</option>
+                <option value="tree">Park</option>
+                <option value="hospital">Hospital</option>
+                <option value="graduation-cap">School</option>
+                <option value="shopping-cart">Shop</option>
+                <option value="coffee">Cafe</option>
+                <option value="bed">Hotel</option>
+                <option value="dumbbell">Gym</option>
+                <option value="book">Library</option>
+                <option value="landmark">Museum</option>
+                
+                <!-- Transportation -->
+                <option value="plane">Airport</option>
+                <option value="train">Train Station</option>
+                <option value="bus">Bus Station</option>
+                <option value="ship">Port/Harbor</option>
+                <option value="parking">Parking</option>
+                
+                <!-- Entertainment -->
+                <option value="film">Theater/Cinema</option>
+                <option value="futbol">Stadium</option>
+                <option value="swimming-pool">Swimming Pool</option>
+                
+                <!-- Services -->
+                <option value="money-bill">Bank/ATM</option>
+                <option value="envelope">Post Office</option>
+                <option value="prescription-bottle-alt">Pharmacy</option>
+                {% endif %}
+            </select>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label for="markerColor">Color:</label>
+            <select id="markerColor" style="width: 100%; padding: 5px; margin-top: 5px;">
+                <option value="red">Red</option>
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="orange">Orange</option>
+                <option value="purple">Purple</option>
+                <option value="darkred">Dark Red</option>
+                <option value="darkblue">Dark Blue</option>
+                <option value="darkgreen">Dark Green</option>
+                <option value="darkpurple">Dark Purple</option>
+                <option value="cadetblue">Cadet Blue</option>
+            </select>
+        </div>
+        <div style="text-align: right;">
+            <button onclick="cancelMarkerCustomization()" style="margin-right: 10px;">Cancel</button>
+            <button onclick="confirmMarkerCustomization()" style="background-color: #3498db; color: white; border: none; padding: 5px 15px; border-radius: 3px;">Confirm</button>
+        </div>
+    </div>
+</body>
+
+</html>

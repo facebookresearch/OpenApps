@@ -1,0 +1,10 @@
+pop_up1:
+  title: ${apps.start_page.headline}
+  content: ${apps.adversarial_message}
+  button_title: "Don't care, let's start"
+  position: "top right" # options: top, bottom, left, right, center and combinations
+  url_extension: "" # not functionsal yet
+  link_button_title: "Let us be careful more information" # the careful thing might distract the model but not technically adversarial
+  link_button_url: https://www.youtube.com/watch?v=oHg5SJYRHA0 # rick rolling
+  image_url: null
+  

@@ -1,0 +1,518 @@
+# @package apps.calendar
+
+style:
+  # Add event visual placeholder and text aria label
+  add_event_display:
+    placeholder:
+      title: 'Event Title'
+      date: 'YYYY-MM-DD'  # Date format
+      description: 'Event description...'
+      url: 'https://example.com'
+      invitees: 'John, Jane, etc.'
+      location: 'None'
+    aria_label:
+      title: 'Event title'
+      date: 'Event date, YYYY-MM-DD'
+      description: 'Event description'
+      url: 'Event URL'
+      invitees: 'Event invitees'
+      location: 'Event location'
+
+events:
+  - title: WACV 2026 Abstract Deadline
+    date: 2025-07-11
+    description: |
+      # WACV 2026 Abstract Deadline
+      
+      Winter Conference on Applications of Computer Vision abstract submission deadline.
+      
+      ## Important Dates:
+      - Abstract Deadline: July 11, 2025
+      - Full Paper Deadline: July 18, 2025
+      
+      Submit abstracts through the conference portal.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: WACV 2026 Paper Deadline
+    date: 2025-07-18
+    description: |
+      # WACV 2026 Full Paper Deadline
+      
+      Final deadline for Winter Conference on Applications of Computer Vision paper submissions.
+      
+      Papers must be submitted in the required format with all supplementary materials.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: AAAI 2026 Abstract Deadline
+    date: 2025-07-25
+    description: |
+      # AAAI 2026 Abstract Submission Deadline
+      
+      Abstract submission deadline for the 40th AAAI Conference on Artificial Intelligence.
+      
+      ## Timeline:
+      - Abstract Deadline: July 25, 2025
+      - Full Paper Deadline: August 1, 2025
+      
+      One of the premier conferences in AI covering all areas of artificial intelligence.
+    url: https://aaai.org/conference/
+    location: Online
+    invitees: null
+
+  - title: SIGKDD 2026 Abstract Deadline
+    date: 2025-07-24
+    description: |
+      # SIGKDD 2026 Abstract Deadline
+      
+      Abstract submission deadline for the Conference on Knowledge Discovery and Data Mining.
+      
+      ## Important Dates:
+      - Abstract Deadline: July 24, 2025
+      - Full Paper Deadline: July 31, 2025
+      
+      SIGKDD is the premier conference on data mining, data science, and knowledge discovery.
+    url: https://kdd.org/
+    location: Online
+    invitees: null
+
+  - title: AAAI 2026 Paper Deadline
+    date: 2025-08-01
+    description: |
+      # AAAI 2026 Full Paper Submission Deadline
+      
+      Final deadline for paper submissions to the 40th AAAI Conference on Artificial Intelligence.
+      
+      AAAI is one of the most important conferences in artificial intelligence research.
+    url: https://aaai.org/conference/
+    location: Online
+    invitees: null
+
+  - title: SIGKDD 2026 Paper Deadline
+    date: 2025-07-31
+    description: |
+      # SIGKDD 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the Conference on Knowledge Discovery and Data Mining.
+      
+      Papers must follow the ACM formatting guidelines and be submitted through the conference system.
+    url: https://kdd.org/
+    location: Online
+    invitees: null
+
+  - title: UbiComp/ISWC 2025 Deadline
+    date: 2025-08-01
+    description: |
+      # UbiComp/ISWC 2025 August Deadline
+      
+      August submission deadline for the ACM International Joint Conference on Pervasive and Ubiquitous Computing.
+      
+      This is a rolling deadline conference with submissions accepted quarterly.
+    url: https://www.ubicomp.org/
+    location: Online
+    invitees: null
+
+  - title: WSDM 2026 Abstract Deadline
+    date: 2025-08-07
+    description: |
+      # WSDM 2026 Abstract Deadline
+      
+      Abstract submission deadline for Web Search and Data Mining Conference.
+      
+      ## Important Dates:
+      - Abstract Deadline: August 7, 2025
+      - Full Paper Deadline: August 14, 2025
+      
+      WSDM is one of the premier conferences on web-inspired research.
+    url: https://www.wsdm-conference.org/
+    location: Online
+    invitees: null
+
+  - title: WSDM 2026 Paper Deadline
+    date: 2025-08-14
+    description: |
+      # WSDM 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the Web Search and Data Mining Conference.
+      
+      Submit your research on search and data mining on the web and beyond.
+    url: https://www.wsdm-conference.org/
+    location: Online
+    invitees: null
+
+  - title: 3DV 2026 Deadline
+    date: 2025-08-18
+    description: |
+      # 3DV 2026 Submission Deadline
+      
+      Paper submission deadline for the International Conference on 3D Vision.
+      
+      Submit your research on all aspects of 3D computer vision, including 3D reconstruction, perception, and analysis.
+    url: https://3dv2026.org/
+    location: Online
+    invitees: null
+
+  - title: CHI 2026 Abstract Deadline
+    date: 2025-09-04
+    description: |
+      # CHI 2026 Abstract Deadline
+      
+      Abstract submission deadline for the ACM CHI Conference on Human Factors in Computing Systems.
+      
+      ## Important Dates:
+      - Abstract Deadline: September 4, 2025
+      - Full Paper Deadline: September 11, 2025
+      
+      CHI is the premier international conference on Human-Computer Interaction.
+    url: https://chi2026.acm.org/
+    location: Online
+    invitees: null
+
+  - title: CHI 2026 Paper Deadline
+    date: 2025-09-11
+    description: |
+      # CHI 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the ACM CHI Conference on Human Factors in Computing Systems.
+      
+      Papers must be anonymized and follow the ACM template guidelines.
+    url: https://chi2026.acm.org/
+    location: Online
+    invitees: null
+
+  - title: WACV 2026 Second Abstract Deadline
+    date: 2025-09-12
+    description: |
+      # WACV 2026 Second Abstract Deadline
+      
+      Second round abstract submission deadline for Winter Conference on Applications of Computer Vision.
+      
+      ## Important Dates:
+      - Abstract Deadline: September 12, 2025
+      - Full Paper Deadline: September 19, 2025
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: WACV 2026 Second Paper Deadline
+    date: 2025-09-19
+    description: |
+      # WACV 2026 Second Paper Deadline
+      
+      Second round full paper submission deadline for Winter Conference on Applications of Computer Vision.
+      
+      This is the final opportunity to submit papers for WACV 2026.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: ICASSP 2026 Deadline
+    date: 2025-09-17
+    description: |
+      # ICASSP 2026 Submission Deadline
+      
+      Paper submission deadline for the IEEE International Conference on Acoustics, Speech and Signal Processing.
+      
+      ICASSP is the world's largest technical conference focused on signal processing and its applications.
+    url: https://2026.ieeeicassp.org/
+    location: Online
+    invitees: null
+
+  - title: ICLR 2026 Abstract Deadline
+    date: 2025-09-20
+    description: |
+      # ICLR 2026 Abstract Deadline
+      
+      Abstract submission deadline for the International Conference on Learning Representations.
+      
+      ## Important Dates:
+      - Abstract Deadline: September 20, 2025
+      - Full Paper Deadline: September 25, 2025
+      
+      ICLR is the premier conference on representation learning in artificial intelligence.
+    url: https://iclr.cc/
+    location: Online
+    invitees: null
+
+  - title: ICLR 2026 Paper Deadline
+    date: 2025-09-25
+    description: |
+      # ICLR 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the International Conference on Learning Representations.
+      
+      ICLR focuses on deep learning and representation learning approaches in AI.
+    url: https://iclr.cc/
+    location: Online
+    invitees: null
+
+  - title: SATML 2026 Deadline
+    date: 2025-09-24
+    description: |
+      # SATML 2026 Submission Deadline
+      
+      Paper submission deadline for the Conference on Secure and Trustworthy Machine Learning.
+      
+      SATML brings together researchers in security, privacy, machine learning, and AI safety.
+    url: https://satml.org/
+    location: Online
+    invitees: null
+
+  - title: IUI 2026 Abstract Deadline
+    date: 2025-10-03
+    description: |
+      # IUI 2026 Abstract Deadline
+      
+      Abstract submission deadline for the ACM Conference on Intelligent User Interfaces.
+      
+      ## Important Dates:
+      - Abstract Deadline: October 3, 2025
+      - Full Paper Deadline: October 10, 2025
+      
+      IUI focuses on the interaction between humans and AI systems.
+    url: https://iui.acm.org/2026/
+    location: Online
+    invitees: null
+
+  - title: IUI 2026 Paper Deadline
+    date: 2025-10-10
+    description: |
+      # IUI 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the ACM Conference on Intelligent User Interfaces.
+      
+      Submit your research on innovative interfaces that use AI technologies.
+    url: https://iui.acm.org/2026/
+    location: Online
+    invitees: null
+
+  - title: LREC 2026 Deadline
+    date: 2025-10-17
+    description: |
+      # LREC 2026 Submission Deadline
+      
+      Paper submission deadline for the Language Resources and Evaluation Conference.
+      
+      LREC is the major event on language resources and language technology evaluation.
+    url: https://lrec-conf.org/2026/
+    location: Online
+    invitees: null
+
+  - title: UbiComp/ISWC 2025 November Deadline
+    date: 2025-11-01
+    description: |
+      # UbiComp/ISWC 2025 November Deadline
+      
+      November submission deadline for the ACM International Joint Conference on Pervasive and Ubiquitous Computing.
+      
+      This is the fourth quarterly deadline for the rolling submission process.
+    url: https://www.ubicomp.org/
+    location: Online
+    invitees: null
+
+  - title: CPAL 2025 Deadline
+    date: 2025-11-25
+    description: |
+      # CPAL 2025 Submission Deadline
+      
+      Paper submission deadline for the Conference on Privacy, Accountability, and Legitimacy in AI.
+      
+      CPAL focuses on the social impact and governance of AI technologies.
+    url: https://cpal-conference.org/
+    location: Online
+    invitees: null
+
+  - title: IJCNN 2026 Deadline
+    date: 2026-01-31
+    description: |
+      # IJCNN 2026 Submission Deadline
+      
+      Paper submission deadline for the International Joint Conference on Neural Networks.
+      
+      IJCNN is the premier conference covering all topics in neural networks and related areas.
+    url: https://www.ijcnn.org/
+    location: Online
+    invitees: null
+
+  - title: InterSpeech 2026 Deadline
+    date: 2026-03-02
+    description: |
+      # InterSpeech 2026 Submission Deadline
+      
+      Paper submission deadline for the world's largest conference on speech processing.
+      
+      Submit your research on all aspects of speech science and technology.
+    url: https://www.isca-speech.org/
+    location: Online
+    invitees: null
+
+  - title: ECCV 2026 Paper Deadline
+    date: 2026-03-06
+    description: |
+      # ECCV 2026 Full Paper Deadline
+      
+      Paper submission deadline for the European Conference on Computer Vision.
+      
+      ECCV is one of the top conferences in computer vision research.
+    url: https://eccv2026.org/
+    location: Online
+    invitees: null
+  
+  # Birthdays
+  - title: Bob's Birthday
+    date: 1980-04-15
+    description: |
+      # Bob's Birthday
+      
+      Don't forget to send a gift or card!
+    recurring: yearly
+    invitees: Bob
+    
+  - title: Alice's Birthday
+    date: 1982-06-23
+    description: |
+      # Alice's Birthday
+      
+      Remember to call and wish her a happy birthday!
+    recurring: yearly
+    invitees: Alice
+    
+  - title: Charlie's Birthday
+    date: 1978-09-08
+    description: |
+      # Charlie's Birthday
+    recurring: yearly
+    invitees: Charlie
+    
+  - title: Gottfried's Birthday
+    date: 1975-11-30
+    description: |
+      # Gottfried's Birthday
+    recurring: yearly
+    invitees: Gottfried
+    
+  - title: Siegline's Birthday
+    date: 1987-02-14
+    description: |
+      # Siegline's Birthday
+    recurring: yearly
+    invitees: Siegline
+    
+  - title: Hans's Birthday
+    date: 1965-03-22
+    description: |
+      # Hans's Birthday
+    recurring: yearly
+    invitees: Hans
+    
+  - title: Greta's Birthday
+    date: 1992-05-10
+    description: |
+      # Greta's Birthday
+    recurring: yearly
+    invitees: Greta
+    
+  - title: Luka's Birthday
+    date: 1993-07-17
+    description: |
+      # Luka's Birthday
+    recurring: yearly
+    invitees: Luka
+    
+  - title: Anna's Birthday
+    date: 1985-08-03
+    description: |
+      # Anna's Birthday
+    recurring: yearly
+    invitees: Anna
+    
+  - title: Franz's Birthday
+    date: 1970-01-25
+    description: |
+      # Franz's Birthday
+    recurring: yearly
+    invitees: Franz
+    
+  - title: Josef's Birthday
+    date: 1968-10-12
+    description: |
+      # Josef's Birthday
+    recurring: yearly
+    invitees: Josef
+    
+  - title: Karl's Birthday
+    date: 1972-12-05
+    description: |
+      # Karl's Birthday
+    recurring: yearly
+    invitees: Karl
+    
+  - title: Helga's Birthday
+    date: 1967-06-29
+    description: |
+      # Helga's Birthday
+    recurring: yearly
+    invitees: Helga
+    
+  - title: Otto's Birthday
+    date: 1990-04-02
+    description: |
+      # Otto's Birthday
+    recurring: yearly
+    invitees: Otto
+    
+  - title: Zack's Birthday
+    date: 1995-07-30
+    description: |
+      # Zack's Birthday
+    recurring: yearly
+    invitees: Zack
+    
+  - title: Dad's Birthday
+    date: 1960-02-28
+    description: |
+      # Dad's Birthday
+      
+      Don't forget to call!
+    recurring: yearly
+    invitees: Dad
+    
+  - title: Alex's Birthday
+    date: 1988-11-15
+    description: |
+      # Alex's Birthday
+    recurring: yearly
+    invitees: Alex
+    
+  - title: Granni's Birthday
+    date: 1940-05-18
+    description: |
+      # Granni's Birthday
+      
+      Remember to send flowers!
+    recurring: yearly
+    invitees: Granni
+    
+  - title: Jamal's Birthday
+    date: 1987-09-22
+    description: |
+      # Jamal's Birthday
+    recurring: yearly
+    invitees: Jamal
+    
+  - title: Priya's Birthday
+    date: 1991-01-12
+    description: |
+      # Priya's Birthday
+    recurring: yearly
+    invitees: Priya
+    
+  - title: Elena's Birthday
+    date: 1984-08-20
+    description: |
+      # Elena's Birthday
+    recurring: yearly
+    invitees: Elena

@@ -1,0 +1,11 @@
+# @package apps.todo
+add_button_color: "#000000"
+background_color: "#000000"
+form_background_color: "#FFFFFF"
+remove_button_color: "#000000"
+edit_button_color: "#000000"
+save_button_color: "#000000"
+font_family: 'Times New Roman'
+base_font_size: '16px'
+font_color: "#000000"
+edit_remove_save_button_font_color: "#FFFFFF"

@@ -1,0 +1,7 @@
+# @package apps.todo
+defaults:
+  - default
+
+
++init_todos:
+  - ["${apps.adversarial_message}", false]

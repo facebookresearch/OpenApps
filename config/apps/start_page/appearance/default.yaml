@@ -1,0 +1,72 @@
+# @package apps.start_page
+# Layout and styling
+style: 1                # Style number (1, 2, or 3) as per Story template
+size: "small"           # Size of items - "small", "medium", or "big"
+fade_in: true           # Whether to fade in items on scroll
+lightbox: false         # Enable lightbox effect for images
+random_tile_reoder: false  # Whether to shuffle the items
+wrapper_style: 1        # Wrapper style number
+wrapper_align: "center" # Wrapper alignment - "left", "center", "right"
+wrapper_color: null     # Wrapper color number (1-7) or null
+wrapper_invert: false   # Whether to invert the wrapper color scheme
+
+# Font settings
+font_family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"  # iOS-like font stack
+font_size: 11           # Smaller base font size for compact look
+font_color: "#1d1d1f"   # Dark gray text color like iOS
+heading_font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"  # iOS-like font stack
+heading_color: "#1d1d1f" # Dark gray heading color
+
+# Item appearance - iPhone app style
+item_border_radius: 22  # Higher border radius for iOS rounded corners
+item_padding: 1.2       # Reduced padding for more compact look
+item_text_align: "center" # Text alignment - "left", "center", "right"
+item_hover_effect: true # Enable hover effect
+hover_shadow: true      # Enable shadow on hover
+hover_scale: true       # Enable subtle scale effect on hover like iOS
+hover_brightness: false # Disable brightness effect
+
+# Color scheme
+use_theme_colors: false # Whether to use Story theme colors (1-7) instead of custom colors
+theme_color: 1          # Theme color number when use_theme_colors is true
+background_color: "#f2f2f7"  # Light gray background like iOS
+app_background_colors:  # iOS-inspired gradient colors for app tiles
+  ["#007AFF", "#FF3B30", "#FF9500", "#FFCC02", "#34C759", "#5856D6", "#AF52DE"]
+use_random_colors: false # Generate random colors for items instead of using app_background_colors
+
+# Apps configuration
+icon_path: "/assets/icons/real_icons"
+bw_icon_path: "/assets/icons/real_icons_bw"
+apps:
+  todo:
+    icon: ${apps.start_page.icon_path}/todo.png 
+    enabled: true
+    position: 1
+    clickable_logo: false
+  calendar:
+    icon: ${apps.start_page.icon_path}/calendar.png
+    enabled: true
+    position: 2
+    clickable_logo: false
+  messages:
+    icon: ${apps.start_page.icon_path}/messages.png
+    user_icon: ${apps.start_page.bw_icon_path}/user.png
+    group_icon: ${apps.start_page.bw_icon_path}/group.png
+    enabled: true
+    position: 3
+    clickable_logo: false
+  maps:
+    icon: ${apps.start_page.icon_path}/maps.png
+    enabled: true
+    position: 4
+    clickable_logo: false
+  codeeditor:
+    icon: ${apps.start_page.icon_path}/code.png
+    enabled: true
+    position: 5
+    clickable_logo: false
+  onlineshop:
+    icon: ${apps.start_page.icon_path}/shop.png
+    enabled: true
+    position: 6
+    clickable_logo: false

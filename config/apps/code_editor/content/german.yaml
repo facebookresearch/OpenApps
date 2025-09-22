@@ -1,0 +1,55 @@
+# @package apps.code_editor
+defaults:
+  - default
+welcome_message: "Willkommen! Viel Spaß beim Programmieren!"
+
++filesystem:
+  - type: file
+    name: basic_imports.py
+    content: |
+      # Grundlegende Importe für die Datenmanipulation und -analyse
+      import numpy as np
+      import pandas as pd
+  - type: file
+    name: untitled_c.c
+    content: |
+      // Sehr einfaches C-Programm, das nichts tut
+      #include <iostream>
+      using namespace std;
+      int main() {
+        return 0;
+      }
+  - type: folder
+    name: developing
+    content:
+      - type: file
+        name: simple_python.py
+        content: |
+          # Das erste Python-Programm für viele Anfänger!
+          print("Hello, World!")
+      - type: folder
+        name: folder_in_folder
+        content:
+          - type: file
+            name: inner_file.py
+            content: |
+              # Die innere Datei im Verzeichnis folder_in_folder
+              import json
+              import requests
+          - type: folder
+            name: inner_folder
+            content: []
+  - type: folder
+    name: empty_folder
+    content: []
+  - type: file
+    name: script.py
+    content: |
+      # Grundlegende PyTorch-Z tensoroperation
+      import torch
+      import random
+      
+      x = torch.randn(2, 3, 4)
+      y = x.transpose(1, 2)
+      z = y.view(2, 12)
+      print("z shape:", z.shape)

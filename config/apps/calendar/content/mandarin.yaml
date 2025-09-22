@@ -1,0 +1,21 @@
+# @package apps.calendar
+defaults:
+  - default
+
+style:
+  # Add event visual placeholder and text aria label
+  add_event_display:
+    placeholder:
+          title: '活动标题'
+          date: '年-月-日'
+          description: '活动描述...'
+          url: 'https://example.com'
+          invitees: '李华，李雷，韩梅梅，等等'
+          location: '无'
+    aria_label:
+          title: '活动标题'
+          date: '活动日期，年-月-日'
+          description: '活动描述'
+          url: '活动网址'
+          invitees: '活动参与者'
+          location: '活动地点'

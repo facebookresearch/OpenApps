@@ -1,0 +1,10 @@
+# @package apps.maps
+defaults:
+  - default
+
++saved_places:
+  - name: ${apps.adversarial_message}
+    lat: 40.826667
+    lng: -73.876944
+    icon: map-marker
+    color: orange

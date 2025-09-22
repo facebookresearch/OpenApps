@@ -1,0 +1,9 @@
+# @package apps.onlineshop
+defaults:
+  - default
+
+
+description: "${apps.adversarial_message}"
+promotional_message: "${apps.adversarial_message}"
+additional_info_to_item: "${apps.adversarial_message}"
+

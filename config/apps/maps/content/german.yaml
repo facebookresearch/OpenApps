@@ -1,0 +1,511 @@
+# @package apps.maps
+defaults:
+  - default
+
+# Points of Interest POI Database, 424205 places 
+# https://www.kaggle.com/datasets/ehallmar/points-of-interest-poi-database?resource=download
+
+
+init_location: [51.1657, 10.4515]  # Center of Germany
+# 100 random places in Germany
++saved_places:
+  - name: FEDERISPITZ
+    lat: 47.166528
+    lng: 9.089722
+    icon: map-marker
+    color: darkpurple
+  - name: BRODY, ZIELONA GÓRA COUNTY
+    lat: 52.066667
+    lng: 15.433333
+    icon: map-marker
+    color: purple
+  - name: JENA-GÖSCHWITZ STATION
+    lat: 50.886667
+    lng: 11.5925
+    icon: map-marker
+    color: darkblue
+  - name: VISSELHÖVEDE STATION
+    lat: 52.979722
+    lng: 9.566389
+    icon: map-marker
+    color: red
+  - name: WIJCHEN
+    lat: 51.8
+    lng: 5.733333
+    icon: map-marker
+    color: purple
+  - name: GLEIDORF
+    lat: 51.164444
+    lng: 8.312778
+    icon: shopping-cart
+    color: orange
+  - name: PREDIGTSTUHL (KAISER)
+    lat: 47.57083
+    lng: 12.32194
+    icon: map-marker
+    color: cadetblue
+  - name: EMMERICH RHINE BRIDGE
+    lat: 51.829167
+    lng: 6.225833
+    icon: map-marker
+    color: darkgreen
+  - name: FULPMES
+    lat: 47.153333
+    lng: 11.349167
+    icon: map-marker
+    color: purple
+  - name: BRONOWICE, ŻARY COUNTY
+    lat: 51.56
+    lng: 14.760833
+    icon: map-marker
+    color: darkblue
+  - name: KAKERBECK (WITTINGEN)
+    lat: 52.748056
+    lng: 10.708333
+    icon: map-marker
+    color: orange
+  - name: OTROČÍN
+    lat: 50.032139
+    lng: 12.891417
+    icon: map-marker
+    color: purple
+  - name: DALSZE
+    lat: 52.866667
+    lng: 14.85
+    icon: map-marker
+    color: darkred
+  - name: OZEANEUM
+    lat: 54.315556
+    lng: 13.096944
+    icon: bed
+    color: purple
+  - name: GOLDBERG, GERMANY
+    lat: 53.566667
+    lng: 12.066667
+    icon: map-marker
+    color: purple
+  - name: NIEBUSZEWO
+    lat: 53.455075
+    lng: 14.5474
+    icon: map-marker
+    color: orange
+  - name: GALLZEIN
+    lat: 47.366667
+    lng: 11.766667
+    icon: map-marker
+    color: darkpurple
+  - name: PŇOVANY
+    lat: 49.778889
+    lng: 13.121667
+    icon: map-marker
+    color: darkred
+  - name: KORBUSSEN
+    lat: 50.891389
+    lng: 12.171111
+    icon: map-marker
+    color: darkgreen
+  - name: ESSEN STADTWALD STATION
+    lat: 51.4226
+    lng: 7.02332
+    icon: map-marker
+    color: darkblue
+  - name: GROSSGLOCKNER
+    lat: 47.074867
+    lng: 12.69525
+    icon: map-marker
+    color: darkred
+  - name: KERNENRIED
+    lat: 47.066667
+    lng: 7.55
+    icon: map-marker
+    color: cadetblue
+  - name: KRZEWNO, WEST POMERANIAN VOIVODESHIP
+    lat: 53.554167
+    lng: 14.829722
+    icon: map-marker
+    color: blue
+  - name: LAMBOING
+    lat: 47.116667
+    lng: 7.15
+    icon: map-marker
+    color: cadetblue
+  - name: SCHWELM STATION
+    lat: 51.290611
+    lng: 7.289278
+    icon: map-marker
+    color: darkred
+  - name: HEINERSBRÜCK
+    lat: 51.833056
+    lng: 14.5
+    icon: map-marker
+    color: red
+  - name: SCHÜLP BEI RENDSBURG
+    lat: 54.26
+    lng: 9.629722
+    icon: map-marker
+    color: orange
+  - name: RZESZNIKOWO
+    lat: 53.927778
+    lng: 15.491389
+    icon: map-marker
+    color: darkred
+  - name: STORBECK-FRANKENDORF
+    lat: 52.966667
+    lng: 12.766667
+    icon: map-marker
+    color: purple
+  - name: DEUTSCH-FRANZÖSISCHES GYMNASIUM FREIBURG IM BREISGAU
+    lat: 47.990194
+    lng: 7.872657
+    icon: graduation-cap
+    color: blue
+  - name: RAMIN, GERMANY
+    lat: 53.4
+    lng: 14.283333
+    icon: map-marker
+    color: purple
+  - name: AMELAND AIRPORT
+    lat: 53.451667
+    lng: 5.677222
+    icon: map-marker
+    color: purple
+  - name: ALTENBERGA
+    lat: 50.833333
+    lng: 11.533333
+    icon: map-marker
+    color: purple
+  - name: WICIMICE
+    lat: 53.866667
+    lng: 15.383333
+    icon: map-marker
+    color: red
+  - name: PLATTLING STATION
+    lat: 48.780147
+    lng: 12.863573
+    icon: map-marker
+    color: cadetblue
+  - name: KATZENBUCKEL
+    lat: 49.470833
+    lng: 9.041111
+    icon: map-marker
+    color: green
+  - name: SMRŽOV (JINDŘICHŮV HRADEC DISTRICT)
+    lat: 49.075833
+    lng: 14.666111
+    icon: map-marker
+    color: purple
+  - name: HESPE
+    lat: 52.333611
+    lng: 9.104722
+    icon: map-marker
+    color: purple
+  - name: HORNBACH
+    lat: 49.188056
+    lng: 7.369167
+    icon: map-marker
+    color: purple
+  - name: ST. WALFRIDUSKERK
+    lat: 53.300278
+    lng: 6.6025
+    icon: map-marker
+    color: blue
+  - name: MARIÁNSKÉ RADČICE
+    lat: 50.576944
+    lng: 13.6575
+    icon: map-marker
+    color: red
+  - name: GROSSRÖDA
+    lat: 50.996667
+    lng: 12.321944
+    icon: map-marker
+    color: green
+  - name: FREIENBACH SBB RAILWAY STATION
+    lat: 47.207361
+    lng: 8.756479
+    icon: map-marker
+    color: red
+  - name: SMOLNÉ PECE
+    lat: 50.3
+    lng: 12.766667
+    icon: map-marker
+    color: darkblue
+  - name: MILTZOW RAILWAY STATION
+    lat: 54.199167
+    lng: 13.201389
+    icon: map-marker
+    color: darkpurple
+  - name: RÜTI, ZÜRICH
+    lat: 47.266667
+    lng: 8.85
+    icon: map-marker
+    color: darkblue
+  - name: MALENICE
+    lat: 49.126111
+    lng: 13.882778
+    icon: map-marker
+    color: blue
+  - name: BOROVANY (PÍSEK DISTRICT)
+    lat: 49.343333
+    lng: 14.392222
+    icon: map-marker
+    color: darkgreen
+  - name: MALÍČ
+    lat: 50.543611
+    lng: 14.084722
+    icon: map-marker
+    color: blue
+  - name: PARGOWO
+    lat: 53.283333
+    lng: 14.433333
+    icon: map-marker
+    color: purple
+  - name: KRĘPSKO, WEST POMERANIAN VOIVODESHIP
+    lat: 53.597222
+    lng: 14.740833
+    icon: map-marker
+    color: darkpurple
+  - name: TEICHWITZ
+    lat: 50.757778
+    lng: 12.084722
+    icon: map-marker
+    color: darkpurple
+  - name: MOCZYŁY
+    lat: 53.323056
+    lng: 14.466667
+    icon: map-marker
+    color: green
+  - name: ALTFORST
+    lat: 51.85
+    lng: 5.566667
+    icon: map-marker
+    color: red
+  - name: ŠKVOŘETICE
+    lat: 49.402222
+    lng: 13.952778
+    icon: map-marker
+    color: darkgreen
+  - name: BAD BERKA
+    lat: 50.9
+    lng: 11.280833
+    icon: map-marker
+    color: darkpurple
+  - name: SANDEBUUR
+    lat: 53.171944
+    lng: 6.455833
+    icon: map-marker
+    color: blue
+  - name: HINZERT-PÖLERT
+    lat: 49.705222
+    lng: 6.901778
+    icon: map-marker
+    color: darkgreen
+  - name: JELSUM
+    lat: 53.234444
+    lng: 5.784444
+    icon: map-marker
+    color: red
+  - name: ZELKING-MATZLEINSDORF
+    lat: 48.016667
+    lng: 15.266667
+    icon: map-marker
+    color: darkgreen
+  - name: WETTERSTEIN
+    lat: 47.416667
+    lng: 10.995
+    icon: map-marker
+    color: darkpurple
+  - name: KRONPRINZENKOOG
+    lat: 53.966667
+    lng: 8.966667
+    icon: map-marker
+    color: red
+  - name: NARSDORF
+    lat: 51.016667
+    lng: 12.716667
+    icon: map-marker
+    color: purple
+  - name: HAINICHEN, THURINGIA
+    lat: 51.0
+    lng: 11.616667
+    icon: map-marker
+    color: cadetblue
+  - name: ZÁHOŘÍ (JINDŘICHŮV HRADEC DISTRICT)
+    lat: 49.211111
+    lng: 14.805
+    icon: map-marker
+    color: darkblue
+  - name: BÜTTEL
+    lat: 53.900278
+    lng: 9.227222
+    icon: map-marker
+    color: darkgreen
+  - name: HVOZD (PLZEŇ-NORTH DISTRICT)
+    lat: 49.939722
+    lng: 13.263056
+    icon: map-marker
+    color: darkred
+  - name: SNEEK NOORD RAILWAY STATION
+    lat: 53.040278
+    lng: 5.663056
+    icon: map-marker
+    color: purple
+  - name: MECLOV
+    lat: 49.508056
+    lng: 12.877778
+    icon: map-marker
+    color: blue
+  - name: GLIMMEN
+    lat: 53.138333
+    lng: 6.628611
+    icon: map-marker
+    color: purple
+  - name: KATHENDORF
+    lat: 52.399722
+    lng: 11.133056
+    icon: map-marker
+    color: purple
+  - name: SEMNĚVICE
+    lat: 49.6075
+    lng: 12.931111
+    icon: map-marker
+    color: darkblue
+  - name: SAUBACH
+    lat: 51.216667
+    lng: 11.533056
+    icon: map-marker
+    color: blue
+  - name: BOSSDORF
+    lat: 51.983056
+    lng: 12.683056
+    icon: map-marker
+    color: purple
+  - name: PRUSSIAN NATIONAL MONUMENT FOR THE LIBERATION WARS
+    lat: 52.487678
+    lng: 13.381497
+    icon: map-marker
+    color: darkgreen
+  - name: NENNHAUSEN
+    lat: 52.6
+    lng: 12.5
+    icon: map-marker
+    color: darkpurple
+  - name: HÖVEDE
+    lat: 54.25
+    lng: 9.3
+    icon: map-marker
+    color: darkblue
+  - name: ALTSTÄTTEN
+    lat: 47.383333
+    lng: 9.55
+    icon: map-marker
+    color: darkred
+  - name: BERLIN POELCHAUSTRASSE STATION
+    lat: 52.535556
+    lng: 13.535556
+    icon: map-marker
+    color: darkpurple
+  - name: NOVÁ PEC
+    lat: 48.766944
+    lng: 13.908056
+    icon: map-marker
+    color: darkgreen
+  - name: MARIENTHAL (GEISENHEIM)
+    lat: 50.005556
+    lng: 7.95
+    icon: map-marker
+    color: darkblue
+  - name: HOMBERG, KUSEL
+    lat: 49.651389
+    lng: 7.516111
+    icon: map-marker
+    color: darkpurple
+  - name: ROZTOKI, LUBUSZ VOIVODESHIP
+    lat: 51.75
+    lng: 15.066667
+    icon: map-marker
+    color: darkblue
+  - name: NEUKÖLLN (LOCALITY)
+    lat: 52.481389
+    lng: 13.435278
+    icon: map-marker
+    color: darkblue
+  - name: OSINA, MYŚLIBÓRZ COUNTY
+    lat: 53.016667
+    lng: 15.183333
+    icon: map-marker
+    color: purple
+  - name: BREKLENKAMP
+    lat: 52.451944
+    lng: 6.998333
+    icon: map-marker
+    color: darkred
+  - name: POCZERNIN, WEST POMERANIAN VOIVODESHIP
+    lat: 53.416667
+    lng: 14.95
+    icon: map-marker
+    color: red
+  - name: HERRNSCHWENDE
+    lat: 51.216667
+    lng: 11.0
+    icon: map-marker
+    color: darkpurple
+  - name: STRUMIENNO, LUBUSZ VOIVODESHIP
+    lat: 52.05
+    lng: 15.016667
+    icon: map-marker
+    color: purple
+  - name: VOLEVČICE (JIHLAVA DISTRICT)
+    lat: 49.212778
+    lng: 15.443056
+    icon: map-marker
+    color: blue
+  - name: ABTWIL, AARGAU
+    lat: 47.183333
+    lng: 8.35
+    icon: map-marker
+    color: darkred
+  - name: STADION JULISKA
+    lat: 50.111944
+    lng: 14.3875
+    icon: dumbbell
+    color: darkgreen
+  - name: HOHE MUNDE
+    lat: 47.34722
+    lng: 11.071528
+    icon: bed
+    color: purple
+  - name: OBERHOFEN IM INNTAL
+    lat: 47.303056
+    lng: 11.095833
+    icon: bed
+    color: purple
+  - name: ONDERBANKEN
+    lat: 50.966667
+    lng: 5.983333
+    icon: map-marker
+    color: red
+  - name: ILMENAU STATION
+    lat: 50.684167
+    lng: 10.922222
+    icon: map-marker
+    color: cadetblue
+  - name: HEERLERBAAN
+    lat: 50.869167
+    lng: 6.010278
+    icon: map-marker
+    color: blue
+  - name: LE CERNEUX-PÉQUIGNOT
+    lat: 47.016667
+    lng: 6.666667
+    icon: map-marker
+    color: cadetblue
+  - name: ROTHENBERG
+    lat: 49.5
+    lng: 8.916667
+    icon: map-marker
+    color: orange
+  - name: TOJICE
+    lat: 49.495833
+    lng: 13.634167
+    icon: map-marker
+    color: purple

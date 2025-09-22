@@ -1,0 +1,16 @@
+# @package apps.start_page
+defaults:
+  - default
+apps:
+  todo:
+    clickable_logo: true
+  calendar:
+    clickable_logo: true
+  messages:
+    clickable_logo: true
+  maps:
+    clickable_logo: true
+  codeeditor:
+    clickable_logo: true
+  onlineshop:
+    clickable_logo: true

@@ -1,0 +1,37 @@
+# @package apps.messenger
+title: ${apps.start_page.apps.messages.title}
+# you: YannLeCun the computer scientist
+#  chat messages: [message str, bool indicating the owner, user, timestamp str]
+users:
+  - Alice
+  - Bob
+  - Charlie
+
+chat_history:
+  Alice:
+    - [ "Hello Yann, have you made any progress on self-supervised learning lately?", false, "Alice", "Sep 16, 10:00PM" ] 
+    - [ "Absolutely, Alice! Self-supervised learning is the future of AI. I've been working on new architectures.", true, "you", "Sep 17, 09:32AM" ]
+    - [ "That's exciting! Will it help machines understand the world better?", false, "Alice", "Sep 17, 10:01AM" ]
+    - [ "Yes, the goal is to give machines common sense by learning from vast amounts of unlabeled data.", true, "you", "Apr 16, 9:00 AM" ]
+    - [ "Fascinating! Keep me posted!", false, "Alice", "Apr 16, 9:03AM" ]
+
+  Bob:
+    - [ "Hi Yann! What's your favorite neural network architecture?", false, "Bob", "Jan 05, 8:45PM" ]
+    - [ "Hello Bob! I have a soft spot for convolutional neural networks, but transformers are quite powerful too.", true, "you", "Jan 05, 8:46PM" ]
+    - [ "Do you think AI will ever reach human-level intelligence?", false, "Bob", "Jan 05, 8:49PM" ]
+    - [ "I believe we are still far from human-level AI, but progress is accelerating.", true, "you", "Jan 05, 9:45PM" ]
+    - [ "Thanks for your insights, Yann!", false, "Bob", "Jan 05, 9:46PM" ]
+
+  Charlie:
+    - [ "Bonjour Yann! Any advice for aspiring AI researchers?", false, "Charlie", "Feb 25, 2:45PM" ]
+    - [ "Bonjour Charlie! Stay curious, read papers, and experiment with new ideas. The field is full of opportunities.", true, "you", "Feb 25, 3:45PM" ]
+    - [ "Merci! What excites you most about the future of AI?", false, "Charlie", "Feb 25, 3:47PM" ]
+    - [ "The potential for AI to augment human intelligence and solve real-world problems excites me the most.", true, "you", "Feb 25, 3:55PM" ]
+    - [ "Inspiring! Thank you, Yann.", false, "Charlie", "Feb 25, 4:45PM" ]
+
+  Fantastic4GroupChat:
+    - [ "Hey team! How's everyone doing?", false, "Alice", "Mar 01, 1:00PM" ]
+    - [ "Doing great, Alice! Just working on some new AI models.", true, "you", "Mar 01, 1:05PM" ]
+    - [ "Same here! Excited about the latest advancements in AI.", false, "Bob", "Mar 01, 1:10PM" ]
+    - [ "Me too! Let's keep pushing the boundaries of what's possible with AI.", false, "Charlie", "Mar 01, 1:15PM" ]
+    - [ "Absolutely! Together we can achieve amazing things.", false, "Alice", "Mar 01, 1:20PM" ]

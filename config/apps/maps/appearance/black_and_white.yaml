@@ -1,0 +1,18 @@
+# @package apps.maps
+
+enable_layer_control: True
+default_layer: 'CartoDB Dark'
+popup_display_rule: 'automatic'
+font_family: 'Arial'
+base_font_size: '16px'
+search_button_color: '#000000'
+delete_button_color: '#000000'
+return_button_color: '#000000'
+calculate_button_color: '#000000'
+delete_button_hover_color: '#000000'
+search_button_hover_color: '#000000'
+calculate_button_hover_color: '#000000'
+
+zoom: 12
+granularity: 'coarse'
+allow_planning: False

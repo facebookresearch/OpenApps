@@ -1,0 +1,34 @@
+# @package apps.code_editor
+
+font_size: 12
+font: "Brush Script MT"
+fontcolor: ""
+primary_button_color: "#ffffff"
+secondary_button_color: "#ffffff"
+danger_button_color: "#D0021B"
+textarea_background_color: "#ffffff"
+main_background_color: "#90D5FF"
+
+theme: "monokai"
+mode: "python"
+highlight: False
+sort_feature: True
+list_of_modes: 
+  - python
+  - javascript
+  - css
+  - yaml
+  - markdown
+  - shell
+  - clike
+  - go
+list_of_themes: 
+  - monokai
+  - eclipse
+  - solarized
+  - seti
+  - night
+  - dracula
+  - twilight
+  - zenburn
+  - material

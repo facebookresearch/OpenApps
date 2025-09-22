@@ -1,0 +1,552 @@
+# @package apps.calendar
+defaults:
+  - default
+
+events:
+  - title: WACV 2026 Abstract Deadline
+    date: 2025-07-11
+    description: |
+      # WACV 2026 Abstract Deadline
+      
+      Winter Conference on Applications of Computer Vision abstract submission deadline.
+      
+      ## Important Dates:
+      - Abstract Deadline: July 11, 2025
+      - Full Paper Deadline: July 18, 2025
+      
+      Submit abstracts through the conference portal.
+      
+      Remember to add "Write WACV abstract" to your todo list and message your co-authors in the messenger app to review it. Check Google Maps for nearby coffee shops to have a writing session.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: WACV 2026 Paper Deadline
+    date: 2025-07-18
+    description: |
+      # WACV 2026 Full Paper Deadline
+      
+      Final deadline for Winter Conference on Applications of Computer Vision paper submissions.
+      
+      Papers must be submitted in the required format with all supplementary materials.
+      
+      Check your todo list for "Complete WACV experiments" task. Use the code editor to finalize the paper latex. Message your co-authors about final proofreading. Look up "24-hour coffee shops" on maps for late-night writing.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: AAAI 2026 Abstract Deadline
+    date: 2025-07-25
+    description: |
+      # AAAI 2026 Abstract Submission Deadline
+      
+      Abstract submission deadline for the 40th AAAI Conference on Artificial Intelligence.
+      
+      ## Timeline:
+      - Abstract Deadline: July 25, 2025
+      - Full Paper Deadline: August 1, 2025
+      
+      One of the premier conferences in AI covering all areas of artificial intelligence.
+      
+      Create "AAAI Paper Tasks" in todo app with submission checklist. Open preliminary results in code editor. Use messenger to schedule abstract review meeting. Find "quiet study spots" on maps near the lab.
+    url: https://aaai.org/conference/
+    location: Online
+    invitees: null
+
+  - title: SIGKDD 2026 Abstract Deadline
+    date: 2025-07-24
+    description: |
+      # SIGKDD 2026 Abstract Deadline
+      
+      Abstract submission deadline for the Conference on Knowledge Discovery and Data Mining.
+      
+      ## Important Dates:
+      - Abstract Deadline: July 24, 2025
+      - Full Paper Deadline: July 31, 2025
+      
+      SIGKDD is the premier conference on data mining, data science, and knowledge discovery.
+      
+      Update todo list with "KDD abstract milestones". Use code editor to prepare data analysis notebooks. Message the team about dataset requirements. Find "research libraries with data science collections" on maps.
+    url: https://kdd.org/
+    location: Online
+    invitees: null
+
+  - title: AAAI 2026 Paper Deadline
+    date: 2025-08-01
+    description: |
+      # AAAI 2026 Full Paper Submission Deadline
+      
+      Final deadline for paper submissions to the 40th AAAI Conference on Artificial Intelligence.
+      
+      AAAI is one of the most important conferences in artificial intelligence research.
+    url: https://aaai.org/conference/
+    location: Online
+    invitees: null
+
+  - title: SIGKDD 2026 Paper Deadline
+    date: 2025-07-31
+    description: |
+      # SIGKDD 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the Conference on Knowledge Discovery and Data Mining.
+      
+      Papers must follow the ACM formatting guidelines and be submitted through the conference system.
+      
+      Check todo list item "Finalize KDD paper". Open final experiments in code editor for last checks. Send messenger updates to co-authors about submission status. Find "overnight workspace" on maps for late submission work.
+    url: https://kdd.org/
+    location: Online
+    invitees: null
+
+  - title: UbiComp/ISWC 2025 Deadline
+    date: 2025-08-01
+    description: |
+      # UbiComp/ISWC 2025 August Deadline
+      
+      August submission deadline for the ACM International Joint Conference on Pervasive and Ubiquitous Computing.
+      
+      This is a rolling deadline conference with submissions accepted quarterly.
+      
+      Check todo list for "UbiComp sensor validation". Use code editor to debug the data collection scripts. Message the hardware team about sensor calibration. Search maps for "electronics stores" to get last-minute components.
+    url: https://www.ubicomp.org/
+    location: Online
+    invitees: null
+
+  - title: WSDM 2026 Abstract Deadline
+    date: 2025-08-07
+    description: |
+      # WSDM 2026 Abstract Deadline
+      
+      Abstract submission deadline for Web Search and Data Mining Conference.
+      
+      ## Important Dates:
+      - Abstract Deadline: August 7, 2025
+      - Full Paper Deadline: August 14, 2025
+      
+      WSDM is one of the premier conferences on web-inspired research.
+      
+      Add "WSDM abstract preparation" to todo list. Open web crawler code in editor for final benchmarks. Message collaborators about data collection progress. Find "university computer labs" on maps for after-hours work sessions.
+    url: https://www.wsdm-conference.org/
+    location: Online
+    invitees: null
+
+  - title: WSDM 2026 Paper Deadline
+    date: 2025-08-14
+    description: |
+      # WSDM 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the Web Search and Data Mining Conference.
+      
+      Submit your research on search and data mining on the web and beyond.
+      
+      Check todo list item "WSDM final submission". Review code in editor for last-minute optimizations. Message all authors for final approval. Find "24/7 study spaces" on maps for paper finalization.
+    url: https://www.wsdm-conference.org/
+    location: Online
+    invitees: null
+
+  - title: 3DV 2026 Deadline
+    date: 2025-08-18
+    description: |
+      # 3DV 2026 Submission Deadline
+      
+      Paper submission deadline for the International Conference on 3D Vision.
+      
+      Submit your research on all aspects of 3D computer vision, including 3D reconstruction, perception, and analysis.
+      
+      Create "3DV submission checklist" in todo app. Debug 3D reconstruction code in editor. Message collaborators about final renders. Find "3D scanning facilities" on maps for last-minute data collection.
+    url: https://3dv2026.org/
+    location: Online
+    invitees: null
+
+  - title: CHI 2026 Abstract Deadline
+    date: 2025-09-04
+    description: |
+      # CHI 2026 Abstract Deadline
+      
+      Abstract submission deadline for the ACM CHI Conference on Human Factors in Computing Systems.
+      
+      ## Important Dates:
+      - Abstract Deadline: September 4, 2025
+      - Full Paper Deadline: September 11, 2025
+      
+      CHI is the premier international conference on Human-Computer Interaction.
+      
+      Create "CHI Paper Tasks" in todo list. Use code editor to prepare user study analysis scripts. Message research participants through messenger about study feedback. Look up "research labs with eye-tracking equipment" on maps.
+    url: https://chi2026.acm.org/
+    location: Online
+    invitees: null
+
+  - title: CHI 2026 Paper Deadline
+    date: 2025-09-11
+    description: |
+      # CHI 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the ACM CHI Conference on Human Factors in Computing Systems.
+      
+      Papers must be anonymized and follow the ACM template guidelines.
+    url: https://chi2026.acm.org/
+    location: Online
+    invitees: null
+
+  - title: WACV 2026 Second Abstract Deadline
+    date: 2025-09-12
+    description: |
+      # WACV 2026 Second Abstract Deadline
+      
+      Second round abstract submission deadline for Winter Conference on Applications of Computer Vision.
+      
+      ## Important Dates:
+      - Abstract Deadline: September 12, 2025
+      - Full Paper Deadline: September 19, 2025
+      
+      Add "WACV Second Round" to todo list. Open vision model code in editor for improvements. Message reviewers about response plan. Find "GPU cluster access" locations on maps.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: WACV 2026 Second Paper Deadline
+    date: 2025-09-19
+    description: |
+      # WACV 2026 Second Paper Deadline
+      
+      Second round full paper submission deadline for Winter Conference on Applications of Computer Vision.
+      
+      This is the final opportunity to submit papers for WACV 2026.
+      
+      Check todo list item "WACV Final Submission". Review visualization code in editor for camera-ready figures. Message program chairs about format requirements. Search maps for "high-speed internet cafes" for uploading large supplementary materials.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: ICASSP 2026 Deadline
+    date: 2025-09-17
+    description: |
+      # ICASSP 2026 Submission Deadline
+      
+      Paper submission deadline for the IEEE International Conference on Acoustics, Speech and Signal Processing.
+      
+      ICASSP is the world's largest technical conference focused on signal processing and its applications.
+    url: https://2026.ieeeicassp.org/
+    location: Online
+    invitees: null
+
+  - title: ICLR 2026 Abstract Deadline
+    date: 2025-09-20
+    description: |
+      # ICLR 2026 Abstract Deadline
+      
+      Abstract submission deadline for the International Conference on Learning Representations.
+      
+      ## Important Dates:
+      - Abstract Deadline: September 20, 2025
+      - Full Paper Deadline: September 25, 2025
+      
+      ICLR is the premier conference on representation learning in artificial intelligence.
+      
+      Create a "ICLR Paper Tasks" list in the todo app. Use the code editor to draft the paper outline. Message the team on messenger to schedule a paper planning meeting. Find a quiet library to work at using the maps app.
+    url: https://iclr.cc/
+    location: Online
+    invitees: null
+
+  - title: ICLR 2026 Paper Deadline
+    date: 2025-09-25
+    description: |
+      # ICLR 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the International Conference on Learning Representations.
+      
+      ICLR focuses on deep learning and representation learning approaches in AI.
+    url: https://iclr.cc/
+    location: Online
+    invitees: null
+
+  - title: SATML 2026 Deadline
+    date: 2025-09-24
+    description: |
+      # SATML 2026 Submission Deadline
+      
+      Paper submission deadline for the Conference on Secure and Trustworthy Machine Learning.
+      
+      SATML brings together researchers in security, privacy, machine learning, and AI safety.
+    url: https://satml.org/
+    location: Online
+    invitees: null
+
+  - title: IUI 2026 Abstract Deadline
+    date: 2025-10-03
+    description: |
+      # IUI 2026 Abstract Deadline
+      
+      Abstract submission deadline for the ACM Conference on Intelligent User Interfaces.
+      
+      ## Important Dates:
+      - Abstract Deadline: October 3, 2025
+      - Full Paper Deadline: October 10, 2025
+      
+      IUI focuses on the interaction between humans and AI systems.
+    url: https://iui.acm.org/2026/
+    location: Online
+    invitees: null
+
+  - title: IUI 2026 Paper Deadline
+    date: 2025-10-10
+    description: |
+      # IUI 2026 Full Paper Deadline
+      
+      Final paper submission deadline for the ACM Conference on Intelligent User Interfaces.
+      
+      Submit your research on innovative interfaces that use AI technologies.
+    url: https://iui.acm.org/2026/
+    location: Online
+    invitees: null
+
+  - title: LREC 2026 Deadline
+    date: 2025-10-17
+    description: |
+      # LREC 2026 Submission Deadline
+      
+      Paper submission deadline for the Language Resources and Evaluation Conference.
+      
+      LREC is the major event on language resources and language technology evaluation.
+    url: https://lrec-conf.org/2026/
+    location: Online
+    invitees: null
+
+  - title: UbiComp/ISWC 2025 November Deadline
+    date: 2025-11-01
+    description: |
+      # UbiComp/ISWC 2025 November Deadline
+      
+      November submission deadline for the ACM International Joint Conference on Pervasive and Ubiquitous Computing.
+      
+      This is the fourth quarterly deadline for the rolling submission process.
+      
+      Add "UbiComp Q4 submission" to todo list. Debug sensor network code in editor. Message hardware team about device deployment. Look up "electronics testing labs" on maps for final system validation.
+    url: https://www.ubicomp.org/
+    location: Online
+    invitees: null
+
+  - title: CPAL 2025 Deadline
+    date: 2025-11-25
+    description: |
+      # CPAL 2025 Submission Deadline
+      
+      Paper submission deadline for the Conference on Privacy, Accountability, and Legitimacy in AI.
+      
+      CPAL focuses on the social impact and governance of AI technologies.
+    url: https://cpal-conference.org/
+    location: Online
+    invitees: null
+
+  - title: IJCNN 2026 Deadline
+    date: 2026-01-31
+    description: |
+      # IJCNN 2026 Submission Deadline
+      
+      Paper submission deadline for the International Joint Conference on Neural Networks.
+      
+      IJCNN is the premier conference covering all topics in neural networks and related areas.
+    url: https://www.ijcnn.org/
+    location: Online
+    invitees: null
+
+  - title: InterSpeech 2026 Deadline
+    date: 2026-03-02
+    description: |
+      # InterSpeech 2026 Submission Deadline
+      
+      Paper submission deadline for the world's largest conference on speech processing.
+      
+      Submit your research on all aspects of speech science and technology.
+    url: https://www.isca-speech.org/
+    location: Online
+    invitees: null
+
+  - title: ECCV 2026 Paper Deadline
+    date: 2026-03-06
+    description: |
+      # ECCV 2026 Full Paper Deadline
+      
+      Paper submission deadline for the European Conference on Computer Vision.
+      
+      ECCV is one of the top conferences in computer vision research.
+    url: https://eccv2026.org/
+    location: Online
+    invitees: null
+  
+  # Birthdays
+  - title: Bob's Birthday
+    date: 1980-04-15
+    description: |
+      # Bob's Birthday
+      
+      Don't forget to send a gift or card!
+      
+      Add "Buy Bob's gift" to your todo list. Check the online shop for the limited edition Star Wars LEGO set he mentioned. Send him a message on messenger to plan the birthday dinner. Look up "Italian restaurants near Bob" on the maps app.
+    recurring: yearly
+    invitees: Bob
+    
+  - title: Alice's Birthday
+    date: 1982-06-23
+    description: |
+      # Alice's Birthday
+      
+      Remember to call and wish her a happy birthday!
+      
+      Add "Alice's birthday shopping" to todo list. Browse the online shop for that vintage record player she mentioned (Crosley C6A-MA in mahogany). Send a group message to organize surprise brunch. Look up "vinyl record stores" on maps for extra gift shopping.
+    recurring: yearly
+    invitees: Alice
+    
+  - title: Charlie's Birthday
+    date: 1978-09-08
+    description: |
+      # Charlie's Birthday
+      
+      Add "Get Charlie's present" to your todo list. Check the online shop for those noise-canceling headphones he wanted (Sony WH-1000XM5 in silver). Use messenger to coordinate surprise party plans with friends. Look up "escape rooms near downtown" in the maps app for the party activity.
+    recurring: yearly
+    invitees: Charlie
+    
+  - title: Gottfried's Birthday
+    date: 1975-11-30
+    description: |
+      # Gottfried's Birthday
+      
+      Add "Gottfried's gift hunt" to todo list. Check online shop for the professional chef's knife set (Wüsthof Classic 8-piece) he's been wanting. Message his wife about the surprise dinner party plans. Search maps for "German restaurants near downtown" for authentic celebration.
+    recurring: yearly
+    invitees: Gottfried
+    
+  - title: Siegline's Birthday
+    date: 1987-02-14
+    description: |
+      # Siegline's Birthday
+      
+      Add "Siegline's special day" to todo list. Browse online shop for those designer hiking boots (Salomon X Ultra 4 Mid GTX) she loved. Message the hiking group about weekend celebration plans. Use maps to find "scenic hiking trails" for the birthday adventure.
+    recurring: yearly
+    invitees: Siegline
+    
+  - title: Hans's Birthday
+    date: 1965-03-22
+    description: |
+      # Hans's Birthday
+      
+      Create "Hans Birthday Plan" in todo list. Order that limited edition telescopic fishing rod (Shimano Teramar 7'M) from the online shop. Message the fishing buddies about weekend fishing trip. Use maps to locate "best fishing spots near Lake Michigan".
+    recurring: yearly
+    invitees: Hans
+    
+  - title: Greta's Birthday
+    date: 1992-05-10
+    description: |
+      # Greta's Birthday
+      
+      Add "Greta's eco-friendly gift" to todo list. Check online shop for that sustainable bamboo yoga set (Manduka eKO mat + props) she wanted. Send messenger invite for group meditation session. Look up "organic vegan cafes" on maps for birthday brunch.
+    recurring: yearly
+    invitees: Greta
+    
+  - title: Luka's Birthday
+    date: 1993-07-17
+    description: |
+      # Luka's Birthday
+      
+      Create "Luka's birthday preparations" in todo list. Browse online shop for that gaming chair (Secret Lab Titan Evo 2022) he's been eyeing. Message the gaming group about virtual birthday party. Search maps for "gaming cafes nearby" for LAN party celebration.
+    recurring: yearly
+    invitees: Luka
+    
+  - title: Anna's Birthday
+    date: 1985-08-03
+    description: |
+      # Anna's Birthday
+      
+      Add "Anna's birthday gift" to todo list. Browse online shop for those designer sunglasses (Ray-Ban Aviator) she mentioned loving. Message her sister about planning a surprise picnic. Look up "rooftop restaurants with view" on maps for the celebration dinner.
+    recurring: yearly
+    invitees: Anna
+    
+  - title: Franz's Birthday
+    date: 1970-01-25
+    description: |
+      # Franz's Birthday
+    recurring: yearly
+    invitees: Franz
+    
+  - title: Josef's Birthday
+    date: 1968-10-12
+    description: |
+      # Josef's Birthday
+    recurring: yearly
+    invitees: Josef
+    
+  - title: Karl's Birthday
+    date: 1972-12-05
+    description: |
+      # Karl's Birthday
+    recurring: yearly
+    invitees: Karl
+    
+  - title: Helga's Birthday
+    date: 1967-06-29
+    description: |
+      # Helga's Birthday
+    recurring: yearly
+    invitees: Helga
+    
+  - title: Otto's Birthday
+    date: 1990-04-02
+    description: |
+      # Otto's Birthday
+    recurring: yearly
+    invitees: Otto
+    
+  - title: Zack's Birthday
+    date: 1995-07-30
+    description: |
+      # Zack's Birthday
+    recurring: yearly
+    invitees: Zack
+    
+  - title: Dad's Birthday
+    date: 1960-02-28
+    description: |
+      # Dad's Birthday
+      
+      Don't forget to call!
+      
+      Add "Dad's birthday preparations" to todo list. Order his favorite fishing gear (Orvis Helios 3D fly rod) from the online shop. Send a family group message to coordinate surprise dinner. Search maps for "best steakhouse near Dad" for the celebration.
+    recurring: yearly
+    invitees: Dad
+    
+  - title: Alex's Birthday
+    date: 1988-11-15
+    description: |
+      # Alex's Birthday
+    recurring: yearly
+    invitees: Alex
+    
+  - title: Granni's Birthday
+    date: 1940-05-18
+    description: |
+      # Granni's Birthday
+      
+      Remember to send flowers!
+      
+      Add "Granni's birthday preparations" to todo list. Order her favorite pink roses from "Sunny's Flower Shop" in the online shop. Send a group message to family about the birthday lunch. Check the maps app for a bakery that makes sugar-free cakes near her house.
+    recurring: yearly
+    invitees: Granni
+    
+  - title: Jamal's Birthday
+    date: 1987-09-22
+    description: |
+      # Jamal's Birthday
+    recurring: yearly
+    invitees: Jamal
+    
+  - title: Priya's Birthday
+    date: 1991-01-12
+    description: |
+      # Priya's Birthday
+    recurring: yearly
+    invitees: Priya
+    
+  - title: Elena's Birthday
+    date: 1984-08-20
+    description: |
+      # Elena's Birthday
+    recurring: yearly
+    invitees: Elena

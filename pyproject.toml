@@ -1,0 +1,46 @@
+[project]
+name = "open_apps"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "agentlab @ git+https://github.com/ServiceNow/AgentLab.git@571b3f52867945f9df7d00ee1a3e2475d1c2c027",
+    "browsergym>=0.13.3",
+    "fastapi>=0.115.12",
+    "feedgen>=1.0.0",
+    "faiss-cpu==1.10.0",
+    "gdown>=5.2.0",
+    "gitpython>=3.1.44",
+    "hydra-core>=1.3.2",
+    "jinja2>=3.1.6",
+    "pip",
+    "pyserini==0.44.0",
+    "python-fasthtml>=0.12.14",
+    "python-multipart>=0.0.20",
+    "spacy==3.8.5",
+    "thefuzz==0.22.1",
+    "submitit>=1.5.2",
+    "uvicorn>=0.34.2",
+    # "vllm>=0.9.1",
+    "wandb>=0.19.9",
+    "pytest>=7.3.2",
+    "plotly>=6.1.2",
+    "kaleido>=1.0.0",
+    "typer>=0.15.4",
+    "jupyter>=1.1.1",
+    "ipdb>=0.13.13",
+    "hydra-submitit-launcher>=1.2.0",
+    "killport>=1.2.0",
+    "anthropic>=0.64.0",
+    "botocore>=1.40.18",
+    "boto3>=1.40.18",
+    "blobfile>=3.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true

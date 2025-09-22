@@ -1,0 +1,5010 @@
+# @package apps.maps
+
+defaults:
+  - default
+
+# Points of Interest POI Database, 424205 places 
+# https://www.kaggle.com/datasets/ehallmar/points-of-interest-poi-database?resource=download
+
+# 1000 random places
++saved_places:
+  - name: KONOPATY
+    lat: 53.133333
+    lng: 19.783333
+    icon: map-marker
+    color: darkred
+  - name: MYŚLIBÓRZ
+    lat: 52.933333
+    lng: 14.866667
+    icon: map-marker
+    color: darkgreen
+  - name: HATO GRANDE AIRPORT
+    lat: 11.981944
+    lng: -85.433333
+    icon: map-marker
+    color: darkgreen
+  - name: FURMAN, ALABAMA
+    lat: 32.006814
+    lng: -86.966928
+    icon: map-marker
+    color: purple
+  - name: WHITBY, WEST VIRGINIA
+    lat: 37.666111
+    lng: -81.184167
+    icon: map-marker
+    color: darkgreen
+  - name: SELF–TROTT–BICKETT HOUSE
+    lat: 35.658889
+    lng: -81.222778
+    icon: map-marker
+    color: orange
+  - name: HARDING-WINTER STREET MANUFACTURING DISTRICT
+    lat: 42.258333
+    lng: -71.795
+    icon: tree
+    color: green
+  - name: TYBORY-TRZCIANKA
+    lat: 52.960833
+    lng: 22.378611
+    icon: map-marker
+    color: darkgreen
+  - name: LUCAS, OHIO
+    lat: 40.703889
+    lng: -82.42
+    icon: map-marker
+    color: cadetblue
+  - name: FALIŠE
+    lat: 41.98
+    lng: 21.05
+    icon: map-marker
+    color: green
+  - name: FOUR LOCUST FARM
+    lat: 37.058333
+    lng: -78.479722
+    icon: map-marker
+    color: cadetblue
+  - name: KHONCHEH
+    lat: 33.986111
+    lng: 51.221667
+    icon: map-marker
+    color: red
+  - name: DELAVARI-YE GORGIAN
+    lat: 30.990556
+    lng: 50.858611
+    icon: map-marker
+    color: darkblue
+  - name: DARTI, KHORRAMABAD
+    lat: 33.489444
+    lng: 48.239722
+    icon: map-marker
+    color: darkred
+  - name: ZIR-E ZARD, RAMHORMOZ
+    lat: 31.256667
+    lng: 49.678889
+    icon: map-marker
+    color: purple
+  - name: SAUVIE ISLAND WILDLIFE AREA
+    lat: 45.72
+    lng: -122.803
+    icon: map-marker
+    color: green
+  - name: BELAD MOTALEB-E OLYA
+    lat: 30.912778
+    lng: 49.386667
+    icon: map-marker
+    color: cadetblue
+  - name: UJI
+    lat: 34.884444
+    lng: 135.799722
+    icon: map-marker
+    color: darkblue
+  - name: MOUNT BLACK (TASMANIA)
+    lat: -41.76
+    lng: 145.56
+    icon: map-marker
+    color: darkgreen
+  - name: QALAT, QAZVIN
+    lat: 36.253889
+    lng: 49.513333
+    icon: map-marker
+    color: purple
+  - name: LIFETIME ACTIVITIES CENTER
+    lat: 40.672778
+    lng: -111.945556
+    icon: dumbbell
+    color: darkgreen
+  - name: HEDRUM CHURCH
+    lat: 59.123167
+    lng: 10.060118
+    icon: map-marker
+    color: green
+  - name: ZƏNGƏNƏ
+    lat: 40.0975
+    lng: 48.409167
+    icon: map-marker
+    color: purple
+  - name: BERINGE
+    lat: 51.335833
+    lng: 5.946944
+    icon: map-marker
+    color: darkgreen
+  - name: ŁUBOWA
+    lat: 50.936389
+    lng: 21.721111
+    icon: map-marker
+    color: blue
+  - name: JACALA
+    lat: 21.005278
+    lng: -99.171944
+    icon: map-marker
+    color: green
+  - name: FORT BIDWELL, CALIFORNIA
+    lat: 41.860556
+    lng: -120.151389
+    icon: map-marker
+    color: purple
+  - name: LOWER ALSACE TOWNSHIP, BERKS COUNTY, PENNSYLVANIA
+    lat: 40.358333
+    lng: -75.869167
+    icon: map-marker
+    color: cadetblue
+  - name: SCECINA MEMORIAL HIGH SCHOOL
+    lat: 39.786667
+    lng: -86.085278
+    icon: graduation-cap
+    color: blue
+  - name: DAVOS PLATZ (RHAETIAN RAILWAY STATION)
+    lat: 46.791389
+    lng: 9.820833
+    icon: map-marker
+    color: darkred
+  - name: BLINN-PULVER FARMHOUSE
+    lat: 42.349167
+    lng: -73.603889
+    icon: bed
+    color: purple
+  - name: PARAĞA
+    lat: 39.075
+    lng: 45.893333
+    icon: map-marker
+    color: darkblue
+  - name: CAPE SAN BLAS LIGHT
+    lat: 29.671225
+    lng: -85.356311
+    icon: dumbbell
+    color: darkgreen
+  - name: STEPHEN STORM HOUSE
+    lat: 42.226389
+    lng: -73.714722
+    icon: map-marker
+    color: darkred
+  - name: PHUKET RANGE
+    lat: 9.341667
+    lng: 98.616667
+    icon: map-marker
+    color: darkblue
+  - name: KAI-IWAMA STATION
+    lat: 35.4924
+    lng: 138.4628
+    icon: map-marker
+    color: purple
+  - name: GIFFONI SEI CASALI
+    lat: 40.716667
+    lng: 14.9
+    icon: map-marker
+    color: darkgreen
+  - name: HEPING DISTRICT, TAICHUNG
+    lat: 24.266667
+    lng: 121.15
+    icon: map-marker
+    color: cadetblue
+  - name: ÁLAMOS
+    lat: 27.0275
+    lng: -108.94
+    icon: map-marker
+    color: green
+  - name: ZABIELE, LUBARTÓW COUNTY
+    lat: 51.535278
+    lng: 22.77
+    icon: map-marker
+    color: darkgreen
+  - name: OLD WEST CHURCH (BOSTON, MASSACHUSETTS)
+    lat: 42.361442
+    lng: -71.064211
+    icon: landmark
+    color: darkblue
+  - name: KARAVIQ
+    lat: 38.548333
+    lng: 46.693889
+    icon: map-marker
+    color: darkred
+  - name: KOIP PEAK
+    lat: 37.81354
+    lng: -119.201814
+    icon: map-marker
+    color: red
+  - name: BOUCOTTE DIOLA
+    lat: 12.414
+    lng: -16.748
+    icon: map-marker
+    color: darkpurple
+  - name: SEMBUKUDIPATTI
+    lat: 10.047
+    lng: 78.011
+    icon: map-marker
+    color: cadetblue
+  - name: NIRANAM
+    lat: 9.35
+    lng: 76.516667
+    icon: map-marker
+    color: blue
+  - name: BRADÁČOV
+    lat: 49.493889
+    lng: 14.871944
+    icon: map-marker
+    color: orange
+  - name: INDAING
+    lat: 23.333333
+    lng: 94.4
+    icon: map-marker
+    color: red
+  - name: MONTPELIER, OHIO
+    lat: 41.583056
+    lng: -84.604167
+    icon: map-marker
+    color: cadetblue
+  - name: KADHAIYA
+    lat: 23.424644
+    lng: 77.467329
+    icon: map-marker
+    color: darkblue
+  - name: ABLEH, KOHGILUYEH AND BOYER-AHMAD
+    lat: 31.192778
+    lng: 50.545833
+    icon: map-marker
+    color: purple
+  - name: SHELL CENTRE (CALGARY)
+    lat: 51.05
+    lng: -114.070556
+    icon: map-marker
+    color: orange
+  - name: MRAZOVAC
+    lat: 45.083333
+    lng: 16.071944
+    icon: map-marker
+    color: blue
+  - name: CHARLES ALLEN PROSSER SCHOOL OF TECHNOLOGY
+    lat: 38.352
+    lng: -85.7944
+    icon: graduation-cap
+    color: blue
+  - name: FAIRVIEW APARTMENTS (OGDEN, UTAH)
+    lat: 41.216111
+    lng: -111.976667
+    icon: graduation-cap
+    color: blue
+  - name: SIWIAŁKA
+    lat: 54.076111
+    lng: 18.553333
+    icon: map-marker
+    color: blue
+  - name: FAIRFIELD TOWNSHIP, TIPPECANOE COUNTY, INDIANA
+    lat: 40.426667
+    lng: -86.855
+    icon: map-marker
+    color: purple
+  - name: WALLS FARM BARN AND CORN CRIB
+    lat: 34.523889
+    lng: -91.873889
+    icon: map-marker
+    color: green
+  - name: HIGH RIVER
+    lat: 50.58075
+    lng: -113.874444
+    icon: map-marker
+    color: orange
+  - name: BANKS ISLAND
+    lat: 73.0
+    lng: -121.5
+    icon: map-marker
+    color: darkred
+  - name: POMONA LANDING AIRPORT
+    lat: 29.501667
+    lng: -81.5775
+    icon: dumbbell
+    color: darkgreen
+  - name: STRUŻYNY
+    lat: 52.5
+    lng: 15.366667
+    icon: map-marker
+    color: darkpurple
+  - name: KUNAVARAM
+    lat: 17.5833
+    lng: 81.2667
+    icon: map-marker
+    color: cadetblue
+  - name: DELIMEĐE
+    lat: 43.1
+    lng: 20.3
+    icon: map-marker
+    color: darkred
+  - name: OBED, ALBERTA
+    lat: 53.551944
+    lng: -117.235278
+    icon: map-marker
+    color: darkred
+  - name: EPISCOPAL CHURCH OF THE SAVIOUR (CLERMONT, IOWA)
+    lat: 43.002778
+    lng: -91.653889
+    icon: map-marker
+    color: darkblue
+  - name: FALKOWA, LESSER POLAND VOIVODESHIP
+    lat: 49.733333
+    lng: 20.883333
+    icon: map-marker
+    color: darkred
+  - name: ILVAR-E PANJ DANGEH
+    lat: 36.797778
+    lng: 54.1975
+    icon: map-marker
+    color: red
+  - name: DENHAM GROUP NATIONAL PARK
+    lat: -11.108889
+    lng: 143.015833
+    icon: tree
+    color: green
+  - name: TORRICELLA PELIGNA
+    lat: 42.016667
+    lng: 14.266667
+    icon: map-marker
+    color: darkgreen
+  - name: EJERSA GORO
+    lat: 9.483333
+    lng: 42.233333
+    icon: map-marker
+    color: cadetblue
+  - name: FULTON COUNTY AIRPORT (OHIO)
+    lat: 41.61
+    lng: -84.127222
+    icon: dumbbell
+    color: darkgreen
+  - name: MAGENTA RAILWAY STATION
+    lat: 45.468056
+    lng: 8.880833
+    icon: map-marker
+    color: cadetblue
+  - name: HEART BUTTE, MONTANA
+    lat: 48.29
+    lng: -112.834444
+    icon: map-marker
+    color: darkred
+  - name: PARÈ
+    lat: 45.816667
+    lng: 9.0
+    icon: map-marker
+    color: darkred
+  - name: CHINCOTEAGUE NATIONAL WILDLIFE REFUGE
+    lat: 37.954167
+    lng: -75.316667
+    icon: map-marker
+    color: red
+  - name: NUJEH DEH, HERIS
+    lat: 38.2
+    lng: 47.181389
+    icon: map-marker
+    color: red
+  - name: PUTATAN RAILWAY STATION
+    lat: 5.893547
+    lng: 116.048744
+    icon: map-marker
+    color: darkpurple
+  - name: WILLIAMS FIELD
+    lat: -77.8675
+    lng: 167.056667
+    icon: map-marker
+    color: darkgreen
+  - name: TLACOAPA
+    lat: 17.15
+    lng: -98.866667
+    icon: map-marker
+    color: darkgreen
+  - name: WOŁCZYNO
+    lat: 53.895833
+    lng: 15.07
+    icon: map-marker
+    color: darkblue
+  - name: PŘÍLUKA
+    lat: 49.8675
+    lng: 16.160833
+    icon: map-marker
+    color: cadetblue
+  - name: HAWKE'S BAY, NEWFOUNDLAND AND LABRADOR
+    lat: 50.613889
+    lng: -57.166667
+    icon: map-marker
+    color: blue
+  - name: BULKELEY SCHOOL
+    lat: 41.358611
+    lng: -72.100833
+    icon: graduation-cap
+    color: blue
+  - name: TORRENOVA
+    lat: 38.083333
+    lng: 14.683333
+    icon: map-marker
+    color: orange
+  - name: ENFIELD–SUFFIELD VETERANS BRIDGE
+    lat: 41.989722
+    lng: -72.603611
+    icon: map-marker
+    color: red
+  - name: AMBALA
+    lat: 30.38
+    lng: 76.78
+    icon: map-marker
+    color: blue
+  - name: DUNAY-E SOFLA
+    lat: 36.196944
+    lng: 51.365278
+    icon: map-marker
+    color: cadetblue
+  - name: KAŁEK, LUBUSZ VOIVODESHIP
+    lat: 51.877778
+    lng: 14.955556
+    icon: map-marker
+    color: green
+  - name: EVENTCITY
+    lat: 53.46551
+    lng: -2.33895
+    icon: landmark
+    color: darkblue
+  - name: NORTH WHEELING HISTORIC DISTRICT
+    lat: 40.074444
+    lng: -80.724722
+    icon: map-marker
+    color: darkblue
+  - name: BJELOGORCI (ROGATICA)
+    lat: 43.7825
+    lng: 19.044167
+    icon: map-marker
+    color: green
+  - name: FALLS TOWNSHIP, HOCKING COUNTY, OHIO
+    lat: 39.543056
+    lng: -82.409722
+    icon: map-marker
+    color: red
+  - name: SHEIKHUPUR BAGH
+    lat: 31.054659
+    lng: 76.191085
+    icon: map-marker
+    color: blue
+  - name: UELSBY
+    lat: 54.6
+    lng: 9.566667
+    icon: map-marker
+    color: purple
+  - name: DUNEDIN
+    lat: -45.866667
+    lng: 170.5
+    icon: graduation-cap
+    color: blue
+  - name: SHEIKH IJLIN
+    lat: 31.513361
+    lng: 34.428139
+    icon: map-marker
+    color: orange
+  - name: ORSELINA
+    lat: 46.183333
+    lng: 8.8
+    icon: map-marker
+    color: darkred
+  - name: PARSABAD, KOWSAR
+    lat: 37.782222
+    lng: 48.254167
+    icon: map-marker
+    color: darkred
+  - name: DOCK JUNCTION, GEORGIA
+    lat: 31.201111
+    lng: -81.506944
+    icon: map-marker
+    color: darkblue
+  - name: ENGORDANY
+    lat: 42.516667
+    lng: 1.55
+    icon: map-marker
+    color: darkgreen
+  - name: KHALEQABAD, RAVAR
+    lat: 31.254722
+    lng: 56.833611
+    icon: map-marker
+    color: red
+  - name: LAMAR, MISSOURI
+    lat: 37.493611
+    lng: -94.272222
+    icon: map-marker
+    color: darkred
+  - name: KADAMMANITTAPALLY
+    lat: 9.3
+    lng: 76.766667
+    icon: map-marker
+    color: orange
+  - name: GROJEC, OŚWIĘCIM COUNTY
+    lat: 49.982778
+    lng: 19.229444
+    icon: map-marker
+    color: green
+  - name: CLAYPOLE, LINCOLNSHIRE
+    lat: 53.033333
+    lng: -0.733333
+    icon: map-marker
+    color: darkred
+  - name: ARGHANDAKAN
+    lat: 36.840556
+    lng: 70.303056
+    icon: map-marker
+    color: darkpurple
+  - name: WIERZELIN
+    lat: 52.374167
+    lng: 18.429722
+    icon: map-marker
+    color: darkblue
+  - name: ALIABAD-E SAR TOL, FARS
+    lat: 29.9
+    lng: 52.513056
+    icon: map-marker
+    color: purple
+  - name: PORT BELL
+    lat: 0.288889
+    lng: 32.653611
+    icon: map-marker
+    color: darkpurple
+  - name: IRAKLEIO, ATTICA
+    lat: 38.05
+    lng: 23.766667
+    icon: map-marker
+    color: darkpurple
+  - name: WILEY'S SEAPLANE PORT
+    lat: 45.430953
+    lng: -122.649539
+    icon: dumbbell
+    color: darkgreen
+  - name: PILOT GROVE, MISSOURI
+    lat: 38.871944
+    lng: -92.913333
+    icon: map-marker
+    color: darkpurple
+  - name: MÜCƏKBINƏ
+    lat: 41.549167
+    lng: 46.522778
+    icon: map-marker
+    color: darkred
+  - name: KAZMALAR, OGHUZ
+    lat: 41.043333
+    lng: 47.661667
+    icon: map-marker
+    color: darkblue
+  - name: BUSCH, ARKANSAS
+    lat: 36.464167
+    lng: -93.830833
+    icon: map-marker
+    color: orange
+  - name: MASERU CENTRAL
+    lat: -29.306389
+    lng: 27.475
+    icon: map-marker
+    color: cadetblue
+  - name: WHITECLAY, NEBRASKA
+    lat: 42.993611
+    lng: -102.559444
+    icon: map-marker
+    color: cadetblue
+  - name: LAHAREM TALUK
+    lat: 36.464444
+    lng: 52.92
+    icon: map-marker
+    color: darkpurple
+  - name: ŠOPOT
+    lat: 44.013889
+    lng: 15.557222
+    icon: map-marker
+    color: darkred
+  - name: DRUŻNO, WARMIAN-MASURIAN VOIVODESHIP
+    lat: 54.061111
+    lng: 19.551389
+    icon: map-marker
+    color: darkred
+  - name: HIPPODROME STATE THEATRE
+    lat: 29.649167
+    lng: -82.324167
+    icon: map-marker
+    color: orange
+  - name: NOKHU CRAGS
+    lat: 40.484705
+    lng: -105.893624
+    icon: map-marker
+    color: red
+  - name: GRAN MELIÁ DON PEPE
+    lat: 36.5075
+    lng: -4.903889
+    icon: bed
+    color: purple
+  - name: BILLINGSVILLE SCHOOL
+    lat: 35.196111
+    lng: -80.808333
+    icon: graduation-cap
+    color: blue
+  - name: TALABONAK
+    lat: 36.782778
+    lng: 50.203889
+    icon: map-marker
+    color: darkpurple
+  - name: ANBI
+    lat: 37.516111
+    lng: 44.765833
+    icon: map-marker
+    color: cadetblue
+  - name: SLOCHTEREN
+    lat: 53.216667
+    lng: 6.8
+    icon: map-marker
+    color: darkblue
+  - name: VRŠNA VAS
+    lat: 46.193
+    lng: 15.533783
+    icon: map-marker
+    color: red
+  - name: GWANAKSAN
+    lat: 37.445556
+    lng: 126.963611
+    icon: map-marker
+    color: darkred
+  - name: MAZRAEH-YE FAKHRABAD
+    lat: 28.942778
+    lng: 54.948611
+    icon: map-marker
+    color: darkpurple
+  - name: KOOYONG STADIUM
+    lat: -37.838333
+    lng: 145.031944
+    icon: dumbbell
+    color: darkgreen
+  - name: NASHVILLE HISTORIC DISTRICT (NASHUA, NEW HAMPSHIRE)
+    lat: 42.768889
+    lng: -71.466389
+    icon: map-marker
+    color: purple
+  - name: ŞÜŞÜN
+    lat: 40.1425
+    lng: 48.01
+    icon: map-marker
+    color: cadetblue
+  - name: GARISHIYEH
+    lat: 31.524167
+    lng: 48.069722
+    icon: map-marker
+    color: darkblue
+  - name: SÖDERBÄRKE
+    lat: 60.066667
+    lng: 15.55
+    icon: map-marker
+    color: purple
+  - name: OCEAN POINTE, HAWAII
+    lat: 21.310556
+    lng: -158.036389
+    icon: map-marker
+    color: darkpurple
+  - name: ILLORSUIT
+    lat: 71.241667
+    lng: -53.566667
+    icon: map-marker
+    color: purple
+  - name: BELLMONT, ILLINOIS
+    lat: 38.384722
+    lng: -87.909444
+    icon: map-marker
+    color: purple
+  - name: RIVERSIDE, COLQUITT COUNTY, GEORGIA
+    lat: 31.178611
+    lng: -83.805
+    icon: map-marker
+    color: red
+  - name: LA VALL D'EBO
+    lat: 38.805556
+    lng: -0.159167
+    icon: map-marker
+    color: green
+  - name: GOWJAR, KERMAN
+    lat: 31.533333
+    lng: 56.5
+    icon: map-marker
+    color: purple
+  - name: VELSK
+    lat: 61.066667
+    lng: 42.116667
+    icon: map-marker
+    color: darkgreen
+  - name: LOMPOC AIRPORT
+    lat: 34.665619
+    lng: -120.467503
+    icon: map-marker
+    color: orange
+  - name: JAGANNATHBATI
+    lat: 22.7075
+    lng: 88.2204
+    icon: map-marker
+    color: darkred
+  - name: FRANCIS ISLAND
+    lat: -67.616667
+    lng: -64.75
+    icon: map-marker
+    color: purple
+  - name: OLD SARDINIA TOWN HALL
+    lat: 42.557759
+    lng: -78.503838
+    icon: landmark
+    color: darkblue
+  - name: RYBIENIEC, GREATER POLAND VOIVODESHIP
+    lat: 52.616667
+    lng: 17.283333
+    icon: map-marker
+    color: darkred
+  - name: PONDEROSA, WEST VIRGINIA
+    lat: 39.338056
+    lng: -81.426944
+    icon: map-marker
+    color: darkgreen
+  - name: LEIPHEIM
+    lat: 48.448889
+    lng: 10.220833
+    icon: map-marker
+    color: cadetblue
+  - name: BUCKMEADOW PLANTATION HOUSE
+    lat: 32.853889
+    lng: -91.238611
+    icon: map-marker
+    color: cadetblue
+  - name: HOJJATABAD, SARBISHEH
+    lat: 32.366667
+    lng: 59.837778
+    icon: map-marker
+    color: red
+  - name: GRODZISKO, ŚWIĘTOKRZYSKIE VOIVODESHIP
+    lat: 51.062222
+    lng: 20.218889
+    icon: map-marker
+    color: red
+  - name: PORT PIRIE
+    lat: -33.185833
+    lng: 138.016944
+    icon: map-marker
+    color: darkgreen
+  - name: STADION DER FREUNDSCHAFT (FRANKFURT (ODER))
+    lat: 52.332533
+    lng: 14.556133
+    icon: dumbbell
+    color: darkgreen
+  - name: GODBOUT, QUEBEC
+    lat: 49.316667
+    lng: -67.6
+    icon: map-marker
+    color: blue
+  - name: BRONÓW, GÓRA COUNTY
+    lat: 51.649167
+    lng: 16.665833
+    icon: map-marker
+    color: darkred
+  - name: KLIMÓWKA
+    lat: 53.439167
+    lng: 23.684167
+    icon: map-marker
+    color: orange
+  - name: DANKÓW DUŻY
+    lat: 50.883333
+    lng: 19.933333
+    icon: map-marker
+    color: green
+  - name: FORRESTON, SOUTH AUSTRALIA
+    lat: -34.8
+    lng: 138.9
+    icon: map-marker
+    color: blue
+  - name: SAJAMA NATIONAL PARK
+    lat: -18.083333
+    lng: -68.916667
+    icon: tree
+    color: green
+  - name: REVERSING FALLS PARK
+    lat: 44.8825
+    lng: -67.1325
+    icon: tree
+    color: green
+  - name: TSAGHKADZOR SKI RESORT
+    lat: 40.534444
+    lng: 44.691667
+    icon: dumbbell
+    color: darkgreen
+  - name: BAISO
+    lat: 44.5
+    lng: 10.6
+    icon: map-marker
+    color: darkblue
+  - name: GILBERT PEAK (WASHINGTON)
+    lat: 46.488333
+    lng: -121.406944
+    icon: map-marker
+    color: green
+  - name: TEMPLE CHRISTIAN SCHOOL (LIMA, OHIO)
+    lat: 40.770278
+    lng: -84.119722
+    icon: graduation-cap
+    color: blue
+  - name: LOBSTÄDT
+    lat: 51.116667
+    lng: 12.433333
+    icon: map-marker
+    color: orange
+  - name: MOUNT JIZHEN
+    lat: 23.751381
+    lng: 113.841286
+    icon: map-marker
+    color: red
+  - name: DEČINA
+    lat: 45.522397
+    lng: 15.311044
+    icon: map-marker
+    color: darkpurple
+  - name: JHUGIAN GAMUN
+    lat: 31.160151
+    lng: 75.093235
+    icon: map-marker
+    color: darkpurple
+  - name: AL MUWAYH
+    lat: 22.745833
+    lng: 41.5925
+    icon: map-marker
+    color: cadetblue
+  - name: SIERZCHÓW, MASOVIAN VOIVODESHIP
+    lat: 51.982778
+    lng: 21.118611
+    icon: map-marker
+    color: purple
+  - name: LACONA RAILROAD STATION AND DEPOT
+    lat: 43.642778
+    lng: -76.070278
+    icon: dumbbell
+    color: darkgreen
+  - name: CEELMAKOILE
+    lat: 3.8
+    lng: 45.216667
+    icon: map-marker
+    color: green
+  - name: NINTH STREET HISTORIC DISTRICT
+    lat: 39.104722
+    lng: -84.516389
+    icon: tree
+    color: green
+  - name: SACRED HEART CATHOLIC CHURCH AND SCHOOL
+    lat: 31.7625
+    lng: -95.634444
+    icon: graduation-cap
+    color: blue
+  - name: KATAKO'KOMBE AIRPORT
+    lat: -3.456944
+    lng: 24.423611
+    icon: map-marker
+    color: cadetblue
+  - name: DUTTON/DUNWICH
+    lat: 42.666667
+    lng: -81.5
+    icon: map-marker
+    color: blue
+  - name: HERZELE
+    lat: 50.883333
+    lng: 3.883333
+    icon: map-marker
+    color: purple
+  - name: CHOTĚBUZ
+    lat: 49.769444
+    lng: 18.586111
+    icon: map-marker
+    color: darkpurple
+  - name: HEMLEBEN
+    lat: 51.255833
+    lng: 11.224444
+    icon: map-marker
+    color: darkred
+  - name: COPELAND, KANSAS
+    lat: 37.540278
+    lng: -100.630278
+    icon: map-marker
+    color: purple
+  - name: RUFFIN, SOUTH CAROLINA
+    lat: 33.004722
+    lng: -80.815556
+    icon: map-marker
+    color: darkred
+  - name: MUNDAKAYAM
+    lat: 9.5375
+    lng: 76.884722
+    icon: map-marker
+    color: darkpurple
+  - name: PORTER, DELAWARE
+    lat: 39.600278
+    lng: -75.69
+    icon: map-marker
+    color: red
+  - name: INGUTSHENI HOSPITAL
+    lat: -20.17
+    lng: 28.58
+    icon: hospital
+    color: darkred
+  - name: RED OAK PUBLIC LIBRARY
+    lat: 41.008278
+    lng: -95.230083
+    icon: book
+    color: darkpurple
+  - name: BEVILACQUA
+    lat: 45.233333
+    lng: 11.395833
+    icon: map-marker
+    color: darkblue
+  - name: EAST JENSEN ISLAND
+    lat: 83.05
+    lng: -40.6
+    icon: map-marker
+    color: cadetblue
+  - name: MORATGI
+    lat: 16.92
+    lng: 76.24
+    icon: map-marker
+    color: darkpurple
+  - name: ALBA, ARAGON
+    lat: 40.6
+    lng: -1.35
+    icon: map-marker
+    color: darkblue
+  - name: WOODSTOCK (UPPER MARLBORO, MARYLAND)
+    lat: 38.769444
+    lng: -76.801944
+    icon: map-marker
+    color: darkgreen
+  - name: QALEH KESH, AMOL
+    lat: 36.4725
+    lng: 52.468889
+    icon: map-marker
+    color: darkgreen
+  - name: BULLYARD
+    lat: -25.983333
+    lng: 152.95
+    icon: map-marker
+    color: darkgreen
+  - name: NEW AMSTERDAM AIRPORT
+    lat: 6.244444
+    lng: -57.473611
+    icon: map-marker
+    color: purple
+  - name: ARGYLE, MANITOBA
+    lat: 50.181944
+    lng: -97.454167
+    icon: map-marker
+    color: darkgreen
+  - name: DOI KHUN TAN NATIONAL PARK
+    lat: 18.470833
+    lng: 99.284722
+    icon: tree
+    color: green
+  - name: SKATUTAKEE MOUNTAIN
+    lat: 42.968611
+    lng: -72.036111
+    icon: map-marker
+    color: orange
+  - name: TIONTIONMANA
+    lat: 10.516667
+    lng: -4.766667
+    icon: map-marker
+    color: blue
+  - name: EMINABAD
+    lat: 32.041361
+    lng: 74.260028
+    icon: map-marker
+    color: darkred
+  - name: ALIABAD, KHAF
+    lat: 34.213056
+    lng: 59.971667
+    icon: map-marker
+    color: darkred
+  - name: MOHANPURA RANWA
+    lat: 26.54746
+    lng: 75.60328
+    icon: map-marker
+    color: darkred
+  - name: METZ, MISSOURI
+    lat: 37.996944
+    lng: -94.443611
+    icon: map-marker
+    color: red
+  - name: MAHAKAM STADIUM
+    lat: -6.385278
+    lng: 106.847222
+    icon: dumbbell
+    color: darkgreen
+  - name: TAQ REZALEH-YE MOHAMMAD AQA
+    lat: 33.295
+    lng: 47.907778
+    icon: map-marker
+    color: darkred
+  - name: KHOMARTASH
+    lat: 37.215556
+    lng: 58.434722
+    icon: map-marker
+    color: darkblue
+  - name: NARUHEH
+    lat: 35.271389
+    lng: 52.392778
+    icon: map-marker
+    color: green
+  - name: HITOYOSHI STATION
+    lat: 32.215833
+    lng: 130.753611
+    icon: map-marker
+    color: darkgreen
+  - name: ANTELOPE CREEK BRIDGE
+    lat: 42.471972
+    lng: -122.800222
+    icon: dumbbell
+    color: darkgreen
+  - name: KVERKFJÖLL
+    lat: 64.65
+    lng: -16.716667
+    icon: map-marker
+    color: purple
+  - name: HOUTEN RAILWAY STATION
+    lat: 52.034444
+    lng: 5.167778
+    icon: map-marker
+    color: cadetblue
+  - name: HENRY R. KOEN FOREST SERVICE BUILDING
+    lat: 35.278611
+    lng: -93.138889
+    icon: tree
+    color: green
+  - name: THENNAMANADU
+    lat: 10.6425
+    lng: 79.235556
+    icon: map-marker
+    color: orange
+  - name: WARGOWO, GREATER POLAND VOIVODESHIP
+    lat: 52.583333
+    lng: 16.8
+    icon: map-marker
+    color: darkgreen
+  - name: WILLADINGEN
+    lat: 47.15
+    lng: 7.616667
+    icon: map-marker
+    color: darkred
+  - name: CLARINDA CARNEGIE LIBRARY
+    lat: 40.740583
+    lng: -95.038306
+    icon: book
+    color: darkpurple
+  - name: KLEIN LUCKOW
+    lat: 53.553333
+    lng: 13.838056
+    icon: map-marker
+    color: red
+  - name: ASKARI, BUSHEHR
+    lat: 29.274722
+    lng: 50.846111
+    icon: map-marker
+    color: darkpurple
+  - name: MUSABEYLI
+    lat: 36.885833
+    lng: 36.918056
+    icon: map-marker
+    color: orange
+  - name: WINOWNO
+    lat: 50.55
+    lng: 19.166667
+    icon: map-marker
+    color: red
+  - name: INDIAN VILLAGE, DETROIT
+    lat: 42.360278
+    lng: -82.996111
+    icon: map-marker
+    color: orange
+  - name: LANGENHAHN
+    lat: 50.584167
+    lng: 7.919722
+    icon: map-marker
+    color: blue
+  - name: JUSAY ANCESTRAL HOUSE
+    lat: 14.607039
+    lng: 120.987581
+    icon: map-marker
+    color: cadetblue
+  - name: PULLAMÍ AIRPORT
+    lat: -36.5875
+    lng: -71.808333
+    icon: dumbbell
+    color: darkgreen
+  - name: MELPADI
+    lat: 13.066667
+    lng: 79.283333
+    icon: map-marker
+    color: darkblue
+  - name: CƏNGAN, SALYAN
+    lat: 39.726667
+    lng: 48.942222
+    icon: map-marker
+    color: darkred
+  - name: MATU, KALEWA
+    lat: 23.333333
+    lng: 94.333333
+    icon: map-marker
+    color: cadetblue
+  - name: TARRY PARK, INDIANA
+    lat: 38.801389
+    lng: -86.509167
+    icon: tree
+    color: green
+  - name: EL CERRITO, RIVERSIDE COUNTY, CALIFORNIA
+    lat: 33.839444
+    lng: -117.522222
+    icon: map-marker
+    color: purple
+  - name: ADAMS TOWNSHIP, CHAMPAIGN COUNTY, OHIO
+    lat: 40.232222
+    lng: -83.963333
+    icon: map-marker
+    color: orange
+  - name: DARREH-YE OMID ALI
+    lat: 34.321667
+    lng: 48.428889
+    icon: map-marker
+    color: green
+  - name: STARE KIEŁBONKI
+    lat: 53.666667
+    lng: 21.333333
+    icon: map-marker
+    color: darkred
+  - name: ABDOLLAHABAD, RAFSANJAN
+    lat: 30.365278
+    lng: 56.069722
+    icon: map-marker
+    color: cadetblue
+  - name: KÖNNIGDE
+    lat: 52.633333
+    lng: 11.566667
+    icon: map-marker
+    color: green
+  - name: MAZRAEH-YE YEK
+    lat: 31.810833
+    lng: 48.553889
+    icon: map-marker
+    color: darkgreen
+  - name: MAŁE TURZE
+    lat: 54.099444
+    lng: 18.608611
+    icon: map-marker
+    color: cadetblue
+  - name: ANALBANIA
+    lat: 22.4
+    lng: 90.116667
+    icon: map-marker
+    color: darkred
+  - name: PONG DAM
+    lat: 31.971389
+    lng: 75.946667
+    icon: map-marker
+    color: cadetblue
+  - name: QUZLU, MALEKAN
+    lat: 37.093333
+    lng: 46.4075
+    icon: map-marker
+    color: darkblue
+  - name: ALDUS CHAPIN HIGGINS HOUSE
+    lat: 42.275556
+    lng: -71.808889
+    icon: map-marker
+    color: orange
+  - name: WELLSVILLE JUNIOR/SENIOR HIGH SCHOOL (OHIO)
+    lat: 40.602222
+    lng: -80.656111
+    icon: graduation-cap
+    color: blue
+  - name: POINTE D'ORNY
+    lat: 46.002139
+    lng: 7.042722
+    icon: map-marker
+    color: orange
+  - name: DEMOPOLIS MUNICIPAL AIRPORT
+    lat: 32.463889
+    lng: -87.954167
+    icon: dumbbell
+    color: darkgreen
+  - name: CORNELIA CONNELLY HIGH SCHOOL
+    lat: 33.829444
+    lng: -117.964167
+    icon: graduation-cap
+    color: blue
+  - name: SARBIA, SZAMOTUŁY COUNTY
+    lat: 52.433333
+    lng: 16.466667
+    icon: map-marker
+    color: darkblue
+  - name: DARREH VEYAN-E SOFLA
+    lat: 34.787222
+    lng: 46.784167
+    icon: map-marker
+    color: cadetblue
+  - name: GORONGOSA NATIONAL PARK
+    lat: -18.766
+    lng: 34.5
+    icon: tree
+    color: green
+  - name: SOUTH WALNUT STREET HISTORIC DISTRICT (EDINBURGH, INDIANA)
+    lat: 39.351389
+    lng: -85.966389
+    icon: tree
+    color: green
+  - name: ABDALI CLEMENCEAU HOSPITAL
+    lat: 31.963722
+    lng: 35.910083
+    icon: hospital
+    color: darkred
+  - name: VONDO DAM
+    lat: -22.945833
+    lng: 30.335278
+    icon: map-marker
+    color: green
+  - name: MONTOLIU DE LLEIDA
+    lat: 41.561389
+    lng: 0.590833
+    icon: map-marker
+    color: green
+  - name: KHEDOI
+    lat: 23.059279
+    lng: 69.918955
+    icon: map-marker
+    color: orange
+  - name: NOVI BOLMAN
+    lat: 45.725
+    lng: 18.54
+    icon: map-marker
+    color: darkred
+  - name: GENESEE TOWNSHIP, WHITESIDE COUNTY, ILLINOIS
+    lat: 41.8875
+    lng: -89.803611
+    icon: map-marker
+    color: darkpurple
+  - name: STONE-TOLAN HOUSE
+    lat: 43.139722
+    lng: -77.542222
+    icon: landmark
+    color: darkblue
+  - name: ÖZBOYNUINCELI
+    lat: 36.966667
+    lng: 33.733333
+    icon: map-marker
+    color: green
+  - name: JONATHAN STURGES HOUSE
+    lat: 41.146667
+    lng: -73.267222
+    icon: landmark
+    color: darkblue
+  - name: İYIRMI ALTI BAKI KOMISSARI
+    lat: 39.311944
+    lng: 49.209444
+    icon: map-marker
+    color: red
+  - name: HRÁDEK (ZNOJMO DISTRICT)
+    lat: 48.771944
+    lng: 16.273889
+    icon: map-marker
+    color: cadetblue
+  - name: DEL MAR, CALIFORNIA
+    lat: 32.955
+    lng: -117.263889
+    icon: map-marker
+    color: orange
+  - name: TOVEYLEH-YE BOZORG
+    lat: 31.367778
+    lng: 49.123611
+    icon: map-marker
+    color: cadetblue
+  - name: MONTE PELMO
+    lat: 46.419722
+    lng: 12.134722
+    icon: map-marker
+    color: purple
+  - name: MERRICK ART GALLERY
+    lat: 40.733056
+    lng: -80.310833
+    icon: landmark
+    color: darkblue
+  - name: KETAO
+    lat: 9.661111
+    lng: 1.311389
+    icon: map-marker
+    color: darkred
+  - name: SMOKVICA, KOPER
+    lat: 45.492083
+    lng: 13.900058
+    icon: map-marker
+    color: darkpurple
+  - name: ASADABAD, SOLTANIYEH
+    lat: 36.374444
+    lng: 48.772222
+    icon: map-marker
+    color: darkblue
+  - name: JEKYLL ISLAND
+    lat: 31.07
+    lng: -81.420278
+    icon: map-marker
+    color: darkred
+  - name: BEŞKOZ, BESNI
+    lat: 37.733333
+    lng: 37.766667
+    icon: map-marker
+    color: darkgreen
+  - name: DITTINGEN
+    lat: 47.433333
+    lng: 7.5
+    icon: map-marker
+    color: blue
+  - name: POLJE, CROATIA
+    lat: 45.066667
+    lng: 15.65
+    icon: map-marker
+    color: red
+  - name: EDMUND RUFFIN PLANTATION
+    lat: 37.654203
+    lng: -77.222478
+    icon: landmark
+    color: darkblue
+  - name: MODLIKOWICE
+    lat: 51.216667
+    lng: 15.833333
+    icon: map-marker
+    color: cadetblue
+  - name: MAYKOPSKY DISTRICT
+    lat: 44.516667
+    lng: 40.166667
+    icon: map-marker
+    color: purple
+  - name: FREI GASPAR
+    lat: -18.065833
+    lng: -41.428889
+    icon: map-marker
+    color: darkblue
+  - name: FONTANETTO PO
+    lat: 45.2
+    lng: 8.183333
+    icon: map-marker
+    color: darkpurple
+  - name: MCCONNELLSTOWN, PENNSYLVANIA
+    lat: 40.4525
+    lng: -78.081667
+    icon: map-marker
+    color: red
+  - name: YORKSHIRE (TOWN), NEW YORK
+    lat: 42.485833
+    lng: -78.508889
+    icon: map-marker
+    color: green
+  - name: SAND FORK, WEST VIRGINIA
+    lat: 38.913611
+    lng: -80.75
+    icon: map-marker
+    color: cadetblue
+  - name: AMHERST, MASSACHUSETTS
+    lat: 42.383333
+    lng: -72.516667
+    icon: graduation-cap
+    color: blue
+  - name: ROBAWY
+    lat: 54.041389
+    lng: 21.160278
+    icon: map-marker
+    color: darkblue
+  - name: MARIANOWO, ŚRODA WIELKOPOLSKA COUNTY
+    lat: 52.2825
+    lng: 17.346389
+    icon: map-marker
+    color: darkblue
+  - name: LOWE MILL
+    lat: 34.717222
+    lng: -86.603056
+    icon: map-marker
+    color: red
+  - name: BRIGHTSIDE, CALIFORNIA
+    lat: 37.599167
+    lng: -121.924444
+    icon: map-marker
+    color: orange
+  - name: CHESHMEH SIB-E DELI KHOMSIR
+    lat: 30.699722
+    lng: 51.348056
+    icon: map-marker
+    color: darkgreen
+  - name: GAVAN KOLA, BABOL KENAR
+    lat: 36.3275
+    lng: 52.778333
+    icon: map-marker
+    color: darkblue
+  - name: NEU DUVENSTEDT
+    lat: 54.366667
+    lng: 9.666667
+    icon: map-marker
+    color: darkblue
+  - name: COOPERSTOWN MUNICIPAL AIRPORT
+    lat: 47.422778
+    lng: -98.105833
+    icon: dumbbell
+    color: darkgreen
+  - name: SINAGRA, SICILY
+    lat: 38.083333
+    lng: 14.85
+    icon: map-marker
+    color: purple
+  - name: KOWRAKI, SHIRAZ
+    lat: 29.628056
+    lng: 52.975
+    icon: map-marker
+    color: cadetblue
+  - name: OZMER HOUSE
+    lat: 33.3
+    lng: -93.223611
+    icon: graduation-cap
+    color: blue
+  - name: OSWEGO–ONEIDA STREETS HISTORIC DISTRICT
+    lat: 43.161389
+    lng: -76.335556
+    icon: tree
+    color: green
+  - name: ASMUS, POLAND
+    lat: 53.887778
+    lng: 17.586944
+    icon: map-marker
+    color: purple
+  - name: SAIDABAD-E SOFLA, ZANJAN
+    lat: 36.386111
+    lng: 48.106111
+    icon: map-marker
+    color: orange
+  - name: QUAKER STREET HISTORIC DISTRICT
+    lat: 42.733611
+    lng: -74.187778
+    icon: tree
+    color: green
+  - name: MONTE LERA
+    lat: 45.179722
+    lng: 7.453889
+    icon: map-marker
+    color: orange
+  - name: ALLAPUR, UTTAR PRADESH
+    lat: 27.91202
+    lng: 79.23793
+    icon: map-marker
+    color: darkgreen
+  - name: KONDALARAOPALEM
+    lat: 16.85
+    lng: 81.05
+    icon: map-marker
+    color: red
+  - name: DRUMRIGHT, OKLAHOMA
+    lat: 35.988056
+    lng: -96.600556
+    icon: map-marker
+    color: darkblue
+  - name: PAYTUG
+    lat: 40.9
+    lng: 72.25
+    icon: map-marker
+    color: orange
+  - name: DIX DAM
+    lat: 37.785278
+    lng: -84.703889
+    icon: map-marker
+    color: darkblue
+  - name: GRĄDZKIE, MASOVIAN VOIVODESHIP
+    lat: 53.466667
+    lng: 21.45
+    icon: map-marker
+    color: purple
+  - name: BOG-E SAGILAN
+    lat: 28.461111
+    lng: 58.549167
+    icon: map-marker
+    color: orange
+  - name: BROWNTOWN, WISCONSIN
+    lat: 42.577222
+    lng: -89.793056
+    icon: map-marker
+    color: darkblue
+  - name: KALAPATHAR
+    lat: 22.905694
+    lng: 86.891306
+    icon: map-marker
+    color: red
+  - name: CLAYTON LAKE, MAINE
+    lat: 46.610833
+    lng: -69.522222
+    icon: map-marker
+    color: cadetblue
+  - name: RUTH AND ROBERT HATCH JR. HOUSE
+    lat: 41.955833
+    lng: -70.074722
+    icon: map-marker
+    color: blue
+  - name: TEAGUE BARN WABASH IMPORTING COMPANY FARM STABLE
+    lat: 40.775278
+    lng: -85.878889
+    icon: map-marker
+    color: cadetblue
+  - name: MACHIAS POST OFFICE AND CUSTOMHOUSE
+    lat: 44.715278
+    lng: -67.458333
+    icon: map-marker
+    color: darkblue
+  - name: WATTS POINT VOLCANIC CENTRE
+    lat: 49.652778
+    lng: -123.208333
+    icon: map-marker
+    color: darkblue
+  - name: HANOVER TOWNSHIP, JO DAVIESS COUNTY, ILLINOIS
+    lat: 42.243889
+    lng: -90.301389
+    icon: map-marker
+    color: orange
+  - name: FILADELFIO
+    lat: 40.75
+    lng: 23.471667
+    icon: map-marker
+    color: purple
+  - name: MIECZE
+    lat: 53.671389
+    lng: 22.565556
+    icon: map-marker
+    color: blue
+  - name: HOWARD HOME FOR AGED MEN
+    lat: 42.065556
+    lng: -71.053056
+    icon: map-marker
+    color: darkred
+  - name: CHARLES T. MITCHELL HOUSE
+    lat: 44.251667
+    lng: -85.398056
+    icon: graduation-cap
+    color: blue
+  - name: HABIBAS ISLANDS
+    lat: 35.720556
+    lng: -1.133397
+    icon: map-marker
+    color: red
+  - name: LINCOLN TOWNSHIP, ADAMS COUNTY, IOWA
+    lat: 41.116111
+    lng: -94.870556
+    icon: map-marker
+    color: purple
+  - name: LAMEN BAY AIRPORT
+    lat: -16.584167
+    lng: 168.159167
+    icon: map-marker
+    color: cadetblue
+  - name: NORBORNE, MISSOURI
+    lat: 39.302222
+    lng: -93.676111
+    icon: map-marker
+    color: orange
+  - name: SINCLAIRVILLE, NEW YORK
+    lat: 42.262222
+    lng: -79.261944
+    icon: map-marker
+    color: darkpurple
+  - name: BIFUKA STATION
+    lat: 44.483283
+    lng: 142.350286
+    icon: map-marker
+    color: red
+  - name: TAYR JAMLAH
+    lat: 35.102222
+    lng: 36.365278
+    icon: map-marker
+    color: darkred
+  - name: MÉDIO PURUS EXTRACTIVE RESERVE
+    lat: -7.62622
+    lng: -66.271674
+    icon: map-marker
+    color: red
+  - name: ERAM SADAT
+    lat: 37.424444
+    lng: 49.235556
+    icon: map-marker
+    color: darkred
+  - name: BELGIOIOSO, LOMBARDY
+    lat: 45.166667
+    lng: 9.316667
+    icon: map-marker
+    color: orange
+  - name: PICKWICK LANDING DAM
+    lat: 35.063889
+    lng: -88.247222
+    icon: map-marker
+    color: darkgreen
+  - name: DEVANANGURICHI
+    lat: 11.388889
+    lng: 77.859722
+    icon: map-marker
+    color: cadetblue
+  - name: GORNJI MILJEŠ
+    lat: 42.397778
+    lng: 19.326944
+    icon: map-marker
+    color: darkred
+  - name: WASHINGTON GREEN HISTORIC DISTRICT
+    lat: 41.626944
+    lng: -73.308056
+    icon: map-marker
+    color: green
+  - name: MIRBOO NORTH, VICTORIA
+    lat: -38.4
+    lng: 146.15
+    icon: map-marker
+    color: darkblue
+  - name: JINJIANG RAILWAY STATION
+    lat: 24.7975
+    lng: 118.453889
+    icon: map-marker
+    color: darkblue
+  - name: HERBERT WELLS ICE ARENA
+    lat: 38.976111
+    lng: -76.923056
+    icon: dumbbell
+    color: darkgreen
+  - name: WALKER CENTER
+    lat: 40.765278
+    lng: -111.89
+    icon: map-marker
+    color: blue
+  - name: PIOZZO
+    lat: 44.516667
+    lng: 7.9
+    icon: map-marker
+    color: darkgreen
+  - name: ALADINPUR
+    lat: 31.283725
+    lng: 75.645105
+    icon: map-marker
+    color: darkpurple
+  - name: MA'ANSHAN
+    lat: 31.7
+    lng: 118.35
+    icon: map-marker
+    color: orange
+  - name: UNTERWEISSBACH
+    lat: 50.616667
+    lng: 11.183056
+    icon: map-marker
+    color: red
+  - name: TAZEH KAND-E NASIRPUR
+    lat: 37.128333
+    lng: 46.547222
+    icon: map-marker
+    color: red
+  - name: MILLWARD TOWNSHIP, AITKIN COUNTY, MINNESOTA
+    lat: 46.366944
+    lng: -93.1275
+    icon: bed
+    color: purple
+  - name: CEDROWICE-PARCELA
+    lat: 51.966667
+    lng: 19.266667
+    icon: map-marker
+    color: cadetblue
+  - name: KHIRBAT AL-BURJ
+    lat: 32.511389
+    lng: 34.942778
+    icon: map-marker
+    color: darkgreen
+  - name: TAYLOR-FALLS HOUSE
+    lat: 34.513889
+    lng: -89.937222
+    icon: map-marker
+    color: red
+  - name: GENOA, NEBRASKA
+    lat: 41.45
+    lng: -97.733333
+    icon: map-marker
+    color: cadetblue
+  - name: MINAMIAIKI, NAGANO
+    lat: 36.036028
+    lng: 138.546889
+    icon: map-marker
+    color: red
+  - name: HIGHLANDS HIGH SCHOOL (NATRONA HEIGHTS, PENNSYLVANIA)
+    lat: 40.617843
+    lng: -79.726903
+    icon: graduation-cap
+    color: blue
+  - name: BIAŁOBRZEGI
+    lat: 51.65
+    lng: 20.95
+    icon: map-marker
+    color: red
+  - name: SWANSON BOATHOUSE
+    lat: 48.483056
+    lng: -113.368611
+    icon: tree
+    color: green
+  - name: FARHATABAD
+    lat: 17.185278
+    lng: 76.795
+    icon: map-marker
+    color: cadetblue
+  - name: ALGI, CHITTAGONG
+    lat: 23.233333
+    lng: 90.75
+    icon: map-marker
+    color: cadetblue
+  - name: NAPLES, TEXAS
+    lat: 33.203056
+    lng: -94.678889
+    icon: map-marker
+    color: blue
+  - name: FIRST AFRICAN BAPTIST CHURCH (TUSCALOOSA, ALABAMA)
+    lat: 33.204722
+    lng: -87.570556
+    icon: map-marker
+    color: darkblue
+  - name: PARKER TAVERN
+    lat: 42.520764
+    lng: -71.106717
+    icon: tree
+    color: green
+  - name: GLEN ARBOR TOWNSHIP, MICHIGAN
+    lat: 44.896111
+    lng: -85.998333
+    icon: map-marker
+    color: purple
+  - name: LONG MEADOW (SURGOINSVILLE, TENNESSEE)
+    lat: 36.501389
+    lng: -82.855556
+    icon: map-marker
+    color: darkgreen
+  - name: ALDER SPRINGS, FRESNO COUNTY, CALIFORNIA
+    lat: 37.066111
+    lng: -119.401944
+    icon: map-marker
+    color: green
+  - name: NEVĚZICE
+    lat: 49.477778
+    lng: 14.153333
+    icon: map-marker
+    color: green
+  - name: MALA VARNICA
+    lat: 46.312378
+    lng: 15.940181
+    icon: map-marker
+    color: blue
+  - name: SEXTON, IOWA
+    lat: 43.082778
+    lng: -94.089167
+    icon: map-marker
+    color: blue
+  - name: MANER SHARIF
+    lat: 25.65
+    lng: 84.88
+    icon: map-marker
+    color: purple
+  - name: QARAH GOL, MESHGIN SHAHR
+    lat: 38.411667
+    lng: 47.597222
+    icon: map-marker
+    color: darkred
+  - name: SOLTANABAD, MAHAN
+    lat: 30.116389
+    lng: 57.3675
+    icon: map-marker
+    color: darkred
+  - name: MENENG DISTRICT
+    lat: -0.548056
+    lng: 166.939444
+    icon: map-marker
+    color: darkgreen
+  - name: VICTORIA, WEST VIRGINIA
+    lat: 39.417778
+    lng: -79.889167
+    icon: map-marker
+    color: green
+  - name: SECOND PRESBYTERIAN CHURCH (MEMPHIS, TENNESSEE) (1952)
+    lat: 35.123472
+    lng: -89.927167
+    icon: map-marker
+    color: darkpurple
+  - name: HERZOGENBUCHSEE
+    lat: 47.183333
+    lng: 7.7
+    icon: map-marker
+    color: orange
+  - name: MAMOUROUDOU
+    lat: 9.4
+    lng: -9.35
+    icon: map-marker
+    color: darkgreen
+  - name: GRANAROLO DELL'EMILIA
+    lat: 44.55
+    lng: 11.45
+    icon: map-marker
+    color: blue
+  - name: STOJDRAGA
+    lat: 45.85
+    lng: 15.583333
+    icon: map-marker
+    color: blue
+  - name: ROSELEND DAM
+    lat: 45.684167
+    lng: 6.621667
+    icon: map-marker
+    color: orange
+  - name: RĘKORAJ
+    lat: 51.516667
+    lng: 19.65
+    icon: map-marker
+    color: cadetblue
+  - name: KRWONY
+    lat: 52.066667
+    lng: 18.616667
+    icon: map-marker
+    color: darkpurple
+  - name: NADUVAKURICHI
+    lat: 8.36549
+    lng: 77.94316
+    icon: map-marker
+    color: green
+  - name: TAUTENDORF
+    lat: 50.816667
+    lng: 11.9
+    icon: map-marker
+    color: orange
+  - name: HAPOEL GROUND, PETAH TIKVA
+    lat: 32.092667
+    lng: 34.8935
+    icon: dumbbell
+    color: darkgreen
+  - name: LIG
+    lat: 46.108744
+    lng: 13.611825
+    icon: map-marker
+    color: cadetblue
+  - name: SARAYKENT
+    lat: 39.7
+    lng: 35.516667
+    icon: map-marker
+    color: darkgreen
+  - name: MOTUL MUNICIPALITY
+    lat: 21.095
+    lng: -89.283056
+    icon: map-marker
+    color: darkred
+  - name: TANGOUNA
+    lat: 12.483333
+    lng: -4.2
+    icon: map-marker
+    color: darkgreen
+  - name: MERIDIANO, SÃO PAULO
+    lat: -20.359167
+    lng: -50.173333
+    icon: map-marker
+    color: green
+  - name: CHALCHERANEH
+    lat: 32.973056
+    lng: 49.721389
+    icon: map-marker
+    color: blue
+  - name: PUSZTAZÁMOR
+    lat: 47.40292
+    lng: 18.78263
+    icon: map-marker
+    color: red
+  - name: HARPER HOUSE (HARPER, NORTH CAROLINA)
+    lat: 35.301389
+    lng: -78.3325
+    icon: hospital
+    color: darkred
+  - name: ZÜLPICH
+    lat: 50.7
+    lng: 6.65
+    icon: map-marker
+    color: darkblue
+  - name: GRAYSON–GRAVELY HOUSE
+    lat: 37.043333
+    lng: -80.562778
+    icon: map-marker
+    color: darkpurple
+  - name: AIBETSU, HOKKAIDO
+    lat: 43.9
+    lng: 142.583333
+    icon: map-marker
+    color: darkred
+  - name: NORFOLK AND WESTERN RAILWAY COMPANY HISTORIC DISTRICT
+    lat: 37.273056
+    lng: -79.941944
+    icon: map-marker
+    color: red
+  - name: BRZOZÓW
+    lat: 49.7
+    lng: 22.016667
+    icon: map-marker
+    color: darkblue
+  - name: LEIMEN (BADEN)
+    lat: 49.348056
+    lng: 8.691111
+    icon: map-marker
+    color: cadetblue
+  - name: HAMMARSLUND
+    lat: 56.0
+    lng: 14.216667
+    icon: map-marker
+    color: red
+  - name: JAN AHMAD, SOUTH KHORASAN
+    lat: 33.341111
+    lng: 59.830278
+    icon: map-marker
+    color: darkgreen
+  - name: TANG-E TIR
+    lat: 31.481944
+    lng: 51.723333
+    icon: map-marker
+    color: cadetblue
+  - name: TSAGEM
+    lat: 9.421111
+    lng: 3.488611
+    icon: map-marker
+    color: darkgreen
+  - name: KALALE
+    lat: 12.083333
+    lng: 76.666667
+    icon: map-marker
+    color: darkblue
+  - name: NACHANE
+    lat: 17.0019
+    lng: 73.3293
+    icon: map-marker
+    color: cadetblue
+  - name: HUANGCUN RAILWAY STATION
+    lat: 39.721944
+    lng: 116.326389
+    icon: map-marker
+    color: darkred
+  - name: ABOHAR
+    lat: 30.1334
+    lng: 74.2001
+    icon: map-marker
+    color: darkgreen
+  - name: HASANABAD-E NOW
+    lat: 31.079444
+    lng: 52.782222
+    icon: map-marker
+    color: blue
+  - name: COLUMBUS-LOWNDES COUNTY AIRPORT
+    lat: 33.465278
+    lng: -88.380278
+    icon: dumbbell
+    color: darkgreen
+  - name: MARAVILHAS
+    lat: -19.515833
+    lng: -44.675833
+    icon: map-marker
+    color: darkgreen
+  - name: MIDDLEBROOK (KNOXVILLE, TENNESSEE)
+    lat: 35.963889
+    lng: -83.9775
+    icon: map-marker
+    color: cadetblue
+  - name: DAWSON, WEST VIRGINIA
+    lat: 37.856111
+    lng: -80.710833
+    icon: map-marker
+    color: darkblue
+  - name: TEMMABASHI STATION
+    lat: 34.690197
+    lng: 135.516631
+    icon: map-marker
+    color: orange
+  - name: VRBOVAC (SOKOBANJA)
+    lat: 43.688333
+    lng: 21.7475
+    icon: map-marker
+    color: darkgreen
+  - name: VANYAR, IRAN
+    lat: 38.116667
+    lng: 46.405
+    icon: map-marker
+    color: purple
+  - name: ZAHED KOLA, QAEM SHAHR
+    lat: 36.518889
+    lng: 52.891389
+    icon: map-marker
+    color: green
+  - name: WASKISH TOWNSHIP, BELTRAMI COUNTY, MINNESOTA
+    lat: 48.165
+    lng: -94.510833
+    icon: bed
+    color: purple
+  - name: MENDELEYEVSKY DISTRICT
+    lat: 55.966667
+    lng: 52.366667
+    icon: map-marker
+    color: red
+  - name: KHVOR KHVOREH, BUKAN
+    lat: 36.295
+    lng: 45.800833
+    icon: map-marker
+    color: green
+  - name: KOLINCZ
+    lat: 53.966944
+    lng: 18.644722
+    icon: map-marker
+    color: darkred
+  - name: RUD-E SHUR, HORMOZGAN
+    lat: 27.695278
+    lng: 56.325
+    icon: map-marker
+    color: orange
+  - name: WILA JAQHI (BOLIVIA)
+    lat: -17.541389
+    lng: -66.801111
+    icon: map-marker
+    color: green
+  - name: FLEKKEFJORD
+    lat: 58.327222
+    lng: 6.666667
+    icon: map-marker
+    color: red
+  - name: DUNREITH, INDIANA
+    lat: 39.803056
+    lng: -85.436944
+    icon: map-marker
+    color: darkpurple
+  - name: DEERWOOD, MINNESOTA
+    lat: 46.473611
+    lng: -93.901944
+    icon: bed
+    color: purple
+  - name: JURAYNAH
+    lat: 31.766667
+    lng: 35.8
+    icon: map-marker
+    color: darkblue
+  - name: VÖLKLINGEN
+    lat: 49.25
+    lng: 6.833333
+    icon: map-marker
+    color: purple
+  - name: GRANITE PEAK-NORTHWEST PEAK
+    lat: 45.166667
+    lng: -109.813333
+    icon: tree
+    color: green
+  - name: ALIMINUSA
+    lat: 37.866667
+    lng: 13.783333
+    icon: map-marker
+    color: darkpurple
+  - name: HILLSBORO, MISSOURI
+    lat: 38.232222
+    lng: -90.563333
+    icon: map-marker
+    color: purple
+  - name: Q'AWIRI QULLU
+    lat: -16.786389
+    lng: -68.475833
+    icon: map-marker
+    color: red
+  - name: BOSWELL SCHOOL
+    lat: 36.040278
+    lng: -92.055
+    icon: graduation-cap
+    color: blue
+  - name: ÖSTRA BISPGÅRDEN
+    lat: 63.0
+    lng: 16.666667
+    icon: map-marker
+    color: purple
+  - name: WEST WYALONG
+    lat: -33.916667
+    lng: 147.216667
+    icon: map-marker
+    color: red
+  - name: SPIERE-HELKIJN
+    lat: 50.716667
+    lng: 3.35
+    icon: map-marker
+    color: blue
+  - name: ROSALIND, ALBERTA
+    lat: 52.787278
+    lng: -112.44025
+    icon: map-marker
+    color: purple
+  - name: SMYKÓW, GMINA FAŁKÓW
+    lat: 51.102778
+    lng: 20.011389
+    icon: map-marker
+    color: darkpurple
+  - name: MIĘDZYLESIE, WEST POMERANIAN VOIVODESHIP
+    lat: 53.620278
+    lng: 16.441944
+    icon: map-marker
+    color: green
+  - name: YAPACANÍ AIRPORT
+    lat: -17.009722
+    lng: -64.059722
+    icon: map-marker
+    color: orange
+  - name: VIPULANANDA CENTRAL COLLEGE
+    lat: 7.786361
+    lng: 81.590528
+    icon: graduation-cap
+    color: blue
+  - name: DIVIDE TOWNSHIP, BUFFALO COUNTY, NEBRASKA
+    lat: 40.827778
+    lng: -99.125833
+    icon: map-marker
+    color: cadetblue
+  - name: KAWARTHA HIGHLANDS PROVINCIAL PARK
+    lat: 44.75
+    lng: -78.25
+    icon: tree
+    color: green
+  - name: MARVAK, LORESTAN
+    lat: 33.666389
+    lng: 49.056389
+    icon: map-marker
+    color: orange
+  - name: NAHRABAD
+    lat: 36.713611
+    lng: 59.198056
+    icon: map-marker
+    color: red
+  - name: KOURTIAGOU RESERVE
+    lat: 11.5236
+    lng: 1.94097
+    icon: map-marker
+    color: darkpurple
+  - name: LA BÓVEDA DE TORO
+    lat: 41.35
+    lng: -5.4
+    icon: map-marker
+    color: cadetblue
+  - name: ASSIN SOUTH DISTRICT
+    lat: 5.5
+    lng: -1.033333
+    icon: map-marker
+    color: red
+  - name: FRANK SIKES AIRPORT
+    lat: 31.736111
+    lng: -86.262222
+    icon: dumbbell
+    color: darkgreen
+  - name: IBARAC
+    lat: 42.835
+    lng: 20.157222
+    icon: map-marker
+    color: darkblue
+  - name: LARUT, MATANG AND SELAMA DISTRICT
+    lat: 4.916667
+    lng: 100.75
+    icon: map-marker
+    color: darkpurple
+  - name: FATNICA
+    lat: 43.033333
+    lng: 18.316667
+    icon: map-marker
+    color: darkred
+  - name: GELSTED
+    lat: 55.398056
+    lng: 9.971389
+    icon: map-marker
+    color: darkgreen
+  - name: HAMILTON WOOLEN COMPANY HISTORIC DISTRICT
+    lat: 42.082222
+    lng: -72.043611
+    icon: map-marker
+    color: green
+  - name: YANTIS, TEXAS
+    lat: 32.931944
+    lng: -95.575278
+    icon: map-marker
+    color: darkred
+  - name: QARAH YATAQ
+    lat: 39.013889
+    lng: 48.204722
+    icon: map-marker
+    color: red
+  - name: SABOTIN
+    lat: 45.985556
+    lng: 13.638056
+    icon: map-marker
+    color: darkred
+  - name: ŞƏKƏRLI, SALYAN
+    lat: 39.683333
+    lng: 49.066667
+    icon: map-marker
+    color: orange
+  - name: RUDA, RUDA ŚLĄSKA
+    lat: 50.311667
+    lng: 18.851389
+    icon: map-marker
+    color: green
+  - name: CAPTURE OF SCHWABEN REDOUBT
+    lat: 50.055278
+    lng: 2.689722
+    icon: map-marker
+    color: darkgreen
+  - name: WOLICA, GMINA BOGORIA
+    lat: 50.652778
+    lng: 21.327778
+    icon: map-marker
+    color: darkred
+  - name: NOR ARABKIR
+    lat: 40.200278
+    lng: 44.494167
+    icon: map-marker
+    color: blue
+  - name: SAN VICENTE DE BIQUE
+    lat: 8.92
+    lng: -79.68
+    icon: map-marker
+    color: darkpurple
+  - name: MEDIA LUNA, CUBA
+    lat: 20.144444
+    lng: -77.436111
+    icon: map-marker
+    color: cadetblue
+  - name: DUNNSTOWN, PENNSYLVANIA
+    lat: 41.146389
+    lng: -77.4225
+    icon: map-marker
+    color: orange
+  - name: STATE BANK BUILDING
+    lat: 38.67
+    lng: -89.986667
+    icon: map-marker
+    color: darkred
+  - name: DOLNA NIWA
+    lat: 49.692778
+    lng: 21.225556
+    icon: map-marker
+    color: darkred
+  - name: SEGGIANO
+    lat: 42.916667
+    lng: 11.55
+    icon: map-marker
+    color: darkgreen
+  - name: TRUSZKI-ZALESIE
+    lat: 53.5
+    lng: 22.05
+    icon: map-marker
+    color: darkpurple
+  - name: BENGUERRA ISLAND AIRPORT
+    lat: -21.853056
+    lng: 35.438333
+    icon: map-marker
+    color: darkgreen
+  - name: HAJJI AHMAD
+    lat: 36.683333
+    lng: 48.416667
+    icon: map-marker
+    color: green
+  - name: UPPER MIDDLEBURGH CEMETERY
+    lat: 42.59
+    lng: -74.318889
+    icon: map-marker
+    color: red
+  - name: JASZKOWA GÓRNA
+    lat: 50.402222
+    lng: 16.751111
+    icon: map-marker
+    color: darkblue
+  - name: KUSHKUIYEH, KERMAN
+    lat: 28.823889
+    lng: 57.928611
+    icon: map-marker
+    color: red
+  - name: HOMIGOT LIGHTHOUSE
+    lat: 36.077342
+    lng: 129.5692
+    icon: map-marker
+    color: cadetblue
+  - name: TAUNTON HIGH SCHOOL
+    lat: 41.9015
+    lng: -71.0716
+    icon: graduation-cap
+    color: blue
+  - name: SILVER CREEK, MISSOURI
+    lat: 37.036111
+    lng: -94.470833
+    icon: map-marker
+    color: cadetblue
+  - name: TALADAR-E NAKHLESTAN
+    lat: 25.454167
+    lng: 59.006667
+    icon: map-marker
+    color: darkblue
+  - name: HEYBAT-E OLYA
+    lat: 38.900833
+    lng: 47.700278
+    icon: map-marker
+    color: darkred
+  - name: GORNJE CEROVO
+    lat: 45.982264
+    lng: 13.563608
+    icon: map-marker
+    color: darkred
+  - name: KABILE
+    lat: 42.533333
+    lng: 26.483333
+    icon: map-marker
+    color: green
+  - name: WŁOSNOWICE
+    lat: 50.383333
+    lng: 20.933333
+    icon: map-marker
+    color: darkpurple
+  - name: EURSINGE, MIDDEN-DRENTHE
+    lat: 52.838056
+    lng: 6.603333
+    icon: map-marker
+    color: cadetblue
+  - name: GRYŻYNA, LUBUSZ VOIVODESHIP
+    lat: 52.183333
+    lng: 15.283333
+    icon: map-marker
+    color: cadetblue
+  - name: SIGEL TOWNSHIP, BROWN COUNTY, MINNESOTA
+    lat: 44.234444
+    lng: -94.563056
+    icon: bed
+    color: purple
+  - name: SAINT PAUL'S EVANGELICAL LUTHERAN CHURCH (FORT WAYNE, INDIANA)
+    lat: 41.075556
+    lng: -85.135556
+    icon: map-marker
+    color: cadetblue
+  - name: YESSENTUKI
+    lat: 44.033333
+    lng: 42.85
+    icon: map-marker
+    color: blue
+  - name: ZAVINO
+    lat: 45.853528
+    lng: 13.834764
+    icon: map-marker
+    color: purple
+  - name: BOER, VIRGINIA
+    lat: 37.769722
+    lng: -76.5825
+    icon: map-marker
+    color: cadetblue
+  - name: DONJI BUČUMET
+    lat: 42.907778
+    lng: 21.618056
+    icon: map-marker
+    color: darkpurple
+  - name: TRICOUNI PEAK
+    lat: 50.013733
+    lng: -123.244739
+    icon: map-marker
+    color: cadetblue
+  - name: CANBY, CALIFORNIA
+    lat: 41.443889
+    lng: -120.870278
+    icon: map-marker
+    color: cadetblue
+  - name: SMITH TOBACCO BARN
+    lat: 34.342222
+    lng: -79.252778
+    icon: map-marker
+    color: purple
+  - name: ROMOOS
+    lat: 47.016667
+    lng: 8.033333
+    icon: map-marker
+    color: purple
+  - name: WILSON'S DINER
+    lat: 42.386111
+    lng: -71.231389
+    icon: utensils
+    color: red
+  - name: SANCHI STUPA NO.2
+    lat: 23.48
+    lng: 77.73
+    icon: map-marker
+    color: darkblue
+  - name: ROMANOVKA STRATOVOLCANO
+    lat: 55.65
+    lng: 158.8
+    icon: map-marker
+    color: red
+  - name: SOM, UTTAR PRADESH
+    lat: 27.06
+    lng: 80.52
+    icon: map-marker
+    color: darkred
+  - name: MOTAALLEQ MAHALLEH-YE NOWBIJAR
+    lat: 37.241111
+    lng: 50.035278
+    icon: map-marker
+    color: orange
+  - name: ELK CREEK, CALIFORNIA
+    lat: 39.605278
+    lng: -122.539167
+    icon: map-marker
+    color: red
+  - name: DORCHEH PIAZ
+    lat: 32.615278
+    lng: 51.555556
+    icon: map-marker
+    color: blue
+  - name: ZAMOSTEC
+    lat: 45.757156
+    lng: 14.648167
+    icon: map-marker
+    color: cadetblue
+  - name: WILLIAMS, ADAMS COUNTY, INDIANA
+    lat: 40.918889
+    lng: -84.975278
+    icon: map-marker
+    color: darkred
+  - name: SƏFIXANLAR
+    lat: 39.753889
+    lng: 46.628056
+    icon: map-marker
+    color: darkpurple
+  - name: COURTLAND TOWNSHIP, NICOLLET COUNTY, MINNESOTA
+    lat: 44.286944
+    lng: -94.349444
+    icon: bed
+    color: purple
+  - name: KANSAS CITY CHRISTIAN SCHOOL
+    lat: 38.985556
+    lng: -94.641111
+    icon: graduation-cap
+    color: blue
+  - name: GENEVAD
+    lat: 56.566667
+    lng: 13.016667
+    icon: map-marker
+    color: blue
+  - name: TRINITY BAY STATE HIGH SCHOOL
+    lat: -16.9225
+    lng: 145.7525
+    icon: graduation-cap
+    color: blue
+  - name: OMANTHAI RAILWAY STATION
+    lat: 8.8705
+    lng: 80.500972
+    icon: map-marker
+    color: green
+  - name: INNALOO, WESTERN AUSTRALIA
+    lat: -31.894
+    lng: 115.791
+    icon: bed
+    color: purple
+  - name: ÇINARTALA
+    lat: 41.545833
+    lng: 48.723056
+    icon: map-marker
+    color: darkred
+  - name: ILGACHUZ RANGE
+    lat: 52.786694
+    lng: -125.323306
+    icon: map-marker
+    color: purple
+  - name: UR, IRAN
+    lat: 38.354444
+    lng: 47.633333
+    icon: map-marker
+    color: red
+  - name: KHURAMPUR, PHAGWARA
+    lat: 31.257246
+    lng: 75.775303
+    icon: map-marker
+    color: green
+  - name: MIRYALAGUDA RAILWAY STATION
+    lat: 16.8667
+    lng: 79.5833
+    icon: map-marker
+    color: red
+  - name: ŻABIA WOLA, GRODZISK MAZOWIECKI COUNTY
+    lat: 52.031389
+    lng: 20.690833
+    icon: map-marker
+    color: red
+  - name: NEY BAND
+    lat: 35.2125
+    lng: 48.075556
+    icon: map-marker
+    color: purple
+  - name: OVERLANDERS, EDMONTON
+    lat: 53.581
+    lng: -113.389
+    icon: map-marker
+    color: purple
+  - name: GOMUŞÇU, SABIRABAD
+    lat: 40.051111
+    lng: 48.393611
+    icon: map-marker
+    color: darkpurple
+  - name: AGHAVNATUN
+    lat: 40.233333
+    lng: 44.251389
+    icon: map-marker
+    color: blue
+  - name: DORTMUND-BAROP STATION
+    lat: 51.47644
+    lng: 7.431398
+    icon: map-marker
+    color: darkpurple
+  - name: DAWSON, MARYLAND
+    lat: 39.4775
+    lng: -78.943611
+    icon: map-marker
+    color: darkblue
+  - name: KING AIRFIELD HANGAR
+    lat: 41.880833
+    lng: -71.020556
+    icon: dumbbell
+    color: darkgreen
+  - name: CHELSEA, ALABAMA
+    lat: 33.329167
+    lng: -86.650833
+    icon: map-marker
+    color: darkblue
+  - name: THATTATHUMALA
+    lat: 8.767
+    lng: 76.88
+    icon: map-marker
+    color: purple
+  - name: VASKNARVA
+    lat: 58.999444
+    lng: 27.738611
+    icon: map-marker
+    color: darkred
+  - name: TONOPAH, NEVADA
+    lat: 38.067222
+    lng: -117.23
+    icon: map-marker
+    color: darkpurple
+  - name: LALUK, BABOL
+    lat: 36.4375
+    lng: 52.522222
+    icon: map-marker
+    color: darkpurple
+  - name: TANG-E KOLEH
+    lat: 28.3725
+    lng: 52.935278
+    icon: map-marker
+    color: red
+  - name: POLLENZA
+    lat: 43.266667
+    lng: 13.35
+    icon: map-marker
+    color: orange
+  - name: ANTARAMUT
+    lat: 40.938611
+    lng: 44.559167
+    icon: map-marker
+    color: darkgreen
+  - name: ALFAVUT
+    lat: 34.64
+    lng: 48.749722
+    icon: map-marker
+    color: green
+  - name: HASAKOTHUR
+    lat: 18.800278
+    lng: 78.515556
+    icon: map-marker
+    color: darkblue
+  - name: CIEŚLIN, LESSER POLAND VOIVODESHIP
+    lat: 50.383333
+    lng: 19.633333
+    icon: map-marker
+    color: darkgreen
+  - name: NOVOVORONEZH NUCLEAR POWER PLANT II
+    lat: 51.275
+    lng: 39.2
+    icon: map-marker
+    color: purple
+  - name: KITAGAWACHI STATION
+    lat: 33.7433
+    lng: 134.535
+    icon: map-marker
+    color: darkblue
+  - name: TOMAČEVICA
+    lat: 45.816711
+    lng: 13.773247
+    icon: map-marker
+    color: blue
+  - name: RIVERDALE, CALIFORNIA
+    lat: 36.431111
+    lng: -119.859444
+    icon: map-marker
+    color: darkred
+  - name: WIERZBOWO, EŁK COUNTY
+    lat: 53.95
+    lng: 22.683333
+    icon: map-marker
+    color: green
+  - name: GOLAKI
+    lat: 28.774722
+    lng: 51.225556
+    icon: map-marker
+    color: purple
+  - name: GRÓDEK, LOWER SILESIAN VOIVODESHIP
+    lat: 51.386111
+    lng: 16.791389
+    icon: map-marker
+    color: orange
+  - name: ATHLONE STADIUM
+    lat: -33.961983
+    lng: 18.517314
+    icon: dumbbell
+    color: darkgreen
+  - name: MULBERRY, KENTUCKY
+    lat: 38.265
+    lng: -85.134167
+    icon: map-marker
+    color: darkred
+  - name: BRIDGE CITY, TEXAS
+    lat: 30.034167
+    lng: -93.842778
+    icon: map-marker
+    color: darkblue
+  - name: SUOMENLINNA CHURCH
+    lat: 60.147866
+    lng: 24.986229
+    icon: bed
+    color: purple
+  - name: JAY PRAKASH NARAYAN INTERNATIONAL AIRPORT
+    lat: 25.593611
+    lng: 85.091944
+    icon: dumbbell
+    color: darkgreen
+  - name: BIG LEVEL, MISSISSIPPI
+    lat: 30.811667
+    lng: -89.051389
+    icon: map-marker
+    color: orange
+  - name: KRZYWKI-BOŚKI
+    lat: 53.066667
+    lng: 20.116667
+    icon: map-marker
+    color: darkblue
+  - name: WASHBURN HIGH SCHOOL
+    lat: 44.913056
+    lng: -93.283056
+    icon: graduation-cap
+    color: blue
+  - name: GRASSHOPPER TOWNSHIP, ATCHISON COUNTY, KANSAS
+    lat: 39.596667
+    lng: -95.4375
+    icon: shopping-cart
+    color: orange
+  - name: KARBIGWAN
+    lat: 26.2
+    lng: 80.5
+    icon: map-marker
+    color: darkpurple
+  - name: RHÖNDORF STATION
+    lat: 50.658136
+    lng: 7.210225
+    icon: map-marker
+    color: red
+  - name: DUNBARTON, CALIFORNIA
+    lat: 36.858333
+    lng: -121.646944
+    icon: map-marker
+    color: green
+  - name: RUDNÁ (SVITAVY DISTRICT)
+    lat: 49.656111
+    lng: 16.570833
+    icon: map-marker
+    color: darkpurple
+  - name: LEWIS J. BENNETT SCHOOL OF INNOVATIVE TECHNOLOGY
+    lat: 42.943889
+    lng: -78.832222
+    icon: graduation-cap
+    color: blue
+  - name: KALYANPUR, MAHARASHTRA
+    lat: 15.933333
+    lng: 74.2
+    icon: map-marker
+    color: green
+  - name: OLD WARDEN AERODROME
+    lat: 52.086667
+    lng: -0.318611
+    icon: map-marker
+    color: darkpurple
+  - name: FATHABAD, ANDIKA
+    lat: 32.194444
+    lng: 49.506111
+    icon: map-marker
+    color: cadetblue
+  - name: PENTALOFOS, KOZANI
+    lat: 40.2
+    lng: 21.133333
+    icon: map-marker
+    color: darkgreen
+  - name: KALATEH-YE MIR AL
+    lat: 36.503611
+    lng: 56.641667
+    icon: map-marker
+    color: purple
+  - name: ERDENHEIM, PENNSYLVANIA
+    lat: 40.091944
+    lng: -75.213889
+    icon: map-marker
+    color: green
+  - name: GRAPEVINE, TEXAS
+    lat: 32.935
+    lng: -97.085833
+    icon: map-marker
+    color: red
+  - name: WILLIAM MONROE HIGH SCHOOL
+    lat: 38.293611
+    lng: -78.443611
+    icon: graduation-cap
+    color: blue
+  - name: KIASMA
+    lat: 60.171667
+    lng: 24.936944
+    icon: landmark
+    color: darkblue
+  - name: LEWIS CHAPEL, TENNESSEE
+    lat: 35.340833
+    lng: -85.3075
+    icon: map-marker
+    color: cadetblue
+  - name: E.A. SHAW HOUSE
+    lat: 41.531389
+    lng: -90.556667
+    icon: map-marker
+    color: orange
+  - name: LIBLÍN
+    lat: 49.916667
+    lng: 13.544167
+    icon: map-marker
+    color: darkblue
+  - name: NOWA WIEŚ WROCŁAWSKA
+    lat: 51.045833
+    lng: 16.916944
+    icon: map-marker
+    color: cadetblue
+  - name: LAFAYETTE HISTORIC DISTRICT (LAFAYETTE, VIRGINIA)
+    lat: 37.235278
+    lng: -80.210833
+    icon: map-marker
+    color: darkpurple
+  - name: ZHANGZHOU RAILWAY STATION
+    lat: 24.459722
+    lng: 117.710833
+    icon: map-marker
+    color: darkgreen
+  - name: JAMES HUNTER STONE HOUSE
+    lat: 40.070833
+    lng: -81.799167
+    icon: map-marker
+    color: darkpurple
+  - name: SOUDOU
+    lat: 9.316667
+    lng: 1.4
+    icon: map-marker
+    color: orange
+  - name: JANUSZÓWKA, ŁĘCZNA COUNTY
+    lat: 51.35
+    lng: 22.8
+    icon: map-marker
+    color: cadetblue
+  - name: MAIŠIAGALA
+    lat: 54.872222
+    lng: 25.066667
+    icon: map-marker
+    color: purple
+  - name: MELSNUTEN
+    lat: 59.695833
+    lng: 6.927778
+    icon: map-marker
+    color: darkpurple
+  - name: RANCHO GRANDE, NEW MEXICO
+    lat: 33.682778
+    lng: -108.858056
+    icon: map-marker
+    color: blue
+  - name: MALMINKARTANO RAILWAY STATION
+    lat: 60.246667
+    lng: 24.863889
+    icon: map-marker
+    color: red
+  - name: TAZEH KAND-E ANHAR
+    lat: 37.573611
+    lng: 44.933056
+    icon: map-marker
+    color: purple
+  - name: ŠUTKOVIĆI
+    lat: 44.15
+    lng: 17.433333
+    icon: map-marker
+    color: red
+  - name: COLLETON COUNTY COURTHOUSE
+    lat: 32.902461
+    lng: -80.666667
+    icon: map-marker
+    color: blue
+  - name: ZEC DE LA RIVIÈRE-MOISIE
+    lat: 50.192778
+    lng: -66.095
+    icon: map-marker
+    color: darkred
+  - name: BABY, SILESIAN VOIVODESHIP
+    lat: 50.95
+    lng: 19.316667
+    icon: map-marker
+    color: purple
+  - name: SAMMICHELE RAILWAY STATION
+    lat: 40.893056
+    lng: 16.950278
+    icon: map-marker
+    color: darkpurple
+  - name: AUDITORE
+    lat: 43.816667
+    lng: 12.566667
+    icon: map-marker
+    color: orange
+  - name: CHALLHUA
+    lat: -9.920833
+    lng: -77.223056
+    icon: map-marker
+    color: cadetblue
+  - name: HASSELFORS
+    lat: 59.083333
+    lng: 14.65
+    icon: map-marker
+    color: green
+  - name: MOUNT HADDINGTON
+    lat: -64.216667
+    lng: -57.633333
+    icon: map-marker
+    color: darkblue
+  - name: DAVIS COUNTY COURTHOUSE
+    lat: 40.752778
+    lng: -92.416944
+    icon: map-marker
+    color: purple
+  - name: ÇAKIRHÜYÜK, BESNI
+    lat: 37.566667
+    lng: 37.85
+    icon: map-marker
+    color: darkgreen
+  - name: EWA VILLAGES, HAWAII
+    lat: 21.342222
+    lng: -158.041667
+    icon: map-marker
+    color: red
+  - name: MATKATPUR
+    lat: 22.395806
+    lng: 87.342806
+    icon: map-marker
+    color: orange
+  - name: HÜSEYNUŞAĞI
+    lat: 39.243611
+    lng: 46.715556
+    icon: map-marker
+    color: red
+  - name: ŠALKA VAS
+    lat: 45.652522
+    lng: 14.878989
+    icon: map-marker
+    color: purple
+  - name: MIASTOWICE
+    lat: 52.966667
+    lng: 17.533333
+    icon: map-marker
+    color: darkblue
+  - name: BENDGAON
+    lat: 20.066435
+    lng: 72.996249
+    icon: map-marker
+    color: darkgreen
+  - name: FOBELLO
+    lat: 45.883333
+    lng: 8.166667
+    icon: map-marker
+    color: cadetblue
+  - name: ČERKAZOVIĆI
+    lat: 44.333333
+    lng: 17.166667
+    icon: map-marker
+    color: orange
+  - name: KUEI-JUET
+    lat: 6.711667
+    lng: 31.422222
+    icon: map-marker
+    color: darkgreen
+  - name: CHI OMEGA GREEK THEATRE
+    lat: 36.066667
+    lng: -94.173333
+    icon: graduation-cap
+    color: blue
+  - name: NABI SUFI
+    lat: 37.088333
+    lng: 46.971389
+    icon: map-marker
+    color: orange
+  - name: QALEH-YE QAREH DASH
+    lat: 36.155833
+    lng: 49.600833
+    icon: map-marker
+    color: red
+  - name: AYORA
+    lat: 39.058333
+    lng: -1.057222
+    icon: map-marker
+    color: darkred
+  - name: POLEKARCICE
+    lat: 50.183333
+    lng: 20.183333
+    icon: map-marker
+    color: orange
+  - name: AHMAD KOLA
+    lat: 36.373611
+    lng: 52.655556
+    icon: map-marker
+    color: darkblue
+  - name: BALUT BEYG
+    lat: 34.004444
+    lng: 48.8375
+    icon: map-marker
+    color: darkpurple
+  - name: WAYNE TOWNSHIP, HENRY COUNTY, INDIANA
+    lat: 39.83
+    lng: -85.546389
+    icon: map-marker
+    color: darkpurple
+  - name: BILUKHAR
+    lat: 31.026111
+    lng: 51.003611
+    icon: map-marker
+    color: darkred
+  - name: KFAR REMEN
+    lat: 33.386167
+    lng: 35.496611
+    icon: map-marker
+    color: darkred
+  - name: DUBUQUE STAR BREWERY
+    lat: 42.499444
+    lng: -90.654167
+    icon: map-marker
+    color: darkblue
+  - name: SZADÓW PAŃSKI
+    lat: 52.016667
+    lng: 18.533333
+    icon: map-marker
+    color: blue
+  - name: HOSEYNABAD, KHONJ
+    lat: 27.835278
+    lng: 53.601667
+    icon: map-marker
+    color: cadetblue
+  - name: STEFANOWO, GMINA KAZIMIERZ BISKUPI
+    lat: 52.345833
+    lng: 18.120833
+    icon: map-marker
+    color: cadetblue
+  - name: GELDROP-MIERLO
+    lat: 51.416667
+    lng: 5.566667
+    icon: map-marker
+    color: darkgreen
+  - name: CAULONIA
+    lat: 38.383333
+    lng: 16.416667
+    icon: map-marker
+    color: cadetblue
+  - name: LEBRIJA, SANTANDER
+    lat: 7.416667
+    lng: -73.416667
+    icon: map-marker
+    color: darkgreen
+  - name: MAKS
+    lat: 54.269722
+    lng: 18.053611
+    icon: map-marker
+    color: darkblue
+  - name: CHISHOLM, MAINE
+    lat: 44.486667
+    lng: -70.195
+    icon: map-marker
+    color: darkblue
+  - name: MAVA
+    lat: 36.521389
+    lng: 59.126389
+    icon: map-marker
+    color: blue
+  - name: MISS FLORENCE DINER
+    lat: 42.335278
+    lng: -72.671667
+    icon: utensils
+    color: red
+  - name: THE KNICKERBOCKER HOTEL (MANHATTAN)
+    lat: 40.755278
+    lng: -73.986667
+    icon: bed
+    color: purple
+  - name: GIRRAWEEN NATIONAL PARK
+    lat: -28.774167
+    lng: 151.911944
+    icon: tree
+    color: green
+  - name: LAGHOUAT DISTRICT
+    lat: 33.806538
+    lng: 2.882195
+    icon: map-marker
+    color: green
+  - name: TASHBULAK, UZBEKISTAN
+    lat: 40.923333
+    lng: 71.571944
+    icon: map-marker
+    color: orange
+  - name: BHAYAVADAR, RAJKOT
+    lat: 21.85
+    lng: 70.25
+    icon: map-marker
+    color: darkred
+  - name: SHOJAABAD, NATANZ
+    lat: 33.439167
+    lng: 51.976667
+    icon: map-marker
+    color: green
+  - name: FORT WINNEBAGO SURGEON'S QUARTERS
+    lat: 43.554167
+    lng: -89.432778
+    icon: hospital
+    color: darkred
+  - name: HANS MERENSKY WILDERNESS
+    lat: -23.695842
+    lng: 30.671503
+    icon: map-marker
+    color: darkred
+  - name: OUCHI DAM
+    lat: 37.342778
+    lng: 139.872222
+    icon: map-marker
+    color: red
+  - name: KHIRIA
+    lat: 27.108
+    lng: 84.464
+    icon: map-marker
+    color: darkblue
+  - name: BUCCLEUCH MANSION
+    lat: 40.505
+    lng: -74.460278
+    icon: landmark
+    color: darkblue
+  - name: NUEVO COLÓN
+    lat: 5.35
+    lng: -73.466667
+    icon: map-marker
+    color: purple
+  - name: MIAMI LAKES, FLORIDA
+    lat: 25.911667
+    lng: -80.325
+    icon: map-marker
+    color: darkred
+  - name: TUDERK
+    lat: 28.901667
+    lng: 57.900278
+    icon: map-marker
+    color: cadetblue
+  - name: MUSCATINE AVENUE MOFFITT COTTAGE HISTORIC DISTRICT
+    lat: 41.657222
+    lng: -91.515278
+    icon: map-marker
+    color: darkred
+  - name: HARLAPUR
+    lat: 15.433333
+    lng: 75.8
+    icon: map-marker
+    color: darkred
+  - name: NYASSIA
+    lat: 12.470556
+    lng: -16.382778
+    icon: map-marker
+    color: red
+  - name: FEATHERSTONE TOWNSHIP, GOODHUE COUNTY, MINNESOTA
+    lat: 44.486111
+    lng: -92.6025
+    icon: bed
+    color: purple
+  - name: GINTEROWO
+    lat: 53.026944
+    lng: 16.3875
+    icon: map-marker
+    color: green
+  - name: J. WARREN SMITH HOUSE
+    lat: 34.788472
+    lng: -82.695833
+    icon: map-marker
+    color: purple
+  - name: ESPITA, YUCATÁN
+    lat: 21.012778
+    lng: -88.304722
+    icon: map-marker
+    color: darkred
+  - name: OLD EAST YORK
+    lat: 43.693306
+    lng: -79.315833
+    icon: map-marker
+    color: green
+  - name: MATINO
+    lat: 40.033333
+    lng: 18.133333
+    icon: map-marker
+    color: darkpurple
+  - name: LUKASRAND TOWER
+    lat: -25.766111
+    lng: 28.205556
+    icon: map-marker
+    color: orange
+  - name: LES PONTS-DE-MARTEL
+    lat: 47.0
+    lng: 6.733333
+    icon: map-marker
+    color: blue
+  - name: PODGOZD, ŽUŽEMBERK
+    lat: 45.800597
+    lng: 14.965253
+    icon: map-marker
+    color: darkgreen
+  - name: PIOTRKOWICE WIELKIE
+    lat: 50.233333
+    lng: 20.183333
+    icon: map-marker
+    color: purple
+  - name: ELKHART CENTRAL HIGH SCHOOL
+    lat: 41.684722
+    lng: -85.958611
+    icon: graduation-cap
+    color: blue
+  - name: VALLORBE RAILWAY STATION
+    lat: 46.7125
+    lng: 6.370278
+    icon: map-marker
+    color: green
+  - name: RUZA, RUZSKY DISTRICT, MOSCOW OBLAST
+    lat: 55.7
+    lng: 36.2
+    icon: map-marker
+    color: cadetblue
+  - name: IŁAWA
+    lat: 53.596389
+    lng: 19.565556
+    icon: map-marker
+    color: red
+  - name: GÖSSNITZKOPF
+    lat: 46.96781
+    lng: 12.74432
+    icon: map-marker
+    color: orange
+  - name: SITGREAVES HOUSE
+    lat: 34.489722
+    lng: -82.028333
+    icon: map-marker
+    color: darkred
+  - name: MILLTOWN, VIRGINIA
+    lat: 39.235278
+    lng: -77.625833
+    icon: map-marker
+    color: blue
+  - name: NOBORIBETSU, HOKKAIDO
+    lat: 42.416667
+    lng: 141.1
+    icon: map-marker
+    color: darkgreen
+  - name: KASHKUIYEH, ZARAND
+    lat: 30.575833
+    lng: 56.433056
+    icon: map-marker
+    color: darkpurple
+  - name: GAĆ, LOWER SILESIAN VOIVODESHIP
+    lat: 50.886667
+    lng: 17.365833
+    icon: map-marker
+    color: blue
+  - name: OBERWALD RAILWAY STATION
+    lat: 46.53
+    lng: 8.342222
+    icon: map-marker
+    color: red
+  - name: ODOGBOLU
+    lat: 6.766667
+    lng: 3.8
+    icon: map-marker
+    color: darkred
+  - name: SINUIJU
+    lat: 40.1
+    lng: 124.4
+    icon: map-marker
+    color: purple
+  - name: BOGAN CABIN
+    lat: 36.427778
+    lng: -94.233889
+    icon: map-marker
+    color: purple
+  - name: NORTH HEIDELBERG TOWNSHIP, BERKS COUNTY, PENNSYLVANIA
+    lat: 40.396111
+    lng: -76.112222
+    icon: map-marker
+    color: green
+  - name: BENTARIQUE
+    lat: 36.983333
+    lng: -2.616667
+    icon: map-marker
+    color: orange
+  - name: JAR KHOSHK-E OLYA
+    lat: 35.902222
+    lng: 60.305556
+    icon: map-marker
+    color: orange
+  - name: PETERS-GRAHAM HOUSE
+    lat: 39.792778
+    lng: -79.913056
+    icon: map-marker
+    color: darkpurple
+  - name: NARES LAND
+    lat: 82.4167
+    lng: -46.0
+    icon: map-marker
+    color: purple
+  - name: BELSEN (BERGEN)
+    lat: 52.785833
+    lng: 9.936667
+    icon: map-marker
+    color: purple
+  - name: KHEYRABAD-E OLYA, LORESTAN
+    lat: 33.583333
+    lng: 47.916667
+    icon: map-marker
+    color: darkgreen
+  - name: SUPARAWRA
+    lat: -14.768889
+    lng: -73.731944
+    icon: map-marker
+    color: purple
+  - name: SEYYEDAN, ISFAHAN
+    lat: 32.518611
+    lng: 52.263611
+    icon: map-marker
+    color: cadetblue
+  - name: BADLAPUR
+    lat: 19.15
+    lng: 73.262
+    icon: map-marker
+    color: purple
+  - name: LYNFELD
+    lat: 41.774444
+    lng: -73.7425
+    icon: map-marker
+    color: cadetblue
+  - name: BUKOVICA, ŠKOFJA LOKA
+    lat: 46.200572
+    lng: 14.241978
+    icon: map-marker
+    color: purple
+  - name: LALRU
+    lat: 30.486667
+    lng: 76.800556
+    icon: map-marker
+    color: darkred
+  - name: SAINT JOHN'S METHODIST CHURCH
+    lat: 32.943889
+    lng: -99.799722
+    icon: graduation-cap
+    color: blue
+  - name: BACON LEVEL, ALABAMA
+    lat: 33.128611
+    lng: -85.290833
+    icon: map-marker
+    color: darkpurple
+  - name: KANCHABALIA
+    lat: 22.75
+    lng: 90.183333
+    icon: map-marker
+    color: darkred
+  - name: LJUTEŽ
+    lat: 42.79
+    lng: 22.137222
+    icon: map-marker
+    color: darkgreen
+  - name: MOHAMMADABAD, QALEH BIYABAN
+    lat: 28.517222
+    lng: 54.886111
+    icon: map-marker
+    color: red
+  - name: JACKSONVILLE HIGH SCHOOL (ARKANSAS)
+    lat: 34.888139
+    lng: -92.100472
+    icon: graduation-cap
+    color: blue
+  - name: MYOHAUNG
+    lat: 16.124167
+    lng: 97.904722
+    icon: map-marker
+    color: purple
+  - name: QULLQI CHAKA PUNTA
+    lat: -19.845833
+    lng: -65.989722
+    icon: map-marker
+    color: darkgreen
+  - name: LALAR
+    lat: 32.468889
+    lng: 49.606944
+    icon: map-marker
+    color: darkblue
+  - name: CHADWICK SCHOOL
+    lat: 33.776667
+    lng: -118.361111
+    icon: graduation-cap
+    color: blue
+  - name: GÓRKI, GMINA STARY DZIERZGOŃ
+    lat: 53.821944
+    lng: 19.343611
+    icon: map-marker
+    color: darkpurple
+  - name: KAMBAINALLUR
+    lat: 12.214167
+    lng: 78.338333
+    icon: map-marker
+    color: darkblue
+  - name: BIKRAMGANJ
+    lat: 25.2
+    lng: 84.25
+    icon: map-marker
+    color: darkgreen
+  - name: BARLEY SHEAF INN
+    lat: 40.148611
+    lng: -75.334722
+    icon: bed
+    color: purple
+  - name: FRENCH LICK SPRINGS HOTEL
+    lat: 38.554167
+    lng: -86.620833
+    icon: bed
+    color: purple
+  - name: CLAREMONT HISTORIC DISTRICT
+    lat: 38.846389
+    lng: -77.105556
+    icon: map-marker
+    color: darkpurple
+  - name: ŁUBNO, ŁÓDŹ VOIVODESHIP
+    lat: 52.183333
+    lng: 19.083333
+    icon: map-marker
+    color: darkblue
+  - name: PRESTON, QUEENSLAND
+    lat: -27.665
+    lng: 151.968
+    icon: map-marker
+    color: green
+  - name: HAT, AZERBAIJAN
+    lat: 39.488611
+    lng: 46.713333
+    icon: map-marker
+    color: red
+  - name: ÎLE-À-VACHE
+    lat: 18.070833
+    lng: -73.641667
+    icon: map-marker
+    color: darkred
+  - name: HASSAN TOWNSHIP, HENNEPIN COUNTY, MINNESOTA
+    lat: 45.2
+    lng: -93.583333
+    icon: bed
+    color: purple
+  - name: CONTROGUERRA
+    lat: 42.85
+    lng: 13.816667
+    icon: map-marker
+    color: darkblue
+  - name: KADAKKAD
+    lat: 9.22
+    lng: 76.7
+    icon: map-marker
+    color: darkred
+  - name: ST. THERESE ROMAN CATHOLIC CHURCH, SCHOOL, AND RECTORY
+    lat: 38.235556
+    lng: -85.732222
+    icon: graduation-cap
+    color: blue
+  - name: LITCHFIELD NATIONAL PARK
+    lat: -13.279167
+    lng: 130.876667
+    icon: tree
+    color: green
+  - name: SKUTKI
+    lat: 52.293333
+    lng: 20.129167
+    icon: map-marker
+    color: purple
+  - name: SHADOWS-ON-THE-TECHE
+    lat: 30.004164
+    lng: -91.815003
+    icon: landmark
+    color: darkblue
+  - name: FINDIKLI, BORÇKA
+    lat: 41.399778
+    lng: 41.615083
+    icon: map-marker
+    color: orange
+  - name: SANT MARTÍ D'ALBARS
+    lat: 42.029722
+    lng: 2.075278
+    icon: map-marker
+    color: blue
+  - name: RAALTE RAILWAY STATION
+    lat: 52.390833
+    lng: 6.278611
+    icon: map-marker
+    color: red
+  - name: FIDEO, SYRIA
+    lat: 35.519722
+    lng: 35.89
+    icon: map-marker
+    color: red
+  - name: UČAKOVCI
+    lat: 45.441514
+    lng: 15.229428
+    icon: map-marker
+    color: darkred
+  - name: GARFIELD TOWNSHIP, MACKINAC COUNTY, MICHIGAN
+    lat: 46.144444
+    lng: -85.506389
+    icon: map-marker
+    color: blue
+  - name: GŁOGOWA, OSTRÓW WIELKOPOLSKI COUNTY
+    lat: 51.75
+    lng: 17.716667
+    icon: map-marker
+    color: darkpurple
+  - name: BETHUNE-POWELL BUILDINGS
+    lat: 34.993889
+    lng: -78.323889
+    icon: map-marker
+    color: cadetblue
+  - name: VAYDA-GUBA
+    lat: 69.935278
+    lng: 31.971389
+    icon: map-marker
+    color: orange
+  - name: NIEMYJE-SKŁODY
+    lat: 52.726944
+    lng: 22.686667
+    icon: map-marker
+    color: green
+  - name: HARTFORD, TENNESSEE
+    lat: 35.816667
+    lng: -83.143333
+    icon: map-marker
+    color: cadetblue
+  - name: WEST TURIN, NEW YORK
+    lat: 43.583333
+    lng: -75.463611
+    icon: map-marker
+    color: darkgreen
+  - name: HOLDRIDGE ISLAND
+    lat: 60.590556
+    lng: -64.736667
+    icon: map-marker
+    color: darkblue
+  - name: PADRAUNA RAILWAY STATION
+    lat: 26.8975
+    lng: 83.9831
+    icon: map-marker
+    color: darkgreen
+  - name: KAPIDŽIJA
+    lat: 43.573889
+    lng: 21.387222
+    icon: map-marker
+    color: purple
+  - name: ELIZABETH ISLANDS
+    lat: 41.475
+    lng: -70.766667
+    icon: map-marker
+    color: orange
+  - name: LYGUMAI
+    lat: 56.005556
+    lng: 23.658333
+    icon: map-marker
+    color: darkred
+  - name: HEDWIG VILLAGE, TEXAS
+    lat: 29.78
+    lng: -95.519444
+    icon: map-marker
+    color: purple
+  - name: CALVATONE
+    lat: 45.133333
+    lng: 10.45
+    icon: map-marker
+    color: cadetblue
+  - name: WILLAGEE, WESTERN AUSTRALIA
+    lat: -32.052
+    lng: 115.804
+    icon: map-marker
+    color: blue
+  - name: HOBSON, WASHINGTON COUNTY, ALABAMA
+    lat: 31.4725
+    lng: -88.153333
+    icon: map-marker
+    color: green
+  - name: LEQUIRE, OKLAHOMA
+    lat: 35.104444
+    lng: -95.1075
+    icon: map-marker
+    color: purple
+  - name: E. C. PEERY BUILDING
+    lat: 44.705
+    lng: -122.847222
+    icon: bed
+    color: purple
+  - name: PARALLACTIC ISLANDS
+    lat: -67.533333
+    lng: 62.766667
+    icon: map-marker
+    color: purple
+  - name: BLODGETT MILLS, NEW YORK
+    lat: 42.568056
+    lng: -76.123889
+    icon: bed
+    color: purple
+  - name: SZCZUKA
+    lat: 53.216667
+    lng: 19.45
+    icon: map-marker
+    color: purple
+  - name: BUILDINGS AT 24-30 SUMMER ST.
+    lat: 42.710278
+    lng: -71.154444
+    icon: map-marker
+    color: blue
+  - name: TORRES DEL RÍO
+    lat: 42.553
+    lng: -2.269
+    icon: map-marker
+    color: purple
+  - name: CHARXIN, UZBEKISTAN
+    lat: 39.696667
+    lng: 66.768611
+    icon: map-marker
+    color: green
+  - name: SHIV DAYALWALA
+    lat: 31.295689
+    lng: 75.151619
+    icon: map-marker
+    color: blue
+  - name: TOLMACHEVO AIRPORT
+    lat: 55.0125
+    lng: 82.650556
+    icon: map-marker
+    color: cadetblue
+  - name: PIKUS, WARMIAN-MASURIAN VOIVODESHIP
+    lat: 53.658889
+    lng: 19.738056
+    icon: map-marker
+    color: darkblue
+  - name: JAWORNIK, STRZYŻÓW COUNTY
+    lat: 49.846111
+    lng: 21.893333
+    icon: map-marker
+    color: darkblue
+  - name: SEBASTIAN INLET STATE PARK
+    lat: 27.851389
+    lng: -80.444722
+    icon: tree
+    color: green
+  - name: MAGNOLIA PLANTATION (DERRY, LOUISIANA)
+    lat: 31.549722
+    lng: -92.940556
+    icon: landmark
+    color: darkblue
+  - name: PREBREZA
+    lat: 43.32
+    lng: 21.200278
+    icon: map-marker
+    color: red
+  - name: KARREHKAN
+    lat: 29.960556
+    lng: 51.739167
+    icon: map-marker
+    color: blue
+  - name: GORNJA BRIGA
+    lat: 45.529592
+    lng: 14.804739
+    icon: map-marker
+    color: purple
+  - name: POWAŁCZYN
+    lat: 53.65
+    lng: 21.183333
+    icon: map-marker
+    color: darkgreen
+  - name: VERA, SPAIN
+    lat: 37.25
+    lng: -1.866667
+    icon: map-marker
+    color: cadetblue
+  - name: UNIONVILLE, CENTRE COUNTY, PENNSYLVANIA
+    lat: 40.906944
+    lng: -77.875278
+    icon: map-marker
+    color: darkpurple
+  - name: SIKORY-BARTKOWIĘTA
+    lat: 53.133333
+    lng: 22.633333
+    icon: map-marker
+    color: darkpurple
+  - name: CORAL BAY, U.S. VIRGIN ISLANDS
+    lat: 18.35
+    lng: -64.716667
+    icon: map-marker
+    color: green
+  - name: NORTH MUROC, CALIFORNIA
+    lat: 35.005
+    lng: -117.818889
+    icon: map-marker
+    color: darkblue
+  - name: ASTROBALLE
+    lat: 45.766389
+    lng: 4.907222
+    icon: dumbbell
+    color: darkgreen
+  - name: SCHARFENSTEIN (ILSENBURG)
+    lat: 51.83222
+    lng: 10.60083
+    icon: map-marker
+    color: red
+  - name: PRZYBYŁÓW, GREATER POLAND VOIVODESHIP
+    lat: 52.173611
+    lng: 18.72
+    icon: map-marker
+    color: green
+  - name: KOWALEWO, WEST POMERANIAN VOIVODESHIP
+    lat: 53.935
+    lng: 15.246944
+    icon: map-marker
+    color: darkgreen
+  - name: PARKDALE, VICTORIA
+    lat: -37.991
+    lng: 145.08
+    icon: tree
+    color: green
+  - name: CATEMACO
+    lat: 18.416667
+    lng: -95.116667
+    icon: map-marker
+    color: green
+  - name: CHESHMEH MURINEH, LORESTAN
+    lat: 33.985833
+    lng: 47.8825
+    icon: map-marker
+    color: darkgreen
+  - name: ENCRUCIJADA
+    lat: 22.616944
+    lng: -79.866111
+    icon: map-marker
+    color: darkgreen
+  - name: BULUNSKY DISTRICT
+    lat: 70.683333
+    lng: 127.35
+    icon: map-marker
+    color: blue
+  - name: THOMAS PAINE COTTAGE
+    lat: 40.934472
+    lng: -73.791167
+    icon: landmark
+    color: darkblue
+  - name: PARAGON, INDIANA
+    lat: 39.395
+    lng: -86.561667
+    icon: map-marker
+    color: darkpurple
+  - name: GLENBROOK, NEVADA COUNTY, CALIFORNIA
+    lat: 39.242222
+    lng: -121.034444
+    icon: map-marker
+    color: red
+  - name: MATHIAS MERKWAN RUBBLESTONE BARN
+    lat: 42.950278
+    lng: -97.6325
+    icon: map-marker
+    color: purple
+  - name: FULHAM CEMETERY
+    lat: 51.480278
+    lng: -0.216667
+    icon: map-marker
+    color: darkred
+  - name: SCHUBERT THEATRE (GOODING, IDAHO)
+    lat: 42.941667
+    lng: -114.711944
+    icon: map-marker
+    color: blue
+  - name: LOBO, INDONESIA
+    lat: -3.75
+    lng: 134.083333
+    icon: map-marker
+    color: cadetblue
+  - name: CHOQA KABUD, MAHIDASHT
+    lat: 34.347778
+    lng: 46.701389
+    icon: map-marker
+    color: green
+  - name: RIDGE ROAD HISTORIC DISTRICT
+    lat: 39.439722
+    lng: -78.033056
+    icon: map-marker
+    color: darkblue
+  - name: NOWA WIEŚ KOSOWSKA
+    lat: 52.583611
+    lng: 22.218056
+    icon: map-marker
+    color: orange
+  - name: HAJJIABAD, REY
+    lat: 35.398889
+    lng: 51.169167
+    icon: map-marker
+    color: orange
+  - name: JEHAQ
+    lat: 33.693611
+    lng: 51.54
+    icon: map-marker
+    color: blue
+  - name: SUCUNDURI STATE FOREST
+    lat: -8.305384
+    lng: -59.342847
+    icon: tree
+    color: green
+  - name: REITHER SPITZE
+    lat: 47.322972
+    lng: 11.236125
+    icon: map-marker
+    color: blue
+  - name: DEVAULT TAVERN
+    lat: 36.2925
+    lng: -82.542222
+    icon: map-marker
+    color: darkpurple
+  - name: GUTHRIE, WEST VIRGINIA
+    lat: 38.406111
+    lng: -81.661389
+    icon: map-marker
+    color: darkred
+  - name: KESHAVAPURAM
+    lat: 17.06
+    lng: 79.3
+    icon: map-marker
+    color: blue
+  - name: RACE ROCK LIGHT
+    lat: 41.2435
+    lng: -72.047
+    icon: map-marker
+    color: orange
+  - name: ISPARTA MUSEUM
+    lat: 37.770833
+    lng: 32.865833
+    icon: landmark
+    color: darkblue
+  - name: VERDALEN
+    lat: 58.784722
+    lng: 5.609722
+    icon: map-marker
+    color: red
+  - name: INDIANAPOLIS
+    lat: 39.766667
+    lng: -86.15
+    icon: map-marker
+    color: darkblue
+  - name: STACJA WIEŻYCA
+    lat: 54.236111
+    lng: 18.136667
+    icon: map-marker
+    color: red
+  - name: MOUNT JOY STATION (PENNSYLVANIA)
+    lat: 40.10875
+    lng: -76.502778
+    icon: map-marker
+    color: purple
+  - name: ZINATABAD
+    lat: 32.73
+    lng: 52.750278
+    icon: map-marker
+    color: darkred
+  - name: LUBRÍN
+    lat: 37.216667
+    lng: -2.066667
+    icon: map-marker
+    color: darkgreen
+  - name: CASSINA BARAGGIA
+    lat: 45.558333
+    lng: 9.307778
+    icon: map-marker
+    color: purple
+  - name: THOUSAND ISLANDS BRIDGE
+    lat: 44.347419
+    lng: -75.9835
+    icon: dumbbell
+    color: darkgreen
+  - name: GANJUREH
+    lat: 34.284722
+    lng: 46.015
+    icon: map-marker
+    color: orange
+  - name: LAKE, MISSISSIPPI
+    lat: 32.343333
+    lng: -89.328056
+    icon: map-marker
+    color: darkgreen
+  - name: OSLNOVICE
+    lat: 48.931944
+    lng: 15.686667
+    icon: map-marker
+    color: darkpurple
+  - name: CABEZA DE FRAMONTANOS
+    lat: 41.215
+    lng: -6.438056
+    icon: map-marker
+    color: orange
+  - name: ANSCO COMPANY CHARLES STREET FACTORY BUILDINGS
+    lat: 42.106944
+    lng: -75.931111
+    icon: tree
+    color: green
+  - name: MUDEUNGSAN
+    lat: 35.1392
+    lng: 126.9925
+    icon: map-marker
+    color: darkgreen
+  - name: BIGFORK TOWNSHIP, ITASCA COUNTY, MINNESOTA
+    lat: 47.763611
+    lng: -93.6675
+    icon: bed
+    color: purple
+  - name: DADE CITY WOMAN'S CLUB
+    lat: 28.358611
+    lng: -82.188889
+    icon: graduation-cap
+    color: blue
+  - name: PREMOSELLO-CHIOVENDA
+    lat: 46.0
+    lng: 8.333333
+    icon: map-marker
+    color: red
+  - name: ELKPORT, IOWA
+    lat: 42.741111
+    lng: -91.275556
+    icon: map-marker
+    color: orange
+  - name: NÜENCHAMM
+    lat: 47.091389
+    lng: 9.120556
+    icon: map-marker
+    color: darkpurple
+  - name: KOSLI
+    lat: 28.391771
+    lng: 76.479332
+    icon: map-marker
+    color: green
+  - name: BIERZKOWO
+    lat: 53.671667
+    lng: 16.356667
+    icon: map-marker
+    color: purple
+  - name: DIAMAKANI
+    lat: 10.566667
+    lng: -6.533333
+    icon: map-marker
+    color: green
+  - name: FARRUKHNAGAR
+    lat: 28.45
+    lng: 76.82
+    icon: map-marker
+    color: darkred
+  - name: PILA ISLAND
+    lat: -67.583333
+    lng: 62.716667
+    icon: map-marker
+    color: darkred
+  - name: HENRY-REMSEN HOUSE
+    lat: 42.716111
+    lng: -73.750556
+    icon: map-marker
+    color: cadetblue
+  - name: ASHPOLE PRESBYTERIAN CHURCH
+    lat: 34.55
+    lng: -79.310278
+    icon: map-marker
+    color: darkpurple
+  - name: HARDWICKE BAY, SOUTH AUSTRALIA
+    lat: -34.89205
+    lng: 137.45815
+    icon: map-marker
+    color: darkgreen
+  - name: QESHLAQ-E JUQ-E OLYA
+    lat: 36.6175
+    lng: 47.562778
+    icon: map-marker
+    color: darkred
+  - name: VFL-STADION AM ELSTERWEG
+    lat: 52.425306
+    lng: 10.799417
+    icon: dumbbell
+    color: darkgreen
+  - name: CREDERA RUBBIANO
+    lat: 45.3
+    lng: 9.666667
+    icon: map-marker
+    color: green
+  - name: STARY POŻÓG
+    lat: 51.383056
+    lng: 22.073056
+    icon: map-marker
+    color: darkgreen
+  - name: GALEN MERRIAM HOUSE
+    lat: 42.345833
+    lng: -71.225833
+    icon: map-marker
+    color: orange
+  - name: PSARY, CHRZANÓW COUNTY
+    lat: 50.173333
+    lng: 19.532222
+    icon: map-marker
+    color: green
+  - name: NOWA BOĆWINKA
+    lat: 54.25
+    lng: 22.183333
+    icon: map-marker
+    color: blue
+  - name: MUTTON BIRD ISLAND
+    lat: -43.42
+    lng: 145.966111
+    icon: map-marker
+    color: orange
+  - name: GORZEWNICA
+    lat: 52.366667
+    lng: 20.383333
+    icon: map-marker
+    color: darkred
+  - name: RAMISZÓW
+    lat: 51.188889
+    lng: 17.103056
+    icon: map-marker
+    color: red
+  - name: BERG AM IRCHEL
+    lat: 47.566667
+    lng: 8.6
+    icon: map-marker
+    color: darkred
+  - name: SULEQAN, HORMOZGAN
+    lat: 27.110278
+    lng: 57.026111
+    icon: map-marker
+    color: darkgreen
+  - name: MINDEN–TAHOE AIRPORT
+    lat: 39.000833
+    lng: -119.751944
+    icon: dumbbell
+    color: darkgreen
+  - name: ELMWOOD (RIRTR STATION)
+    lat: 43.126667
+    lng: -77.553333
+    icon: map-marker
+    color: darkblue
+  - name: CALEDON, WESTERN CAPE
+    lat: -34.23
+    lng: 19.428333
+    icon: map-marker
+    color: orange
+  - name: MASONIC HOME FOR CHILDREN
+    lat: 31.259444
+    lng: -92.478056
+    icon: map-marker
+    color: cadetblue
+  - name: SAN MARCOS DE CAIQUÍN
+    lat: 14.416667
+    lng: -88.6
+    icon: map-marker
+    color: orange
+  - name: OIL CITY, CAMBRIA COUNTY, PENNSYLVANIA
+    lat: 40.402222
+    lng: -78.640278
+    icon: map-marker
+    color: cadetblue
+  - name: ARKAN, NORTH KHORASAN
+    lat: 37.411389
+    lng: 57.163333
+    icon: map-marker
+    color: darkgreen
+  - name: LASIPALATSI
+    lat: 60.170278
+    lng: 24.936944
+    icon: map-marker
+    color: darkpurple
+  - name: POTOSÍ MOUNTAIN RANGE
+    lat: -19.683333
+    lng: -65.633333
+    icon: map-marker
+    color: darkgreen
+  - name: TUCO (MOUNTAIN)
+    lat: -9.924167
+    lng: -77.199167
+    icon: map-marker
+    color: orange
+  - name: COMALAPA, CHALATENANGO, EL SALVADOR
+    lat: 14.133333
+    lng: -88.95
+    icon: map-marker
+    color: green
+  - name: STIRLING JUNCTION, CALIFORNIA
+    lat: 39.714167
+    lng: -121.813333
+    icon: map-marker
+    color: darkred
+  - name: AMICALOLA FALLS
+    lat: 34.5675
+    lng: -84.244444
+    icon: map-marker
+    color: cadetblue
+  - name: CANADENSIS, PENNSYLVANIA
+    lat: 41.191944
+    lng: -75.251389
+    icon: map-marker
+    color: red
+  - name: HOLLAND, MICHIGAN
+    lat: 42.783333
+    lng: -86.1
+    icon: map-marker
+    color: darkblue
+  - name: MOUNT FURY
+    lat: 48.812222
+    lng: -121.323056
+    icon: tree
+    color: green
+  - name: RASM AL-WARD
+    lat: 35.448889
+    lng: 37.291667
+    icon: map-marker
+    color: blue
+  - name: BRAZOS COUNTRY, TEXAS
+    lat: 29.753056
+    lng: -96.038056
+    icon: map-marker
+    color: green
+  - name: BIJELA RUDINA
+    lat: 42.933333
+    lng: 18.416667
+    icon: map-marker
+    color: darkgreen
+  - name: ANKARA ATATÜRK ANADOLU LISESI
+    lat: 39.93402
+    lng: 32.81774
+    icon: graduation-cap
+    color: blue
+  - name: AQUIN CATHOLIC SCHOOLS
+    lat: 42.285833
+    lng: -89.606111
+    icon: graduation-cap
+    color: blue
+  - name: IVYWILD, COLORADO
+    lat: 38.810556
+    lng: -104.835278
+    icon: map-marker
+    color: green
+  - name: LIMBUŠ
+    lat: 46.558075
+    lng: 15.57875
+    icon: map-marker
+    color: orange
+  - name: BENWOOD, INDIANA
+    lat: 39.561111
+    lng: -87.114167
+    icon: map-marker
+    color: purple
+  - name: MAŁACENTÓW
+    lat: 50.803611
+    lng: 21.033056
+    icon: map-marker
+    color: darkblue
+  - name: GEESTDORP
+    lat: 52.097222
+    lng: 4.904444
+    icon: map-marker
+    color: darkblue
+  - name: FORT HOLLINGSWORTH–WHITE HOUSE
+    lat: 34.426433
+    lng: -83.533822
+    icon: landmark
+    color: darkblue
+  - name: OUR LADY OF LOURDES REGIONAL SCHOOL
+    lat: 40.786111
+    lng: -76.584722
+    icon: graduation-cap
+    color: blue
+  - name: GLASTONBURY LAKE VILLAGE
+    lat: 51.163611
+    lng: -2.725833
+    icon: map-marker
+    color: orange
+  - name: MACHGHARA
+    lat: 33.528056
+    lng: 35.651667
+    icon: map-marker
+    color: orange
+  - name: GÖRZIG
+    lat: 51.666667
+    lng: 12.0
+    icon: map-marker
+    color: green
+  - name: BERGSFJORD
+    lat: 70.249167
+    lng: 21.791944
+    icon: bed
+    color: purple
+  - name: QIZQAYITDI
+    lat: 39.221389
+    lng: 49.175833
+    icon: map-marker
+    color: blue
+  - name: TACNIS
+    lat: 32.480278
+    lng: 21.126667
+    icon: map-marker
+    color: red
+  - name: ALELU, MARAGHEH
+    lat: 37.197222
+    lng: 46.606389
+    icon: map-marker
+    color: orange
+  - name: CHALANDRITSA
+    lat: 38.116667
+    lng: 21.8
+    icon: map-marker
+    color: darkblue
+  - name: NIEMCZYN, GREATER POLAND VOIVODESHIP
+    lat: 52.85
+    lng: 17.4
+    icon: map-marker
+    color: red
+  - name: SMRK (TŘEBÍČ DISTRICT)
+    lat: 49.241944
+    lng: 16.001944
+    icon: map-marker
+    color: darkpurple
+  - name: DOBRUNSKA RIJEKA
+    lat: 43.726111
+    lng: 19.395833
+    icon: map-marker
+    color: cadetblue
+  - name: ST. CYRIL AND ST. METHODIUS CHURCH
+    lat: 43.999167
+    lng: -70.058611
+    icon: map-marker
+    color: orange
+  - name: PIEKŁO, ŚWIĘTOKRZYSKIE VOIVODESHIP
+    lat: 51.1275
+    lng: 20.412222
+    icon: map-marker
+    color: red
+  - name: PRIMITIVE BAPTIST CHURCH OF SWEETEN'S COVE
+    lat: 35.070833
+    lng: -85.78
+    icon: map-marker
+    color: green
+  - name: CHIRMIRI
+    lat: 23.2
+    lng: 82.67
+    icon: map-marker
+    color: red
+  - name: AL THOMPSON AND SON'S FEED AND SEED COMPANY
+    lat: 43.875833
+    lng: -116.993889
+    icon: landmark
+    color: darkblue
+  - name: H.A.S. HANANDJOEDDIN INTERNATIONAL AIRPORT
+    lat: -2.745556
+    lng: 107.754722
+    icon: map-marker
+    color: red
+  - name: MYLAPPAPURAM
+    lat: 8.852222
+    lng: 77.394444
+    icon: map-marker
+    color: red
+  - name: SOALARA
+    lat: -23.583333
+    lng: 43.716667
+    icon: map-marker
+    color: blue
+  - name: SMH SCHOOL, KHATANGI
+    lat: 25.059167
+    lng: 84.759167
+    icon: graduation-cap
+    color: blue
+  - name: LE BRÉVENT
+    lat: 45.934167
+    lng: 6.837778
+    icon: map-marker
+    color: darkred
+  - name: SOUTHERN PACIFIC RAILROAD DEPOT (YUMA, ARIZONA)
+    lat: 32.723333
+    lng: -114.615
+    icon: map-marker
+    color: orange
+  - name: BARPALAHA
+    lat: 26.35
+    lng: 91.75
+    icon: map-marker
+    color: darkpurple
+  - name: BONEH LASHEH
+    lat: 33.183333
+    lng: 47.85
+    icon: map-marker
+    color: red
+  - name: BÜLÜDÜL
+    lat: 38.838611
+    lng: 48.309444
+    icon: map-marker
+    color: red
+  - name: WEST AUCKLAND AIRPORT
+    lat: -36.651667
+    lng: 174.433333
+    icon: dumbbell
+    color: darkgreen
+  - name: ROCKY CREEK, FLORIDA
+    lat: 28.004167
+    lng: -82.579722
+    icon: map-marker
+    color: red
+  - name: CEDAR MILL, OREGON
+    lat: 45.530556
+    lng: -122.804167
+    icon: map-marker
+    color: green
+  - name: KUALA TERENGGANU DISTRICT
+    lat: 5.333333
+    lng: 103.166667
+    icon: map-marker
+    color: orange
+  - name: STADION OTOKA
+    lat: 43.846111
+    lng: 18.358889
+    icon: dumbbell
+    color: darkgreen
+  - name: ALMADRONES
+    lat: 40.902222
+    lng: -2.772222
+    icon: map-marker
+    color: darkred
+  - name: NAMON
+    lat: 9.728611
+    lng: 0.810833
+    icon: map-marker
+    color: darkgreen
+  - name: PEABODY TAVERN
+    lat: 44.398611
+    lng: -70.935278
+    icon: map-marker
+    color: darkblue
+  - name: LATKÓW
+    lat: 51.766667
+    lng: 21.4
+    icon: map-marker
+    color: darkpurple
+  - name: TALL PEAK FIRE TOWER
+    lat: 34.386389
+    lng: -94.0425
+    icon: tree
+    color: green
+  - name: RATKOVIĆ, SERBIA
+    lat: 43.912778
+    lng: 21.036389
+    icon: map-marker
+    color: cadetblue
+  - name: IRMISH
+    lat: 26.748333
+    lng: 57.958333
+    icon: map-marker
+    color: darkpurple
+  - name: METZ-FRESCATY AIR BASE
+    lat: 49.071667
+    lng: 6.131667
+    icon: map-marker
+    color: darkpurple
+  - name: LUBENKA
+    lat: 51.898611
+    lng: 23.209444
+    icon: map-marker
+    color: red
+  - name: THORNTREE (KINGSTREE, SOUTH CAROLINA)
+    lat: 33.662222
+    lng: -79.826389
+    icon: tree
+    color: green
+  - name: PENUMULI
+    lat: 16.3349
+    lng: 80.6039
+    icon: map-marker
+    color: darkblue
+  - name: RED WARRIOR, WEST VIRGINIA
+    lat: 38.054722
+    lng: -81.457778
+    icon: map-marker
+    color: red
+  - name: BRODOWO, GREATER POLAND VOIVODESHIP
+    lat: 52.183333
+    lng: 17.316667
+    icon: map-marker
+    color: orange
+  - name: LAGUNA, PINAL COUNTY, ARIZONA
+    lat: 32.587222
+    lng: -111.629167
+    icon: map-marker
+    color: orange
+  - name: GJERSTAD
+    lat: 58.8925
+    lng: 8.956667
+    icon: map-marker
+    color: orange
+  - name: EL ÁLAMO
+    lat: 40.230556
+    lng: -3.994444
+    icon: map-marker
+    color: purple
+  - name: HIGHLIGHT PARK
+    lat: 51.416481
+    lng: -3.292731
+    icon: tree
+    color: green
+  - name: FAZILHATI UNION
+    lat: 24.106231
+    lng: 89.958168
+    icon: map-marker
+    color: blue
+  - name: REMAUFENS
+    lat: 46.516667
+    lng: 6.866667
+    icon: map-marker
+    color: darkred
+  - name: MAJKÓW DUŻY
+    lat: 51.42
+    lng: 19.612222
+    icon: map-marker
+    color: orange
+  - name: HUNTINGBURG, INDIANA
+    lat: 38.296944
+    lng: -86.954444
+    icon: map-marker
+    color: orange
+  - name: OAKFIELD, TENNESSEE
+    lat: 35.720278
+    lng: -88.770278
+    icon: map-marker
+    color: red
+  - name: DÜLMEN
+    lat: 51.830833
+    lng: 7.278333
+    icon: map-marker
+    color: purple
+  - name: HASANABAD, MASHHAD
+    lat: 36.499444
+    lng: 59.5675
+    icon: map-marker
+    color: cadetblue
+  - name: VUNO
+    lat: 40.139722
+    lng: 19.693611
+    icon: map-marker
+    color: red
+  - name: ARABLU, HAMADAN
+    lat: 34.824722
+    lng: 48.763333
+    icon: map-marker
+    color: blue
+  - name: JONESVILLE, NORTH CAROLINA
+    lat: 36.235556
+    lng: -80.842222
+    icon: map-marker
+    color: darkgreen
+  - name: WEST BUECHEL, KENTUCKY
+    lat: 38.195278
+    lng: -85.663333
+    icon: map-marker
+    color: darkpurple
+  - name: STADION EDEN (1953)
+    lat: 50.0675
+    lng: 14.471667
+    icon: dumbbell
+    color: darkgreen
+  - name: BOZCATEPE, AKSARAY
+    lat: 38.566667
+    lng: 34.366667
+    icon: map-marker
+    color: darkpurple
+  - name: DARKHATUN
+    lat: 33.225278
+    lng: 48.530556
+    icon: map-marker
+    color: green
+  - name: ANTONIE, SILESIAN VOIVODESHIP
+    lat: 51.086111
+    lng: 18.948056
+    icon: map-marker
+    color: purple
+  - name: WEST DURHAM HISTORIC DISTRICT
+    lat: 35.994167
+    lng: -78.875278
+    icon: map-marker
+    color: orange
+  - name: SUCHY DĄB
+    lat: 54.206667
+    lng: 18.7675
+    icon: map-marker
+    color: darkgreen
+  - name: MEDIJANA
+    lat: 43.316667
+    lng: 21.9
+    icon: map-marker
+    color: blue
+  - name: KERENS, WEST VIRGINIA
+    lat: 39.0125
+    lng: -79.813611
+    icon: map-marker
+    color: darkgreen
+  - name: KLEINSÖLK
+    lat: 47.39
+    lng: 13.94
+    icon: map-marker
+    color: orange
+  - name: ZAKRZÓW, WŁOSZCZOWA COUNTY
+    lat: 50.762778
+    lng: 19.915278
+    icon: map-marker
+    color: red
+  - name: GRAYLAND, WASHINGTON
+    lat: 46.81
+    lng: -124.093333
+    icon: map-marker
+    color: darkred
+  - name: GISHI CHAH
+    lat: 31.3
+    lng: 59.983333
+    icon: map-marker
+    color: red
+  - name: KANAKER
+    lat: 40.22
+    lng: 44.538333
+    icon: map-marker
+    color: darkpurple
+  - name: VARBERG CHURCH
+    lat: 57.105972
+    lng: 12.250556
+    icon: map-marker
+    color: green
+  - name: TSENTRALNOYE, KYRGYZSTAN
+    lat: 40.028333
+    lng: 69.942778
+    icon: map-marker
+    color: blue
+  - name: SANTA OLGA
+    lat: -35.450833
+    lng: -72.279722
+    icon: map-marker
+    color: darkred
+  - name: PERRIGO-HOLMES HOUSE
+    lat: 42.063333
+    lng: -93.885278
+    icon: map-marker
+    color: purple
+  - name: LAKKARAM
+    lat: 17.266667
+    lng: 78.883333
+    icon: map-marker
+    color: darkblue
+  - name: LAR-E GARI
+    lat: 34.983333
+    lng: 67.95
+    icon: map-marker
+    color: blue
+  - name: RELIZANE PROVINCE
+    lat: 35.733333
+    lng: 0.55
+    icon: map-marker
+    color: orange
+  - name: RASAN, RAZAVI KHORASAN
+    lat: 35.16
+    lng: 57.243611
+    icon: map-marker
+    color: orange
+  - name: SULLIVAN, NEW YORK
+    lat: 43.066667
+    lng: -75.866667
+    icon: map-marker
+    color: blue
+  - name: RIDGEVIEW, LOGAN COUNTY, WEST VIRGINIA
+    lat: 37.843333
+    lng: -82.016111
+    icon: map-marker
+    color: cadetblue
+  - name: YURACCACSA (AREQUIPA)
+    lat: -15.448056
+    lng: -72.1625
+    icon: map-marker
+    color: cadetblue
+  - name: GLASS HOUSE
+    lat: 41.142425
+    lng: -73.5294
+    icon: landmark
+    color: darkblue
+  - name: CASSOWARY, QUEENSLAND
+    lat: -16.516111
+    lng: 145.413889
+    icon: map-marker
+    color: blue
+  - name: BEHESHTABAD, KOHGILUYEH AND BOYER-AHMAD
+    lat: 30.944444
+    lng: 50.416667
+    icon: map-marker
+    color: darkgreen
+  - name: UNITED REFORMED CHURCH, BURTON JOYCE
+    lat: 52.988836
+    lng: -1.041206
+    icon: map-marker
+    color: green
+  - name: TAGANAK ISLAND
+    lat: 6.083333
+    lng: 118.316667
+    icon: map-marker
+    color: darkgreen
+  - name: MASONIC TEMPLE BUILDING (DENVER, COLORADO)
+    lat: 39.744444
+    lng: -104.990278
+    icon: map-marker
+    color: darkblue
+  - name: POLI, ANDIKA
+    lat: 32.429444
+    lng: 49.627778
+    icon: map-marker
+    color: darkgreen
+  - name: HALGERA, YADGIR
+    lat: 16.725
+    lng: 77.228611
+    icon: map-marker
+    color: orange
+  - name: DODGEVILLE (TOWN), WISCONSIN
+    lat: 42.981667
+    lng: -90.115
+    icon: map-marker
+    color: cadetblue
+  - name: LONDON MITHRAEUM
+    lat: 51.5125
+    lng: -0.0906
+    icon: map-marker
+    color: darkgreen
+  - name: SHISHTUFINË
+    lat: 41.366667
+    lng: 19.866667
+    icon: map-marker
+    color: orange
+  - name: NAMADMAL
+    lat: 36.590278
+    lng: 55.055278
+    icon: map-marker
+    color: darkred
+  - name: BAN-E ZIARAT
+    lat: 33.754722
+    lng: 46.099722
+    icon: map-marker
+    color: green
+  - name: MITCHELL HOUSE (FAIR HILL, MARYLAND)
+    lat: 39.702222
+    lng: -75.868333
+    icon: map-marker
+    color: darkblue
+  - name: FULK BUILDING
+    lat: 34.745833
+    lng: -92.271111
+    icon: map-marker
+    color: darkgreen
+  - name: SÃO SEBASTIÃO DO UATUMÃ
+    lat: -2.571944
+    lng: -57.870833
+    icon: map-marker
+    color: darkgreen
+  - name: GARDANGAH
+    lat: 31.057222
+    lng: 50.694444
+    icon: map-marker
+    color: red
+  - name: TOWNSHIP 5, HARPER COUNTY, KANSAS
+    lat: 37.269444
+    lng: -98.058611
+    icon: map-marker
+    color: cadetblue
+  - name: BAIHAR
+    lat: 22.1
+    lng: 80.55
+    icon: map-marker
+    color: orange
+  - name: ROMSEY, VICTORIA
+    lat: -37.35
+    lng: 144.75
+    icon: map-marker
+    color: darkblue
+  - name: ELLERDORF
+    lat: 54.196667
+    lng: 9.842222
+    icon: map-marker
+    color: red
+  - name: CHURCH OF ST JOHN THE BAPTIST, ASENOVGRAD
+    lat: 42.016667
+    lng: 24.866667
+    icon: map-marker
+    color: blue
+  - name: AHIGAL DE LOS ACEITEROS
+    lat: 40.875278
+    lng: -6.747778
+    icon: map-marker
+    color: orange
+  - name: CENTER TOWNSHIP GRADE AND HIGH SCHOOL
+    lat: 39.741944
+    lng: -85.428889
+    icon: graduation-cap
+    color: blue
+  - name: INDIANA TERRITORIAL CAPITOL
+    lat: 38.685
+    lng: -87.525278
+    icon: landmark
+    color: darkblue
+  - name: MILLU (MOQUEGUA-PUNO)
+    lat: -16.209167
+    lng: -70.358056
+    icon: map-marker
+    color: darkred
+  - name: RURAL HILL, ILLINOIS
+    lat: 37.960556
+    lng: -88.651111
+    icon: map-marker
+    color: darkred
+  - name: MAULASAR
+    lat: 27.3
+    lng: 74.73
+    icon: map-marker
+    color: darkblue
+  - name: ELBERTON, GEORGIA
+    lat: 34.109722
+    lng: -82.865556
+    icon: map-marker
+    color: darkblue
+  - name: DOWNTOWN PLANT CITY COMMERCIAL DISTRICT
+    lat: 28.015556
+    lng: -82.123611
+    icon: map-marker
+    color: red
+  - name: JAKOVICA
+    lat: 45.86285
+    lng: 14.250175
+    icon: map-marker
+    color: darkblue
+  - name: FIRUZABAD, CHAHARMAHAL AND BAKHTIARI
+    lat: 31.871944
+    lng: 50.592778
+    icon: map-marker
+    color: darkred
+  - name: HOFFMAN, NEW JERSEY
+    lat: 40.317778
+    lng: -74.411944
+    icon: map-marker
+    color: orange
+  - name: VAISTE
+    lat: 58.353611
+    lng: 23.855556
+    icon: map-marker
+    color: darkgreen
+  - name: LARISA (TROAD)
+    lat: 39.615278
+    lng: 26.145278
+    icon: map-marker
+    color: red
+  - name: WILLOW VALLEY, ARIZONA
+    lat: 34.918333
+    lng: -114.610833
+    icon: map-marker
+    color: cadetblue
+  - name: YACHARAM
+    lat: 17.0449
+    lng: 78.6643
+    icon: map-marker
+    color: red
+  - name: AB BADA
+    lat: 28.366944
+    lng: 53.226111
+    icon: map-marker
+    color: green
+  - name: GOESSEL, KANSAS
+    lat: 38.246944
+    lng: -97.348056
+    icon: map-marker
+    color: green
+  - name: SAN LUIS (II), PIMA COUNTY, ARIZONA
+    lat: 32.080278
+    lng: -111.955
+    icon: map-marker
+    color: purple
+  - name: PORT ARANSAS, TEXAS
+    lat: 27.833333
+    lng: -97.066667
+    icon: map-marker
+    color: orange
+  - name: GAN HASHOMRON
+    lat: 32.463333
+    lng: 34.9975
+    icon: map-marker
+    color: cadetblue
+  - name: KOUMI, NAGANO
+    lat: 36.095028
+    lng: 138.4835
+    icon: map-marker
+    color: red
+  - name: GANGA PIPALIYA
+    lat: 23.545095
+    lng: 77.295106
+    icon: map-marker
+    color: red
+  - name: KOHALA HYDROPOWER PROJECT
+    lat: 34.202333
+    lng: 73.654556
+    icon: map-marker
+    color: darkpurple
+  - name: KASONGO AIRPORT
+    lat: -4.523611
+    lng: 26.6
+    icon: map-marker
+    color: cadetblue
+  - name: WILKINS TOWNSHIP, ALLEGHENY COUNTY, PENNSYLVANIA
+    lat: 40.422778
+    lng: -79.823611
+    icon: map-marker
+    color: purple
+  - name: KAONA (LUČANI)
+    lat: 43.711944
+    lng: 20.404444
+    icon: map-marker
+    color: darkgreen
+  - name: SAN YSIDRO, NEW MEXICO
+    lat: 35.553333
+    lng: -106.770556
+    icon: map-marker
+    color: cadetblue
+  - name: FLAT TOPS WILDERNESS AREA
+    lat: 39.948889
+    lng: -107.266111
+    icon: tree
+    color: green
+  - name: JAUPACI
+    lat: -16.198333
+    lng: -50.926944
+    icon: map-marker
+    color: darkpurple
+  - name: NERKUPPAI
+    lat: 10.235833
+    lng: 78.544444
+    icon: map-marker
+    color: darkred
+  - name: ACTOPAN, HIDALGO
+    lat: 20.27
+    lng: -98.945
+    icon: map-marker
+    color: darkblue
+  - name: MINO-TAKADA STATION
+    lat: 35.3093
+    lng: 136.5637
+    icon: map-marker
+    color: blue
+  - name: IWATE, IWATE
+    lat: 39.972778
+    lng: 141.212167
+    icon: map-marker
+    color: green
+  - name: A. C. TRUMBO HOUSE
+    lat: 35.753656
+    lng: -95.383719
+    icon: map-marker
+    color: darkpurple
+  - name: FISKSÄTRA
+    lat: 59.291667
+    lng: 18.252778
+    icon: map-marker
+    color: darkgreen
+  - name: VIRGINIA CITY CHURCH
+    lat: 36.92
+    lng: -82.346111
+    icon: map-marker
+    color: red
+  - name: ROSEPINE, LOUISIANA
+    lat: 30.919722
+    lng: -93.282778
+    icon: map-marker
+    color: red
+  - name: PRINCE GEORGE COUNTY COURTHOUSE HISTORIC DISTRICT
+    lat: 37.221667
+    lng: -77.287222
+    icon: map-marker
+    color: darkblue
+  - name: KALKUDAH
+    lat: 7.716667
+    lng: 81.583333
+    icon: map-marker
+    color: darkblue
+  - name: AWASHIMAURA
+    lat: 38.468306
+    lng: 139.254389
+    icon: map-marker
+    color: blue
+  - name: OREKHOVO-ZUYEVO
+    lat: 55.8
+    lng: 38.966667
+    icon: map-marker
+    color: blue
+  - name: RAMHUSEN
+    lat: 53.95
+    lng: 9.083333
+    icon: map-marker
+    color: orange
+  - name: LUKOVO (SVRLJIG)
+    lat: 43.438611
+    lng: 22.305278
+    icon: map-marker
+    color: cadetblue
+  - name: DUBNICA (SJENICA)
+    lat: 43.233333
+    lng: 20.016667
+    icon: map-marker
+    color: green
+  - name: WALTERVILLE, OREGON
+    lat: 44.068889
+    lng: -122.802778
+    icon: map-marker
+    color: cadetblue
+  - name: PIEKARY, PIOTRKÓW COUNTY
+    lat: 51.4
+    lng: 19.516667
+    icon: map-marker
+    color: cadetblue
+  - name: PIPARIYA, JANAKPUR
+    lat: 26.978889
+    lng: 85.530556
+    icon: map-marker
+    color: darkblue
+  - name: MAGALIA COMMUNITY CHURCH
+    lat: 39.81
+    lng: -121.577778
+    icon: map-marker
+    color: purple
+  - name: FOOTE'S CROSSING ROAD
+    lat: 39.428333
+    lng: -120.916111
+    icon: tree
+    color: green
+  - name: SOWUTUOM
+    lat: 5.623889
+    lng: -0.278889
+    icon: map-marker
+    color: darkblue
+  - name: MUNICIPALITY OF KOSTANJEVICA NA KRKI
+    lat: 45.85
+    lng: 15.416667
+    icon: map-marker
+    color: purple
+  - name: AYABE STATION
+    lat: 35.302058
+    lng: 135.252633
+    icon: map-marker
+    color: orange
+  - name: POLŽANSKA VAS
+    lat: 46.260558
+    lng: 15.516669
+    icon: map-marker
+    color: cadetblue
+  - name: TƏZƏKƏND, BEYLAGAN
+    lat: 39.815556
+    lng: 47.588611
+    icon: map-marker
+    color: blue
+  - name: ROOX
+    lat: 7.209444
+    lng: 47.439722
+    icon: map-marker
+    color: purple
+  - name: ORROROO, SOUTH AUSTRALIA
+    lat: -32.733333
+    lng: 138.6
+    icon: map-marker
+    color: darkred
+  - name: CHUQI CH'IWANI
+    lat: -16.666111
+    lng: -68.6775
+    icon: map-marker
+    color: darkblue
+  - name: SĘDEK, MASOVIAN VOIVODESHIP
+    lat: 52.652222
+    lng: 19.9425
+    icon: map-marker
+    color: red
+  - name: REEFER CITY, CALIFORNIA
+    lat: 35.005833
+    lng: -118.185
+    icon: map-marker
+    color: blue
+  - name: HAFEIR AL-FOUQA
+    lat: 33.713333
+    lng: 36.477778
+    icon: map-marker
+    color: red
+  - name: MEDICINA
+    lat: 44.483333
+    lng: 11.633333
+    icon: map-marker
+    color: orange
+  - name: RYPŁAWKI
+    lat: 54.143056
+    lng: 21.529167
+    icon: map-marker
+    color: red
+  - name: MELSTONE, MONTANA
+    lat: 46.599167
+    lng: -107.869722
+    icon: map-marker
+    color: darkpurple
+  - name: LAJ, RAZAVI KHORASAN
+    lat: 34.591111
+    lng: 60.114722
+    icon: map-marker
+    color: darkblue
+  - name: KHVORNEH-YE OLYA
+    lat: 34.5175
+    lng: 46.631944
+    icon: map-marker
+    color: red
+  - name: JUDGE JOHN RYON HOUSE
+    lat: 41.994722
+    lng: -77.126389
+    icon: map-marker
+    color: darkred
+  - name: SZYJKI, MASOVIAN VOIVODESHIP
+    lat: 52.847778
+    lng: 20.286944
+    icon: map-marker
+    color: green
+  - name: SHAHRAK-E ENQELAB, KHUZESTAN
+    lat: 32.1925
+    lng: 48.415
+    icon: map-marker
+    color: orange
+  - name: WOODFORD, VICTORIA
+    lat: -38.316667
+    lng: 142.466667
+    icon: map-marker
+    color: darkgreen
+  - name: NORTHWEST ITHACA, NEW YORK
+    lat: 42.467778
+    lng: -76.538889
+    icon: map-marker
+    color: darkpurple

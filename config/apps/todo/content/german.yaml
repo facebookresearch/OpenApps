@@ -1,0 +1,20 @@
+# @package apps.todo
+defaults:
+  - default
+
+init_todos: # left the ones we will use in tasks in English and translated the other ones to German
+  - ["Oma besuchen", false]
+  - ["Medizinische Unterlagen sortieren", false]
+  - ["Mahlzeiten für die Woche planen", false]
+  - ["Arzttermin bessorgen", true]
+  - ["Buy groceries", false]
+  - ["Tante Lisa anrufen", true]
+  - ["Budget überprüfen", false]
+  - ["Wohnzimmer aufräumen", true]
+  - ["20 Minuten spazieren gehen", false]
+  - ["30 Minuten meditieren", false]
+  - ["Update calendar", false]
+  - ["Answer emails", false]
+  - ["Water plants", true]
+  - ["Make fruit salad", false]
+  - ["Vor dem Schlafengehen lesen", false]

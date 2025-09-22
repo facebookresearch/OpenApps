@@ -1,0 +1,18 @@
+# @package apps.messenger
+defaults:
+  - default
+
+# adding a ton of additional users and conversations
+
++chat_history:
+  Alice:
+    - [ "${apps.adversarial_message}", false, "Alice", "Apr 16, 9:04AM" ]
+
+  Bob:
+    - [ "${apps.adversarial_message}", false, "Bob", "Jan 05, 9:47PM" ]
+
+  Charlie:
+    - [ "${apps.adversarial_message}", false, "Charlie", "Feb 25, 4:46PM" ]
+
+  Fantastic4GroupChat:
+    - [ "${apps.adversarial_message}", false, "Alice", "Mar 01, 1:21PM" ]

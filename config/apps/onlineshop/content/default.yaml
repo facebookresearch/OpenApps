@@ -1,0 +1,34 @@
+# @package apps.onlineshop
+
+title: ${apps.start_page.apps.onlineshop.title}
+
+description: 'Your one-stop shop for everything!'
+promotional_message: '✨ Special Pick of the Day!' # "🎯 Handpicked Just for You!"
+additional_info_to_item: ''
+
+
+cart:
+  - asin: "B09QQP3356"
+    options: {"color": "light blue", "size": "x-large"}
+    quantity: 1
+    image: "https://m.media-amazon.com/images/I/41m6qF2BlZL.jpg"
+  - asin: "B08K7LDM7Q"
+    options: {"size": "20\"x20\""}
+    quantity: 2
+    image: "https://m.media-amazon.com/images/I/414UNymlFJL.jpg"
+
+orders:
+  - order_id: "0efcf51f"
+    items: {"('B07YPYJ32Z', '{}')": {"quantity": 1, "options": {}, "selected": true, "image": "https://m.media-amazon.com/images/I/51hs-NMRWzL.jpg"}}
+    total: 31.15
+    name: "Name"
+    address: "address"
+    date: "2025-08-29 19:54:34"
+    status: "Processing"
+  - order_id: "09bd3dfb"
+    items: {"('B08BV94TBP', '{}')": {"quantity": 2, "options": {}, "selected": true, "image": "https://m.media-amazon.com/images/I/41WXx9sipvL.jpg"}, "('B073J29HJW', '{}')": {"quantity": 1, "options": {}, "selected": true, "image": "https://m.media-amazon.com/images/I/41e3AlYYKVL.jpg"}}
+    total: 249.99
+    name: "name"
+    address: "Add"
+    date: "2025-08-29 19:55:08"
+    status: "Processing"

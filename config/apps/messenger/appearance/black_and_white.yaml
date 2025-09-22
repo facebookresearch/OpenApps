@@ -1,0 +1,14 @@
+# @package apps.messenger
+
+
+font_size: 22
+font: "Inter"
+fontcolor: "black"
+chat_font_size: 16
+chat_font: "Inter"
+chat_fontcolor: "#000000"
+chat_header_fontcolor: "#000000"
+chat_primary_bubble_color: "#ffffff"
+chat_secondary_bubble_color: "#ffffff"
+chat_display_background_color: "#ffffff"
+background_color: "#f0f0f0"

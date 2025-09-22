@@ -1,0 +1,32 @@
+# @package apps.calendar
+
+
+# UI styling configuration - Dark Theme
+style:
+  # Color scheme
+  colors:
+    primary: '#bb86fc'          # Light purple
+    primary_hover: '#3700b3'    # Darker purple for hover states
+    secondary: '#03dac6'        # Teal secondary
+    background: '#121212'       # Very dark gray background
+    text: '#ffffff'             # White text
+    error: '#cf6679'            # Pink-red for errors
+    border: '#2d2d2d'           # Dark borders
+
+  # Typography
+  typography:
+    font_family: 'Inter, system-ui, sans-serif'  # Modern font
+    heading_font: 'Inter, system-ui, sans-serif' # Same font for consistency
+    base_font_size: '16px'                       # Standard size
+    heading_size: '1.75rem'                      # Slightly smaller headings for dark theme
+
+  # Button styles
+  buttons:
+    border_radius: '4px'        # More square buttons
+    padding: '0.5rem 1rem'      # Standard padding
+
+  # Layout
+  layout:
+    container_width: '95%'      # Wide container
+    spacing: '1rem'             # Standard spacing
+    

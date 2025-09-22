@@ -1,0 +1,33 @@
+# @package apps.code_editor
+
+font_size: 12
+font: "Arial"
+fontcolor: ""
+primary_button_color: "#4A90E2"
+secondary_button_color: "#50E3C2"
+danger_button_color: "#D0021B"
+textarea_background_color: "#2d2d2d"
+
+theme: "monokai"
+mode: "python"
+highlight: False
+sort_feature: True
+list_of_modes: 
+  - python
+  - javascript
+  - css
+  - yaml
+  - markdown
+  - shell
+  - clike
+  - go
+list_of_themes: 
+  - monokai
+  - eclipse
+  - solarized
+  - seti
+  - night
+  - dracula
+  - twilight
+  - zenburn
+  - material

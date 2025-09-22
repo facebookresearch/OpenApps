@@ -1,0 +1,23 @@
+# @package apps.start_page
+headline: "欢迎使用 OpenApps！"
+sub_header: "一套日常应用软件的小型集合"
+# Apps configuration
+apps:
+  todo:
+    title: "待办事项"
+    description: "待办事项是一份清单，列举出您未完成的任务。"
+  calendar:
+    title: "日历"
+    description: "日历程序帮助您管理日程和活动。"
+  messages:
+    title: "即时通讯"
+    description: "与朋友、家人和同事聊天。"
+  maps:
+    title: "地图"
+    description: "可以以街道地图或航空/卫星图像的形式查看地球表面，同时显示机构或知名地点的位置。"
+  codeeditor:
+    title: "代码编辑器"
+    description: "用于创建、维护和编辑计算机程序软件的集成开发环境。"
+  onlineshop:
+    title: "线上商店" # translated from wiki amazon
+    description: "拥有广泛产品种类的在线零售商。是互联网贸易的市场领导者，拥有全球最大的图书、CD 和视频选择。通过集成的销售平台，个人或其他公司也可以在网上销售新旧商品。"

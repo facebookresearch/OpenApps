@@ -1,0 +1,21 @@
+# @package apps.calendar
+defaults:
+  - default
+
+style:
+  # Add event visual placeholder and text aria label
+  add_event_display:
+    placeholder:
+          title: 'Titel der Veranstaltungs'
+          date: 'JJJJ-MM-TT' 
+          description: 'Veranstaltungsbeschreibung...'
+          url: 'https://beispiel.de'
+          invitees: 'Johann, Jana, usw.'
+          location: 'None'
+    aria_label:
+          title: 'Titel der Veranstaltungs'
+          date: 'Veranstaltungsdatum, JJJJ-MM-TT'
+          description: 'Veranstaltungsbeschreibung'
+          url: 'Veranstaltungs-URL'
+          invitees: 'Veranstaltungsteilnehmende'
+          location: 'Veranstaltungsort'

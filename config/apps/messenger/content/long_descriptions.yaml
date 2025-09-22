@@ -1,0 +1,121 @@
+# @package apps.messenger
+defaults:
+  - default
+
+# adding a ton of additional users and conversations
++users:
+  - Sieglinde
+  - Hans
+  - Greta
+  - Lukas
+  - Anna
+  - Franz
+  - Josef
+  - Karl
+  - Helga
+  - Otto
+  - Mom
+  - Dad
+  - Alex
+  - Priya
+  - Jamal
+  - Elena
+  - Self
+
++chat_history:
+  Sieglinde:
+    - [ "Gottfried, did you feed the chickens?", false, "Sieglinde", "Jul 08, 6:30AM" ]
+    - [ "Yes, but I couldn't find the eggs.", true, "you", "Jul 08, 6:45AM" ]
+    - [ "They're behind the old barrel!", false, "Sieglinde", "Jul 08, 6:46AM" ]
+    - [ "Ah, thanks. I can't see so well anymore.", true, "you", "Jul 08, 6:47AM" ]
+    - [ "I'll come out and help you.", false, "Sieglinde", "Jul 08, 6:48AM" ]
+
+  Hans:
+    - [ "Hi Grandpa! How's the farm?", false, "Hans", "Jul 07, 5:00PM" ]
+    - [ "Hello Hans! Everything is growing well, but the tractor is acting up again.", true, "you", "Jul 07, 5:10PM" ]
+    - [ "Should I come by this weekend?", false, "Hans", "Jul 07, 5:12PM" ]
+    - [ "That would be great. Bring your wrench!", true, "you", "Jul 07, 5:13PM" ]
+
+  Greta:
+    - [ "Grandpa, did you see my drawing?", false, "Greta", "Jul 06, 3:00PM" ]
+    - [ "Which drawing, Greta? I can't see so well on the phone.", true, "you", "Jul 06, 3:05PM" ]
+    - [ "The one with the cow! I'll send it again.", false, "Greta", "Jul 06, 3:06PM" ]
+    - [ "Now I see it! Very nicely done!", true, "you", "Jul 06, 3:10PM" ]
+
+  Lukas:
+    - [ "Grandpa, when can we ride the tractor again?", false, "Lukas", "Jul 05, 11:00AM" ]
+    - [ "If you're good, on Sunday!", true, "you", "Jul 05, 11:05AM" ]
+    - [ "Yay! I can't wait!", false, "Lukas", "Jul 05, 11:06AM" ]
+
+  Anna:
+    - [ "Dad, do you need anything from the market?", false, "Anna", "Jul 04, 8:00AM" ]
+    - [ "Potatoes would be good, and maybe some bread.", true, "you", "Jul 04, 8:05AM" ]
+    - [ "Will do. See you later!", false, "Anna", "Jul 04, 8:06AM" ]
+
+  Franz:
+    - [ "Gottfried, are you coming to the regulars' table tonight?", false, "Franz", "Jul 03, 7:00PM" ]
+    - [ "I'll try, but my phone is acting strange.", true, "you", "Jul 03, 7:05PM" ]
+    - [ "I'll pick you up, don't worry.", false, "Franz", "Jul 03, 7:06PM" ]
+
+  Josef:
+    - [ "Hey Gottfried, how are the cows?", false, "Josef", "Jul 02, 9:00AM" ]
+    - [ "Good, but Berta ran off again.", true, "you", "Jul 02, 9:10AM" ]
+    - [ "She just loves fresh grass!", false, "Josef", "Jul 02, 9:12AM" ]
+
+  Karl:
+    - [ "Grandpa, can you help me with math?", false, "Karl", "Jul 01, 4:00PM" ]
+    - [ "I can try, but better double-check your answers!", true, "you", "Jul 01, 4:05PM" ]
+    - [ "Thanks, Grandpa!", false, "Karl", "Jul 01, 4:06PM" ]
+
+  Helga:
+    - [ "Gottfried, do you still have some jam?", false, "Helga", "Jun 30, 10:00AM" ]
+    - [ "Yes, in the cellar. I'll bring you a jar.", true, "you", "Jun 30, 10:05AM" ]
+
+  Otto:
+    - [ "Morning Gottfried, how's the harvest?", false, "Otto", "Jun 29, 6:00AM" ]
+    - [ "Slow, my back isn't what it used to be.", true, "you", "Jun 29, 6:10AM" ]
+    - [ "Come over for coffee later.", false, "Otto", "Jun 29, 6:12AM" ]
+
+  Mom:
+    - [ "Zach, did you eat something healthy today?", false, "Mom", "Jul 08, 8:00AM" ]
+    - [ "Does pizza count if it has veggies on it?", true, "you", "Jul 08, 8:05AM" ]
+    - [ "Only if you also had fruit!", false, "Mom", "Jul 08, 8:06AM" ]
+    - [ "Opera tickets for Saturday, right?", true, "you", "Jul 08, 8:10AM" ]
+    - [ "Yes! Can't wait to go with you.", false, "Mom", "Jul 08, 8:12AM" ]
+
+  Dad:
+    - [ "Bossman! Did you fix your bike yet?", false, "Dad", "Jul 07, 7:30PM" ]
+    - [ "Not yet, but GrantZ never gives up.", true, "you", "Jul 07, 7:35PM" ]
+    - [ "Let me know if you need tools.", false, "Dad", "Jul 07, 7:36PM" ]
+    - [ "Thanks, Dad. Might need your super wrench.", true, "you", "Jul 07, 7:40PM" ]
+
+  Alex:
+    - [ "MKZ, pizza night at Joe's?", false, "Alex", "Jul 06, 9:00PM" ]
+    - [ "You know I'm always down for pizza.", true, "you", "Jul 06, 9:05PM" ]
+    - [ "Opera after? Or too much culture?", false, "Alex", "Jul 06, 9:06PM" ]
+    - [ "Pizza, then opera. That's balance.", true, "you", "Jul 06, 9:10PM" ]
+
+  Priya:
+    - [ "Supertigerman, did you finish the CS project?", false, "Priya", "Jul 05, 3:00PM" ]
+    - [ "Almost! Debugging the last function.", true, "you", "Jul 05, 3:05PM" ]
+    - [ "Let me know if you want to pair program.", false, "Priya", "Jul 05, 3:06PM" ]
+    - [ "Will do! Let's ace this.", true, "you", "Jul 05, 3:10PM" ]
+
+  Jamal:
+    - [ "GrantZ, Knicks game this Friday?", false, "Jamal", "Jul 04, 6:00PM" ]
+    - [ "Absolutely! I'll bring the pizza.", true, "you", "Jul 04, 6:05PM" ]
+    - [ "You're the real MVP.", false, "Jamal", "Jul 04, 6:06PM" ]
+
+  Elena:
+    - [ "Hey Zach, want to study for algorithms together?", false, "Elena", "Jul 03, 2:00PM" ]
+    - [ "Sure! Opera playlist or lo-fi beats?", true, "you", "Jul 03, 2:05PM" ]
+    - [ "Opera, obviously.", false, "Elena", "Jul 03, 2:06PM" ]
+    - [ "You get me.", true, "you", "Jul 03, 2:10PM" ]
+
+  Self:
+    - [ "Reminder: Buy more pizza rolls.", true, "you", "Jul 02, 10:00AM" ]
+    - [ "Idea: Build an app that finds the best slice in NYC.", true, "you", "Jul 02, 10:05AM" ]
+    - [ "Don't forget: Opera tickets for Saturday.", true, "you", "Jul 02, 10:10AM" ]
+    - [ "CS homework due Thursday. No slacking, Bossman.", true, "you", "Jul 02, 10:15AM" ]
+    - [ "Try that new algorithm for sorting playlists.", true, "you", "Jul 02, 10:20AM" ]
+  

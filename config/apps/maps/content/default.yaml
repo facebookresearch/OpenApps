@@ -1,0 +1,26 @@
+# @package apps.maps
+title: ${apps.start_page.apps.maps.title}
+init_location: [40.7831, -73.9712] # NYC
+
+saved_places:
+  - name: "Statue of Liberty"
+    lat: 40.6892
+    lng: -74.0445
+  - name: "Central Park"
+    lat: 40.7829
+    lng: -73.9654
+    icon: "tree"
+    color: "green"
+  - name: "Brooklyn Bridge"
+    lat: 40.7061
+    lng: -73.9969
+    icon: "bridge"
+    color: "purple"
+  - name: "Times Square"
+    lat: 40.7580
+    lng: -73.9855
+    icon: "star"
+    color: "#FFD700"
+  - name: "Empire State Building"
+    lat: 40.748817
+    lng: -73.985428

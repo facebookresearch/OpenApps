@@ -1,0 +1,31 @@
+# @package apps.calendar
+
+# UI styling configuration - Black and White Theme
+style:
+  # Color scheme (strictly black, white, and grays)
+  colors:
+    primary: '#ffffff'          # White for primary elements
+    primary_hover: '#dddddd'    # Light gray for hover states
+    secondary: '#aaaaaa'        # Medium gray for secondary elements
+    background: '#000000'       # Pure black background
+    text: '#ffffff'             # White text
+    error: '#ffffff'            # White for errors (with different styling)
+    border: '#444444'           # Dark gray borders
+
+  # Typography
+  typography:
+    font_family: 'Inter, system-ui, sans-serif'
+    heading_font: 'Inter, system-ui, sans-serif'
+    base_font_size: '16px'
+    heading_size: '2rem'        # Larger headings for clear hierarchy
+
+  # Button styles
+  buttons:
+    border_radius: '0px'        # Sharp corners for distinct elements
+    padding: '0.5rem 1rem'
+
+  # Layout
+  layout:
+    container_width: '92%'
+    spacing: '1.5rem'           # More spacing for clear separation
+

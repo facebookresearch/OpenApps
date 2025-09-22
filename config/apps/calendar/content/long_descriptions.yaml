@@ -1,0 +1,129 @@
+# @package apps.calendar
+defaults:
+  - default
+
+# additional events Sonnet generated
++events:
+  - title: New Year's Day
+    date: 2026-01-01
+    description: |
+      # New Year's Day
+      The first day of the new year, celebrated worldwide.
+      ## Key Info:
+      - Public holiday in many countries
+    recurring: yearly
+
+  - title: Chinese New Year
+    date: 2026-02-17
+    description: |
+      # Chinese New Year
+      The most important traditional festival in China, celebrated with fireworks, family meals, and parades.
+      ## Key Info:
+      - Date varies each year
+      - Not an official public holiday in NYC, but widely celebrated in Chinese communities. Date may vary slightly depending on local observance.
+    recurring: yearly
+
+  - title: International Women's Day
+    date: 2026-03-08
+    description: |
+      # International Women's Day
+      A global day celebrating the social, economic, cultural, and political achievements of women.
+    recurring: yearly
+
+  - title: Ramadan Begins
+    date: 2026-02-18
+    description: |
+      # Ramadan Begins
+      The Islamic holy month of fasting begins, observed by Muslims worldwide from sunrise to sunset.
+      ## Key Info:
+      Date varies each year
+      The start of Ramadan is determined by the sighting of the crescent moon and may differ by one day depending on local religious authorities. NYC mosques and Islamic organizations will announce the official start date.
+    recurring: yearly
+
+  - title: Holi Festival
+    date: 2026-03-04
+    description: |
+      # Holi Festival
+      The Indian festival of colors, celebrated with music, dance, and colored powders.
+      ## NYC Disclaimer: 
+      Not a public holiday in NYC, but celebrated by the Indian community. Date may vary by region and local temple announcements.
+    location: India
+    recurring: yearly
+
+  - title: Labor Day
+    date: 2026-05-01
+    description: |
+      # Labor Day
+      An international holiday honoring the labor movement.
+      ## Key Info:
+      - Public holiday in many countries
+    recurring: yearly
+
+  - title: US Independence Day
+    date: 2026-07-04
+    description: |
+      # US Independence Day
+      Celebrations, parades, and fireworks commemorating the Declaration of Independence.
+    location: USA
+    recurring: yearly
+
+  - title: Christmas
+    date: 2026-12-25
+    description: |
+      # Christmas
+      Christian holiday celebrating the birth of Jesus Christ, observed worldwide.
+    recurring: yearly
+
+  - title: Diwali
+    date: 2026-11-08
+    description: |
+      # Diwali
+      The Hindu festival of lights, celebrated with lamps, fireworks, and family gatherings.
+      ## NYC Disclaimer:
+      - Not a public holiday in NYC, but celebrated by Hindu, Sikh, and Jain communities. Date may vary by a day depending on local tradition.
+    location: India
+    recurring: yearly
+
+  - title: Oktoberfest
+    date: 2026-09-19
+    description: |
+      # Oktoberfest
+      The world's largest folk festival, held in Munich with beer, music, and traditional foods.
+    location: Munich, Germany
+    recurring: yearly
+
+  - title: Bastille Day
+    date: 2026-07-14
+    description: |
+      # Bastille Day
+      French national holiday with parades and fireworks.
+    location: France
+    recurring: yearly
+
+  - title: Hanukkah Begins
+    date: 2026-12-04
+    description: |
+      # Hanukkah Begins
+      Jewish festival of lights, celebrated over eight days.
+      ## NYC Disclaimer:
+      -  Hanukkah dates are based on the Hebrew calendar. NYC synagogues will confirm the start date, which may differ slightly depending on tradition.
+    recurring: yearly
+
+  - title: Eid al-Fitr
+    date: 2026-03-19
+    description: |
+      # Eid al-Fitr
+      Islamic festival marking the end of Ramadan, celebrated with prayers and feasts.
+      ## NYC Disclaimer:
+      - Eid al-Fitr is determined by the sighting of the moon. The date may vary by a day in NYC depending on local mosque announcements.
+    recurring: yearly
+
+  - title: Songkran (Thai New Year)
+    date: 2026-04-13
+    description: |
+      # Songkran
+      Thai New Year festival, known for water fights and religious ceremonies.
+      ## NYC Disclaimer:
+      - Not a public holiday in NYC, but celebrated by the Thai community. Local events may be scheduled on weekends for convenience.
+    location: Thailand
+    recurring: yearly

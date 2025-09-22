@@ -1,0 +1,62 @@
+# @package apps.maps
+defaults:
+  - default
+
+init_location: [28.7041, 77.1025] # Delhi
+
+# Points of Interest POI Database, 424205 places 
+# https://www.kaggle.com/datasets/ehallmar/points-of-interest-poi-database?resource=download
+
+# 10 random places in NYC
+
++saved_places:
+  - name: CHEVRA LINAS HAZEDEK SYNAGOGUE OF HARLEM AND THE BRONX
+    lat: 40.826667
+    lng: -73.876944
+    icon: map-marker
+    color: orange
+  - name: ST. PAUL THE APOSTLE CHURCH (MANHATTAN)
+    lat: 40.769722
+    lng: -73.985278
+    icon: map-marker
+    color: darkred
+  - name: BAY RIDGE UNITED METHODIST CHURCH
+    lat: 40.633611
+    lng: -74.024444
+    icon: map-marker
+    color: darkred
+  - name: BROOKLYN NAVY YARD
+    lat: 40.702
+    lng: -73.969
+    icon: map-marker
+    color: blue
+  - name: SANDS FAMILY CEMETERY
+    lat: 40.858056
+    lng: -73.723333
+    icon: map-marker
+    color: darkblue
+  - name: MASPETH, QUEENS
+    lat: 40.723056
+    lng: -73.9125
+    icon: map-marker
+    color: darkgreen
+  - name: MOORE-MCMILLEN HOUSE
+    lat: 40.573056
+    lng: -74.138611
+    icon: map-marker
+    color: red
+  - name: MORRIS PARK (IRT DYRE AVENUE LINE)
+    lat: 40.854429
+    lng: -73.860397
+    icon: tree
+    color: green
+  - name: EDWARD MOONEY HOUSE
+    lat: 40.714444
+    lng: -73.998056
+    icon: map-marker
+    color: purple
+  - name: VAN VORST PARK
+    lat: 40.718611
+    lng: -74.048056
+    icon: tree
+    color: green

@@ -1,0 +1,24 @@
+# @package apps.start_page
+headline: "Welcome to OpenApps!"
+sub_header: ""
+
+# Apps configuration
+apps:
+  todo:
+    title: "OpenTodos"
+    description: # "Manage your tasks and to-dos efficiently"
+  calendar:
+    title: "OpenCalendar"
+    description: # "Keep track of your appointments and events"
+  messages:
+    title: "OpenMessages"
+    description: # "Chat with friends and colleagues"
+  maps:
+    title: "OpenMaps"
+    description: # "Navigate and explore locations"
+  codeeditor:
+    title: "OpenCodeEditor"
+    description: # "Write and edit code seamlessly"
+  onlineshop:
+    title: "OpenShop"
+    description: # "Browse and purchase items online"

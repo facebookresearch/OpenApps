@@ -1,0 +1,39 @@
+# @package apps.messenger
+defaults:
+  - default
+
+# adding a ton of additional users and conversations
+#  chat messages: [message str, bool indicating the owner, user, timestamp str]
+
+chat_history:
+  Alice:
+
+    - [ "你好，Yann，最近在自监督学习方面有进展吗？", false, "Alice", "Sep 16, 10:00PM" ] 
+    - [ "当然有，Alice！自监督学习是人工智能的未来。我正在研究新的架构。", true, "you", "Sep 17, 09:32AM" ]
+    - [ "太令人兴奋了！这会帮助机器更好地理解世界吗？", false, "Alice", "Sep 17, 10:01AM" ]
+    - [ "是的，目标是让机器通过大量标记数据的学习获得常识。", true, "you", "Apr 16, 9:00 AM" ]
+    - [ "太有趣了！请随时告诉我最新进展！", false, "Alice", "Apr 16, 9:03AM" ]
+
+  Bob:
+
+    - [ "你好，Yann！你最喜欢的神经网络架构是什么？", false, "Bob", "Jan 05, 8:45PM" ]
+    - [ "你好，Bob！我偏爱卷积神经网络，但Transformer也非常强大。", true, "you", "Jan 05, 8:46PM" ]
+    - [ "你认为人工智能有一天会达到人类智能水平吗？", false, "Bob", "Jan 05, 8:49PM" ]
+    - [ "我认为我们距离人类水平的人工智能还有很远，但进展正在加速。", true, "you", "Jan 05, 9:45PM" ]
+    - [ "谢谢你的看法，Yann！", false, "Bob", "Jan 05, 9:46PM" ]
+
+  Charlie:
+
+    - [ "Bonjour Yann! 你对有志成为人工智能研究者的人有什么建议吗？", false, "Charlie", "Feb 25, 2:45PM" ]
+    - [ "Bonjour Charlie! 保持好奇，阅读研究论文，尝试新想法。这个领域充满了机会。", true, "you", "Feb 25, 3:45PM" ]
+    - [ "谢谢你! 你对人工智能的未来最感兴趣的是什么？", false, "Charlie", "Feb 25, 3:47PM" ]
+    - [ "人工智能扩展人类智能和解决现实问题的潜力让我最为兴奋。", true, "you", "Feb 25, 3:55PM" ]
+    - [ "很有启发性！谢谢你，Yann。", false, "Charlie", "Feb 25, 4:45PM" ]
+
+  Fantastic4GroupChat:
+
+    - [ "大家好！你们都怎么样？", false, "Alice", "Mar 01, 1:00PM" ]
+    - [ "我很好，Alice！正在研究新的人工智能模型。", true, "you", "Mar 01, 1:05PM" ]
+    - [ "我也是！对人工智能的最新进展感到很兴奋。", false, "Bob", "Mar 01, 1:10PM" ]
+    - [ "我也是！让我们继续推动人工智能的极限。", false, "Charlie", "Mar 01, 1:15PM" ]
+    - [ "当然！我们一起可以实现惊人的成就。", false, "Alice", "Mar 01, 1:20PM" ]
