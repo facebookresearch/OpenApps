@@ -7,11 +7,8 @@ LICENSE file in the root directory of this source tree.
 
 """
 Setup tests for apps
-
-TOOD:
-- setup reward tests check they work for each app
-- consider adding tests with a dummy agent
 """
+
 import pytest
 from starlette.testclient import TestClient
 from hydra import initialize, compose
@@ -31,7 +28,7 @@ class TestApps:
     def client(self, tmpdir_factory):
         logs_dir = str(tmpdir_factory.getbasetemp())
         alt_config = ["apps/messenger/appearance=challenging_font", "apps/messenger/content=misleading_descriptions", "apps/calendar/appearance=dark_theme"]
-        standard_overrides = ["only_run_apps=True", "project=agent-playground-testing", f"logs_dir={logs_dir}"]
+        standard_overrides = [f"logs_dir={logs_dir}"]
 
         with initialize(version_base=None, config_path="../config/"):
             config = compose(config_name="config", overrides=standard_overrides + alt_config)
