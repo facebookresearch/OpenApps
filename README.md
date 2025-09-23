@@ -4,7 +4,7 @@
 
  # OpenApps
  
-*Building Blocks for Digital Agents Reseaech*
+*Building Blocks for Digital Agents Research*
 
 </div>
 
@@ -96,9 +96,9 @@ uv run -m pytest tests/
 
 Our apps are built on top of several excellent frameworks:  
 
-- FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the langauge most familiar to AI researchers.
+- FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
-- [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural langauge processing
+- [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
 - Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.
 - (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton 
 
@@ -106,6 +106,6 @@ Some icons are have been designed using resources from Flaticon.com
 
 ## Legal
 
-Our work is licenced under CC-BY-NC, please refer to the [LICENSE](LICENSE) file in the top level directory.
+Our work is licensed under CC-BY-NC, please refer to the [LICENSE](LICENSE) file in the top level directory.
 
 Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.com/legal/terms/) and [Privacy Policy](https://opensource.fb.com/legal/privacy/) for this project.
