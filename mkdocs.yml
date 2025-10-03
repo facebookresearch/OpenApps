@@ -1,0 +1,16 @@
+site_name: OpenApps
+
+theme:
+  name: shadcn
+  show_title: true # show the title in the top bar
+  show_stargazers: false # show the stargazers in the top bar
+  pygments_style: # default styles
+    light: shadcn-light
+    dark: github-dark
+  icon: heroicons:rectangle-stack # use the shadcn svg if not defined
+  topbar_sections: false # NEW!
+  katex_options: # optional
+    macros: # example of macros
+      "\\RR": "\\mathbb{R}"
+      "\\dx": "\\mathrm{d}x"
+  show_datetime: false
