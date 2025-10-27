@@ -46,7 +46,7 @@ class OpenAppsTask(AbstractBrowserTask):
         self,
         seed: int,
         task_config: Task,
-        base_url: str = None,
+        base_url: str,
         episode_max_time: int = 1000000,
         remove_human_display: bool = True,
         screen_resolution: Tuple[int, int] = (1024, 640),
@@ -54,10 +54,11 @@ class OpenAppsTask(AbstractBrowserTask):
         """
         Args:
             seed: random seed.
-            base_url: str (optional), the base Miniwob URL where the task's HTML file is to be found. If not provided, the MINIWOB_URL environment variable will be used.
-            url_extension: str (optional), the URL extension to be appended to the base URL. Default: "". Determines the start page the agetn will be presented with.
+            task_config: Task, the task configuration object, speicifying the goal, task_id, etc.
+            base_url: str the base URL where the task's HTML file is to be found, typically set in launch_experiment.py
             episode_max_time: int, episode max time in milliseconds. Default: 1000000 ms.
             remove_human_display: bool, whether or not to remove the human display (goal, time left, last reward etc.) from the DOM. Default: True.
+            screen_resolution: Tuple[int, int], the screen resolution (width, height) of the browser window. Default: (1024, 640).
 
         """
         super().__init__(seed)
