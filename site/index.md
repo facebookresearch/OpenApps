@@ -1,12 +1,8 @@
+title: OpenApps
 
-
-<div align="center">
-
- # OpenApps
  
-*Building Blocks for Digital Agents Research*
+Building Blocks for Digital Agents Research
 
-</div>
 
 ## Install
 
@@ -104,17 +100,18 @@ Our apps are built on top of several excellent frameworks:
 
 Some icons are have been designed using resources from Flaticon.com
 
-# Development
+## Project layout
 
-To build docs:
+    mkdocs.yml    # The configuration file.
+    docs/
+        index.md  # The documentation homepage.
+        ...       # Other markdown pages, images and other files.
 
-```
-mkdocs build
-
-``` 
 
 ## Legal
 
 Our work is licensed under CC-BY-NC, please refer to the [LICENSE](LICENSE) file in the top level directory.
 
 Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.com/legal/terms/) and [Privacy Policy](https://opensource.fb.com/legal/privacy/) for this project.
+
+
