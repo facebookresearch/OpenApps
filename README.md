@@ -110,8 +110,10 @@ To build docs:
 
 ```
 mkdocs build
-
+mkdocs serve
 ``` 
+
+this will launch docs.
 
 ## Legal
 
