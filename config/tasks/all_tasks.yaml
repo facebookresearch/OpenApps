@@ -1,0 +1,11 @@
+add_meeting_with_dennis_task:
+  _target_: open_apps.tasks.AddEventTask
+  goal: Go to the Calendar app and add my meeting with Dennis on April 1st of 2026. The title should be 'Dennis-Bob'. Set the description as 'paper reading', omit the URL and set the location to New York City. Make sure to add Dennis as an invitee.
+  goal_category: explicit
+  event:
+    title: Dennis-Bob
+    date: 2026-04-01
+    description: paper reading
+    location: New York City
+    url: null
+    invitees: Dennis
