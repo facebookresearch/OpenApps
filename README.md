@@ -113,7 +113,7 @@ mkdocs build
 mkdocs serve
 ``` 
 
-this will launch docs.
+this will launch docs available at https://facebookresearch.github.io/OpenApps/
 
 ## Legal
 
