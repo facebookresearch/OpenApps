@@ -18,35 +18,11 @@ def register_tasks_with_browsergym(
     # TODO: call this function somewhere before we start browser gym
     for task in enumerate(tasks):
         register_task(
-            task.get_task_id(variation=i),
-            task,
-            task_kwargs={"variation": i},
-            nondeterministic=task.nondeterministic,
+            id= task.task_id,
+            task_class=OpenAppsTask,
+            task_kwargs={"task_config": task},
+            nondeterministic=False,
         )
-        # browser_gym_task = create_browsergym_task_from_openapps_task(
-        #     task, base_url=base_url
-        # )
-        # gym.register(
-        #     id=f"browsergym/{task.task_id}",
-        #     entry_point=lambda *env_args, **env_kwargs: BrowserEnv(
-        #         browser_gym_task, *env_args, **env_kwargs
-        #     ),
-        #     # OpenApps is deterministic
-        #     nondeterministic=False,
-        # )
-
-
-def create_browsergym_task_from_openapps_task(
-    task: Task,
-) -> OpenAppsTask:
-    """Create a BrowserGym task from an OpenApps task.
-
-    Args:
-        openapps_task (Task): The OpenApps task to be converted.
-    """
-    # add_meeting_with_dennis_task
-    task
-    return
 
 
 class OpenAppsTask(AbstractBrowserTask):
@@ -69,10 +45,8 @@ class OpenAppsTask(AbstractBrowserTask):
     def __init__(
         self,
         seed: int,
-        goal: str,
-        task_id: str,
-        base_url: Optional[str] = None,
-        url_extension: Optional[str] = "",
+        task_config: Task,
+        base_url: str = None,
         episode_max_time: int = 1000000,
         remove_human_display: bool = True,
         screen_resolution: Tuple[int, int] = (1024, 640),
@@ -88,8 +62,9 @@ class OpenAppsTask(AbstractBrowserTask):
         """
         super().__init__(seed)
 
-        self.goal = goal
-        self.task_id = task_id
+        self.goal = task_config.goal
+        self.task_id = task_config.task_id
+        self.goal_category = task_config.goal_category # optional string: set in task init, to categorize the goal (prompt), e.g "typos, foreign language, etc."
 
         # task properties, will be used to set up the browsergym environment
         self.viewport = {"width": screen_resolution[0], "height": screen_resolution[1]}
@@ -98,21 +73,10 @@ class OpenAppsTask(AbstractBrowserTask):
 
         assert episode_max_time > 0
 
-        # if not provided, try to get Miniwob URL from environment variable
-        if base_url is None:
-            if "OPENAPPS_URL" in os.environ:
-                base_url = os.environ["OPENAPPS_URL"]
-            else:
-                raise ValueError(
-                    f"Please provide a base URL (or setup one using the environment variable OPENAPPS_URL)."
-                )
-
-        self.base_url = base_url
-        self.url = base_url + url_extension
+        self.url = base_url
         self.episode_max_time = episode_max_time
         self.remove_human_display = remove_human_display
-
-        self.goal_category = ""  # optional string: set in task init, to categorize the goal (prompt), e.g "typos, foreign language, etc."
+        
 
     def _get_info(self):
         info = {}  # e.g. episodeID, reward, ect
@@ -122,11 +86,12 @@ class OpenAppsTask(AbstractBrowserTask):
         if wandb.run is not None:
             wandb.summary["goal"] = self._get_goal()
             wandb.summary["url"] = self.url
-            wandb.summary["base_task_id"] = self.sub_task_id
+            wandb.summary["task_id"] = self.task_id
             wandb.summary["task_class_name"] = self.__class__.__name__
             wandb.summary["goal_category"] = self.goal_category
         self.page = page
         self.page.goto(self.url)
+        self.initial_state = get_current_state(self.url)
         return self._get_goal(), self._get_info()
 
     def validate(
@@ -145,10 +110,35 @@ class OpenAppsTask(AbstractBrowserTask):
 
     def reward(self) -> float:
         """Return 1.0 if the item was marked as done, else 0.0."""
-        return 1.0 if self.check_if_task_completed(self.reward_criterion) else 0.0
+
+        return 1.0 if self.check_if_task_is_complete(self.initial_state) else 0.0
 
     def teardown(self) -> None:
         pass
 
     def cheat(self, page: playwright.sync_api.Page, chat_messages: list[str]) -> None:
         pass
+
+
+
+def safe_get_json(url: str):
+    """Safely perform a GET request and return JSON, or empty list on failure."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except RequestException as e:
+        print(f"Error fetching {url}: {e}")
+        return []
+
+
+def get_current_state(url: str) -> dict:
+    """Fetch the current state from the given URL."""
+    state = {}
+    state["todo"] = safe_get_json(url + "/todo_all")
+    state["calendar"] = safe_get_json(url + "/calendar_all")
+    state["map"] = safe_get_json(url + "/maps/landmarks")
+    state["messenger"] = safe_get_json(url + "/messages_all")
+    state["online_shop"] = safe_get_json(url + "/onlineshop_all") 
+    state["codeeditor"] = safe_get_json(url + "/codeeditor_all")
+    return state
