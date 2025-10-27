@@ -18,7 +18,7 @@ def register_tasks_with_browsergym(
     # TODO: call this function somewhere before we start browser gym
     for task in enumerate(tasks):
         register_task(
-            id= task.task_id,
+            id=task.task_id,
             task_class=OpenAppsTask,
             task_kwargs={"task_config": task},
             nondeterministic=False,
@@ -65,7 +65,9 @@ class OpenAppsTask(AbstractBrowserTask):
 
         self.goal = task_config.goal
         self.task_id = task_config.task_id
-        self.goal_category = task_config.goal_category # optional string: set in task init, to categorize the goal (prompt), e.g "typos, foreign language, etc."
+        self.goal_category = (
+            task_config.goal_category
+        )  # optional string: set in task init, to categorize the goal (prompt), e.g "typos, foreign language, etc."
 
         # task properties, will be used to set up the browsergym environment
         self.viewport = {"width": screen_resolution[0], "height": screen_resolution[1]}
@@ -77,7 +79,6 @@ class OpenAppsTask(AbstractBrowserTask):
         self.url = base_url
         self.episode_max_time = episode_max_time
         self.remove_human_display = remove_human_display
-        
 
     def _get_info(self):
         info = {}  # e.g. episodeID, reward, ect
@@ -121,14 +122,13 @@ class OpenAppsTask(AbstractBrowserTask):
         pass
 
 
-
 def safe_get_json(url: str):
     """Safely perform a GET request and return JSON, or empty list on failure."""
     try:
         response = requests.get(url)
         response.raise_for_status()
         return response.json()
-    except RequestException as e:
+    except requests.exceptions.RequestException as e:
         print(f"Error fetching {url}: {e}")
         return []
 
@@ -140,6 +140,6 @@ def get_current_state(url: str) -> dict:
     state["calendar"] = safe_get_json(url + "/calendar_all")
     state["map"] = safe_get_json(url + "/maps/landmarks")
     state["messenger"] = safe_get_json(url + "/messages_all")
-    state["online_shop"] = safe_get_json(url + "/onlineshop_all") 
+    state["online_shop"] = safe_get_json(url + "/onlineshop_all")
     state["codeeditor"] = safe_get_json(url + "/codeeditor_all")
     return state
