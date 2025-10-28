@@ -1,0 +1,68 @@
+defaults:
+- default
+- _self_
+model_name: ByteDance-Seed/UI-TARS-1.5-7B
+model_pretty_name: UI-TARS-1.5-7B
+hostname: null
+host_name_updated_on: null
+client_type: vllm
+custom_actions:
+- go_back
+- go_forward
+- goto
+- mouse_click
+- mouse_dblclick
+- scroll
+- mouse_move
+- mouse_down
+- mouse_up
+- mouse_click
+- mouse_dblclick
+- mouse_drag_and_drop
+- mouse_upload_file
+- keyboard_down
+- keyboard_up
+- keyboard_press
+- keyboard_type
+- keyboard_insert_text
+use_html: false
+use_axtree: false
+use_screenshot: true
+use_som: false
+extract_visible_tag: false
+extract_clickable_tag: false
+extract_coords: false
+filter_visible_elements_only: false
+use_focused_element: false
+prompt_txt:
+  system_prompt: You are a GUI agent. You are given a task and your action history,
+    with screenshots. You need to perform the next action to complete the task.
+  output_format: '<action>
+
+    <\action>
+
+    <think>
+
+    <\think>
+
+    '
+  think_prompt: null
+  think_abstract_example: null
+  think_concrete_example: null
+  action_prompt: "## Action Space\n\nclick(point='<point>x1 y1</point>')\nleft_double(point='<point>x1\
+    \ y1</point>')\nright_single(point='<point>x1 y1</point>')\nhotkey(key='ctrl c')\
+    \ # Split keys with a space and use lowercase. Also, do not use more than 3 keys\
+    \ in one hotkey action.\ntype(content='xxx') # Use escape characters \\\\', \\\
+    \\\\\", and \\\\n in content part to ensure we can parse the content in normal\
+    \ python string format. If you want to submit your input, use \\\\n at the end\
+    \ of content. \nscroll(point='<point>x1 y1</point>', direction='down or up or\
+    \ right or left') # Show more information on the `direction` side.\nwait() #Sleep\
+    \ for 5s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
+    \ in `Thought` part.\n- Write a small plan and finally summarize your next action\
+    \ (with its target element) in one sentence in `Thought` part.\n"
+  action_abstract_example: '<action>type(content='''')<\action>
+
+    '
+  action_concrete_example: '<action>click(point=''<point>200 300</point>'')<\action>
+
+    '
