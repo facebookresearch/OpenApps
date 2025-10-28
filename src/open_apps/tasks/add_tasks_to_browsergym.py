@@ -143,6 +143,7 @@ def get_current_state(url: str) -> dict:
     """Fetch the current state from the given URL."""
     state = {}
     state["todo"] = safe_get_json(url + "/todo_all")
+    # calendar has "id": int column and often other fields that are null too
     state["calendar"] = safe_get_json(url + "/calendar_all")
     state["map"] = safe_get_json(url + "/maps/landmarks")
     state["messenger"] = safe_get_json(url + "/messages_all")

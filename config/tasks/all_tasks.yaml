@@ -9,3 +9,15 @@ add_meeting_with_dennis_task:
     location: New York City
     url: null
     invitees: Dennis
+
+add_christmas_shopping_event_task:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Make a calendar entry for Christmas shopping on the 14th (2025). The title should read 'Shopping for Christmas gifts'.
+  goal_category: explicit
+  event:
+    title: Shopping for Christmas gifts
+    date: 2025-12-14
+    description: null
+    location: null
+    url: null
+    invitees: null

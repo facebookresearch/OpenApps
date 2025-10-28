@@ -43,6 +43,7 @@ def are_dicts_similar(
         dict1: First dictionary to compare
         dict2: Second dictionary to compare
     """
+    # TODO: consider removing "id" key
     diff = DeepDiff(
         dict1, dict2, custom_operators=[StringSimilarityOperator(types=[str])]
     )
@@ -72,6 +73,36 @@ class Task(ABC):
 class AddEventTask(Task):
     """
     Task to add an event to the calendar.
+    """
+
+    event: dict
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        """Define the target state for the task.
+
+        Args:
+            initial_state (dict): The initial state of all apps.
+        """
+        target_state = initial_state.copy()
+        idx_to_remove = None
+        for i, event in enumerate(target_state["calendar"]):
+            if event["title"] == event.title:
+                idx_to_remove = i
+        # remove the event to be deleted
+        target_state.pop(idx_to_remove)
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict
+    ) -> bool:
+        target_state = self.get_target_state(initial_state)
+        return are_dicts_similar(target_state, current_state)
+
+
+@dataclass
+class RemoveEventTask(Task):
+    """
+    Task to remove an event from the calendar.
     """
 
     event: dict
