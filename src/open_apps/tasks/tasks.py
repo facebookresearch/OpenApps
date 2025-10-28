@@ -84,7 +84,7 @@ class AddEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = initial_state.copy()
-        target_state["calendar"]["events"].append(self.event)
+        target_state["calendar"].append(self.event)
         return target_state
 
     def check_if_task_is_complete(

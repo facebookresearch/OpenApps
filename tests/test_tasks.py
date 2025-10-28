@@ -59,9 +59,21 @@ class TestTasks:
         assert isinstance(task, AddEventTask)
         assert "Go to the Calendar" in task.goal
 
-
-class TestTaskReward:
     def test_state_comparison(self):
         dict1 = {"name": "Alice", "city": "NEW YORK "}
         dict2 = {"name": "alice", "city": "new york"}
         assert are_dicts_similar(dict1, dict2)
+
+    def test_homepage(self, client):
+        tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
+        tasks_config = OmegaConf.load(tasks_file)
+        task_config = tasks_config.add_meeting_with_dennis_task
+        task = instantiate(task_config)
+
+        initial_state = dict()
+        initial_state["calendar"] = client.get("/calendar_all").json()
+        current_state = initial_state.copy()
+        # add event
+        current_state["calendar"].append(task.event)
+
+        assert task.check_if_task_is_complete(initial_state, current_state)
