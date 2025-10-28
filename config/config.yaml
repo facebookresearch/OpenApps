@@ -2,6 +2,7 @@
 defaults:
   - mode: local
   - agent: default
+  - tasks: all_tasks
   - apps/code_editor: default
   - apps/maps: default
   - apps/messenger: default

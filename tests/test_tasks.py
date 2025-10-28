@@ -11,6 +11,10 @@ from open_apps.apps.start_page.main import (
     initialize_routes_and_configure_task,
 )
 from open_apps.tasks.add_tasks_to_browsergym import get_current_state
+from omegaconf import OmegaConf
+from pathlib import Path
+from hydra.utils import instantiate
+from open_apps.tasks.tasks import AddEventTask
 
 
 class TestTasks:
@@ -46,3 +50,11 @@ class TestTasks:
         assert type(todo_state) is list
         assert len(todo_state) > 1
         assert "done" in todo_state[0]
+
+    def test_task_instantiation(self):
+        tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
+        tasks_config = OmegaConf.load(tasks_file)
+        task_config = tasks_config.add_meeting_with_dennis_task
+        task = instantiate(task_config)
+        assert isinstance(task, AddEventTask)
+        assert "Go to the Calendar" in task.goal
