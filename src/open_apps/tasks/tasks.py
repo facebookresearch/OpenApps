@@ -84,12 +84,7 @@ class AddEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = initial_state.copy()
-        idx_to_remove = None
-        for i, event in enumerate(target_state["calendar"]):
-            if event["title"] == event.title:
-                idx_to_remove = i
-        # remove the event to be deleted
-        target_state.pop(idx_to_remove)
+        target_state["calendar"]["events"].append(self.event)
         return target_state
 
     def check_if_task_is_complete(
@@ -114,7 +109,12 @@ class RemoveEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = initial_state.copy()
-        target_state["calendar"]["events"].append(self.event)
+        idx_to_remove = None
+        for i, event in enumerate(target_state["calendar"]):
+            if event["title"] == event.title:
+                idx_to_remove = i
+        # remove the event to be deleted
+        target_state.pop(idx_to_remove)
         return target_state
 
     def check_if_task_is_complete(
