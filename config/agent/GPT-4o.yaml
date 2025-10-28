@@ -1,0 +1,15 @@
+defaults:
+  - default
+  - _self_
+
+model_name: "GPT-4o"
+model_pretty_name: "GPT-4o"
+api_version: "2024-06-01"
+client_type: "openai"
+hostname: null
+# primary key
+api_key: ${oc.env:OPENAI_API_KEY}
+aws_access_key: null
+aws_secret_key: null
+aws_session_token: null
+aws_region: us-west-2
