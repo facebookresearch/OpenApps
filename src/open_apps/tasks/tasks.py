@@ -3,20 +3,17 @@ from typing import Optional
 from abc import ABC, abstractmethod
 import hashlib
 import re
+from deepdiff import DeepDiff
+from deepdiff.operator import BaseOperator
 
 
-def are_strings_similar(str1: str, str2: str) -> bool:
+class StringSimilarityOperator(BaseOperator):
     """
-    Compare two strings while ignoring case, special characters, and extra spaces.
-
-    Args:
-        str1: First string to compare
-        str2: Second string to compare
-
-    Returns:
-        bool: True if strings are similar, False otherwise
+    Operator is used in DeepDiff to compare strings.
+    Ignores case, special characters, and extra spaces when comparing strings.
     """
 
+    @staticmethod
     def normalize_string(s: str) -> str:
         # Convert to lowercase
         s = s.lower()
@@ -27,7 +24,29 @@ def are_strings_similar(str1: str, str2: str) -> bool:
         # Strip leading/trailing whitespace
         return s.strip()
 
-    return normalize_string(str1) == normalize_string(str2)
+    def give_up_diffing(self, level, diff_instance):
+        if isinstance(level.t1, str) and isinstance(level.t2, str):
+            # Compare strings case-insensitively
+            if self.normalize_string(level.t1) == self.normalize_string(level.t2):
+                return True  # Strings are equal, stop diffing
+        return False
+
+
+def are_dicts_similar(
+    dict1: dict,
+    dict2: dict,
+) -> bool:
+    """
+    Compare two dictionaries for similarity, using a custom string comparison function.
+
+    Args:
+        dict1: First dictionary to compare
+        dict2: Second dictionary to compare
+    """
+    diff = DeepDiff(
+        dict1, dict2, custom_operators=[StringSimilarityOperator(types=[str])]
+    )
+    return diff == {}
 
 
 @dataclass
@@ -71,8 +90,7 @@ class AddEventTask(Task):
         self, initial_state: dict, current_state: dict
     ) -> bool:
         target_state = self.get_target_state(initial_state)
-        # TODO: consider fuzzy string matching using functiona above
-        return target_state == current_state
+        return are_dicts_similar(target_state, current_state)
 
 
 add_meeting_with_dennis_task = AddEventTask(

@@ -14,7 +14,7 @@ from open_apps.tasks.add_tasks_to_browsergym import get_current_state
 from omegaconf import OmegaConf
 from pathlib import Path
 from hydra.utils import instantiate
-from open_apps.tasks.tasks import AddEventTask
+from open_apps.tasks.tasks import AddEventTask, are_dicts_similar
 
 
 class TestTasks:
@@ -58,3 +58,10 @@ class TestTasks:
         task = instantiate(task_config)
         assert isinstance(task, AddEventTask)
         assert "Go to the Calendar" in task.goal
+
+
+class TestTaskReward:
+    def test_state_comparison(self):
+        dict1 = {"name": "Alice", "city": "NEW YORK "}
+        dict2 = {"name": "alice", "city": "new york"}
+        assert are_dicts_similar(dict1, dict2)
