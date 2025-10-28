@@ -8,7 +8,8 @@ add_meeting_with_dennis_task:
     description: paper reading
     location: New York City
     url: null
-    invitees: Dennis
+    invitees:
+      - Dennis
 
 add_christmas_shopping_event_task:
   _target_: open_apps.tasks.tasks.AddEventTask
@@ -20,4 +21,4 @@ add_christmas_shopping_event_task:
     description: null
     location: null
     url: null
-    invitees: null
+    invitees: []
