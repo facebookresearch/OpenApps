@@ -1,0 +1,15 @@
+defaults:
+  - default
+  - _self_
+
+model_name: claude_4_sonnet
+api_version: null
+model_pretty_name: claude_4_sonnet
+client_type: aws
+# load from env vars to avoid committing secrets to git
+aws_access_key: null
+aws_secret_key: null
+aws_session_token: null
+aws_region: us-west-2
+max_tokens: 1000
+temperature: 0.5

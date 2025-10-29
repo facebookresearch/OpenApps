@@ -1,0 +1,42 @@
+# Custom actions to be used by the agent
+# ax-tree options
+custom_actions: ["click", "fill", "dblclick", "clear", "select_option", "drag_and_drop", "hover", "go_back", "go_forward", "goto", "scroll"]
+
+# --- observation flags ---
+use_axtree: True # enable AXTREE observation
+use_screenshot: False # enable screenshot observation
+use_som: False  # Add a set of marks to the screenshot.
+extract_coords: False # Add the coordinates of the elements.
+
+# --- Prompt Flags ---
+prompt_txt:
+  system_prompt: null # takes default system prompt from dp lib
+  output_format: |
+    <action>
+    <\action>
+    <think>
+    <\think>
+  think_prompt: null # takes default system prompt from dp lib
+  think_abstract_example: null # takes default system prompt from dp lib
+  think_concrete_example: null # takes default system prompt from dp lib
+  action_prompt: null # if specified will directly define your action prompt and will ignore browsergym default of listing the API with descriptions
+  action_abstract_example: |
+    For links, checkboxes, buttons, etc. in the Axtree use the following action:
+
+    <action>
+    click("bid")
+    </action>
+
+    For textbox items use:
+    
+    <action>
+    fill("bid", str)
+    </action>
+
+    Remember you can only use one action at a time. Check the history for more context about which action you already took.
+  action_concrete_example: |
+   if doing ax tree format, use:
+    <action>
+    fill("4", "my text")
+    </action>
+
