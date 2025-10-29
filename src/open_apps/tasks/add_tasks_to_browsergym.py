@@ -14,7 +14,7 @@ from browsergym.core.registration import register_task
 
 def register_tasks_with_browsergym(tasks: list[Task]) -> None:
     """create a list of all tasks to be registered with browsergym"""
-    for task in enumerate(tasks):
+    for task in tasks:
         register_task(
             id=task.task_id,
             task_class=OpenAppsTask,
@@ -42,9 +42,9 @@ class OpenAppsTask(AbstractBrowserTask):
 
     def __init__(
         self,
-        seed: int,
         task_config: Task,
         base_url: str,
+        seed: int = 1,
         episode_max_time: int = 1000000,
         remove_human_display: bool = True,
         screen_resolution: Tuple[int, int] = (1024, 640),

@@ -33,13 +33,13 @@ import urllib.request
 import time
 import urllib.parse  # Add this import
 from open_apps.utils import merge_plus_keys
+from browsergym.experiments import ExpArgs
 
 # Project-specific imports
 from open_apps.apps.start_page.main import (
     initialize_routes_and_configure_task,
 )
 import socket
-import getpass
 from killport import kill_ports
 import random
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
@@ -291,10 +291,12 @@ class AgentLauncher(OpenAppsLauncher):
         register_tasks_with_browsergym(tasks=[task])
 
         # instantiate browsergym task
+        task_kwargs = OmegaConf.to_container(self.config.browsergym_env_args)
+        task_kwargs["base_url"] = self.web_app_url
+
         browsergym_task = browsergym.experiments.EnvArgs(
             task_name=task.task_id,
-            base_url=self.web_app_url,
-            **self.config.browsergym_env_args,
+            task_kwargs=task_kwargs,
         )
         return browsergym_task
 
@@ -358,9 +360,12 @@ class AgentLauncher(OpenAppsLauncher):
         apps_process = self.launch_apps_via_shell()
         self.wait_until_apps_start(apps_process)
         # TODO: check if agent model is available in case of VLLM or API
-        self.launch_agent()
-
-        self.cleanup(apps_process)
+        try:
+            self.launch_agent()
+        except Exception as e:
+            self.cleanup(apps_process)
+            print("Error during agent launch: ", e)
+            raise e
 
 
 if __name__ == "__main__":
