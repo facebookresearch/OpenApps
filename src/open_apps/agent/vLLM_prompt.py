@@ -18,8 +18,7 @@ from agentlab.llm.llm_utils import (
     BaseMessage,
 )
 
-
-from web_agent_playground.agent.utils import flexible_parser
+from open_apps.agent.utils import flexible_parser
 
 def image_to_jpg_base64_url(image: np.ndarray | Image.Image):
     """Convert a numpy array to a base64 encoded image url."""
