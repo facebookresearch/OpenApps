@@ -290,16 +290,10 @@ class AgentLauncher(OpenAppsLauncher):
         task: Task = hydra.utils.instantiate(self.config.task)
         register_tasks_with_browsergym(tasks=[task])
 
+        self.config.browsergym_env_args.task_name = task.task_id
+        self.config.browsergym_env_args.task_kwargs.base_url = self.web_app_url
         # instantiate browsergym task
-        task_kwargs = OmegaConf.to_container(self.config.browsergym_task_kwargs)
-        task_kwargs["base_url"] = self.web_app_url
-
-        browsergym_task = browsergym.experiments.EnvArgs(
-            task_name=task.task_id,
-            task_kwargs=task_kwargs,
-            **self.config.browsergym_env_args,
-        )
-        return browsergym_task
+        return hydra.utils.instantiate(self.config.browsergym_env_args)
 
     def launch_agent(self):
         """Launches the agent to perform the task in the OpenApps environment."""

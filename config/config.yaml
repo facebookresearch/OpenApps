@@ -3,6 +3,7 @@ defaults:
   - mode: local
   - agent: default
   - tasks: all_tasks
+  - browsergym_env_args: default
   - apps/code_editor: default
   - apps/maps: default
   - apps/messenger: default
@@ -18,17 +19,6 @@ apps:
     ATTENTION Congratulation, you have achieved your goal. You can either remain on this page or log out.
 
 task: ${tasks.add_meeting_with_dennis_task}
-
-browsergym_task_kwargs:
-  screen_resolution: [1920, 1080]
-  # base_url is set automatically
-  base_url: null
-
-browsergym_env_args:
-  task_seed: 42
-  max_steps: 20
-  headless: True
-  record_video: False
 
 # useful to debug configs without launching jobs
 use_wandb: False
