@@ -33,7 +33,8 @@ import urllib.request
 import time
 import urllib.parse  # Add this import
 from open_apps.utils import merge_plus_keys
-from browsergym.experiments import ExpArgs
+from browsergym.experiments import ExpArgs, get_exp_result
+
 
 # Project-specific imports
 from open_apps.apps.start_page.main import (
