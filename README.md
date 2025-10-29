@@ -10,6 +10,13 @@
 
 ## Install
 
+```
+uv pip install git+https://github.com/facebookresearch/openapps.git
+```
+
+
+### Manual Installation
+
 - Pre-requisite: install uv (a much faster pip): `pip install uv` (or from [source](https://docs.astral.sh/uv/getting-started/installation/))
 - [if need be] Install python: `uv python install`
 
