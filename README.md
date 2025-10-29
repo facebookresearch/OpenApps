@@ -83,6 +83,26 @@ To launch popups, set `apps/pop_ups=adversarial_descriptions`.
 
 You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
 
+## Launch Agent
+
+Launch an agent to perform a task:
+
+```
+uv run launch_agent.py
+```
+
+## Launch Agent(s) Across Multiple Tasks
+> launch thousands of app variations to study agent behaviors in parallel
+
+To launch one (or multiple) agents to solve many tasks in parallel, each in an isolated deployment of OpenApps:
+
+```
+uv run launch_sweep.py
+```
+
+* Note each deployment of OpenApps can have different appearance and content
+* Note each task is launched in an isolated environment to ensure reproducible results.
+
 ## Testing
 
 Run all tests via:
@@ -114,6 +134,12 @@ mkdocs serve
 ``` 
 
 this will launch docs available at https://facebookresearch.github.io/OpenApps/
+
+## Checklist
+
+- [ ] Check on weights and biases logging and document
+- [ ] Check subprocess is killed as expected
+- [ ] 
 
 ## Legal
 
