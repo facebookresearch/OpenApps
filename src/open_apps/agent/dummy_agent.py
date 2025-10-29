@@ -112,7 +112,7 @@ class DummyAgent(GenericAgent):
                 f"""{obs["axtree_txt"]} """
             )
         )
-        clickable_elements = re.findall(r'\[(\d+)\] link', messages[-1]['content'])
+        clickable_elements = re.findall(r'\[(\d+)\]\s*(?:link|button)\b', messages[-1]['content'])
         print("the content of the last message is: ", messages[-1]['content'])
         if clickable_elements:
             print("clickable elements are: ", clickable_elements)
