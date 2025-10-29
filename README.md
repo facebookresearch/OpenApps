@@ -91,6 +91,11 @@ Launch an agent to perform a task:
 uv run launch_agent.py
 ```
 
+To see the agent solving the task live:
+```
+uv run launch_agent.py browsergym_env_args.headless=False
+```
+
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel
 
@@ -135,11 +140,6 @@ mkdocs serve
 
 this will launch docs available at https://facebookresearch.github.io/OpenApps/
 
-## Checklist
-
-- [ ] Check on weights and biases logging and document
-- [ ] Check subprocess is killed as expected
-- [ ] 
 
 ## Legal
 
