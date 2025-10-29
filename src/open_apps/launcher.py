@@ -291,12 +291,13 @@ class AgentLauncher(OpenAppsLauncher):
         register_tasks_with_browsergym(tasks=[task])
 
         # instantiate browsergym task
-        task_kwargs = OmegaConf.to_container(self.config.browsergym_env_args)
+        task_kwargs = OmegaConf.to_container(self.config.browsergym_task_kwargs)
         task_kwargs["base_url"] = self.web_app_url
 
         browsergym_task = browsergym.experiments.EnvArgs(
             task_name=task.task_id,
             task_kwargs=task_kwargs,
+            **self.config.browsergym_env_args,
         )
         return browsergym_task
 
