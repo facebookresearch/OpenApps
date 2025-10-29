@@ -21,6 +21,7 @@ import signal
 
 # Third-party imports
 from omegaconf import DictConfig, OmegaConf
+import browsergym
 from fasthtml.common import serve
 import wandb
 import yaml
@@ -41,6 +42,8 @@ import socket
 import getpass
 from killport import kill_ports
 import random
+from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
+from open_apps.tasks.tasks import Task
 
 try:
     # Register the custom 'now' resolver
@@ -205,12 +208,11 @@ class OpenAppsLauncher:
 
         venv_activate_script = Path(file_dir) / ".venv" / "bin" / "activate"
         command = (
-            f"source {venv_activate_script} && "
-            f"cd {file_dir} && "
-            f"uv run launch.py --config-path {config_dir_for_subprocess} "
-            f"--config-name {config_name_for_subprocess} use_wandb=False task.task_kwargs.base_url={self.web_app_url}"
+            f"source '{venv_activate_script}' && "
+            f"cd '{file_dir}' && "
+            f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False"
         )
-        # TODO: check on this task base_url
         if self.config.apps.onlineshop.enable:
             command += " apps.onlineshop.enable=True"
         print("Launching web app with command: ", command)
@@ -218,7 +220,6 @@ class OpenAppsLauncher:
             command,
             shell=True,
             stdout=subprocess.PIPE,
-            executable="/bin/bash",
             start_new_session=True,
         )
         sleep(30)
@@ -284,15 +285,27 @@ class AgentLauncher(OpenAppsLauncher):
         # give some time for the screenshots to be uploaded
         time.sleep(20)  # seconds
 
+    def setup_browsergym_task(self):
+        # specifies goal and logic for reward
+        task: Task = hydra.utils.instantiate(self.config.task)
+        register_tasks_with_browsergym(tasks=[task])
+
+        # instantiate browsergym task
+        browsergym_task = browsergym.experiments.EnvArgs(
+            task_name=task.task_id,
+            base_url=self.web_app_url,
+            **self.config.browsergym_env_args,
+        )
+        return browsergym_task
+
     def launch_agent(self):
         """Launches the agent to perform the task in the OpenApps environment."""
-        # TODO: check logic
         self.agent_args = hydra.utils.instantiate(self.config.agent)
-        self.env_args = hydra.utils.instantiate(self.config.task)
+        self.browser_gym_task = self.setup_browsergym_task()
 
         # Runs agent in BrowserGym environment on task
         exp_args = ExpArgs(
-            env_args=self.env_args,
+            env_args=self.browser_gym_task,
             agent_args=self.agent_args,
         )
 
@@ -322,14 +335,31 @@ class AgentLauncher(OpenAppsLauncher):
         kill_ports(ports=[self.web_app_port])
         time.sleep(4)
 
+    def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
+        is_app_running = False
+        for _ in range(times_to_wait):
+            if self.is_app_running():
+                is_app_running = True
+                break
+            print("Waiting for OpenApps to start...")
+            sleep(10)
+            (stdout, stderr) = apps_process.communicate()
+            print(stdout)
+            print(stderr)
+        if is_app_running:
+            print("OpenApps is running, proceeding to run the agent.")
+        else:
+            print("OpenApps failed to start within the expected time.")
+
     def launch(self):
         """
         Launches open apps environment and orchestrates agent to perform the task.
         """
         apps_process = self.launch_apps_via_shell()
-        # TODO: confirm apps are running
+        self.wait_until_apps_start(apps_process)
         # TODO: check if agent model is available in case of VLLM or API
         self.launch_agent()
+
         self.cleanup(apps_process)
 
 

@@ -9,13 +9,11 @@ from browsergym.core.task import AbstractBrowserTask
 from open_apps.tasks.tasks import Task
 import gymnasium as gym
 from browsergym.core.env import BrowserEnv
+from browsergym.core.registration import register_task
 
 
-def register_tasks_with_browsergym(
-    tasks: list[Task], base_url: Optional[str] = None
-) -> None:
+def register_tasks_with_browsergym(tasks: list[Task]) -> None:
     """create a list of all tasks to be registered with browsergym"""
-    # TODO: call this function somewhere before we start browser gym
     for task in enumerate(tasks):
         register_task(
             id=task.task_id,
