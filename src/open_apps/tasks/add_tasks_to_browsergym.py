@@ -133,7 +133,7 @@ def safe_get_json(url: str):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {url}: {e}")
+        # print(f"Error fetching {url}: {e}")
         return []
 
 
@@ -145,6 +145,9 @@ def get_current_state(url: str) -> dict:
     state["calendar"] = safe_get_json(url + "/calendar_all")
     state["map"] = safe_get_json(url + "/maps/landmarks")
     state["messenger"] = safe_get_json(url + "/messages_all")
-    state["online_shop"] = safe_get_json(url + "/onlineshop_all")
     state["codeeditor"] = safe_get_json(url + "/codeeditor_all")
+    try:
+        state["online_shop"] = safe_get_json(url + "/onlineshop_all")
+    except:
+        state["online_shop"] = []
     return state
