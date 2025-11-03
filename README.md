@@ -24,8 +24,8 @@
 
 `Onlineshop java + spacy configuration`
 
-4) Prepare Java, Webshop data and spacy model: `chmod +x setup.sh` and `./setup.sh`
-5) Designate Java path: `source setup_javapath.sh`
+4) Prepare Java, Webshop data and spacy model: `chmod +x setup.sh` and `./setup.sh -s linux|mac` for **Linux X64** or **Mac ARM64** systems
+5) Designate Java path: `source setup_javapath.sh -s linux|mac` for **Linux X64** or **Mac ARM64** systems
 6) Check `java -version` gives you `java version "21.0.1"`
 7) Build search engine indexes: `chmod +x setup_pyserini.sh` and `./setup_pyserini.sh`
 
@@ -105,10 +105,6 @@ Our apps are built on top of several excellent frameworks:
 Some icons are have been designed using resources from Flaticon.com
 
 # Development
-
-```
-uv sync --dev
-```
 
 To build docs:
 
