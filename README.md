@@ -106,6 +106,10 @@ Some icons are have been designed using resources from Flaticon.com
 
 # Development
 
+```
+uv sync --dev
+```
+
 To build docs:
 
 ```
