@@ -1,42 +1,24 @@
 #!/bin/bash
 
-helpFunction()
-{
-  echo "Usage: $0 [-s linux|mac]"
-  echo -e "\t-s linux|mac - Specify the system type to setup the environment for (linux X64 or mac ARM64)"
-  exit 1 # Exit script after printing help
-}
-
-# Get values of command line flags
-while getopts s: flag
-do
-  case "${flag}" in
-    s) system_type=${OPTARG};;
-  esac
-done
-
-if [ -z "$system_type" ]; then
-  echo "[Missing Argument]: -s flag"
-  helpFunction
-fi
-
 # navigate to the directory where the script is located
 cd src/open_apps/apps/onlineshop_app
 # Configure Java 21
 mkdir -p java;
 cd java;
 # Download and install Java 21 from https://jdk.java.net/archive/
+ARCH="$(uname -m)"
 # For Linux x64
-if [ "$system_type" == "linux" ]; then
+if [ "$ARCH" = "x86_64" ]; then
+  echo "Intel/AMD machine"
   wget https://download.java.net/java/GA/jdk21.0.1/415e3f918a1f4062a0074a2794853d0d/12/GPL/openjdk-21.0.1_linux-x64_bin.tar.gz
   tar -xzf openjdk-21.0.1_linux-x64_bin.tar.gz
+elif [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
+  echo "ARM64 machine"
 # For Mac ARM64
-elif [ "$system_type" == "mac" ]; then
-  wget https://download.java.net/java/GA/jdk21.0.1/415e3f918a1f4062a0074a2794853d0d/12/GPL/openjdk-21.0.1_macos-aarch64_bin.tar.gz
+  curl -O https://download.java.net/java/GA/jdk21.0.1/415e3f918a1f4062a0074a2794853d0d/12/GPL/openjdk-21.0.1_macos-aarch64_bin.tar.gz
   tar -xzf openjdk-21.0.1_macos-aarch64_bin.tar.gz
 else
-  echo "[Missing Argument]: the `-s` flag not recognized"
-  helpFunction
+  echo "[System Not Supported]: Currently only x64 and Mac ARM64 are supported."
 fi
 cd ..
 
