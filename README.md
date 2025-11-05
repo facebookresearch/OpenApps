@@ -12,11 +12,11 @@
 
 - Pre-requisite: install uv (a much faster pip): `pip install uv` (or from [source](https://docs.astral.sh/uv/getting-started/installation/))
 - [if need be] Install python: `uv python install`
+<!-- - [If using Conda] Create a fresh venv: `uv venv --python "$(which python)"` -->
 
-1) Create a fresh venv: `uv venv --python "$(which python)"`
-2) Install packages: `uv sync`
-3) Activate environment: `source .venv/bin/activate`
-4) Install `playwright install chromium`
+1) Install packages: `uv sync`
+2) Activate environment: `source .venv/bin/activate`
+3) Install `playwright install chromium`
 
 <details > 
 <summary>
@@ -25,10 +25,10 @@
 
 `Onlineshop java + spacy configuration`
 
-5) Prepare Java, Webshop data and spacy model: `chmod +x setup.sh` and `./setup.sh` for **Linux X64** or **Mac ARM64** systems
-6) Designate Java path: `source setup_javapath.sh` for **Linux X64** or **Mac ARM64** systems
-7) Check `java -version` gives you `java version "21.0.1"`
-8) Build search engine indexes: `chmod +x setup_pyserini.sh` and `./setup_pyserini.sh`
+4) Prepare Java, Webshop data and spacy model: `chmod +x setup.sh` and `./setup.sh` for **Linux X64** or **Mac ARM64** systems
+5) Designate Java path: `source setup_javapath.sh` for **Linux X64** or **Mac ARM64** systems
+6) Check `java -version` gives you `java version "21.0.1"`
+7) Build search engine indexes: `chmod +x setup_pyserini.sh` and `./setup_pyserini.sh`
 
 **Congratulations! The onlineshop is ready to be used. Remember in future, always run `source setup_javapath.sh` to configure Java path before launching onlineshop-related tasks.**
 

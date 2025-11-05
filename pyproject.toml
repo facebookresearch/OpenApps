@@ -7,7 +7,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "agentlab @ git+https://github.com/ServiceNow/AgentLab.git@571b3f52867945f9df7d00ee1a3e2475d1c2c027",
     "browsergym>=0.13.3",
-    "fastapi>=0.115.12",
+    "fastapi==0.115.12",
     "feedgen>=1.0.0",
     "faiss-cpu==1.10.0",
     "gdown>=5.2.0",
