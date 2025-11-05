@@ -41,7 +41,7 @@ Prerequisite: Java 21.
 
 Finally, launch with
 ```
-uv run launch_experiment.py only_run_apps=True mode=aws_a100_cpu_only use_wandb=False apps.onlineshop.enable=True
+uv run launch.py use_wandb=False apps.onlineshop.enable=True
 ```
 </details>
 
