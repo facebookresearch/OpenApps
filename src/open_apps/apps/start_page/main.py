@@ -136,6 +136,9 @@ def get():
         
         # Add items for each enabled app
         for index, (app_name, app_config) in enumerate(enabled_apps):
+            # Skip the shopping app if disabled
+            if app_name == "onlineshop" and not app.config.onlineshop.enable:
+                continue
             # Get the app URL
             app_url = f"/{app_name}" if app_name != "vault" else "/todo"
             
