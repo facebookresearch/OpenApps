@@ -20,7 +20,7 @@
 
 <details > 
 <summary>
- Optionally install for onlineshop (Linux Only) (off by default)
+ Optionally install for onlineshop (off by default)
 </summary>
 
 `Onlineshop java + spacy configuration`
