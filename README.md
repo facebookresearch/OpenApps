@@ -11,7 +11,6 @@
 ## Install
 
 - Pre-requisite: install uv (a much faster pip): `pip install uv` (or from [source](https://docs.astral.sh/uv/getting-started/installation/))
-- [if need be] Install python: `uv python install`
 <!-- - [If using Conda] Create a fresh venv: `uv venv --python "$(which python)"` -->
 
 1) Install packages: `uv sync`
