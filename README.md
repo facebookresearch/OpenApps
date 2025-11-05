@@ -45,8 +45,6 @@ uv run launch_experiment.py only_run_apps=True mode=aws_a100_cpu_only use_wandb=
 ```
 </details>
 
-To run any other commands: `uv run [any_script.py]`.
-
 ## Run OpenApps
 
 Simply run:
