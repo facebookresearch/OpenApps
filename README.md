@@ -18,7 +18,7 @@ uv pip install git+https://github.com/facebookresearch/openapps.git
 ### Manual Installation
 
 - Pre-requisite: install uv (a much faster pip): `pip install uv` (or from [source](https://docs.astral.sh/uv/getting-started/installation/))
-- [if need be] Install python: `uv python install`
+<!-- - [If using Conda] Create a fresh venv: `uv venv --python "$(which python)"` -->
 
 1) Install packages: `uv sync`
 2) Activate environment: `source .venv/bin/activate`
@@ -26,13 +26,13 @@ uv pip install git+https://github.com/facebookresearch/openapps.git
 
 <details > 
 <summary>
- Optionally install for onlineshop (Linux Only) (off by default)
+ Optionally install for onlineshop (off by default)
 </summary>
 
 `Onlineshop java + spacy configuration`
 
-4) Prepare Java, Webshop data and spacy model: `chmod +x setup.sh` and `./setup.sh`
-5) Designate Java path: `source setup_javapath.sh`
+4) Prepare Java, Webshop data and spacy model: `chmod +x setup.sh` and `./setup.sh` for **Linux X64** or **Mac ARM64** systems
+5) Designate Java path: `source setup_javapath.sh` for **Linux X64** or **Mac ARM64** systems
 6) Check `java -version` gives you `java version "21.0.1"`
 7) Build search engine indexes: `chmod +x setup_pyserini.sh` and `./setup_pyserini.sh`
 
@@ -48,11 +48,9 @@ Prerequisite: Java 21.
 
 Finally, launch with
 ```
-uv run launch_experiment.py only_run_apps=True mode=aws_a100_cpu_only use_wandb=False apps.onlineshop.enable=True
+uv run launch.py use_wandb=False apps.onlineshop.enable=True
 ```
 </details>
-
-To run any other commands: `uv run [any_script.py]`.
 
 ## Run OpenApps
 
@@ -137,6 +135,10 @@ Our apps are built on top of several excellent frameworks:
 Some icons are have been designed using resources from Flaticon.com
 
 # Development
+
+```
+uv sync --dev
+```
 
 To build docs:
 
