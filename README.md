@@ -101,6 +101,10 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
+You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
+
+Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our docs.
+
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel
 

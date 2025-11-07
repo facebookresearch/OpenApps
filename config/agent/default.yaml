@@ -1,4 +1,4 @@
-_target_: open_apps.agent.VLLMAgentArgs
+_target_: open_apps.agent.AgentArgs
 
 model_name: null
 model_pretty_name: null
@@ -14,17 +14,43 @@ host_name_updated_on: null
 
 # both ax tree options and vision options
 # see BrowserGym paper, first page of appendix for details on these options
-custom_actions: ["click", "fill", "dblclick", "clear", "select_option", "drag_and_drop", "hover", "go_back", "go_forward","goto",  "scroll", "mouse_click", "mouse_dblclick", "mouse_move", "mouse_down", "mouse_up", "mouse_click", "mouse_dblclick", "mouse_drag_and_drop", "mouse_upload_file", "keyboard_down", "keyboard_up", "keyboard_press", "keyboard_type", "keyboard_insert_text"]
+custom_actions:
+  [
+    "click",
+    "fill",
+    "dblclick",
+    "clear",
+    "select_option",
+    "drag_and_drop",
+    "hover",
+    "go_back",
+    "go_forward",
+    "goto",
+    "scroll",
+    "mouse_click",
+    "mouse_dblclick",
+    "mouse_move",
+    "mouse_down",
+    "mouse_up",
+    "mouse_click",
+    "mouse_dblclick",
+    "mouse_drag_and_drop",
+    "mouse_upload_file",
+    "keyboard_down",
+    "keyboard_up",
+    "keyboard_press",
+    "keyboard_type",
+    "keyboard_insert_text",
+  ]
 
 # --- observation flags ---
 
 use_axtree: True # enable AXTREE observation
 use_screenshot: True # enable screenshot observation
 
-
 # ---- these are not really changed, but leaving it here for future reference ----
 # use_html: False # enable HTML observation
-use_som: False  # Add a set of marks to the screenshot.
+use_som: False # Add a set of marks to the screenshot.
 # extract_visible_tag: False # Add a "visible" tag to visible elements in the AXTree.
 # extract_clickable_tag: False #  Add a "clickable" tag to clickable elements in the AXTree.
 extract_coords: False # Add the coordinates of the elements.
@@ -32,13 +58,13 @@ extract_coords: False # Add the coordinates of the elements.
 # use_focused_element: False  # use focused element
 
 # --- history flags ---
-use_history: True  # enable history
-use_action_history: True  # enable action history, the use_history flag must be True
-use_think_history: True  # enable think history,  the use_history flag must be True
+use_history: True # enable history
+use_action_history: True # enable action history, the use_history flag must be True
+use_think_history: True # enable think history,  the use_history flag must be True
 # --- Agent Flags ---
-use_thinking: True  # enable thoughts
-use_concrete_example: True  # if true, we will include a concrete example in the prompt
-use_abstract_example: True  #if true, we will include an abstract example in the prompt
+use_thinking: True # enable thoughts
+use_concrete_example: True # if true, we will include a concrete example in the prompt
+use_abstract_example: True #if true, we will include an abstract example in the prompt
 # --- Prompt Flags ---
 prompt_txt:
   system_prompt: null # takes default system prompt from dp lib
@@ -59,7 +85,7 @@ prompt_txt:
     </action>
 
     For textbox items use:
-    
+
     <action>
     fill("bid", str)
     </action>
@@ -68,7 +94,7 @@ prompt_txt:
     <action>
     mouse_click(x: float, y: float, button: Literal['left', 'middle', 'right'] = 'left')
     </action>
-    
+
     To fill in a text box in screenshot format, use:
     <action>
     keyboard_type(text) 
@@ -77,11 +103,11 @@ prompt_txt:
 
     Remember you can only use one action at a time. Check the history for more context about which action you already took.
   action_concrete_example: |
-   if doing ax tree format, use:
-    <action>
-    fill("4", "my text")
-    </action>
-   if doing screenshot format, to click at coordinates (612, 455) on the screenshot, use:
-    <action>
-    mouse_click(x=612, y=455)
-    </action>
+    if doing ax tree format, use:
+     <action>
+     fill("4", "my text")
+     </action>
+    if doing screenshot format, to click at coordinates (612, 455) on the screenshot, use:
+     <action>
+     mouse_click(x=612, y=455)
+     </action>

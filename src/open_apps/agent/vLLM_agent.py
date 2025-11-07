@@ -6,7 +6,7 @@ from typing import Any
 
 # --- Project Imports ---
 from browsergym.experiments.agent import Agent, AgentInfo
-from agentlab.agents.agent_args import AgentArgs
+from agentlab.agents.agent_args import AgentArgs as AgentLabAgentArgs
 from agentlab.llm.chat_api import BaseModelArgs, ChatModel, AnthropicChatModel
 from agentlab.llm.base_api import AbstractChatModel
 import agentlab.agents.dynamic_prompting as dp
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
-class VLLMModelArgs(BaseModelArgs):
+class ModelArgs(BaseModelArgs):
     model_name: str = "demo"
     model_pretty_name: str = "demo"
     port: str = "8000"
@@ -175,7 +175,7 @@ class BedrockChatModel(AnthropicChatModel):
 
 
 @dataclasses.dataclass
-class VLLMAgentArgs(AgentArgs):
+class AgentArgs(AgentLabAgentArgs):
     """
     This class takes the yaml config and categorize the arguments into different subsets
     It also instantiate the agent.
@@ -255,9 +255,9 @@ class VLLMAgentArgs(AgentArgs):
             use_abstract_example=self.use_abstract_example,  # keep
         )
 
-    def make_chat_model_flags(self) -> VLLMModelArgs:
+    def make_chat_model_flags(self) -> ModelArgs:
 
-        return VLLMModelArgs(
+        return ModelArgs(
             model_name=self.model_name,
             model_pretty_name=self.model_pretty_name,
             port=self.port,
@@ -347,9 +347,9 @@ class VLLMAgent(Agent):
         stats["busted_retry"] = ans_dict["busted_retry"]
 
         self.actions.append(ans_dict["action"])
-        if "displayed_action" in ans_dict: 
+        if "displayed_action" in ans_dict:
             self.displayed_actions.append(ans_dict["displayed_action"])
-        else: # catch KeyError, this only happens for faulty parsing and hence None action anyways
+        else:  # catch KeyError, this only happens for faulty parsing and hence None action anyways
             self.displayed_actions.append(ans_dict["action"])
         self.thoughts.append(ans_dict.get("think", None))
 

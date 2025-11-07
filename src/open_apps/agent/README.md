@@ -12,7 +12,7 @@ For the prompt structure, see `vllm_prompt.py`
 
 The `vLLM_agent.py` implementation consists of three main components:
 
-### 1. Agent Arguments (`VLLMAgentArgs`)
+### 1. Agent Arguments (`AgentArgs`)
 - **Purpose**: Contains all configuration parameters from YAML files
 - **Key Functions**: 
   - `make_agent()` - instantiates the actual agent
@@ -25,7 +25,7 @@ The `vLLM_agent.py` implementation consists of three main components:
   - `get_action()` - processes observations and returns actions
   - The logic is defined in `vllm_prompt.py` 
 
-### 3. Model Arguments (`VLLMModelArgs`)
+### 3. Model Arguments (`ModelArgs`)
 - **Purpose**: Contains LLM-specific configuration (VLLM, API settings, etc.)
 - **Key Function**: `make_model()` - instantiates a new ChatModel
 
