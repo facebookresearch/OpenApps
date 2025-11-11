@@ -1,5 +1,5 @@
 # Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Build and Deploy Docs
 
 on:
   # Runs on pushes targeting the default branch
@@ -31,6 +31,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --extra dev
+      - name: Build Docs
+        run: |
+          source .venv/bin/activate 
+          mkdocs build
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
