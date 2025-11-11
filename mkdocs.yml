@@ -11,6 +11,7 @@ theme:
   topbar_sections: false # NEW!
   show_datetime: false
 
+site_url: https://facebookresearch.github.io/OpenApps/
 nav:
   - Start: index.md
   - Manual Installation: installation.md
