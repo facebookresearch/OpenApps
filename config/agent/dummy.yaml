@@ -1,0 +1,11 @@
+# Agent that will click random actions, for testing and debugging.
+_target_: open_apps.agent.dummy_agent.DummyAgentArgs
+model_name: dummy # don't change!
+model_pretty_name: dummy # for wandb-logging
+# --- observation flags ---
+# not relevant change will do nothing but needs to be passed to browsergym
+use_html: True
+use_axtree: True
+use_screenshot: True
+hostname: "no host name for dumb dumbs" # dummy agent does not use hostname
+client_type: dummy

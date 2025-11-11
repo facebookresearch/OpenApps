@@ -4,6 +4,7 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 """
+
 """
 Orchestrates the configs to launch the web envirnoment,
 task, and agent.
@@ -20,6 +21,7 @@ import signal
 
 # Third-party imports
 from omegaconf import DictConfig, OmegaConf
+import browsergym
 from fasthtml.common import serve
 import wandb
 import yaml
@@ -31,15 +33,18 @@ import urllib.request
 import time
 import urllib.parse  # Add this import
 from open_apps.utils import merge_plus_keys
+from browsergym.experiments import ExpArgs, get_exp_result
+
 
 # Project-specific imports
 from open_apps.apps.start_page.main import (
     initialize_routes_and_configure_task,
 )
 import socket
-import getpass
 from killport import kill_ports
 import random
+from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
+from open_apps.tasks.tasks import Task
 
 try:
     # Register the custom 'now' resolver
@@ -52,7 +57,7 @@ except AssertionError:
     pass
 
 
-class Launcher:
+class OpenAppsLauncher:
     def __init__(self, config: DictConfig):
         self.config = config
         self.web_app_host = "localhost"
@@ -149,9 +154,7 @@ class Launcher:
         Returns:
             int: An available port.
         """
-        port_range = list(
-            range(start_port, start_port + 1000)
-        )
+        port_range = list(range(start_port, start_port + 1000))
         port_range = self._remove_unsafe_ports(port_range)
 
         for port in port_range:
@@ -182,11 +185,8 @@ class Launcher:
                 port_range.append(port_range[-1] + 1)
         return port_range
 
-    def launch_web_apps(self):
-        print(
-            "Browser Gym will start at this localhost: ",
-            self.web_app_host
-        )
+    def launch_apps(self):
+        print("Browser Gym will start at this localhost: ", self.web_app_host)
 
         initialize_routes_and_configure_task(self.config.apps)
 
@@ -197,6 +197,34 @@ class Launcher:
             host=self.web_app_host,
         )
         sleep(10)
+
+    def launch_apps_via_shell(self):
+        file_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+
+        abs_config_file_path = self.config_path.resolve()
+        config_dir_for_subprocess = abs_config_file_path.parent
+        config_name_for_subprocess = abs_config_file_path.name
+
+        venv_activate_script = Path(file_dir) / ".venv" / "bin" / "activate"
+        command = (
+            f"source '{venv_activate_script}' && "
+            f"cd '{file_dir}' && "
+            f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False"
+        )
+        if self.config.apps.onlineshop.enable:
+            command += " apps.onlineshop.enable=True"
+        print("Launching web app with command: ", command)
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            start_new_session=True,
+        )
+        sleep(30)
+        return process
 
     def is_app_running(self) -> bool:
         """Checks if the web app is running by sending a request to its URL."""
@@ -210,8 +238,130 @@ class Launcher:
             return False
 
     def launch(self):
-        self.launch_web_apps()
+        self.launch_apps()
         print("experiment finished")
+
+
+class AgentLauncher(OpenAppsLauncher):
+    def __init__(self, config: DictConfig):
+        super().__init__(config)
+
+    def _log_agent_results_to_wandb(self, exp_record: dict, exp_result):
+        keys_to_save = [
+            "n_steps",
+            "cum_reward",
+            "stats.cum_steps",
+            "stats.cum_step_elapsed",
+            "stats.max_step_elapsed",
+            "stats.cum_agent_elapsed",
+            "stats.max_agent_elapsed",
+            "terminated",
+        ]
+        for key in keys_to_save:
+            wandb.log({key: exp_record[key]})
+        actions_data = [
+            [
+                i,
+                str(step_info.action),
+                str(step_info.obs["open_pages_urls"]),
+                str(step_info.agent_info.get("think")),
+            ]
+            for i, step_info in enumerate(exp_result.steps_info)
+        ]
+
+        actions_table = wandb.Table(
+            data=actions_data, columns=["step", "action", "open_pages_urls", "think"]
+        )
+        wandb.log({"actions": actions_table})
+        print("logging screenshots to wandb")
+        for i, screenshot in enumerate(exp_result.screenshots):
+            wandb.log(
+                {
+                    "screenshot": wandb.Image(
+                        screenshot,
+                        caption=f"Step: {i}",
+                    )
+                }
+            )
+        # give some time for the screenshots to be uploaded
+        time.sleep(20)  # seconds
+
+    def setup_browsergym_task(self):
+        # specifies goal and logic for reward
+        task: Task = hydra.utils.instantiate(self.config.task)
+        register_tasks_with_browsergym(tasks=[task])
+
+        self.config.browsergym_env_args.task_name = task.task_id
+        self.config.browsergym_env_args.task_kwargs.base_url = self.web_app_url
+        # instantiate browsergym task
+        return hydra.utils.instantiate(self.config.browsergym_env_args)
+
+    def launch_agent(self):
+        """Launches the agent to perform the task in the OpenApps environment."""
+        self.agent_args = hydra.utils.instantiate(self.config.agent)
+        self.browser_gym_task = self.setup_browsergym_task()
+
+        # Runs agent in BrowserGym environment on task
+        exp_args = ExpArgs(
+            env_args=self.browser_gym_task,
+            agent_args=self.agent_args,
+        )
+
+        # running and logging results
+        exp_args.prepare(self.config.logs_dir)
+        exp_args.run()
+
+        # loading and printing results
+        exp_result = get_exp_result(exp_args.exp_dir)
+        exp_record = exp_result.get_exp_record()
+
+        print("Experiment Results")
+        for key, val in exp_record.items():
+            print(f"{key}: {val}")
+
+        if self.config.use_wandb:
+            self._log_agent_results_to_wandb(exp_record, exp_result)
+
+    def cleanup(self, apps_process: subprocess.Popen):
+        if self.config.use_wandb:
+            wandb.finish()
+        apps_process.terminate()
+        time.sleep(4)
+        apps_still_running = apps_process.poll() is None
+        if apps_still_running:
+            apps_process.kill()
+        kill_ports(ports=[self.web_app_port])
+        time.sleep(4)
+
+    def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
+        is_app_running = False
+        for _ in range(times_to_wait):
+            if self.is_app_running():
+                is_app_running = True
+                break
+            print("Waiting for OpenApps to start...")
+            sleep(10)
+            (stdout, stderr) = apps_process.communicate()
+            print(stdout)
+            print(stderr)
+        if is_app_running:
+            print("OpenApps is running, proceeding to run the agent.")
+        else:
+            print("OpenApps failed to start within the expected time.")
+
+    def launch(self):
+        """
+        Launches open apps environment and orchestrates agent to perform the task.
+        """
+        apps_process = self.launch_apps_via_shell()
+        self.wait_until_apps_start(apps_process)
+        # TODO: check if agent model is available in case of VLLM or API
+        try:
+            self.launch_agent()
+        except Exception as e:
+            self.cleanup(apps_process)
+            print("Error during agent launch: ", e)
+            raise e
 
 
 if __name__ == "__main__":

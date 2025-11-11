@@ -1,0 +1,36 @@
+custom_actions: ["go_back", "go_forward", "goto", "mouse_click", "mouse_dblclick", "scroll", "mouse_move", "mouse_down", "mouse_up", "mouse_click", "mouse_dblclick", "mouse_drag_and_drop", "mouse_upload_file", "keyboard_down", "keyboard_up", "keyboard_press", "keyboard_type", "keyboard_insert_text"]
+use_axtree: False # enable AXTREE observation
+use_screenshot: True # enable screenshot observation
+use_som: False  # Add a set of marks to the screenshot.
+extract_coords: False # Add the coordinates of the elements.
+prompt_txt:
+  system_prompt: null # takes default system prompt from dp lib
+  output_format: |
+    <action>
+    <\action>
+    <think>
+    <\think>
+  think_prompt: null # takes default system prompt from dp lib
+  think_abstract_example: null # takes default system prompt from dp lib
+  think_concrete_example: null # takes default system prompt from dp lib
+  action_prompt: null # if specified will directly define your action prompt and will ignore browsergym default of listing the API with descriptions
+  action_abstract_example: |
+      For links, checkboxes, buttons, etc. in the Axtree use the following action:
+
+
+      For links, checkboxes, buttons, etc. in screenshot format, use the following action:
+      <action>
+      mouse_click(x: float, y: float, button: Literal['left', 'middle', 'right'] = 'left')
+      </action>
+      
+      To fill in a text box in screenshot format, use:
+      <action>
+      keyboard_type(text) 
+      </action>
+      Remember you can only use one action at a time. Check the history for more context about which action you already took.
+
+  action_concrete_example: |
+    For example, to click at coordinates (371, 336) on the screenshot, use:
+    <action>
+    mouse_click(x=371, y=336)
+    </action>

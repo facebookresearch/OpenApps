@@ -1,0 +1,11 @@
+defaults:
+  - default
+  - _self_
+
+model_name: "gemini-2.5-flash"
+model_pretty_name: "gemini-2.5-flash"
+hostname: null
+# primary key
+api_key: ""
+client_type: "gemini"
+port: "80"

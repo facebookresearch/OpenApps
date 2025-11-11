@@ -26,4 +26,4 @@ jobs:
           source .venv/bin/activate
       - name: Test with pytest
         run: |
-          uv run -m pytest tests/test_apps.py 
+          uv run -m pytest tests/

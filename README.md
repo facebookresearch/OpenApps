@@ -10,6 +10,13 @@
 
 ## Install
 
+```
+uv pip install git+https://github.com/facebookresearch/openapps.git
+```
+
+
+### Manual Installation
+
 - Pre-requisite: install uv (a much faster pip): `pip install uv` (or from [source](https://docs.astral.sh/uv/getting-started/installation/))
 <!-- - [If using Conda] Create a fresh venv: `uv venv --python "$(which python)"` -->
 
@@ -81,6 +88,35 @@ To launch popups, set `apps/pop_ups=adversarial_descriptions`.
 
 You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
 
+## Launch Agent
+
+Launch an agent to perform a task:
+
+```
+uv run launch_agent.py
+```
+
+To see the agent solving the task live:
+```
+uv run launch_agent.py browsergym_env_args.headless=False
+```
+
+You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
+
+Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our docs.
+
+## Launch Agent(s) Across Multiple Tasks
+> launch thousands of app variations to study agent behaviors in parallel
+
+To launch one (or multiple) agents to solve many tasks in parallel, each in an isolated deployment of OpenApps:
+
+```
+uv run launch_sweep.py
+```
+
+* Note each deployment of OpenApps can have different appearance and content
+* Note each task is launched in an isolated environment to ensure reproducible results.
+
 ## Testing
 
 Run all tests via:
@@ -105,7 +141,7 @@ Some icons are have been designed using resources from Flaticon.com
 # Development
 
 ```
-uv sync --dev
+uv sync --extra dev
 ```
 
 To build docs:
@@ -116,6 +152,7 @@ mkdocs serve
 ``` 
 
 this will launch docs available at https://facebookresearch.github.io/OpenApps/
+
 
 ## Legal
 

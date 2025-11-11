@@ -36,11 +36,11 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Start - OpenApps</title>
+    <title>Tasks - OpenApps</title>
     
 
 
-<title>Start with OpenApps</title>
+<title>Tasks</title>
 
 
 
@@ -53,7 +53,7 @@
 
 <!-- Open Graph (Facebook, LinkedIn) -->
 
-<meta property="og:title" content="Start with OpenApps">
+<meta property="og:title" content="Tasks">
 
 
 
@@ -66,7 +66,7 @@
 
 <!-- Twitter Card -->
 
-<meta name="twitter:title" content="Start with OpenApps">
+<meta name="twitter:title" content="Tasks">
 
 
 
@@ -77,18 +77,18 @@
 
 
 
-    <link rel="icon" href="img/favicon.ico">
+    <link rel="icon" href="../img/favicon.ico">
 
-    <link href="css/base.css" rel="stylesheet">
-    <link href="css/geist.css" rel="stylesheet">
+    <link href="../css/base.css" rel="stylesheet">
+    <link href="../css/geist.css" rel="stylesheet">
 
     
     
 
 <link id="pygments-light" rel="stylesheet"
-    href="css/pygments/shadcn-light.css">
+    href="../css/pygments/shadcn-light.css">
 <link id="pygments-dark" rel="stylesheet"
-    href="css/pygments/github-dark.css"
+    href="../css/pygments/github-dark.css"
     media="(prefers-color-scheme: dark)">
 
 
@@ -96,7 +96,7 @@
 
     
 
-    <script src="js/callbacks.js"></script>
+    <script src="../js/callbacks.js"></script>
 
     
 
@@ -269,7 +269,7 @@
                 
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
         data-size="default" href="None"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -345,7 +345,7 @@
                 
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
-    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+    <a data-slot="sidebar-menu-button" data-active="true" data-sidebar="menu-button"
         data-size="default" href="None"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -385,12 +385,12 @@
         <h1
           class="scroll-m-20 text-4xl font-semibold tracking-tight sm:text-3xl xl:text-4xl"
         >
-          Start with OpenApps
+          Tasks
         </h1>
 
         <div class="flex items-center gap-2 pt-1.5">
           
-<button onclick="fetch(`/index.md`).then((r) => r.blob()).then((blob) => navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]))" 
+<button onclick="fetch(`/tasks.md`).then((r) => r.blob()).then((blob) => navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]))" 
         data-slot="button" 
         class="cursor-pointer inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md gap-1.5 px-3 has-[&>svg]:px-2.5 h-8 shadow-none md:h-7 md:text-[0.8rem]">
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-copy ">
@@ -398,15 +398,13 @@
 </svg>
 <span class="max-md:hidden">Copy Page</span>
 </button> 
-           
           
           <a
             data-slot="button"
-            id="next-button"
+            id="previous-button"
             class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
             href="None"
           >
-            <span class="sr-only">Next</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -417,13 +415,15 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              class="tabler-icon tabler-icon-arrow-right"
+              class="tabler-icon tabler-icon-arrow-left"
             >
               <path d="M5 12l14 0"></path>
-              <path d="M13 18l6 -6"></path>
-              <path d="M13 6l6 6"></path>
+              <path d="M5 12l6 6"></path>
+              <path d="M5 12l6 -6"></path>
             </svg>
+            <span class="sr-only">Previous</span>
           </a>
+           
           
         </div>
       </div>
@@ -434,146 +434,24 @@
     </div>
   </div>
   <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
-    <blockquote>
-<p>Building Blocks for Digital Agents Research</p>
-</blockquote>
-<p>New to agents? See our <a href="Intro%20to%20UI%20Agents/">intro to ui agents guide</a>.</p>
-<h3 id="install">Install</h3>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/facebookresearch/openapps.git
-</code></pre></div>
-
-<p>For other installation options and online shop setup see <a href="installation/">Installation</a>.</p>
-<h3 id="run-openapps">Run OpenApps</h3>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-<h3 id="app-variations">App variations</h3>
-<p>Each app can be modified with variables available in <code>config/apps</code>. You can override any of these via command line:</p>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>app.todo.title<span class="o">=</span><span class="s1">&#39;Super Todo&#39;</span>
-</code></pre></div>
-
-<p>OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.</p>
-<h4 id="appearance">Appearance</h4>
-<div class="tabbed-set" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><label for="__tabbed_1_1">default</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>default
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-<input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><label for="__tabbed_1_2">dark_theme</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>dark_theme
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-<input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><label for="__tabbed_1_3">challenging_font</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>challenging_font
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-</div>
-<div class="codehilite"><pre><span></span><code><span class="c1"># launch apps with selected appearance</span>
-uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/appearance<span class="o">=</span><span class="nv">$APPEARANCE</span><span class="w"> </span><span class="se">\</span>
-apps/calendar/appearance<span class="o">=</span><span class="nv">$APPEARANCE</span><span class="w"> </span><span class="se">\</span>
-apps/maps/appearance<span class="o">=</span><span class="nv">$APPEARANCE</span><span class="w"> </span><span class="se">\</span>
-apps/messenger/appearance<span class="o">=</span><span class="nv">$APPEARANCE</span>
-</code></pre></div>
-
-<h4 id="content">Content</h4>
-<div class="tabbed-set" data-tabs="2:4"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><label for="__tabbed_2_1">default</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>default
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-<input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><label for="__tabbed_2_2">long_descriptions</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>long_descriptions
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-<input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><label for="__tabbed_2_3">german</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>german
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-<input id="__tabbed_2_4" name="__tabbed_2" type="radio" /><label for="__tabbed_2_4">misleading_descriptions</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>misleading_descriptions
-</code></pre></div>
-
-<p><img alt="landing" src="landing.png" /></p>
-</div>
-</div>
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span><span class="s2">&quot;adversarial_descriptions&quot;</span><span class="w"> </span>
-uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/calendar/content<span class="o">=</span><span class="nv">$CONTENT</span><span class="w"> </span>apps/maps/content<span class="o">=</span><span class="nv">$CONTENT</span><span class="w"> </span>apps/start_page/content<span class="o">=</span><span class="nv">$CONTENT</span><span class="w"> </span>apps/messenger/content<span class="o">=</span><span class="nv">$CONTENT</span><span class="w"> </span>apps/todo/content<span class="o">=</span><span class="nv">$CONTENT</span><span class="w"> </span>apps/pop_ups<span class="o">=</span><span class="nv">$CONTENT</span>
-</code></pre></div>
-
-<p>To launch popups, set <code>apps/pop_ups=adversarial_descriptions</code>.</p>
-<p>You can see the specific variables for each defined in the individual apps. For example, <code>config/apps/maps/appearance/dark_theme.yaml</code>.</p>
-<h2 id="launch-agent">Launch Agent</h2>
-<p>Launch an agent to perform a task:</p>
-<div class="codehilite"><pre><span></span><code>uv run launch_agent.py
-</code></pre></div>
-
-<p>You can specify the agent of your choice with the <code>agent=</code> argument. For example <code>agent=dummy</code> is a simple agent that clicks randomly on any buttons, great for exploration!</p>
-<p>Learn more about launching with OpenAI, Claude, VLLM models, or specialized models such as UI-Tars in <a href="agents/">agents</a>.</p>
-<p>To see the agent solving the task live:</p>
-<div class="codehilite"><pre><span></span><code>uv run launch_agent.py browsergym_env_args.headless=False
-</code></pre></div>
-
-<h2 id="launch-agents-across-multiple-tasks">Launch Agent(s) Across Multiple Tasks</h2>
-<blockquote>
-<p>launch thousands of app variations to study agent behaviors in parallel</p>
-</blockquote>
-<p>coming soon!</p>
-<!-- To launch one (or multiple) agents to solve many tasks in parallel, each in an isolated deployment of OpenApps:
-
-
-<div class="codehilite"><pre><span></span><code>uv run launch_sweep.py
-</code></pre></div>
-
-
-
-* Note each deployment of OpenApps can have different appearance and content
-* Note each task is launched in an isolated environment to ensure reproducible results. -->
-
-<h2 id="testing">Testing</h2>
-<p>Run all tests via:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">uv</span> <span class="n">run</span> <span class="o">-</span><span class="n">m</span> <span class="n">pytest</span> <span class="n">tests</span><span class="o">/</span>
-</code></pre></div>
-
-<h2 id="attribution">Attribution</h2>
-<p>Our apps are built on top of several excellent frameworks:  </p>
-<ul>
-<li>FastHTML <a href="https://github.com/AnswerDotAI/fasthtml">framework</a> and <a href="https://github.com/AnswerDotAI/fasthtml-example">examples</a> which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.</li>
-<li><a href="https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE">Browser Gym</a> and <a href="https://github.com/ServiceNow/AgentLab/blob/main/LICENSE">AgentLab</a>:</li>
-<li><a href="https://github.com/innoq/spacy/blob/main/LICENSE">Spacy</a>: for natural language processing</li>
-<li>Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.</li>
-<li>(and for the optional webshop) we rely on <a href="https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md">WebShop</a> developed by Princeton </li>
-</ul>
-<p>Some icons are have been designed using resources from Flaticon.com</p>
-<p>Our work is licensed under CC-BY-NC, please refer to the <a href="LICENSE">LICENSE</a> file in the top level directory.
-Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/legal/terms/">Terms of Use</a> and <a href="https://opensource.fb.com/legal/privacy/">Privacy Policy</a> for this project.</p>
+    <p>coming soon!</p>
   </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
     
-    
     <a data-slot="button"
-        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 ml-auto shadow-none"
+        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 shadow-none"
         href="None">
-        <span class="max-[500px]:hidden">Manual Installation</span>
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="tabler-icon tabler-icon-arrow-right ">
+            class="tabler-icon tabler-icon-arrow-left ">
             <path d="M5 12l14 0"></path>
-            <path d="M13 18l6 -6"></path>
-            <path d="M13 6l6 6"></path>
+            <path d="M5 12l6 6"></path>
+            <path d="M5 12l6 -6"></path>
         </svg>
+        <span class="max-[500px]:hidden">Agents</span>
     </a>
+    
     
 </div>
                                 <dialog id="bottom-sidebar" onclick="onBottomSidebarDialogClick(event)" class="bg-transparent"
@@ -592,31 +470,31 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
                 <div class="text-muted-foreground text-sm font-medium">Menu</div>
                 <div class="flex flex-col gap-3">
                     
-                    <a class="text-2xl font-medium" href=".">
+                    <a class="text-2xl font-medium" href="..">
                         
                         Start
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="installation/">
+                    <a class="text-2xl font-medium" href="../installation/">
                         
                         Manual Installation
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="Intro%20to%20UI%20Agents/">
+                    <a class="text-2xl font-medium" href="../Intro%20to%20UI%20Agents/">
                         
                         Intro to UI Agents
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="agents/">
+                    <a class="text-2xl font-medium" href="../agents/">
                         
                         Agents
                         
                     </a>
                     
-                    <a class="text-2xl font-medium" href="tasks/">
+                    <a class="text-2xl font-medium" href="./">
                         
                         Tasks
                         
@@ -639,82 +517,6 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
                                 <div view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
     <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
         <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">On This Page</p>
-        
-        
-        
-        
-        <a href="#install"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Install
-        </a>
-        
-
-        
-        <a href="#run-openapps"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Run OpenApps
-        </a>
-        
-
-        
-        <a href="#app-variations"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            App variations
-        </a>
-        
-        
-        <a href="#appearance"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Appearance
-        </a>
-        
-        <a href="#content"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="3">
-            Content
-        </a>
-        
-        
-
-        
-        <a href="#launch-agent"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Launch Agent
-        </a>
-        
-
-        
-        <a href="#launch-agents-across-multiple-tasks"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Launch Agent(s) Across Multiple Tasks
-        </a>
-        
-
-        
-        <a href="#testing"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Testing
-        </a>
-        
-
-        
-        <a href="#attribution"
-            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
-            data-active="false" data-depth="2">
-            Attribution
-        </a>
-        
-
-        
-        
-        
         
 
     </div>
@@ -741,12 +543,12 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
     </div>
      
 
-<script src="search/main.js"></script>
+<script src="../search/main.js"></script>
 
 
     
 
-    <script src="js/copy-button.js"></script>
+    <script src="../js/copy-button.js"></script>
     <script>updatePygmentsStylesheet();</script>
     
     
