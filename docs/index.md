@@ -2,7 +2,7 @@ title: Start with OpenApps
 
 > Building Blocks for Digital Agents Research
 
-New to agents? See our [intro to ui agents guide](Intro to UI Agents.md).
+New to agents? See our [Intro to UI Agents Guide](Intro to UI Agents.md).
 
 ### Install
 
@@ -127,6 +127,9 @@ Launch an agent to perform a task:
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
 
 Learn more about launching with OpenAI, Claude, VLLM models, or specialized models such as UI-Tars in [agents guide](agents.md) and available tasks in our [task guide](tasks.md).
+
+!!! info "Note:"
+    To test the ability of a model to navigate the UI without simplified HTML, set: `agent.use_axtree=False`
 
 To see the agent solving the task live:
 ```
