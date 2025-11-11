@@ -79,7 +79,7 @@ apps/messenger/appearance=$APPEARANCE
     ::bash
     export CONTENT=long_descriptions
 
-![landing](landing-long-descriptions.png)
+![landing](images/landing-long-descriptions.png)
 ///
 
 ```shell
