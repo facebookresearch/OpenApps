@@ -17,7 +17,7 @@ For other installation options and online shop setup see [Installation](installa
 ```bash
 uv run launch.py 
 ```
-![landing](landing.png)
+![landing](images/landing.png)
 
 
 
@@ -32,33 +32,32 @@ OpenApps also comes with pre-defined variations that can affect the content and 
 
 #### Appearance
 
-
-/// tab | default
-
-    ::bash
-    export APPEARANCE=default
-
-![landing](landing.png)
-
-///
-/// tab | dark_theme
-
-    ::bash
-    export APPEARANCE=dark_theme
-
-![landing](landing.png)
-///
-/// tab | challenging_font
+/// tab | challenging font
 
     ::bash
     export APPEARANCE=challenging_font
 
 
-![landing](landing.png)
+![landing](images/landing-challenging-font.png)
+///
+/// tab | dark theme
+
+    ::bash
+    export APPEARANCE=dark_theme
+
+![landing](images/landing-dark.png)
+///
+/// tab | default
+
+    ::bash
+    export APPEARANCE=default
+
+![landing](images/landing.png)
+
 ///
 
+Launch specific apps with selected appearance:
 ```shell
-# launch apps with selected appearance
 uv run launch.py apps/start_page/appearance=$APPEARANCE \
 apps/calendar/appearance=$APPEARANCE \
 apps/maps/appearance=$APPEARANCE \
@@ -67,42 +66,27 @@ apps/messenger/appearance=$APPEARANCE
 
 #### Content
 
-/// tab | default
-
-    ::bash
-    export CONTENT=default
-
-![landing](landing.png)
-
-///
-/// tab | long_descriptions
-
-    ::bash
-    export CONTENT=long_descriptions
-
-![landing](landing.png)
-///
 /// tab | german
 
     ::bash
     export CONTENT=german
 
 
-![landing](landing.png)
+![landing](images/landing-german.png)
 ///
-/// tab | misleading_descriptions
+/// tab | long_descriptions
 
     ::bash
-    export CONTENT=misleading_descriptions
+    export CONTENT=long_descriptions
 
-
-![landing](landing.png)
+![landing](landing-long-descriptions.png)
 ///
 
 ```shell
-export CONTENT="adversarial_descriptions" 
-uv run launch.py apps/calendar/content=$CONTENT apps/maps/content=$CONTENT apps/start_page/content=$CONTENT apps/messenger/content=$CONTENT apps/todo/content=$CONTENT apps/pop_ups=$CONTENT
+uv run launch.py apps/start_page/content=$CONTENT
 ```
+
+Or specific apps with: `apps/calendar/content=$CONTENT`.
 
 To launch popups, set `apps/pop_ups=adversarial_descriptions`.
 
