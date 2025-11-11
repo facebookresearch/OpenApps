@@ -2,7 +2,7 @@ title: Start with OpenApps
 
 > Building Blocks for Digital Agents Research
 
-New to agents? See our [Intro to UI Agents Guide](Intro to UI Agents.md).
+New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 
 ### Install
 
@@ -59,10 +59,9 @@ OpenApps also comes with pre-defined variations that can affect the content and 
 Launch specific apps with selected appearance:
 ```shell
 uv run launch.py apps/start_page/appearance=$APPEARANCE \
-apps/calendar/appearance=$APPEARANCE \
-apps/maps/appearance=$APPEARANCE \
-apps/messenger/appearance=$APPEARANCE
 ```
+
+Or specific apps with: `apps/calendar/appearance=$APPEARANCE`.
 
 #### Content
 
@@ -93,6 +92,8 @@ To launch popups, set `apps/pop_ups=adversarial_descriptions`.
 You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
 
 ## Launch Agent
+
+For agents to directly interact with apps, install: `playwright install chromium`.
 
 Launch an agent to perform a task:
 
@@ -160,5 +161,5 @@ Our apps are built on top of several excellent frameworks:
 Some icons are have been designed using resources from Flaticon.com
 
 
-Our work is licensed under CC-BY-NC, please refer to the [LICENSE](LICENSE) file in the top level directory.
+Our work is licensed under CC-BY-NC, please refer to the [LICENSE](https://github.com/facebookresearch/OpenApps/blob/main/LICENSE) file in the top level directory.
 Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.com/legal/terms/) and [Privacy Policy](https://opensource.fb.com/legal/privacy/) for this project.
