@@ -59,7 +59,7 @@ OpenApps also comes with pre-defined variations that can affect the content and 
 
 Launch specific apps with selected appearance:
 ```shell
-uv run launch.py apps/start_page/appearance=$APPEARANCE \
+uv run launch.py apps/start_page/appearance=$APPEARANCE
 ```
 
 Or specific apps with: `apps/calendar/appearance=$APPEARANCE`.
