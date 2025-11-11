@@ -173,7 +173,6 @@ Run all tests via:
 uv run -m pytest tests/
 ```
 
-
 ## Attribution
 
 Our apps are built on top of several excellent frameworks:  
