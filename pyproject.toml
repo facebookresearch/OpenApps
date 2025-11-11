@@ -37,13 +37,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Development tools
 dev = [
-    "mkdocs>=1.6.1",
-    "mkdocs-shadcn>=0.9.7",
     "jupyter>=1.1.1",
-    "plotly>=6.1.2",
-    "kaleido>=1.0.0",
+    "kaleido>=1.2.0",
+    "mkdocs-shadcn@git+https://github.com/asiffer/mkdocs-shadcn@30-search-indexing-broken",
+    "plotly>=6.4.0",
+    "pymdown-extensions>=10.16.1",
 ]
 
 

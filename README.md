@@ -141,7 +141,7 @@ Some icons are have been designed using resources from Flaticon.com
 # Development
 
 ```
-uv sync --dev
+uv sync --extra dev
 ```
 
 To build docs:

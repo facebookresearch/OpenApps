@@ -9,8 +9,17 @@ theme:
     dark: github-dark
   icon: heroicons:rectangle-stack # use the shadcn svg if not defined
   topbar_sections: false # NEW!
-  katex_options: # optional
-    macros: # example of macros
-      "\\RR": "\\mathbb{R}"
-      "\\dx": "\\mathrm{d}x"
   show_datetime: false
+
+nav:
+  - Start: index.md
+  - Manual Installation: installation.md
+  - "Intro to UI Agents": Intro to UI Agents.md
+  - Agents: agents.md
+  - Tasks: tasks.md
+
+markdown_extensions:
+  - codehilite
+  - admonition
+  - pymdownx.blocks.tab
+  - pymdownx.blocks.details
