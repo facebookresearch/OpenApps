@@ -6,7 +6,7 @@
  
 *Building Blocks for Digital Agents Research*
 
-[docs](https://facebookresearch.github.io/OpenApps/)
+[📒 docs](https://facebookresearch.github.io/OpenApps/)
 </div>
 
 ## Install
