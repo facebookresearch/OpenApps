@@ -11,7 +11,7 @@ Setup tests for apps
 
 import pytest
 from omegaconf import OmegaConf
-from open_apps.tasks.tasks import AddEventTask, RemoveEventTask, are_dicts_similar
+from open_apps.tasks.tasks import AddEventTask, RemoveEventTask, AppStateComparison
 from hydra.utils import instantiate
 from starlette.testclient import TestClient
 from hydra import initialize, compose
@@ -121,7 +121,7 @@ class TestTasks:
     def test_state_comparison(self):
         dict1 = {"name": "Alice", "city": "NEW YORK "}
         dict2 = {"name": "alice", "city": "new york"}
-        assert are_dicts_similar(dict1, dict2)
+        assert AppStateComparison.are_dicts_similar(dict1, dict2)
 
     def test_homepage(self, client):
         tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
@@ -131,6 +131,9 @@ class TestTasks:
 
         initial_state = dict()
         initial_state["calendar"] = client.get("/calendar_all").json()
+        initial_state["todo"] = client.get("/todo_all").json()
+        initial_state["messenger"] = client.get("/messages_all").json()
+        initial_state["map"] = client.get("/maps/landmarks").json()
         current_state = initial_state.copy()
         # add event
         current_state["calendar"].append(task.event)

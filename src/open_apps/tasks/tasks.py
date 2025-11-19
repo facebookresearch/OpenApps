@@ -61,10 +61,12 @@ class AppStateComparison:
         internal to how entries are stored in the database
         """
         for todo in state["todo"]:
-            del todo["id"]
+            if "id" in todo:
+                del todo["id"]
 
         for event in state["calendar"]:
-            del event["id"]
+            if "id" in event:
+                del event["id"]
         return state
 
     def _remove_timestamp_from_messenger(self, state: dict) -> dict:
