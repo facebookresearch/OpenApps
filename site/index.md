@@ -2,9 +2,10 @@ title: Start with OpenApps
 
 > Building Blocks for Digital Agents Research
 
-New to agents? See our [Intro to UI Agents Guide](Intro to UI Agents.md).
+New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 
 ### Install
+In a new [uv](https://docs.astral.sh/uv/getting-started/) environment:
 
 ```shell
 uv pip install git+https://github.com/facebookresearch/openapps.git
@@ -58,11 +59,10 @@ OpenApps also comes with pre-defined variations that can affect the content and 
 
 Launch specific apps with selected appearance:
 ```shell
-uv run launch.py apps/start_page/appearance=$APPEARANCE \
-apps/calendar/appearance=$APPEARANCE \
-apps/maps/appearance=$APPEARANCE \
-apps/messenger/appearance=$APPEARANCE
+uv run launch.py apps/start_page/appearance=$APPEARANCE
 ```
+
+Or specific apps with: `apps/calendar/appearance=$APPEARANCE`.
 
 #### Content
 
@@ -81,6 +81,14 @@ apps/messenger/appearance=$APPEARANCE
 
 ![landing](images/landing-long-descriptions.png)
 ///
+/// tab | pop-up
+
+    ::bash
+    uv run launch.py apps/pop_ups=adversarial_descriptions
+
+![landing](images/landing-popup.png)
+
+///
 
 ```shell
 uv run launch.py apps/start_page/content=$CONTENT
@@ -88,24 +96,25 @@ uv run launch.py apps/start_page/content=$CONTENT
 
 Or specific apps with: `apps/calendar/content=$CONTENT`.
 
-To launch popups, set `apps/pop_ups=adversarial_descriptions`.
-
 You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
 
 ## Launch Agent
 
-Launch an agent to perform a task:
+For agents to directly interact with apps, install: `playwright install chromium`.
+
+
+Launch an agent to perform a task of *adding a meeting with Dennis to the calendar*:
 
 /// tab | Random Click Agent
 
     ::bash
-    uv run launch_agent.py agent=dummy
+    uv run launch_agent.py agent=dummy task_name=add_meeting_with_dennis
 ///
 /// tab | GPT-4o Agent
 
     ::bash
     # export OPENAI_API_KEY=""
-    uv run launch_agent.py agent=GPT-4o
+    uv run launch_agent.py agent=GPT-4o task_name=add_meeting_with_dennis
 ///
 
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
@@ -120,8 +129,26 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
-### Tasks 
-coming soon!
+### Logs
+
+By default, information about the number of steps an agent took, task success, etc. will be shown in the terminal:
+
+```
+...
+Experiment results
+exp_dir: /Users/m...
+n_steps: 10
+cum_reward: 0.0
+stats.cum_agent_elapsed: 0.0017838478088378906
+stats.max_agent_elapsed: 0.0002570152282714844
+...
+```
+
+All logs are stored `log_outputs` will contain information about each run
+
+![](https://raw.githubusercontent.com/wandb/assets/main/wandb-github-badge-gradient.svg)
+You can also enable logging to weights and biases by logging into your account and setting the flag: `use_wandb=True`.
+
 
 
 ## Launch Agent(s) Across Multiple Tasks
@@ -146,7 +173,6 @@ Run all tests via:
 uv run -m pytest tests/
 ```
 
-
 ## Attribution
 
 Our apps are built on top of several excellent frameworks:  
@@ -154,11 +180,11 @@ Our apps are built on top of several excellent frameworks:
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
 - [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
-- Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.
-- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton 
+- [Open Street Maps](https://www.openstreetmap.org/copyright): for our Maps apps.
+- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton University
 
 Some icons are have been designed using resources from Flaticon.com
 
 
-Our work is licensed under CC-BY-NC, please refer to the [LICENSE](LICENSE) file in the top level directory.
+Our work is licensed under CC-BY-NC, please refer to the [LICENSE](https://github.com/facebookresearch/OpenApps/blob/main/LICENSE) file in the top level directory.
 Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.com/legal/terms/) and [Privacy Policy](https://opensource.fb.com/legal/privacy/) for this project.

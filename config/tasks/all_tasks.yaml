@@ -34,3 +34,17 @@ remove_wacv_abstract_deadline:
     location: null
     url: null
     invitees: []
+
+add_call_mom_to_my_todo:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: Add 'Call Mom' to my todo list.
+  goal_category: explicit
+  todo:
+    - "Call Mom"
+    - false
+
+mark_water_plants_as_done:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Water plants' as done in my todo list.
+  goal_category: explicit
+  todo_name: "Water plants"

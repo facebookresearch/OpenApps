@@ -124,15 +124,73 @@ class RemoveEventTask(Task):
         return are_dicts_similar(target_state, current_state)
 
 
-add_meeting_with_dennis_task = AddEventTask(
-    goal="Go to the Calendar app and add my meeting with Dennis on April 1st of 2026. The title should be 'Dennis-Bob'. Set the description as 'paper reading', omit the URL and set the location to New York City. Make sure to add Dennis as an invitee.",
-    event={
-        "title": "Dennis-Bob",
-        "date": "2026-04-01",
-        "description": "paper reading",
-        "location": "New York City",
-        "url": None,
-        "invitees": "Dennis",
-    },
-    goal_category="explicit",
-)
+@dataclass
+class AddToDoTask(Task):
+    """
+    Task to add a todo to the todo app.
+    """
+
+    todo: tuple[str, bool]
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        """Define the target state for the task.
+
+        Args:
+            initial_state (dict): The initial state of all apps.
+        """
+        target_state = initial_state.copy()
+        target_state["todo"].append(self.todo)
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict
+    ) -> bool:
+        target_state = self.get_target_state(initial_state)
+        return are_dicts_similar(target_state, current_state)
+
+
+@dataclass
+class MarkToDoDoneTask(Task):
+    """
+    Mark todo item as done
+    """
+
+    todo_name: str
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        """Define the target state for the task.
+
+        Args:
+            initial_state (dict): The initial state of all apps.
+        """
+        target_state = initial_state.copy()
+        target_idx = None
+        for i, todo_item in enumerate(target_state["todo"]):
+            if self.todo_name in todo_item:
+                new_todo_item = [self.todo_name, True]
+                target_idx = i
+        if target_idx is None:
+            raise ValueError(f"Todo item {self.todo_name} not found")
+        target_state["todo"][target_idx] = new_todo_item
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict
+    ) -> bool:
+        target_state = self.get_target_state(initial_state)
+        return are_dicts_similar(target_state, current_state)
+
+
+if __name__ == "__main__":
+    add_meeting_with_dennis = AddEventTask(
+        goal="Go to the Calendar app and add my meeting with Dennis on April 1st of 2026. The title should be 'Dennis-Bob'. Set the description as 'paper reading', omit the URL and set the location to New York City. Make sure to add Dennis as an invitee.",
+        event={
+            "title": "Dennis-Bob",
+            "date": "2026-04-01",
+            "description": "paper reading",
+            "location": "New York City",
+            "url": None,
+            "invitees": "Dennis",
+        },
+        goal_category="explicit",
+    )
