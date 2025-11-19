@@ -13,7 +13,6 @@ mark_water_plants_as_done:
   # Indicates class where reward logic is defined
   _target_: open_apps.tasks.tasks.MarkToDoDoneTask
   goal: Mark 'Water plants' as done in my todo list.
-  goal_category: explicit
   todo_name: "Water plants"
 ```
 
@@ -26,10 +25,8 @@ add_my_special_item_to_todo:
   # _target_ defines the class containing the task reward logic
   _target_: open_apps.tasks.tasks.AddToDoTask
   goal: ENTER YOUR GOAL
-  goal_category: explicit
-  todo:
-    - "ENTER YOUR TODO TITLE"
-    - false
+  todo_name: ENTER TITLE of TODO
+  is_done: false
 ```
 
 You can select this new task by specifying the `task_name=add_my_special_item_todo`.
@@ -38,6 +35,7 @@ You can select this new task by specifying the `task_name=add_my_special_item_to
 ### New custom tasks
 
 To add a custom task with its own reward logic, create a new class in `src/open_apps/tasks/tasks.py`.
+
 Your new class should inherit `Task` and implement a reward function, `check_if_task_is_complete`, indicating whether the task is complete:
 
 
