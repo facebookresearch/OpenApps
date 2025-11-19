@@ -11,7 +11,7 @@ Setup tests for apps
 
 import pytest
 from omegaconf import OmegaConf
-from open_apps.tasks.tasks import AddEventTask, are_dicts_similar
+from open_apps.tasks.tasks import AddEventTask, RemoveEventTask, are_dicts_similar
 from hydra.utils import instantiate
 from starlette.testclient import TestClient
 from hydra import initialize, compose
@@ -105,10 +105,18 @@ class TestTasks:
     def test_task_instantiation(self):
         tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
         tasks_config = OmegaConf.load(tasks_file)
-        task_config = tasks_config.add_meeting_with_dennis_task
+        task_config = tasks_config.add_meeting_with_dennis
         task = instantiate(task_config)
         assert isinstance(task, AddEventTask)
         assert "Go to the Calendar" in task.goal
+
+    def test_remove_event_task_instantiation(self):
+        tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
+        tasks_config = OmegaConf.load(tasks_file)
+        task_config = tasks_config.remove_wacv_abstract_deadline
+        task = instantiate(task_config)
+        assert isinstance(task, RemoveEventTask)
+        assert "Remove the WACV 2026" in task.goal
 
     def test_state_comparison(self):
         dict1 = {"name": "Alice", "city": "NEW YORK "}
@@ -118,7 +126,7 @@ class TestTasks:
     def test_homepage(self, client):
         tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
         tasks_config = OmegaConf.load(tasks_file)
-        task_config = tasks_config.add_meeting_with_dennis_task
+        task_config = tasks_config.add_meeting_with_dennis
         task = instantiate(task_config)
 
         initial_state = dict()

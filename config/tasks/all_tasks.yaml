@@ -22,3 +22,15 @@ add_christmas_shopping_event:
     location: null
     url: null
     invitees: []
+
+remove_wacv_abstract_deadline:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove the WACV 2026 Abstract Deadline event from my calendar.
+  goal_category: explicit
+  event:
+    title: WACV 2026 Abstract Deadline
+    date: 2025-07-11
+    description: null
+    location: null
+    url: null
+    invitees: []
