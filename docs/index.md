@@ -108,13 +108,13 @@ Launch an agent to perform a task of *adding a meeting with Dennis to the calend
 /// tab | Random Click Agent
 
     ::bash
-    uv run launch_agent.py agent=dummy
+    uv run launch_agent.py agent=dummy task_name=add_meeting_with_dennis
 ///
 /// tab | GPT-4o Agent
 
     ::bash
     # export OPENAI_API_KEY=""
-    uv run launch_agent.py agent=GPT-4o 
+    uv run launch_agent.py agent=GPT-4o task_name=add_meeting_with_dennis
 ///
 
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
@@ -172,7 +172,6 @@ Run all tests via:
 ```python
 uv run -m pytest tests/
 ```
-
 
 ## Attribution
 

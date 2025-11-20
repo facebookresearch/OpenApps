@@ -1,7 +1,6 @@
-add_meeting_with_dennis_task:
+add_meeting_with_dennis:
   _target_: open_apps.tasks.tasks.AddEventTask
   goal: Go to the Calendar app and add my meeting with Dennis on April 1st of 2026. The title should be 'Dennis-Bob'. Set the description as 'paper reading', omit the URL and set the location to New York City. Make sure to add Dennis as an invitee.
-  goal_category: explicit
   event:
     title: Dennis-Bob
     date: 2026-04-01
@@ -11,10 +10,9 @@ add_meeting_with_dennis_task:
     invitees:
       - Dennis
 
-add_christmas_shopping_event_task:
+add_christmas_shopping_event:
   _target_: open_apps.tasks.tasks.AddEventTask
   goal: Make a calendar entry for Christmas shopping on the 14th (2025). The title should read 'Shopping for Christmas gifts'.
-  goal_category: explicit
   event:
     title: Shopping for Christmas gifts
     date: 2025-12-14
@@ -22,3 +20,38 @@ add_christmas_shopping_event_task:
     location: null
     url: null
     invitees: []
+
+remove_wacv_abstract_deadline:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove the WACV 2026 Abstract Deadline event from my calendar.
+  event:
+    title: WACV 2026 Abstract Deadline
+    date: 2025-07-11
+    description: null
+    location: null
+    url: null
+    invitees: []
+
+add_call_mom_to_my_todo:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: Add 'Call Mom' to my todo list.
+  todo_name: "Call Mom"
+  is_done: false
+
+mark_water_plants_as_done:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Water plants' as done in my todo list.
+  todo_name: "Water plants"
+
+message_bob_to_meet:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Send a message to Bob 'Let's meet'
+  to: "Bob"
+  message: "Let's meet"
+
+save_paris_to_my_favorite_places:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save Paris, France to my favorite places
+  name: Paris, France
+  latitude: 48.8589
+  longitude: 2.3200

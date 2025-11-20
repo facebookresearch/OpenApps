@@ -64,9 +64,6 @@ class OpenAppsTask(AbstractBrowserTask):
         self.goal = task_config.goal
         self.task = task_config
         self.task_id = task_config.task_id
-        self.goal_category = (
-            task_config.goal_category
-        )  # optional string: set in task init, to categorize the goal (prompt), e.g "typos, foreign language, etc."
 
         # task properties, will be used to set up the browsergym environment
         self.viewport = {"width": screen_resolution[0], "height": screen_resolution[1]}
@@ -89,7 +86,6 @@ class OpenAppsTask(AbstractBrowserTask):
             wandb.summary["url"] = self.url
             wandb.summary["task_id"] = self.task_id
             wandb.summary["task_class_name"] = self.__class__.__name__
-            wandb.summary["goal_category"] = self.goal_category
         self.page = page
         self.page.goto(self.url)
         self.initial_state = get_current_state(self.url)
@@ -151,3 +147,12 @@ def get_current_state(url: str) -> dict:
     except:
         state["online_shop"] = []
     return state
+
+
+if __name__ == "__main__":
+    import json
+
+    state = get_current_state("http://localhost:5003")
+    print(state)
+    with open("state.json", "w") as file:
+        json.dump(state, file, indent=4)

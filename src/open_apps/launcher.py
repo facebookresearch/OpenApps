@@ -288,7 +288,9 @@ class AgentLauncher(OpenAppsLauncher):
 
     def setup_browsergym_task(self):
         # specifies goal and logic for reward
-        task: Task = hydra.utils.instantiate(self.config.task)
+        task_name = self.config.task_name
+        task_configs = self.config.tasks[task_name]
+        task: Task = hydra.utils.instantiate(task_configs)
         register_tasks_with_browsergym(tasks=[task])
 
         self.config.browsergym_env_args.task_name = task.task_id

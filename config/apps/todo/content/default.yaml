@@ -2,6 +2,7 @@
 title: ${apps.start_page.apps.todo.title}
 description: ${apps.start_page.apps.todo.description}
 
+# todo is a list: [task name, done (bool)]
 init_todos:
   - ["Visit grandma", false]
   - ["Sort medical papers", false]
