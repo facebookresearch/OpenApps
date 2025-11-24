@@ -2,7 +2,7 @@
 
 <div align="center">
 
- # OpenApps
+ #  <img width="45" height="45" alt="image" src="https://github.com/user-attachments/assets/6c409d42-6f3a-4a62-be7f-57793d9dad9d" /> OpenApps
  
 *Building Blocks for Digital Agents Research*
 
