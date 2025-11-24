@@ -1,5 +1,4 @@
 
-
 <div align="center">
 
  #  <img width="45" height="45" alt="image" src="https://github.com/user-attachments/assets/6c409d42-6f3a-4a62-be7f-57793d9dad9d" /> OpenApps
@@ -9,9 +8,7 @@
 [📒 docs](https://facebookresearch.github.io/OpenApps/)
 </div>
 
-<p align="center">
-  <video src="https://github.com/user-attachments/assets/bd3a6d83-026e-4374-9f52-66ddf9a8429f" width="60%" controls></video>
-</p>
+
 
 ## Install
 
