@@ -9,6 +9,11 @@
 [📒 docs](https://facebookresearch.github.io/OpenApps/)
 </div>
 
+
+
+https://github.com/user-attachments/assets/bd3a6d83-026e-4374-9f52-66ddf9a8429f
+
+
 ## Install
 
 ```
