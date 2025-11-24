@@ -7,8 +7,10 @@ New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 ### Install
 In a new [uv](https://docs.astral.sh/uv/getting-started/) environment:
 
+1. Clone: `git clone https://github.com/facebookresearch/OpenApps.git`
+2. Install:
 ```shell
-uv pip install git+https://github.com/facebookresearch/openapps.git
+uv sync
 ```
 
 For other installation options and online shop setup see [Installation](installation.md).
