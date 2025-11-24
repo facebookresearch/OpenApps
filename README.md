@@ -9,9 +9,9 @@
 [📒 docs](https://facebookresearch.github.io/OpenApps/)
 </div>
 
-
-
-https://github.com/user-attachments/assets/bd3a6d83-026e-4374-9f52-66ddf9a8429f
+<p align="center" width="100%">
+<video src="https://github.com/user-attachments/assets/bd3a6d83-026e-4374-9f52-66ddf9a8429f" width="80%" controls></video>
+</p>
 
 
 ## Install
