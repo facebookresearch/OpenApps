@@ -31,7 +31,7 @@ uv run launch.py
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:
 
 ```bash
-uv run launch.py 'apps.todo.init_todos=[["Play Nintendo" false],]'
+uv run launch.py 'apps.todo.init_todos=[["Call Mom", false]]'
 ```
 
 OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.
