@@ -5,13 +5,16 @@ title: Start with OpenApps
 New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 
 ### Install
-In a new [uv](https://docs.astral.sh/uv/getting-started/) environment:
 
-1. Clone: `git clone https://github.com/facebookresearch/OpenApps.git`
-2. Install:
-```shell
-uv sync
-```
+1. Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/).
+2. Clone the repo:
+   ```bash
+   git clone https://github.com/facebookresearch/OpenApps.git
+   ```
+3. Install dependencies:
+   ```bash
+   uv sync
+   ```
 
 For other installation options and online shop setup see [Installation](installation.md).
 
@@ -28,7 +31,7 @@ uv run launch.py
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:
 
 ```bash
-uv run launch.py app.todo.title='Super Todo'
+uv run launch.py 'apps.todo.init_todos=[["Play Nintendo" false],]'
 ```
 
 OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.
