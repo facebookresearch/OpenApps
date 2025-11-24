@@ -1,5 +1,5 @@
 # @package apps.todo
-title: ${apps.start_page.apps.todo.title}
+title: OpenTodos
 description: ${apps.start_page.apps.todo.description}
 
 # todo is a list: [task name, done (bool)]
