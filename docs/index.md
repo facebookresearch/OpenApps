@@ -138,6 +138,8 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
+![Live Agent](https://github.com/facebookresearch/OpenApps/blob/main/docs/images/gif.gif)
+
 ### Logs
 
 By default, information about the number of steps an agent took, task success, etc. will be shown in the terminal:
