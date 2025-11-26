@@ -1,4 +1,4 @@
-_target_: open_apps.agent.AgentArgs
+_target_: open_apps.agent.vLLM_agent.AgentArgs
 
 model_name: null
 model_pretty_name: null

@@ -9,11 +9,13 @@ New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 1. Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/)
 
 2. Clone the repo:
+
 ```bash
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
 3. Install dependencies:   
+
 ```bash
    uv sync
 ```
@@ -117,11 +119,11 @@ Launch an agent to perform a task of *adding a meeting with Dennis to the calend
     ::bash
     uv run launch_agent.py agent=dummy task_name=add_meeting_with_dennis
 ///
-/// tab | GPT-4o Agent
+/// tab | GPT-5.1 Agent
 
     ::bash
     # export OPENAI_API_KEY=""
-    uv run launch_agent.py agent=GPT-4o task_name=add_meeting_with_dennis
+    uv run launch_agent.py agent=GPT-5-1 task_name=add_meeting_with_dennis
 ///
 
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!

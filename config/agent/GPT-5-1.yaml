@@ -2,8 +2,8 @@ defaults:
   - default
   - _self_
 
-model_name: "GPT-4o"
-model_pretty_name: "GPT-4o"
+model_name: "gpt-5.1"
+model_pretty_name: "gpt-5.1"
 api_version: "2024-06-01"
 client_type: "openai"
 hostname: null

@@ -4,13 +4,13 @@
 
 ### Prerequisites
 
-To use GPT-4o to complete tasks, set your OpenAI API key:
+To use GPT-5-1 to complete tasks, set your OpenAI API key:
 
 ```bash
 export OPENAI_API_KEY=YOUR_KEY
 ```
 
-Alternatively, edit the corresponding line in `config/agent/GPT-4o.yaml`.
+Alternatively, edit the corresponding line in `config/agent/GPT-5-1.yaml`.
 
 ### Supported Clients
 
