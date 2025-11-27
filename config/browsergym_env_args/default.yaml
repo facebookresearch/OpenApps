@@ -1,11 +1,12 @@
-_target_:  browsergym.experiments.EnvArgs
-task_name: "" # needs to be a registered task 
+_target_: browsergym.experiments.EnvArgs
+task_name:
+  "" # needs to be a registered task
   #screen_resolution: [1024, 640] # HD screen resolution -> https://en.wikipedia.org/wiki/List_of_common_display_resolutions the HDTV is incompatible with browsergym
 task_seed: 42 # not relevant for us we have only deterministic envrionments
 max_steps: 10 # maximum number of steps per episode
-headless: True  # keep the browser open
+headless: True # keep the browser open
 record_video: False
 
 task_kwargs:
   base_url: null # this neets to be the localhost url, will be set automatically in launch_experiment.py
-  screen_resolution: [1920,1080] # HDTV screen resolution -> https://en.wikipedia.org/wiki/List_of_common_display_resolutions
+  screen_resolution: [1920, 1080] # HDTV screen resolution -> https://en.wikipedia.org/wiki/List_of_common_display_resolutions

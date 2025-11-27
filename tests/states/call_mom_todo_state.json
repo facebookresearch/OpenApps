@@ -1,0 +1,794 @@
+{
+    "todo": [
+        {
+            "id": 0,
+            "title": "Visit grandma",
+            "done": 0
+        },
+        {
+            "id": 1,
+            "title": "Sort medical papers",
+            "done": 0
+        },
+        {
+            "id": 2,
+            "title": "Plan weekly meals",
+            "done": 0
+        },
+        {
+            "id": 3,
+            "title": "Book doctor appointment.",
+            "done": 1
+        },
+        {
+            "id": 4,
+            "title": "Buy groceries",
+            "done": 0
+        },
+        {
+            "id": 5,
+            "title": "Call Aunt Lisa",
+            "done": 1
+        },
+        {
+            "id": 6,
+            "title": "Check budget",
+            "done": 0
+        },
+        {
+            "id": 7,
+            "title": "Tidy living room",
+            "done": 1
+        },
+        {
+            "id": 8,
+            "title": "Walk for 20 minutes",
+            "done": 0
+        },
+        {
+            "id": 9,
+            "title": "Meditate for 30",
+            "done": 0
+        },
+        {
+            "id": 10,
+            "title": "Update calendar",
+            "done": 0
+        },
+        {
+            "id": 11,
+            "title": "Answer emails",
+            "done": 0
+        },
+        {
+            "id": 12,
+            "title": "Water plants",
+            "done": 1
+        },
+        {
+            "id": 13,
+            "title": "Make fruit salad",
+            "done": 0
+        },
+        {
+            "id": 14,
+            "title": "Read before bed",
+            "done": 0
+        },
+        {
+            "id": 15,
+            "title": "Call Mom",
+            "done": null
+        }
+    ],
+    "calendar": [
+        {
+            "id": 1,
+            "title": "WACV 2026 Abstract Deadline",
+            "date": "2025-07-11",
+            "description": "# WACV 2026 Abstract Deadline\n\nWinter Conference on Applications of Computer Vision abstract submission deadline.\n\n## Important Dates:\n- Abstract Deadline: July 11, 2025\n- Full Paper Deadline: July 18, 2025\n\nSubmit abstracts through the conference portal.\n",
+            "url": "https://wacv2026.thecvf.com",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 2,
+            "title": "WACV 2026 Paper Deadline",
+            "date": "2025-07-18",
+            "description": "# WACV 2026 Full Paper Deadline\n\nFinal deadline for Winter Conference on Applications of Computer Vision paper submissions.\n\nPapers must be submitted in the required format with all supplementary materials.\n",
+            "url": "https://wacv2026.thecvf.com",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 3,
+            "title": "AAAI 2026 Abstract Deadline",
+            "date": "2025-07-25",
+            "description": "# AAAI 2026 Abstract Submission Deadline\n\nAbstract submission deadline for the 40th AAAI Conference on Artificial Intelligence.\n\n## Timeline:\n- Abstract Deadline: July 25, 2025\n- Full Paper Deadline: August 1, 2025\n\nOne of the premier conferences in AI covering all areas of artificial intelligence.\n",
+            "url": "https://aaai.org/conference/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 4,
+            "title": "SIGKDD 2026 Abstract Deadline",
+            "date": "2025-07-24",
+            "description": "# SIGKDD 2026 Abstract Deadline\n\nAbstract submission deadline for the Conference on Knowledge Discovery and Data Mining.\n\n## Important Dates:\n- Abstract Deadline: July 24, 2025\n- Full Paper Deadline: July 31, 2025\n\nSIGKDD is the premier conference on data mining, data science, and knowledge discovery.\n",
+            "url": "https://kdd.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 5,
+            "title": "AAAI 2026 Paper Deadline",
+            "date": "2025-08-01",
+            "description": "# AAAI 2026 Full Paper Submission Deadline\n\nFinal deadline for paper submissions to the 40th AAAI Conference on Artificial Intelligence.\n\nAAAI is one of the most important conferences in artificial intelligence research.\n",
+            "url": "https://aaai.org/conference/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 6,
+            "title": "SIGKDD 2026 Paper Deadline",
+            "date": "2025-07-31",
+            "description": "# SIGKDD 2026 Full Paper Deadline\n\nFinal paper submission deadline for the Conference on Knowledge Discovery and Data Mining.\n\nPapers must follow the ACM formatting guidelines and be submitted through the conference system.\n",
+            "url": "https://kdd.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 7,
+            "title": "UbiComp/ISWC 2025 Deadline",
+            "date": "2025-08-01",
+            "description": "# UbiComp/ISWC 2025 August Deadline\n\nAugust submission deadline for the ACM International Joint Conference on Pervasive and Ubiquitous Computing.\n\nThis is a rolling deadline conference with submissions accepted quarterly.\n",
+            "url": "https://www.ubicomp.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 8,
+            "title": "WSDM 2026 Abstract Deadline",
+            "date": "2025-08-07",
+            "description": "# WSDM 2026 Abstract Deadline\n\nAbstract submission deadline for Web Search and Data Mining Conference.\n\n## Important Dates:\n- Abstract Deadline: August 7, 2025\n- Full Paper Deadline: August 14, 2025\n\nWSDM is one of the premier conferences on web-inspired research.\n",
+            "url": "https://www.wsdm-conference.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 9,
+            "title": "WSDM 2026 Paper Deadline",
+            "date": "2025-08-14",
+            "description": "# WSDM 2026 Full Paper Deadline\n\nFinal paper submission deadline for the Web Search and Data Mining Conference.\n\nSubmit your research on search and data mining on the web and beyond.\n",
+            "url": "https://www.wsdm-conference.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 10,
+            "title": "3DV 2026 Deadline",
+            "date": "2025-08-18",
+            "description": "# 3DV 2026 Submission Deadline\n\nPaper submission deadline for the International Conference on 3D Vision.\n\nSubmit your research on all aspects of 3D computer vision, including 3D reconstruction, perception, and analysis.\n",
+            "url": "https://3dv2026.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 11,
+            "title": "CHI 2026 Abstract Deadline",
+            "date": "2025-09-04",
+            "description": "# CHI 2026 Abstract Deadline\n\nAbstract submission deadline for the ACM CHI Conference on Human Factors in Computing Systems.\n\n## Important Dates:\n- Abstract Deadline: September 4, 2025\n- Full Paper Deadline: September 11, 2025\n\nCHI is the premier international conference on Human-Computer Interaction.\n",
+            "url": "https://chi2026.acm.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 12,
+            "title": "CHI 2026 Paper Deadline",
+            "date": "2025-09-11",
+            "description": "# CHI 2026 Full Paper Deadline\n\nFinal paper submission deadline for the ACM CHI Conference on Human Factors in Computing Systems.\n\nPapers must be anonymized and follow the ACM template guidelines.\n",
+            "url": "https://chi2026.acm.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 13,
+            "title": "WACV 2026 Second Abstract Deadline",
+            "date": "2025-09-12",
+            "description": "# WACV 2026 Second Abstract Deadline\n\nSecond round abstract submission deadline for Winter Conference on Applications of Computer Vision.\n\n## Important Dates:\n- Abstract Deadline: September 12, 2025\n- Full Paper Deadline: September 19, 2025\n",
+            "url": "https://wacv2026.thecvf.com",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 14,
+            "title": "WACV 2026 Second Paper Deadline",
+            "date": "2025-09-19",
+            "description": "# WACV 2026 Second Paper Deadline\n\nSecond round full paper submission deadline for Winter Conference on Applications of Computer Vision.\n\nThis is the final opportunity to submit papers for WACV 2026.\n",
+            "url": "https://wacv2026.thecvf.com",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 15,
+            "title": "ICASSP 2026 Deadline",
+            "date": "2025-09-17",
+            "description": "# ICASSP 2026 Submission Deadline\n\nPaper submission deadline for the IEEE International Conference on Acoustics, Speech and Signal Processing.\n\nICASSP is the world's largest technical conference focused on signal processing and its applications.\n",
+            "url": "https://2026.ieeeicassp.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 16,
+            "title": "ICLR 2026 Abstract Deadline",
+            "date": "2025-09-20",
+            "description": "# ICLR 2026 Abstract Deadline\n\nAbstract submission deadline for the International Conference on Learning Representations.\n\n## Important Dates:\n- Abstract Deadline: September 20, 2025\n- Full Paper Deadline: September 25, 2025\n\nICLR is the premier conference on representation learning in artificial intelligence.\n",
+            "url": "https://iclr.cc/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 17,
+            "title": "ICLR 2026 Paper Deadline",
+            "date": "2025-09-25",
+            "description": "# ICLR 2026 Full Paper Deadline\n\nFinal paper submission deadline for the International Conference on Learning Representations.\n\nICLR focuses on deep learning and representation learning approaches in AI.\n",
+            "url": "https://iclr.cc/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 18,
+            "title": "SATML 2026 Deadline",
+            "date": "2025-09-24",
+            "description": "# SATML 2026 Submission Deadline\n\nPaper submission deadline for the Conference on Secure and Trustworthy Machine Learning.\n\nSATML brings together researchers in security, privacy, machine learning, and AI safety.\n",
+            "url": "https://satml.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 19,
+            "title": "IUI 2026 Abstract Deadline",
+            "date": "2025-10-03",
+            "description": "# IUI 2026 Abstract Deadline\n\nAbstract submission deadline for the ACM Conference on Intelligent User Interfaces.\n\n## Important Dates:\n- Abstract Deadline: October 3, 2025\n- Full Paper Deadline: October 10, 2025\n\nIUI focuses on the interaction between humans and AI systems.\n",
+            "url": "https://iui.acm.org/2026/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 20,
+            "title": "IUI 2026 Paper Deadline",
+            "date": "2025-10-10",
+            "description": "# IUI 2026 Full Paper Deadline\n\nFinal paper submission deadline for the ACM Conference on Intelligent User Interfaces.\n\nSubmit your research on innovative interfaces that use AI technologies.\n",
+            "url": "https://iui.acm.org/2026/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 21,
+            "title": "LREC 2026 Deadline",
+            "date": "2025-10-17",
+            "description": "# LREC 2026 Submission Deadline\n\nPaper submission deadline for the Language Resources and Evaluation Conference.\n\nLREC is the major event on language resources and language technology evaluation.\n",
+            "url": "https://lrec-conf.org/2026/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 22,
+            "title": "UbiComp/ISWC 2025 November Deadline",
+            "date": "2025-11-01",
+            "description": "# UbiComp/ISWC 2025 November Deadline\n\nNovember submission deadline for the ACM International Joint Conference on Pervasive and Ubiquitous Computing.\n\nThis is the fourth quarterly deadline for the rolling submission process.\n",
+            "url": "https://www.ubicomp.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 23,
+            "title": "CPAL 2025 Deadline",
+            "date": "2025-11-25",
+            "description": "# CPAL 2025 Submission Deadline\n\nPaper submission deadline for the Conference on Privacy, Accountability, and Legitimacy in AI.\n\nCPAL focuses on the social impact and governance of AI technologies.\n",
+            "url": "https://cpal-conference.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 24,
+            "title": "IJCNN 2026 Deadline",
+            "date": "2026-01-31",
+            "description": "# IJCNN 2026 Submission Deadline\n\nPaper submission deadline for the International Joint Conference on Neural Networks.\n\nIJCNN is the premier conference covering all topics in neural networks and related areas.\n",
+            "url": "https://www.ijcnn.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 25,
+            "title": "InterSpeech 2026 Deadline",
+            "date": "2026-03-02",
+            "description": "# InterSpeech 2026 Submission Deadline\n\nPaper submission deadline for the world's largest conference on speech processing.\n\nSubmit your research on all aspects of speech science and technology.\n",
+            "url": "https://www.isca-speech.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 26,
+            "title": "ECCV 2026 Paper Deadline",
+            "date": "2026-03-06",
+            "description": "# ECCV 2026 Full Paper Deadline\n\nPaper submission deadline for the European Conference on Computer Vision.\n\nECCV is one of the top conferences in computer vision research.\n",
+            "url": "https://eccv2026.org/",
+            "location": "Online",
+            "invitees": null,
+            "recurring": null
+        },
+        {
+            "id": 27,
+            "title": "Bob's Birthday",
+            "date": "1980-04-15",
+            "description": "# Bob's Birthday\n\nDon't forget to send a gift or card!\n",
+            "url": null,
+            "location": null,
+            "invitees": "Bob",
+            "recurring": "yearly"
+        },
+        {
+            "id": 28,
+            "title": "Alice's Birthday",
+            "date": "1982-06-23",
+            "description": "# Alice's Birthday\n\nRemember to call and wish her a happy birthday!\n",
+            "url": null,
+            "location": null,
+            "invitees": "Alice",
+            "recurring": "yearly"
+        },
+        {
+            "id": 29,
+            "title": "Charlie's Birthday",
+            "date": "1978-09-08",
+            "description": "# Charlie's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Charlie",
+            "recurring": "yearly"
+        },
+        {
+            "id": 30,
+            "title": "Gottfried's Birthday",
+            "date": "1975-11-30",
+            "description": "# Gottfried's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Gottfried",
+            "recurring": "yearly"
+        },
+        {
+            "id": 31,
+            "title": "Siegline's Birthday",
+            "date": "1987-02-14",
+            "description": "# Siegline's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Siegline",
+            "recurring": "yearly"
+        },
+        {
+            "id": 32,
+            "title": "Hans's Birthday",
+            "date": "1965-03-22",
+            "description": "# Hans's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Hans",
+            "recurring": "yearly"
+        },
+        {
+            "id": 33,
+            "title": "Greta's Birthday",
+            "date": "1992-05-10",
+            "description": "# Greta's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Greta",
+            "recurring": "yearly"
+        },
+        {
+            "id": 34,
+            "title": "Luka's Birthday",
+            "date": "1993-07-17",
+            "description": "# Luka's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Luka",
+            "recurring": "yearly"
+        },
+        {
+            "id": 35,
+            "title": "Anna's Birthday",
+            "date": "1985-08-03",
+            "description": "# Anna's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Anna",
+            "recurring": "yearly"
+        },
+        {
+            "id": 36,
+            "title": "Franz's Birthday",
+            "date": "1970-01-25",
+            "description": "# Franz's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Franz",
+            "recurring": "yearly"
+        },
+        {
+            "id": 37,
+            "title": "Josef's Birthday",
+            "date": "1968-10-12",
+            "description": "# Josef's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Josef",
+            "recurring": "yearly"
+        },
+        {
+            "id": 38,
+            "title": "Karl's Birthday",
+            "date": "1972-12-05",
+            "description": "# Karl's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Karl",
+            "recurring": "yearly"
+        },
+        {
+            "id": 39,
+            "title": "Helga's Birthday",
+            "date": "1967-06-29",
+            "description": "# Helga's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Helga",
+            "recurring": "yearly"
+        },
+        {
+            "id": 40,
+            "title": "Otto's Birthday",
+            "date": "1990-04-02",
+            "description": "# Otto's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Otto",
+            "recurring": "yearly"
+        },
+        {
+            "id": 41,
+            "title": "Zack's Birthday",
+            "date": "1995-07-30",
+            "description": "# Zack's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Zack",
+            "recurring": "yearly"
+        },
+        {
+            "id": 42,
+            "title": "Dad's Birthday",
+            "date": "1960-02-28",
+            "description": "# Dad's Birthday\n\nDon't forget to call!\n",
+            "url": null,
+            "location": null,
+            "invitees": "Dad",
+            "recurring": "yearly"
+        },
+        {
+            "id": 43,
+            "title": "Alex's Birthday",
+            "date": "1988-11-15",
+            "description": "# Alex's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Alex",
+            "recurring": "yearly"
+        },
+        {
+            "id": 44,
+            "title": "Granni's Birthday",
+            "date": "1940-05-18",
+            "description": "# Granni's Birthday\n\nRemember to send flowers!\n",
+            "url": null,
+            "location": null,
+            "invitees": "Granni",
+            "recurring": "yearly"
+        },
+        {
+            "id": 45,
+            "title": "Jamal's Birthday",
+            "date": "1987-09-22",
+            "description": "# Jamal's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Jamal",
+            "recurring": "yearly"
+        },
+        {
+            "id": 46,
+            "title": "Priya's Birthday",
+            "date": "1991-01-12",
+            "description": "# Priya's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Priya",
+            "recurring": "yearly"
+        },
+        {
+            "id": 47,
+            "title": "Elena's Birthday",
+            "date": "1984-08-20",
+            "description": "# Elena's Birthday\n",
+            "url": null,
+            "location": null,
+            "invitees": "Elena",
+            "recurring": "yearly"
+        }
+    ],
+    "map": [
+        {
+            "name": "Statue of Liberty",
+            "coords": [
+                40.6892,
+                -74.0445
+            ],
+            "markerStyle": {
+                "icon": "map-marker",
+                "color": "blue"
+            }
+        },
+        {
+            "name": "Central Park",
+            "coords": [
+                40.7829,
+                -73.9654
+            ],
+            "markerStyle": {
+                "icon": "tree",
+                "color": "green"
+            }
+        },
+        {
+            "name": "Brooklyn Bridge",
+            "coords": [
+                40.7061,
+                -73.9969
+            ],
+            "markerStyle": {
+                "icon": "bridge",
+                "color": "purple"
+            }
+        },
+        {
+            "name": "Times Square",
+            "coords": [
+                40.758,
+                -73.9855
+            ],
+            "markerStyle": {
+                "icon": "star",
+                "color": "#FFD700"
+            }
+        },
+        {
+            "name": "Empire State Building",
+            "coords": [
+                40.748817,
+                -73.985428
+            ],
+            "markerStyle": {
+                "icon": "map-marker",
+                "color": "blue"
+            }
+        }
+    ],
+    "messenger": [
+        {
+            "user": "Alice",
+            "messages": [
+                [
+                    "Hello Yann, have you made any progress on self-supervised learning lately?",
+                    "Alice",
+                    "Sep 16, 10:00PM"
+                ],
+                [
+                    "Absolutely, Alice! Self-supervised learning is the future of AI. I've been working on new architectures.",
+                    "you",
+                    "Sep 17, 09:32AM"
+                ],
+                [
+                    "That's exciting! Will it help machines understand the world better?",
+                    "Alice",
+                    "Sep 17, 10:01AM"
+                ],
+                [
+                    "Yes, the goal is to give machines common sense by learning from vast amounts of unlabeled data.",
+                    "you",
+                    "Apr 16, 9:00 AM"
+                ],
+                [
+                    "Fascinating! Keep me posted!",
+                    "Alice",
+                    "Apr 16, 9:03AM"
+                ]
+            ]
+        },
+        {
+            "user": "Bob",
+            "messages": [
+                [
+                    "Hi Yann! What's your favorite neural network architecture?",
+                    "Bob",
+                    "Jan 05, 8:45PM"
+                ],
+                [
+                    "Hello Bob! I have a soft spot for convolutional neural networks, but transformers are quite powerful too.",
+                    "you",
+                    "Jan 05, 8:46PM"
+                ],
+                [
+                    "Do you think AI will ever reach human-level intelligence?",
+                    "Bob",
+                    "Jan 05, 8:49PM"
+                ],
+                [
+                    "I believe we are still far from human-level AI, but progress is accelerating.",
+                    "you",
+                    "Jan 05, 9:45PM"
+                ],
+                [
+                    "Thanks for your insights, Yann!",
+                    "Bob",
+                    "Jan 05, 9:46PM"
+                ]
+            ]
+        },
+        {
+            "user": "Charlie",
+            "messages": [
+                [
+                    "Bonjour Yann! Any advice for aspiring AI researchers?",
+                    "Charlie",
+                    "Feb 25, 2:45PM"
+                ],
+                [
+                    "Bonjour Charlie! Stay curious, read papers, and experiment with new ideas. The field is full of opportunities.",
+                    "you",
+                    "Feb 25, 3:45PM"
+                ],
+                [
+                    "Merci! What excites you most about the future of AI?",
+                    "Charlie",
+                    "Feb 25, 3:47PM"
+                ],
+                [
+                    "The potential for AI to augment human intelligence and solve real-world problems excites me the most.",
+                    "you",
+                    "Feb 25, 3:55PM"
+                ],
+                [
+                    "Inspiring! Thank you, Yann.",
+                    "Charlie",
+                    "Feb 25, 4:45PM"
+                ]
+            ]
+        },
+        {
+            "user": "Fantastic4GroupChat",
+            "messages": [
+                [
+                    "Hey team! How's everyone doing?",
+                    "Alice",
+                    "Mar 01, 1:00PM"
+                ],
+                [
+                    "Doing great, Alice! Just working on some new AI models.",
+                    "you",
+                    "Mar 01, 1:05PM"
+                ],
+                [
+                    "Same here! Excited about the latest advancements in AI.",
+                    "Bob",
+                    "Mar 01, 1:10PM"
+                ],
+                [
+                    "Me too! Let's keep pushing the boundaries of what's possible with AI.",
+                    "Charlie",
+                    "Mar 01, 1:15PM"
+                ],
+                [
+                    "Absolutely! Together we can achieve amazing things.",
+                    "Alice",
+                    "Mar 01, 1:20PM"
+                ]
+            ]
+        }
+    ],
+    "codeeditor": {
+        "type": "folder",
+        "name": "",
+        "children": [
+            {
+                "type": "file",
+                "name": "basic_imports.py",
+                "path": "basic_imports.py",
+                "content": "# Basic imports for data manipulation and analysis\nimport numpy as np\nimport pandas as pd\n"
+            },
+            {
+                "type": "folder",
+                "name": "developing",
+                "children": [
+                    {
+                        "type": "folder",
+                        "name": "folder_in_folder",
+                        "children": [
+                            {
+                                "type": "file",
+                                "name": "inner_file.py",
+                                "path": "developing/folder_in_folder/inner_file.py",
+                                "content": "# The inner file in the folder_in_folder directory\nimport json\nimport requests\n"
+                            },
+                            {
+                                "type": "folder",
+                                "name": "inner_folder",
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "type": "file",
+                        "name": "simple_python.py",
+                        "path": "developing/simple_python.py",
+                        "content": "# The first Python program for many beginners!\nprint(\"Hello, World!\")\n"
+                    }
+                ]
+            },
+            {
+                "type": "folder",
+                "name": "empty_folder",
+                "children": []
+            },
+            {
+                "type": "file",
+                "name": "script.py",
+                "path": "script.py",
+                "content": "# Basic PyTorch tensor operation\nimport torch\nimport random\n\nx = torch.randn(2, 3, 4)\ny = x.transpose(1, 2)\nz = y.view(2, 12)\nprint(\"z shape:\", z.shape)"
+            },
+            {
+                "type": "file",
+                "name": "untitled_c.c",
+                "path": "untitled_c.c",
+                "content": "// Very simple C program that does nothing\n#include <iostream>\nusing namespace std;\nint main() {\n  return 0;\n}\n"
+            }
+        ]
+    },
+    "online_shop": []
+}
