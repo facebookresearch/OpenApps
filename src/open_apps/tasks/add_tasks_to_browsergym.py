@@ -152,7 +152,7 @@ def get_current_state(url: str) -> dict:
 if __name__ == "__main__":
     import json
 
-    state = get_current_state("http://localhost:5003")
+    state = get_current_state("http://localhost:5011")
     print(state)
-    with open("state.json", "w") as file:
+    with open("add_christmas_shopping_event.json", "w") as file:
         json.dump(state, file, indent=4)
