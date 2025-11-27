@@ -11,11 +11,17 @@ Setup tests for apps
 
 import pytest
 from omegaconf import OmegaConf
-from open_apps.tasks.tasks import AddEventTask, RemoveEventTask, AppStateComparison
+from open_apps.tasks.tasks import (
+    AddEventTask,
+    RemoveEventTask,
+    AppStateComparison,
+    AddToDoTask,
+)
 from hydra.utils import instantiate
 from starlette.testclient import TestClient
 from hydra import initialize, compose
 from pathlib import Path
+import json
 from open_apps.apps.start_page.main import (
     app,
     initialize_routes_and_configure_task,
@@ -139,3 +145,52 @@ class TestTasks:
         current_state["calendar"].append(task.event)
 
         assert task.check_if_task_is_complete(initial_state, current_state)
+
+    def test_state_comparison_for_add_todo(self):
+        initial_state_path = Path(__file__).parent / "states" / "initial_state.json"
+        call_mom_todo_state_path = (
+            Path(__file__).parent / "states" / "call_mom_todo_state.json"
+        )
+
+        with open(call_mom_todo_state_path, "r", encoding="utf-8") as file:
+            call_mom_todo_state = json.load(file)
+
+        with open(initial_state_path, "r", encoding="utf-8") as file:
+            initial_state = json.load(file)
+
+        todo_task = AddToDoTask(
+            goal="Add a to-do item to call mom", todo_name="Call Mom", is_done=False
+        )
+
+        assert todo_task.check_if_task_is_complete(initial_state, call_mom_todo_state)
+
+    def test_state_comparison_for_add_event(self):
+        initial_state_path = Path(__file__).parent / "states" / "initial_state.json"
+        add_christmas_shopping_state_path = (
+            Path(__file__).parent / "states" / "add_christmas_shopping_event.json"
+        )
+
+        with open(add_christmas_shopping_state_path, "r", encoding="utf-8") as file:
+            add_christmas_shopping_state = json.load(file)
+
+        with open(initial_state_path, "r", encoding="utf-8") as file:
+            initial_state = json.load(file)
+
+        event = {
+            "title": "Shopping for Christmas gifts",
+            "date": "2025-12-14",
+            "description": "",
+            "url": "",
+            "location": "",
+            "invitees": "",
+            "recurring": None,
+        }
+
+        add_event_task = AddEventTask(
+            goal="Add Shopping for Christmas gifts to my calendar on 2025-12-14",
+            event=event,
+        )
+
+        assert add_event_task.check_if_task_is_complete(
+            initial_state, add_christmas_shopping_state
+        )

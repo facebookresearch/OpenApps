@@ -43,6 +43,7 @@ dev = [
     "mkdocs-shadcn@git+https://github.com/asiffer/mkdocs-shadcn@30-search-indexing-broken",
     "plotly>=6.4.0",
     "pymdown-extensions>=10.16.1",
+    "pytest-icdiff>=0.9",
 ]
 
 

@@ -6,6 +6,7 @@ import re
 from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
 from datetime import datetime
+import copy
 
 
 class StringSimilarityOperator(BaseOperator):
@@ -91,11 +92,15 @@ class AppStateComparison:
         diff = DeepDiff(
             dict1, dict2, custom_operators=[StringSimilarityOperator(types=[str])]
         )
-        return diff == {}
+        if diff == {}:
+            return True
+        print(f"===Differences found: {diff}")
+        return False
 
     def compare(self) -> bool:
         # check that both states have the same apps
         if set(self.state1.keys()) != set(self.state2.keys()):
+            print("States have different apps")
             return False
 
         return self.are_dicts_similar(self.state1, self.state2)
@@ -191,8 +196,9 @@ class AddToDoTask(Task):
         Args:
             initial_state (dict): The initial state of all apps.
         """
-        target_state = initial_state.copy()
-        target_state["todo"].append([self.todo_name, self.is_done])
+        target_state = copy.deepcopy(initial_state)
+        is_done = None if not self.is_done else True
+        target_state["todo"].append({"title": self.todo_name, "done": is_done})
         return target_state
 
     def check_if_task_is_complete(
