@@ -5,7 +5,7 @@
  
 *Building Blocks for Digital Agents Research*
 
-[📒 docs](https://facebookresearch.github.io/OpenApps/)
+[📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766)
 </div>
 
 
@@ -161,3 +161,14 @@ this will launch docs available at https://facebookresearch.github.io/OpenApps/
 Our work is licensed under CC-BY-NC, please refer to the [LICENSE](LICENSE) file in the top level directory.
 
 Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.com/legal/terms/) and [Privacy Policy](https://opensource.fb.com/legal/privacy/) for this project.
+
+## Cite
+
+```
+@article{ullrich2025openapps0,
+  title   = {OpenApps: Simulating Environment Variations to Measure UI-Agent Reliability},
+  author  = {Karen Ullrich and Jingtong Su and Claudia Shi and Arjun Subramonian and Amir Bar and Ivan Evtimov and Nikolaos Tsilivis and Randall Balestriero and Julia Kempe and Mark Ibrahim},
+  year    = {2025},
+  journal = {arXiv preprint arXiv: 2511.20766}
+}
+```
