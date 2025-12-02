@@ -138,7 +138,7 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
-![Live Agent](https://github.com/facebookresearch/OpenApps/blob/main/docs/images/gif.gif)
+![Live Agent](images/gif.gif)
 
 ### Logs
 
