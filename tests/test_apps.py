@@ -176,19 +176,14 @@ class TestTasks:
         with open(initial_state_path, "r", encoding="utf-8") as file:
             initial_state = json.load(file)
 
-        event = {
-            "title": "Shopping for Christmas gifts",
-            "date": "2025-12-14",
-            "description": "",
-            "url": "",
-            "location": "",
-            "invitees": "",
-            "recurring": None,
-        }
-
         add_event_task = AddEventTask(
             goal="Add Shopping for Christmas gifts to my calendar on 2025-12-14",
-            event=event,
+            title="Shopping for Christmas gifts",
+            date="2025-12-14",
+            description="",
+            url="",
+            location="",
+            invitees="",
         )
 
         assert add_event_task.check_if_task_is_complete(

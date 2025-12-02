@@ -328,12 +328,14 @@ class AgentLauncher(OpenAppsLauncher):
         if self.config.use_wandb:
             wandb.finish()
         apps_process.terminate()
+        # wait for process to terminate
+        apps_process.join()
         time.sleep(4)
         apps_still_running = apps_process.poll() is None
         if apps_still_running:
             apps_process.kill()
+            time.sleep(4)
         kill_ports(ports=[self.web_app_port])
-        time.sleep(4)
 
     def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
         is_app_running = False

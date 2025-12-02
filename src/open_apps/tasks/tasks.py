@@ -7,6 +7,9 @@ from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
 from datetime import datetime
 import copy
+from deepdiff.helper import COLORED_COMPACT_VIEW
+from omegaconf.dictconfig import DictConfig
+from omegaconf import OmegaConf
 
 
 class StringSimilarityOperator(BaseOperator):
@@ -43,8 +46,6 @@ class AppStateComparison:
         state2: Second app state to compare
     """
 
-    keys_to_remove: list[str] = ["id"]
-
     def __init__(self, state1: dict, state2: dict):
         self.raw_state1 = state1
         self.raw_state2 = state2
@@ -55,6 +56,8 @@ class AppStateComparison:
     def preprocess(self, state: dict) -> dict:
         state = state.copy()
         state = self._remove_id_key(state)
+        state = self._remove_timestamp_from_messenger(state)
+        state = self._normalize_map_locations(state)
         return state
 
     def _remove_id_key(self, state: dict) -> dict:
@@ -66,15 +69,32 @@ class AppStateComparison:
                 del todo["id"]
 
         for event in state["calendar"]:
-            if "id" in event:
-                del event["id"]
+            # remove empty values and id key
+            keys_to_delete = []
+            for k, v in event.items():
+                if k == "id" or v is None or v == "" or v == []:
+                    keys_to_delete.append(k)
+            for k in keys_to_delete:
+                del event[k]
         return state
 
     def _remove_timestamp_from_messenger(self, state: dict) -> dict:
-        for messages in state["messenger"]:
-            old_message_contents = messages["messages"]
-            new_message_contents = [m.pop() for m in old_message_contents]
-            messages["messages"] = new_message_contents
+        for i, contact in enumerate(state["messenger"]):
+            old_message_contents = contact["messages"]
+            new_message_contents = [m[0] for m in old_message_contents]
+            state["messenger"][i]["messages"] = new_message_contents
+        return state
+
+    def _normalize_map_locations(self, state: dict) -> dict:
+        # sort map locations by name to avoid ordering issues
+        normalized_places = []
+        for i, place in enumerate(state["map"]):
+            new_place = {
+                "name": place["name"],
+                "coords": [int(place["coords"][0] * 10), int(place["coords"][0] * 10)],
+            }
+            normalized_places.append(new_place)
+        state["map"] = normalized_places
         return state
 
     @staticmethod
@@ -90,7 +110,14 @@ class AppStateComparison:
             dict2: Second dictionary to compare
         """
         diff = DeepDiff(
-            dict1, dict2, custom_operators=[StringSimilarityOperator(types=[str])]
+            dict1,
+            dict2,
+            custom_operators=[StringSimilarityOperator(types=[str])],
+            ignore_string_type_changes=True,
+            ignore_numeric_type_changes=True,
+            ignore_nan_inequality=True,
+            ignore_encoding_errors=True,
+            view=COLORED_COMPACT_VIEW,
         )
         if diff == {}:
             return True
@@ -130,7 +157,23 @@ class AddEventTask(Task):
     Task to add an event to the calendar.
     """
 
-    event: dict
+    title: str
+    date: str
+    description: str | None
+    location: str | None
+    url: str | None
+    invitees: list[str]
+
+    @property
+    def event(self) -> dict:
+        return {
+            "title": self.title,
+            "date": self.date,
+            "description": self.description if self.description else "",
+            "location": self.location if self.location else "",
+            "url": self.url if self.url else "",
+            "invitees": self.invitees,
+        }
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
@@ -138,13 +181,16 @@ class AddEventTask(Task):
         Args:
             initial_state (dict): The initial state of all apps.
         """
-        target_state = initial_state.copy()
-        target_state["calendar"].append(self.event)
+        target_state = copy.deepcopy(initial_state)
+        if target_state["calendar"][-1] != self.event:
+            target_state["calendar"].append(self.event)
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict | DictConfig
     ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
         return app_state_comparison.compare()
@@ -156,7 +202,8 @@ class RemoveEventTask(Task):
     Task to remove an event from the calendar.
     """
 
-    event: dict
+    title: str
+    date: str
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
@@ -164,13 +211,14 @@ class RemoveEventTask(Task):
         Args:
             initial_state (dict): The initial state of all apps.
         """
-        target_state = initial_state.copy()
+        target_state = copy.deepcopy(initial_state)
         idx_to_remove = None
         for i, event in enumerate(target_state["calendar"]):
-            if event["title"] == event.title:
+            if event["title"] == self.title and event["date"] == self.date:
                 idx_to_remove = i
         # remove the event to be deleted
-        target_state.pop(idx_to_remove)
+        if idx_to_remove is not None:
+            target_state["calendar"].pop(idx_to_remove)
         return target_state
 
     def check_if_task_is_complete(
@@ -223,11 +271,11 @@ class MarkToDoDoneTask(Task):
         Args:
             initial_state (dict): The initial state of all apps.
         """
-        target_state = initial_state.copy()
+        target_state = copy.deepcopy(initial_state)
         target_idx = None
         for i, todo_item in enumerate(target_state["todo"]):
-            if self.todo_name in todo_item:
-                new_todo_item = [self.todo_name, True]
+            if self.todo_name == todo_item["title"]:
+                new_todo_item = {"title": self.todo_name, "done": 1}
                 target_idx = i
         if target_idx is None:
             raise ValueError(f"Todo item {self.todo_name} not found")
@@ -246,6 +294,7 @@ class MarkToDoDoneTask(Task):
 class SendMessageTask(Task):
     to: str
     message: str
+    expected_reply: str | None
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
@@ -253,13 +302,21 @@ class SendMessageTask(Task):
         Args:
             initial_state (dict): The initial state of all apps.
         """
+        target_state = copy.deepcopy(initial_state)
         now = datetime.now()
         # Format the datetime object into the desired string format
         formatted_time_string = now.strftime("%b %d, %I:%M%p")
-        target_state = initial_state.copy()
-        messages = target_state["messenger"].get(self.to, [])
+        contact_idx = None
+        for i, contact in enumerate(target_state["messenger"]):
+            if contact["user"] == self.to:
+                contact_idx = i
+        if contact_idx is None:
+            raise ValueError(f"Contact {self.to} not found in messenger app")
+        messages = target_state["messenger"][contact_idx]["messages"]
         messages.append([self.message, False, self.to, formatted_time_string])
-        target_state["messenger"][self.to] = messages
+        if self.expected_reply:
+            messages.append([self.expected_reply, True, self.to, formatted_time_string])
+        target_state["messenger"][contact_idx]["messages"] = messages
         return target_state
 
     def check_if_task_is_complete(
@@ -282,12 +339,10 @@ class SavePlaceTask(Task):
         Args:
             initial_state (dict): The initial state of all apps.
         """
-        now = datetime.now()
-        # Format the datetime object into the desired string format
-        formatted_time_string = now.strftime("%b %d, %I:%M%p")
-        target_state = initial_state.copy()
+        target_state = copy.deepcopy(initial_state)
         new_place = {"name": self.name, "coords": [self.latitude, self.longitude]}
-        target_state["map"].append(new_place)
+        if target_state["map"][-1] != new_place:
+            target_state["map"].append(new_place)
         return target_state
 
     def check_if_task_is_complete(
@@ -299,14 +354,4 @@ class SavePlaceTask(Task):
 
 
 if __name__ == "__main__":
-    add_meeting_with_dennis = AddEventTask(
-        goal="Go to the Calendar app and add my meeting with Dennis on April 1st of 2026. The title should be 'Dennis-Bob'. Set the description as 'paper reading', omit the URL and set the location to New York City. Make sure to add Dennis as an invitee.",
-        event={
-            "title": "Dennis-Bob",
-            "date": "2026-04-01",
-            "description": "paper reading",
-            "location": "New York City",
-            "url": None,
-            "invitees": "Dennis",
-        },
-    )
+    pass
