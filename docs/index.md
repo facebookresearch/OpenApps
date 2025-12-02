@@ -6,9 +6,7 @@ New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 
 ### Install
 
-Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/)
-
-Clone the repo:
+Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) and clone the repo:
 
 ```bash
    git clone https://github.com/facebookresearch/OpenApps.git
