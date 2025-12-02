@@ -16,6 +16,6 @@ init_todos:
   - ["Meditate for 30", false]
   - ["Update calendar", false]
   - ["Answer emails", false]
-  - ["Water plants", true]
-  - ["Make fruit salad", false]
+  - ["Water plants", false]
+  - ["Make fruit salad", true]
   - ["Read before bed", false]

@@ -328,12 +328,14 @@ class AgentLauncher(OpenAppsLauncher):
         if self.config.use_wandb:
             wandb.finish()
         apps_process.terminate()
-        time.sleep(4)
-        apps_still_running = apps_process.poll() is None
+        apps_process.wait()
+        apps_still_running = apps_process.poll() is not None
         if apps_still_running:
+            print("Apps process is still running, stopping OpenApps...")
             apps_process.kill()
-        kill_ports(ports=[self.web_app_port])
-        time.sleep(4)
+            time.sleep(4)
+            kill_ports(ports=[self.web_app_port])
+            print("OpenApps successfully stopped.")
 
     def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
         is_app_running = False
@@ -360,6 +362,7 @@ class AgentLauncher(OpenAppsLauncher):
         # TODO: check if agent model is available in case of VLLM or API
         try:
             self.launch_agent()
+            self.cleanup(apps_process)
         except Exception as e:
             self.cleanup(apps_process)
             print("Error during agent launch: ", e)
