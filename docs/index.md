@@ -8,13 +8,13 @@ New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 
 Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/)
 
-1. Clone the repo:
+Clone the repo:
 
 ```bash
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
-2. Install dependencies:   
+Install dependencies:   
 
 ```bash
    uv sync
