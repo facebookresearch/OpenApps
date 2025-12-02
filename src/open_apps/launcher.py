@@ -335,7 +335,7 @@ class AgentLauncher(OpenAppsLauncher):
             apps_process.kill()
             time.sleep(4)
             kill_ports(ports=[self.web_app_port])
-            print("OpenApps stopped.")
+            print("OpenApps successfully stopped.")
 
     def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
         is_app_running = False
