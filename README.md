@@ -16,7 +16,7 @@ Evaluate and train multimodal agents to use apps like humans do (by clicking, ty
 
 ✅ **Lightweight**: runs on a single CPU (and Python-based); no Docker or OS emulators needed
 
-✅ **Ground truth rewards**: task rewards are based on the underlying state and all app logic is in transparent Python.
+✅ **Ground truth rewards**: task rewards are based on the underlying state and all app logic is transparent in Python
 
 
 ## Install
