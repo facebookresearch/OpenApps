@@ -4,6 +4,14 @@ title: Start with OpenApps
 
 New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
 
+Why OpenApps? Evaluate and train multimodal agents to use apps like humans do (by clicking, typing, and scrolling):
+
+✅ **Unlimited data** (for evaluating and training UI-agents): Configurable state and design to generate thousands of versions of each app
+
+✅ **Lightweight**: runs on a single CPU (and Python-based); no Docker or OS emulators needed
+
+✅ **Ground truth rewards**: task rewards are based on the underlying state and all app logic is in transparent Python.
+
 ### Install
 
 Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) and clone the repo:
