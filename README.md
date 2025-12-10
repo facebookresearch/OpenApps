@@ -77,6 +77,14 @@ You can specify the agent of your choice with the `agent=` argument. For example
 
 Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our [docs](https://facebookresearch.github.io/OpenApps/).
 
+## OpenApps in action
+
+
+https://github.com/user-attachments/assets/40482d53-9481-4e48-962b-eb384e94e3c7
+
+
+
+
 ## Contributing
 
 We welcome pull requests with new features or issues via GitHub.
