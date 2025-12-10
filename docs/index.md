@@ -35,7 +35,7 @@ uv run launch.py
 ```
 ![landing](images/landing.png)
 
-
+For an overview, checkout our [video tutorial](https://www.youtube.com/watch?v=gzNW_LXE7OE).
 
 ### App variations
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:
