@@ -5,7 +5,7 @@
  
 *Building Blocks for Digital Agents Research*
 
-[📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766)
+[📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766) | [🎬 Video Tutorial](https://www.youtube.com/watch?v=gzNW_LXE7OE)
 </div>
 
 
@@ -50,7 +50,9 @@ Each app can be modified with variables available in `config/apps`. You can over
 uv run launch.py app.todo.title='Super Todo'
 ```
 
-Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/).
+Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/). 
+
+
 
 ## Launch an Agent
 
