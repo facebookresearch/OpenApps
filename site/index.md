@@ -2,13 +2,28 @@ title: Start with OpenApps
 
 > Building Blocks for Digital Agents Research
 
-New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
+New to agents? See our [Intro to UI Agents](Intro to UI Agents.md). We take you through the installation and running your first agent step-by-step.
+
+Why OpenApps? Evaluate and train multimodal agents to use apps like humans do (by clicking, typing, and scrolling):
+
+✅ **Unlimited data** (for evaluating and training UI-agents): Configurable state and design to generate thousands of versions of each app
+
+✅ **Lightweight**: runs on a single CPU (and Python-based); no Docker or OS emulators needed
+
+✅ **Ground truth rewards**: task rewards are based on the underlying state and all app logic is transparent in Python
 
 ### Install
-In a new [uv](https://docs.astral.sh/uv/getting-started/) environment:
 
-```shell
-uv pip install git+https://github.com/facebookresearch/openapps.git
+Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) and clone the repo:
+
+```bash
+   git clone https://github.com/facebookresearch/OpenApps.git
+```
+
+Install dependencies:   
+
+```bash
+   uv sync
 ```
 
 For other installation options and online shop setup see [Installation](installation.md).
@@ -26,7 +41,7 @@ uv run launch.py
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:
 
 ```bash
-uv run launch.py app.todo.title='Super Todo'
+uv run launch.py 'apps.todo.init_todos=[["Call Mom", false]]'
 ```
 
 OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.
@@ -110,11 +125,11 @@ Launch an agent to perform a task of *adding a meeting with Dennis to the calend
     ::bash
     uv run launch_agent.py agent=dummy task_name=add_meeting_with_dennis
 ///
-/// tab | GPT-4o Agent
+/// tab | GPT-5.1 Agent
 
     ::bash
     # export OPENAI_API_KEY=""
-    uv run launch_agent.py agent=GPT-4o task_name=add_meeting_with_dennis
+    uv run launch_agent.py agent=GPT-5-1 task_name=add_meeting_with_dennis
 ///
 
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
@@ -128,6 +143,8 @@ To see the agent solving the task live:
 ```
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
+
+![Live Agent](images/gif.gif)
 
 ### Logs
 

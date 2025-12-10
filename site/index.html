@@ -441,10 +441,18 @@
     <blockquote>
 <p>Building Blocks for Digital Agents Research</p>
 </blockquote>
-<p>New to agents? See our <a href="Intro%20to%20UI%20Agents/">Intro to UI Agents</a>.</p>
+<p>New to agents? See our <a href="Intro%20to%20UI%20Agents/">Intro to UI Agents</a>. We take you through the installation and running your first agent step-by-step.</p>
+<p>Why OpenApps? Evaluate and train multimodal agents to use apps like humans do (by clicking, typing, and scrolling):</p>
+<p>✅ <strong>Unlimited data</strong> (for evaluating and training UI-agents): Configurable state and design to generate thousands of versions of each app</p>
+<p>✅ <strong>Lightweight</strong>: runs on a single CPU (and Python-based); no Docker or OS emulators needed</p>
+<p>✅ <strong>Ground truth rewards</strong>: task rewards are based on the underlying state and all app logic is transparent in Python</p>
 <h3 id="install">Install</h3>
-<p>In a new <a href="https://docs.astral.sh/uv/getting-started/">uv</a> environment:</p>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/facebookresearch/openapps.git
+<p>Install the conda alternative <a href="https://docs.astral.sh/uv/getting-started/">uv</a> and clone the repo:</p>
+<div class="codehilite"><pre><span></span><code><span class="w">   </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/facebookresearch/OpenApps.git
+</code></pre></div>
+
+<p>Install dependencies:   </p>
+<div class="codehilite"><pre><span></span><code><span class="w">   </span>uv<span class="w"> </span>sync
 </code></pre></div>
 
 <p>For other installation options and online shop setup see <a href="installation/">Installation</a>.</p>
@@ -455,7 +463,7 @@
 <p><img alt="landing" src="images/landing.png" /></p>
 <h3 id="app-variations">App variations</h3>
 <p>Each app can be modified with variables available in <code>config/apps</code>. You can override any of these via command line:</p>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>app.todo.title<span class="o">=</span><span class="s1">&#39;Super Todo&#39;</span>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span><span class="s1">&#39;apps.todo.init_todos=[[&quot;Call Mom&quot;, false]]&#39;</span>
 </code></pre></div>
 
 <p>OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.</p>
@@ -517,9 +525,9 @@
 </code></pre></div>
 
 </div>
-<input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><label for="__tabbed_3_2">GPT-4o Agent</label><div class="tabbed-content">
+<input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><label for="__tabbed_3_2">GPT-5.1 Agent</label><div class="tabbed-content">
 <div class="codehilite"><pre><span></span><code><span class="c1"># export OPENAI_API_KEY=&quot;&quot;</span>
-uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-4o<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>add_meeting_with_dennis
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-5-1<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>add_meeting_with_dennis
 </code></pre></div>
 
 </div>
@@ -534,6 +542,7 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
 <div class="codehilite"><pre><span></span><code>uv run launch_agent.py browsergym_env_args.headless=False
 </code></pre></div>
 
+<p><img alt="Live Agent" src="images/gif.gif" /></p>
 <h3 id="logs">Logs</h3>
 <p>By default, information about the number of steps an agent took, task success, etc. will be shown in the terminal:</p>
 <div class="codehilite"><pre><span></span><code>...
