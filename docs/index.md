@@ -2,7 +2,7 @@ title: Start with OpenApps
 
 > Building Blocks for Digital Agents Research
 
-New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
+New to agents? See our [Intro to UI Agents](Intro to UI Agents.md). We take you through the installation and running your first agent step-by-step.
 
 Why OpenApps? Evaluate and train multimodal agents to use apps like humans do (by clicking, typing, and scrolling):
 
