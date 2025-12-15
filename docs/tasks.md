@@ -2,8 +2,8 @@
 To ask GPT-4o to mark water plants as done in your todo list:
 
 ```shell
-    # export OPENAI_API_KEY=""
-    uv run launch_agent.py agent=GPT-5-1 task_name=mark_water_plants_as_done
+# export OPENAI_API_KEY=""
+uv run launch_agent.py agent=GPT-5-1 task_name=mark_water_plants_as_done
 ```
 
 `task_name` specifies the task. Tasks are defined in `config/tasks/all_tasks.yaml`. For example,

@@ -2,19 +2,25 @@ title: Start with OpenApps
 
 > Building Blocks for Digital Agents Research
 
-New to agents? See our [Intro to UI Agents](Intro to UI Agents.md).
+New to agents? See our [Intro to UI Agents](Intro to UI Agents.md). We take you through the installation and running your first agent step-by-step.
+
+Why OpenApps? Evaluate and train multimodal agents to use apps like humans do (by clicking, typing, and scrolling):
+
+✅ **Unlimited data** (for evaluating and training UI-agents): Configurable state and design to generate thousands of versions of each app
+
+✅ **Lightweight**: runs on a single CPU (and Python-based); no Docker or OS emulators needed
+
+✅ **Ground truth rewards**: task rewards are based on the underlying state and all app logic is transparent in Python
 
 ### Install
 
-Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/)
-
-1. Clone the repo:
+Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) and clone the repo:
 
 ```bash
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
-2. Install dependencies:   
+Install dependencies:   
 
 ```bash
    uv sync
@@ -29,7 +35,7 @@ uv run launch.py
 ```
 ![landing](images/landing.png)
 
-
+For an overview, checkout our [video tutorial](https://www.youtube.com/watch?v=gzNW_LXE7OE).
 
 ### App variations
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:

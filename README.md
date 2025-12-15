@@ -5,9 +5,18 @@
  
 *Building Blocks for Digital Agents Research*
 
-[📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766)
+[📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766) | [🎬 Video Tutorial](https://www.youtube.com/watch?v=gzNW_LXE7OE)
 </div>
 
+
+
+Evaluate and train multimodal agents to use apps like humans do (by clicking, typing, and scrolling):
+
+✅ **Unlimited data** (for evaluating and training UI-agents): Configurable state and design to generate thousands of versions of each app
+
+✅ **Lightweight**: runs on a single CPU (and Python-based); no Docker or OS emulators needed
+
+✅ **Ground truth rewards**: task rewards are based on the underlying state and all app logic is transparent in Python
 
 
 ## Install
@@ -41,7 +50,9 @@ Each app can be modified with variables available in `config/apps`. You can over
 uv run launch.py app.todo.title='Super Todo'
 ```
 
-Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/).
+Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/). 
+
+
 
 ## Launch an Agent
 
@@ -65,6 +76,14 @@ uv run launch_agent.py ... browsergym_env_args.headless=False
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
 
 Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our [docs](https://facebookresearch.github.io/OpenApps/).
+
+## OpenApps in action
+
+
+https://github.com/user-attachments/assets/40482d53-9481-4e48-962b-eb384e94e3c7
+
+
+
 
 ## Contributing
 

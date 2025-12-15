@@ -463,7 +463,80 @@
     </div>
   </div>
   <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
-    <p>coming soon!</p>
+    <h2 id="quickstart-getting-your-agent-to-run">Quickstart: Getting Your Agent to Run</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<p>To use GPT-5-1 to complete tasks, set your OpenAI API key:</p>
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>YOUR_KEY
+</code></pre></div>
+
+<p>Alternatively, edit the corresponding line in <code>config/agent/GPT-5-1.yaml</code>.</p>
+<h3 id="supported-clients">Supported Clients</h3>
+<p>We support multiple client types:</p>
+<ul>
+<li>vLLM</li>
+<li>OpenAI </li>
+<li>Azure</li>
+<li>AWS</li>
+</ul>
+<p>To use a different client, change the <code>client_type</code> argument in your configuration. Check out <code>/src/open_apps/agent/vLLM_agent.py</code> Line 49 and following for specifics about how these clients are called internally.</p>
+<h3 id="running-your-agent">Running Your Agent</h3>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-4o
+</code></pre></div>
+
+<p>To run a local model with <a href="https://docs.vllm.ai/en/latest/">vLLM</a>, </p>
+<ol>
+<li>
+<p>Launch your local vLLM model: <code>vllm serve [MODEL_NAME]</code>. VLLM will tell you your hostname.</p>
+</li>
+<li>
+<p>Launch your agent</p>
+</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>AGENT_CONFIG<span class="w"> </span>agent.hostname<span class="o">=</span>VLLM_HOSTNAME
+</code></pre></div>
+
+<h2 id="configuring-your-policy">Configuring Your Policy</h2>
+<p>Our agent policies are built on top of <a href="https://github.com/ServiceNow/AgentLab">AgentLab</a>. Our setup enables automatic configuration of your prompt with config flags.
+Here are some key flags you can configure in your agent's YAML file:</p>
+<p><strong>Observation Flags:</strong></p>
+<ul>
+<li><code>use_axtree</code>: Enable AXTree observation (accessibility tree)</li>
+<li><code>use_screenshot</code>: Enable screenshot observation</li>
+<li><code>use_som</code>: Add visual marks to screenshots for element identification</li>
+<li><code>extract_coords</code>: Include element coordinates in observations</li>
+</ul>
+<p><strong>History &amp; Memory Flags:</strong></p>
+<ul>
+<li><code>use_history</code>: Enable action/thought history tracking</li>
+<li><code>use_action_history</code>: Track previous actions taken by the agent</li>
+<li><code>use_think_history</code>: Track previous thoughts/reasoning steps</li>
+</ul>
+<p><strong>Reasoning &amp; Examples Flags:</strong></p>
+<ul>
+<li><code>use_thinking</code>: Enable chain-of-thought reasoning before actions</li>
+<li><code>use_concrete_example</code>: Include concrete examples in the prompt</li>
+<li><code>use_abstract_example</code>: Include abstract reasoning examples in the prompt</li>
+</ul>
+<p><strong>Custom Prompts:</strong></p>
+<ul>
+<li><code>prompt_txt.system_prompt</code>: Override the default system prompt</li>
+<li><code>prompt_txt.action_prompt</code>: Define custom action instructions</li>
+<li><code>prompt_txt.think_prompt</code>: Define custom thinking/reasoning instructions</li>
+</ul>
+<p>For the complete set of configuration options, see <code>config/agent/default.yaml</code>.</p>
+<h2 id="creating-your-own-agent">Creating Your Own Agent</h2>
+<p>If AgentLab's capabilities don't meet your needs, you can create a custom agent.</p>
+<ol>
+<li>Navigate to <code>src/open_apps/agent/</code></li>
+<li>
+<p>Copy and modify the following files:</p>
+<ul>
+<li><code>vLLM_agent.py</code></li>
+<li><code>vLLM_prompt.py</code></li>
+</ul>
+</li>
+</ol>
+<p>This allows you to build rich, custom agent implementations tailored to your specific requirements.</p>
   </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
@@ -559,6 +632,56 @@
                                 <div view-transition-name="toc" class="no-scrollbar overflow-y-auto px-8">
     <div class="flex flex-col gap-2 p-4 pt-0 text-sm">
         <p class="text-muted-foreground bg-background sticky top-0 h-6 text-xs">On This Page</p>
+        
+        
+        
+        
+        <a href="#quickstart-getting-your-agent-to-run"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Quickstart: Getting Your Agent to Run
+        </a>
+        
+        
+        <a href="#prerequisites"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Prerequisites
+        </a>
+        
+        <a href="#supported-clients"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Supported Clients
+        </a>
+        
+        <a href="#running-your-agent"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Running Your Agent
+        </a>
+        
+        
+
+        
+        <a href="#configuring-your-policy"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Configuring Your Policy
+        </a>
+        
+
+        
+        <a href="#creating-your-own-agent"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Creating Your Own Agent
+        </a>
+        
+
+        
+        
+        
         
 
     </div>

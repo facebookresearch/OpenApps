@@ -438,42 +438,51 @@
     </div>
   </div>
   <div class="typography w-full flex-1 *:data-[slot=alert]:first:mt-0">
-    <p>To ask GPT-4o to mark water plans as done:</p>
-<div class="codehilite"><pre><span></span><code><span class="w">    </span><span class="c1"># export OPENAI_API_KEY=&quot;&quot;</span>
-<span class="w">    </span>uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-4o<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>mark_water_plants_as_done
+    <p>To ask GPT-4o to mark water plants as done in your todo list:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># export OPENAI_API_KEY=&quot;&quot;</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-5-1<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>mark_water_plants_as_done
 </code></pre></div>
 
-<p><code>task_name</code> specifies the task. Tasks are defined in <code>config/tasks/all_tasks.yaml</code>:</p>
+<p><code>task_name</code> specifies the task. Tasks are defined in <code>config/tasks/all_tasks.yaml</code>. For example,</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">mark_water_plants_as_done</span><span class="p">:</span>
 <span class="w">  </span><span class="c1"># Indicates class where reward logic is defined</span>
 <span class="w">  </span><span class="nt">_target_</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">open_apps.tasks.tasks.MarkToDoDoneTask</span>
 <span class="w">  </span><span class="nt">goal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Mark &#39;Water plants&#39; as done in my todo list.</span>
-<span class="w">  </span><span class="nt">goal_category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">explicit</span>
 <span class="w">  </span><span class="nt">todo_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Water</span><span class="nv"> </span><span class="s">plants&quot;</span>
 </code></pre></div>
 
-<h1 id="adding-new-tasks">Adding New Tasks</h1>
+<h2 id="adding-new-tasks">Adding New Tasks</h2>
 <p>To add a new task using an existing reward function, simply add a new entry to the <code>config/tasks/all_tasks.yaml</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">add_my_special_item_to_todo</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># _target_ defines the class containing the task reward logic</span>
 <span class="w">  </span><span class="nt">_target_</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">open_apps.tasks.tasks.AddToDoTask</span>
 <span class="w">  </span><span class="nt">goal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ENTER YOUR GOAL</span>
-<span class="w">  </span><span class="nt">goal_category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">explicit</span>
-<span class="w">  </span><span class="nt">todo</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;ENTER</span><span class="nv"> </span><span class="s">YOUR</span><span class="nv"> </span><span class="s">TODO</span><span class="nv"> </span><span class="s">TITLE&quot;</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">todo_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ENTER TITLE of TODO</span>
+<span class="w">  </span><span class="nt">is_done</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </code></pre></div>
 
 <p>You can select this new task by specifying the <code>task_name=add_my_special_item_todo</code>.</p>
-<h2 id="adding-new-custom-tasks">Adding new custom tasks</h2>
-<p>To add a custom task with its own reward logic, create a new class in <code>src/open_apps/tasks/tasks.py</code>.
-Your new class should inherit <code>Task</code> and implement a reward function, <code>check_if_task_is_complete</code>, indicating whether the task is complete:</p>
+<h3 id="new-custom-tasks">New custom tasks</h3>
+<p>To add a custom task with its own reward logic, create a new class in <code>src/open_apps/tasks/tasks.py</code>.</p>
+<p>Your new class should inherit <code>Task</code> and implement a reward function, <code>check_if_task_is_complete</code>, indicating whether the task is complete:</p>
 <div class="codehilite"><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">MyCustomTask</span><span class="p">(</span><span class="n">Task</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">check_if_task_is_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initiate_state</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">current_state</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="c1"># my custom reward logic</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_if_task_is_complete</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">initiate_state</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> 
+        <span class="n">current_state</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="c1"># we handle providing the initial and current states for you!</span>
+        <span class="c1"># write your custom reward logic</span>
         <span class="o">...</span>
 </code></pre></div>
+
+<p>Then create a corresponding entry in <code>config/tasks/all_tasks.yaml</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">my_custom_task</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">_target_</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">open_apps.tasks.tasks.MyCustomTask</span>
+<span class="w">    </span><span class="nt">goal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ENTER</span>
+</code></pre></div>
+
+<p>Finally, ask your agent to solve the task by specifying <code>task_name=my_custom_task</code>.</p>
   </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
@@ -560,10 +569,10 @@ Your new class should inherit <code>Task</code> and implement a reward function,
         
         
         
-        <a href="#adding-new-custom-tasks"
+        <a href="#new-custom-tasks"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
-            Adding new custom tasks
+            New custom tasks
         </a>
         
 
