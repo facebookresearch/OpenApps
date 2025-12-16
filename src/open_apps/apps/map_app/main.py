@@ -74,7 +74,7 @@ def set_environment(config):
 
     if hasattr(app, 'config') and hasattr(app.config, 'maps') and app.config.maps.allow_planning:
         try:
-            print(f"- map planning is not supported yet, turning off...")
+            print(f"- map planning is not supported yet; the calculate route button is a dummy...")
         except Exception as e:
             print(f"Failed to start OTP server: {e}")
             if otp_process: 
