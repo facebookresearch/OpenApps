@@ -74,7 +74,7 @@ def set_environment(config):
 
     if hasattr(app, 'config') and hasattr(app.config, 'maps') and app.config.maps.allow_planning:
         try:
-            print(f"- map planning is not supported yet, turning off...")
+            print(f"- map planning is not supported yet; the calculate route button is a dummy...")
         except Exception as e:
             print(f"Failed to start OTP server: {e}")
             if otp_process: 
@@ -121,6 +121,7 @@ async def map_page(request: Request):
             "search_button_hover_color": getattr(app.config.maps, "search_button_hover_color", "#2980b9"),
             "calculate_button_hover_color": getattr(app.config.maps, "calculate_button_hover_color", "#2980b9"),
             "sidebar_background_color": getattr(app.config.maps, "sidebar_background_color", "#f8f9fa"),
+            "allow_planning": app.config.maps.allow_planning,
         },
     )
 
@@ -342,14 +343,10 @@ async def get_route(
         # print(response.json()) 
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error querying OTP GraphQL API: {e}")
-        if e.response is not None:
-            print(f"Response status code: {e.response.status_code}")
-            print(f"Response content: {e.response.text}")
-        return {"error": f"Route planning failed: {e}", "details": str(e.response.text if e.response is not None else "No response text")}
+        return {"error": f"route planning not supported, stay tuned!"}
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return {"error": f"An unexpected error occurred: {e}"}
+        print(f"An error occurred during route planning: {e}")
+        return {"error": f"route planning not supported, stay tuned!", "details": str(e)}
 
 
 def get_map_routes():

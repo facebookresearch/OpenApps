@@ -303,6 +303,7 @@
             <div id="searchResults"></div>
             <h3>Current Location Info</h3>
             <div id="currentLocationInfo" class="info-box"></div>
+            {% if allow_planning %}
             <h3>Route Planning</h3>
             <div class="route-container">
                 <div class="location-input-container">
@@ -326,6 +327,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             <h3>Saved Locations</h3>
             <div id="popupList"></div>
         </div>
@@ -893,11 +895,13 @@
         }
 
         // Ensure DOMContentLoaded calls the correct handleLocationSearch for routing inputs
+        {% if allow_planning %}
         document.addEventListener('DOMContentLoaded', function () {
             // For Route Planning
             handleLocationSearch('fromLocation', 'fromLocationResults', 'from');
             handleLocationSearch('toLocation', 'toLocationResults', 'to');
         });
+        {% endif %}
 
         // Function to handle clicking outside search results
         function handleClickOutside(event, resultsDiv) {
@@ -997,12 +1001,6 @@
             return points;
         }
 
-        // Initialize route search functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            handleLocationSearch('fromLocation', 'fromLocationResults', 'from');
-            handleLocationSearch('toLocation', 'toLocationResults', 'to');
-        });
-
         function displayItinerary(itineraryNode) {
             if (routeLayer) {
                 map.removeLayer(routeLayer);
@@ -1080,7 +1078,7 @@
                 <strong>Total Distance:</strong> ${totalDistanceKm} km
             `;
         }
-
+        {% if allow_planning %}
         document.getElementById('calculateRouteBtn').addEventListener('click', async function() {
             if (!routeLocations.from || !routeLocations.to) {
                 document.getElementById('routeResult').innerHTML = `
@@ -1274,6 +1272,7 @@
                 console.error('Route calculation error:', error);
             }
         });
+        {% endif %}
 
     </script>
     <div id="markerCustomizationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;">
