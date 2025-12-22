@@ -1,0 +1,16 @@
+# @package _global_
+project: open_apps
+
+logs_dir:  /checkpoint/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${oc.env:USER}-${agent.model_name}/${job_id}
+databases_dir: ${logs_dir}/databases
+
+slurm_sweep_launcher:
+  gpus_per_node: 0
+  nodes: 1
+  tasks_per_node: 1
+  cpus_per_task: 2
+  timeout_min: 400
+  slurm_partition: "ADD YOURS"  
+  mem_gb: 10
+  slurm_srun_args: ["-vv", "--cpu-bind", "none"]
+  slurm_comment: "parallel agent tasks"

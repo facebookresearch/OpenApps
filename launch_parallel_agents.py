@@ -11,13 +11,12 @@ from pathlib import Path
 from omegaconf import OmegaConf
 import submitit
 import os
+from open_apps.launcher import AgentLauncher
 
 
 def run_task(config: DictConfig) -> None:
     from open_apps.apps.start_page.main import app  # need to import apps to serve
-    from open_apps.launcher import OpenAppsLauncher
-
-    launcher = OpenAppsLauncher(config)
+    launcher = AgentLauncher(config)
     launcher.launch()
 
 
