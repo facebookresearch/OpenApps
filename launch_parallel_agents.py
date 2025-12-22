@@ -21,42 +21,17 @@ def run_task(config: DictConfig) -> None:
     launcher.launch()
 
 
-def create_sweep_configs(default_config: DictConfig) -> list[DictConfig]:
-    """Creates configs by instantiating each set of app configs + task"""
-
-    # check if sweep cababilties are str or list
-    if isinstance(default_config.sweep_capabilities, str):
-        default_config.sweep_capabilities = [default_config.sweep_capabilities]
-
-    sweep_configs = []
-    for capability in default_config.sweep_capabilities:
-        capability_path = Path(
-            hydra.utils.get_original_cwd(), f"./config/capability/{capability}.yaml"
-        )
-        if not capability_path.exists():
-            raise ValueError(f"Capability config not found at {capability_path}")
-        capability_instance = hydra.utils.instantiate(OmegaConf.load(capability_path))
-        config = default_config.copy()
-        capability_sweep_configs = capability_instance.create_experiment_configs(config)
-        # add capability name for tracking in each individual experiment
-        for sweep_config in capability_sweep_configs:
-            sweep_config.capability_name = capability
-        sweep_configs.extend(capability_sweep_configs)
-    return sweep_configs
-
-
-@hydra.main(version_base=None, config_path="config", config_name="config")
+@hydra.main(
+    version_base=None, config_path="config", config_name="config_parallel_tasks"
+)
 def main(config: DictConfig) -> None:
     """Main entry point for benchmark launcher"""
     # print("sweep configs num is", len(sweep_configs))
-    sweep_configs = create_sweep_configs(config)
-    num_jobs = len(sweep_configs)
 
-    if not config.launch_jobs:
-        print(
-            f"Not launching sweep, but there are {len(sweep_configs)} capabilities specified in config"
-        )
-        return
+    parallel_configs: list[DictConfig] = hydra.utils.instantiate(
+        config.parallel_tasks
+    ).create_configs(default_config=config)
+    num_jobs = len(parallel_configs)
 
     # get parent dir of logs_dir
     sweep_root_logs_dir = Path(config.logs_dir).parent
@@ -67,13 +42,13 @@ def main(config: DictConfig) -> None:
     executor.update_parameters(**config.slurm_sweep_launcher)
     jobs = []
     with executor.batch():
-        for i, job_config in enumerate(sweep_configs):
+        for i, job_config in enumerate(parallel_configs):
             job_config.job_id = i
             job_config.num_jobs = num_jobs
             job = executor.submit(run_task, job_config)
             jobs.append(job)
 
-    print(f"Submitting {len(jobs)} jobs to the cluster.")
+    print(f"Submitting {len(jobs)} parallel agent tasks the cluster.")
     print("First Job ID:", jobs[0].job_id)
 
 
