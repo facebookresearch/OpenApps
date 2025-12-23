@@ -171,16 +171,37 @@ You can also enable logging to weights and biases by logging into your account a
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel
 
-coming soon!
+!!! info "Note:"
+    Parallel launching works with SLURM. Be sure to update configs in `config/mode/slurm_cluster.yaml`.
 
-<!-- To launch one (or multiple) agents to solve many tasks in parallel, each in an isolated deployment of OpenApps:
+You can launch one (or multiple) agents to solve many tasks in parallel, each in an isolated deployment of OpenApps, using SLURM:
 
 ```
-uv run launch_sweep.py
+uv run launch_parallel_agents.py mode=slurm_cluster agent=dummy use_wandb=True
 ```
 
-* Note each deployment of OpenApps can have different appearance and content
-* Note each task is launched in an isolated environment to ensure reproducible results. -->
+This launches random click agents to solve each task across each app variation in parallel as defined in `config_parallel_tasks.yaml`
+
+```yaml
+parallel_tasks:
+  _target_: open_apps.tasks.parallel_tasks.AppVariationParallelTasksConfig
+  task_names:
+    - add_meeting_with_dennis
+    - add_call_mom_to_my_todo
+    - save_paris_to_my_favorite_places
+  app_variations:
+    - ["apps/start_page/content=default", "apps/calendar/content=german"]
+    - [
+        "apps/start_page/appearance=dark_theme",
+        "apps/calendar/appearance=dark_theme",
+      ]
+```
+
+You can modify the set of tasks or app variation by updating the `config_parallel_tasks.yaml`.
+
+* Each deployment of OpenApps can have different appearance and content per app.
+* Each task is launched in an isolated environment to ensure reproducible results.
+
 
 ## Testing
 
