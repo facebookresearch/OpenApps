@@ -180,7 +180,7 @@ You can launch one (or multiple) agents to solve many tasks in parallel, each in
 uv run launch_parallel_agents.py mode=slurm_cluster agent=dummy use_wandb=True
 ```
 
-This launches random click agents to solve each task across each app variation in parallel as defined in `config_parallel_tasks.yaml`
+This launches 6 parallel independent random click agents to solve each task in each app variation as defined in `config_parallel_tasks.yaml`
 
 ```yaml
 parallel_tasks:
