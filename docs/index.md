@@ -197,10 +197,10 @@ parallel_tasks:
       ]
 ```
 
-You can modify the set of tasks or app variation by updating the `config_parallel_tasks.yaml`.
+You can modify the set of tasks or app variation by updating the `config_parallel_tasks.yaml`. We ensure:
 
 * Each deployment of OpenApps can have different appearance and content per app.
-* Each task is launched in an isolated environment to ensure reproducible results.
+* Each task is launched in an isolated environment for reproducible results.
 
 
 ## Testing
