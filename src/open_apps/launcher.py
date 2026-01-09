@@ -222,6 +222,7 @@ class OpenAppsLauncher:
             shell=True,
             stdout=subprocess.PIPE,
             start_new_session=True,
+            executable='/bin/bash',  # Use bash explicitly for 'source' command
         )
         sleep(30)
         return process
@@ -234,7 +235,7 @@ class OpenAppsLauncher:
                 print("Web app main page is running properly...")
             return response.status == 200
         except Exception as e:
-            print(f"Web app is not running: {e}")
+            print(f"Web app is not running on {self.web_app_url} as expected: {e}")
             return False
 
     def launch(self):
@@ -258,7 +259,9 @@ class AgentLauncher(OpenAppsLauncher):
             "terminated",
         ]
         for key in keys_to_save:
-            wandb.log({key: exp_record[key]})
+            # Only log if key exists in exp_record (avoid KeyError on failed runs)
+            if key in exp_record:
+                wandb.log({key: exp_record[key]})
         actions_data = [
             [
                 i,
@@ -284,7 +287,7 @@ class AgentLauncher(OpenAppsLauncher):
                 }
             )
         # give some time for the screenshots to be uploaded
-        time.sleep(20)  # seconds
+        sleep(20)  # seconds
 
     def setup_browsergym_task(self):
         # specifies goal and logic for reward
