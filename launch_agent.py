@@ -11,6 +11,9 @@ Launches agent in OpenApps to perform a given single task.
 # Third-party imports
 import hydra
 from omegaconf import DictConfig
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Project-specific imports
 from open_apps.apps.start_page.main import app  # need to import apps to serve
