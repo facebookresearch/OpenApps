@@ -42,6 +42,7 @@ class ModelArgs(BaseModelArgs):
     aws_secret_key: str = None
     aws_session_token: str = None
     aws_region: str = "us-west-2"
+    base_url: str = None
 
     def make_model(self) -> AbstractChatModel:
         logger.info(f"Creating Model with model_name: {self.model_name}")
@@ -98,7 +99,8 @@ class ModelArgs(BaseModelArgs):
                 aws_region=self.aws_region,
             )
         elif self.client_type == "openai":
-            client_args = {"base_url": "https://api.openai.com/v1"}
+            url = self.base_url if self.base_url else "https://api.openai.com/v1"
+            client_args = {"base_url": url}
             client_class = OpenAI
             return VLLMChatModel(
                 model_name=self.model_name,
@@ -220,6 +222,7 @@ class AgentArgs(AgentLabAgentArgs):
     aws_secret_key: str = None
     aws_session_token: str = None
     aws_region: str = "us-west-2"
+    base_url: str = None
 
     def make_flags(self) -> PromptFlags:
         return PromptFlags(
@@ -272,6 +275,7 @@ class AgentArgs(AgentLabAgentArgs):
             aws_secret_key=self.aws_secret_key,
             aws_session_token=self.aws_session_token,
             aws_region=self.aws_region,
+            base_url=self.base_url,
         )
 
     def make_agent(self) -> Agent:

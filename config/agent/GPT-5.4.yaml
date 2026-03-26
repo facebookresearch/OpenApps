@@ -1,0 +1,17 @@
+defaults:
+  - default
+  - _self_
+
+model_name: "gpt-5-4-genai-responses"
+model_pretty_name: "gpt-5.4"
+api_version: null
+client_type: "openai"
+hostname: null
+base_url: "https://api.llama.com/compat/v1/"
+api_key: ${oc.env:GPT54_API_KEY}
+temperature: 1
+max_tokens: 5000
+aws_access_key: null
+aws_secret_key: null
+aws_session_token: null
+aws_region: us-west-2
