@@ -56,6 +56,34 @@ AVAILABLE_APPS = {
     ),
 }
 
+def reset_all_apps(config: DictConfig):
+    """Reset all app databases to their configured initial state.
+
+    Re-runs the set_environment loop for every registered app, which
+    wipes and re-seeds SQLite tables from the Hydra config. This is
+    the generic reset mechanism used by OpenAppsEnv.reset() in swm.
+
+    Args:
+        config: The full OpenApps DictConfig.
+    """
+    import shutil
+    from pathlib import Path
+
+    # Code editor special case: clean filesystem before reset (§5.3)
+    if hasattr(config, "codeeditor") and hasattr(config.codeeditor, "folder_path"):
+        folder = Path(config.codeeditor.folder_path)
+        if folder.exists():
+            shutil.rmtree(folder)
+
+    for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
+        try:
+            module = __import__(module_path, fromlist=[getter_func])
+            if hasattr(module, "set_environment"):
+                module.set_environment(config)
+        except Exception as e:
+            print(f"Warning: failed to reset {app_name}: {e}")
+
+
 def get_start_page_routes():
     return app.routes
 
