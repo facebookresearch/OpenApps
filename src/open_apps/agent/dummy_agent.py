@@ -1,9 +1,13 @@
 import dataclasses
-import wandb
-
+import logging
+from pathlib import Path
 from typing import Any
 
 import bgym
+import numpy as np
+import re
+import wandb
+
 from bgym import HighLevelActionSetArgs
 from browsergym.experiments.agent import Agent, AgentInfo
 
@@ -22,9 +26,7 @@ from agentlab.llm.llm_utils import (
 )
 
 from browsergym.experiments.agent import Agent
-
-import re
-import numpy as np
+from open_apps.agent.utils import save_som_coordinates
 
 
 @dataclasses.dataclass
@@ -63,6 +65,8 @@ class DummyAgentArgs(GenericAgentArgs):
     use_html: bool = False
     use_axtree: bool = True
     use_screenshot: bool = False
+    save_som: bool = False
+    save_dir: str = None
     hostname: str = "no host name for dumb dumbs "
     client_type: str = "dummy_client"
 
@@ -72,6 +76,7 @@ class DummyAgentArgs(GenericAgentArgs):
                 use_html=self.use_html,
                 use_ax_tree=self.use_axtree,
                 use_screenshot=self.use_screenshot,
+                use_som=self.save_som,
             ),
             action=dp.ActionFlags(
                 action_set=HighLevelActionSetArgs(
@@ -99,6 +104,7 @@ class DummyAgentArgs(GenericAgentArgs):
         return DummyAgent(
             chat_model_args=self.make_chat_model_flags(),
             flags=self.make_flags(),
+            save_dir=self.save_dir,
         )
 
 
@@ -107,12 +113,17 @@ class DummyAgent(GenericAgent):
         self,
         chat_model_args: BaseModelArgs,
         flags: GenericAgentArgs,
+        save_dir: str = None,
     ):
         super().__init__(chat_model_args=chat_model_args, flags=flags)
         self.action_history = []
         self.obs_history = []
+        self.save_dir = Path(save_dir) if save_dir is not None else None
 
     def get_action(self, obs: Any):
+        self.obs_history.append(obs)
+        if self.save_dir is not None:
+            save_som_coordinates(obs, step=len(self.obs_history) - 1, save_dir=self.save_dir)
         response = "I'm a dummy agent, I click on a random link"
         print("the response is: ", response)
 
