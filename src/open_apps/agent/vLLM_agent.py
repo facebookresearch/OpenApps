@@ -190,7 +190,7 @@ class AgentArgs(AgentLabAgentArgs):
     use_html: bool = False
     use_axtree: bool = False
     use_screenshot: bool = False
-    use_som: bool = False
+    save_som: bool = False
     extract_visible_tag: bool = False
     extract_clickable_tag: bool = False
     extract_coords: bool = False
@@ -236,7 +236,7 @@ class AgentArgs(AgentLabAgentArgs):
                 use_focused_element=self.use_focused_element,
                 # --- ARGS for screenshot ---
                 use_screenshot=self.use_screenshot,
-                use_som=self.use_som,
+                use_som=self.save_som,
                 extract_visible_tag=self.extract_visible_tag,
                 extract_clickable_tag=self.extract_clickable_tag,
                 extract_coords=self.extract_coords,

@@ -39,7 +39,7 @@ custom_actions:
 use_html: false
 use_axtree: false
 use_screenshot: true
-use_som: false
+save_som: false
 extract_visible_tag: false
 extract_clickable_tag: false
 extract_coords: false

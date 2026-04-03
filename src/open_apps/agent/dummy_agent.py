@@ -65,7 +65,7 @@ class DummyAgentArgs(GenericAgentArgs):
     use_html: bool = False
     use_axtree: bool = True
     use_screenshot: bool = False
-    use_som: bool = False
+    save_som: bool = False
     save_dir: str = None
     hostname: str = "no host name for dumb dumbs "
     client_type: str = "dummy_client"
@@ -76,7 +76,7 @@ class DummyAgentArgs(GenericAgentArgs):
                 use_html=self.use_html,
                 use_ax_tree=self.use_axtree,
                 use_screenshot=self.use_screenshot,
-                use_som=self.use_som,
+                use_som=self.save_som,
             ),
             action=dp.ActionFlags(
                 action_set=HighLevelActionSetArgs(
