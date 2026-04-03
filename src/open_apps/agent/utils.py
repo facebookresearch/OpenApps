@@ -1,10 +1,12 @@
 import base64
 import io
 import dataclasses
-import numpy as np
-
+import json
 import logging
 import re
+from pathlib import Path
+
+import numpy as np
 
 from agentlab.llm.llm_utils import ParseError
 
@@ -274,5 +276,37 @@ def uitars_parser(result):
         key_comb = re.findall(r"hotkey\(key='(.*?)'\)", result["action"])
         if key_comb:
             result["action"] = f"keyboard_press(key='{key_comb[0]}')"
-    
+
     return result
+
+
+def save_som_coordinates(obs: dict, step: int, save_dir: Path):
+    """Write SOM bounding boxes for one step into set_of_marks_coordinates.json."""
+    bid_names = {}
+    for node in obs.get("axtree_object", {}).get("nodes", []):
+        bid = node.get("browsergym_id")
+        if bid:
+            bid_names[bid] = {
+                "name": node.get("name", {}).get("value", ""),
+                "role": node.get("role", {}).get("value", ""),
+            }
+    step_marks = {}
+    for bid, props in obs.get("extra_element_properties", {}).items():
+        if props.get("set_of_marks") and props.get("bbox") is not None:
+            x, y, w, h = props["bbox"]
+            step_marks[bid] = {
+                "name": bid_names.get(bid, {}).get("name", ""),
+                "role": bid_names.get(bid, {}).get("role", ""),
+                "bbox": {"x": x, "y": y, "width": w, "height": h},
+                "bbox_xyxy": [x, y, x + w, y + h],
+                "visibility": props.get("visibility"),
+                "clickable": props.get("clickable"),
+            }
+    som_file = save_dir / "set_of_marks_coordinates.json"
+    existing = []
+    if som_file.exists():
+        with open(som_file) as f:
+            existing = json.load(f)
+    existing.append({"step": step, "marks": step_marks})
+    with open(som_file, "w") as f:
+        json.dump(existing, f, indent=2)
