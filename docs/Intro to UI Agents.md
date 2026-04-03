@@ -19,6 +19,15 @@ Agents receive a screenshot of the current apps (in the same manner a human sees
 
 The agent then outputs an action such as `click` or `type` that directly affects the apps. Throughout the interaction we monitor whether the action has completed the task to terminate the loop or a `max_steps` is reached.
 
+You can view configs for `configs/agents/default.yaml` containing:
+
+- list of actions
+- `use_axtree`: produces simplified text representation of each app states as an input
+- `use_screenshot`: provides screenshot of app as an input
+- `save_som`: if true, saves set of marks in `log_outputs/<timestamp>/set_of_marks_coordinates.json` json (see example below)
+
+
+You can view `UI-Tars-1.5-7B.yaml` as an example of native computer-use which uses screenshots to output click, type, actions with coordinates. For an example of a multimodal agent that accepts simplified text inputs see `GPT-5.1.yaml`.
 
 
 ## OpenApps: building blocks for digital agent research
