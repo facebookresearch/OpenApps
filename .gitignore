@@ -195,3 +195,5 @@ src/open_apps/apps/onlineshop_app/goals*
 .vscode/settings.json
 
 CLAUDE.md
+
+tests/generated_screenshots/.runtime/*
