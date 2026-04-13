@@ -193,3 +193,7 @@ src/open_apps/apps/onlineshop_app/goals*
 
 .vscode/*
 .vscode/settings.json
+
+CLAUDE.md
+
+tests/generated_screenshots/.runtime/*

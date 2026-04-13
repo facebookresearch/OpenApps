@@ -113,6 +113,8 @@ Or specific apps with: `apps/calendar/content=$CONTENT`.
 
 You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
 
+Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
+
 ## Launch Agent
 
 For agents to directly interact with apps, install: `playwright install chromium`.
