@@ -2,6 +2,7 @@
 import dataclasses
 from dataclasses import asdict
 import logging
+from pathlib import Path
 from typing import Any
 
 # --- Project Imports ---
@@ -15,7 +16,7 @@ from agentlab.llm.llm_utils import (
     ParseError,
     SystemMessage,
 )
-from .utils import CustomActionSetArgs, retry
+from .utils import CustomActionSetArgs, retry, save_som_coordinates
 from .vLLM_prompt import VllmMainPrompt, PromptFlags
 
 from anthropic import AnthropicBedrock
@@ -189,7 +190,7 @@ class AgentArgs(AgentLabAgentArgs):
     use_html: bool = False
     use_axtree: bool = False
     use_screenshot: bool = False
-    use_som: bool = False
+    save_som: bool = False
     extract_visible_tag: bool = False
     extract_clickable_tag: bool = False
     extract_coords: bool = False
@@ -204,6 +205,8 @@ class AgentArgs(AgentLabAgentArgs):
     use_history: bool = False  # enable history
     use_action_history: bool = False  # enable action history
     use_think_history: bool = False  # enable think history
+    # --- Output Flags ---
+    save_dir: str = None  # directory to save set_of_marks_coordinates.json; set by launcher
     # --- Prompt Flags ---
     prompt_txt: dict = dataclasses.field(
         default_factory=dict
@@ -233,7 +236,7 @@ class AgentArgs(AgentLabAgentArgs):
                 use_focused_element=self.use_focused_element,
                 # --- ARGS for screenshot ---
                 use_screenshot=self.use_screenshot,
-                use_som=self.use_som,
+                use_som=self.save_som,
                 extract_visible_tag=self.extract_visible_tag,
                 extract_clickable_tag=self.extract_clickable_tag,
                 extract_coords=self.extract_coords,
@@ -284,6 +287,7 @@ class AgentArgs(AgentLabAgentArgs):
             chat_model_args=self.make_chat_model_flags(),
             flags=self.make_flags(),
             prompt_txt=self.prompt_txt,
+            save_dir=self.save_dir,
         )
 
 
@@ -294,6 +298,7 @@ class VLLMAgent(Agent):
         flags: PromptFlags,
         prompt_txt: dict,
         max_retry: int = 3,
+        save_dir: str = None,
     ):
         logging.info("Initializing vllmAgent with flags: %s", asdict(flags))
         self.chat_llm = chat_model_args.make_model()
@@ -303,6 +308,7 @@ class VLLMAgent(Agent):
         self.action_set = flags.action.action_set.make_action_set()
         self._obs_preprocessor = dp.make_obs_preprocessor(flags.obs)
         self.prompt_txt = prompt_txt
+        self.save_dir = Path(save_dir) if save_dir is not None else None
         self.reset(seed=None)
         self.obs_history = []
 
@@ -312,6 +318,7 @@ class VLLMAgent(Agent):
     def get_action(self, obs: Any):
 
         self.obs_history.append(obs)
+        self._save_som_coordinates(obs)
         main_prompt = VllmMainPrompt(
             action_set=self.action_set,
             obs_history=self.obs_history,
@@ -364,6 +371,11 @@ class VLLMAgent(Agent):
             extra_info={"chat_model_args": asdict(self.chat_model_args)},
         )
         return ans_dict["action"], agent_info
+
+    def _save_som_coordinates(self, obs: dict):
+        if self.save_dir is None:
+            return
+        save_som_coordinates(obs, step=len(self.obs_history) - 1, save_dir=self.save_dir)
 
     def reset(self, seed=None):
         self.seed = seed

@@ -7,5 +7,6 @@ model_pretty_name: dummy # for wandb-logging
 use_html: True
 use_axtree: True
 use_screenshot: True
+save_som: False # set to True to save set_of_marks_coordinates.json
 hostname: "no host name for dumb dumbs" # dummy agent does not use hostname
 client_type: dummy

@@ -5,7 +5,7 @@ custom_actions: ["click", "fill", "dblclick", "clear", "select_option", "drag_an
 # --- observation flags ---
 use_axtree: True # enable AXTREE observation
 use_screenshot: False # enable screenshot observation
-use_som: False  # Add a set of marks to the screenshot.
+save_som: False  # Add a set of marks to the screenshot.
 extract_coords: False # Add the coordinates of the elements.
 
 # --- Prompt Flags ---
