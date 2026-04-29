@@ -1,0 +1,604 @@
+[
+  {
+    "question": "How many todo items are currently marked as done (checked off)?",
+    "choices": {
+      "A": "3",
+      "B": "2",
+      "C": "4",
+      "D": "5"
+    },
+    "correct": "C",
+    "category": "element_counting",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "How many todo items are currently marked as done (checked off)?\n  A) 3\n  B) 2\n  C) 4\n  D) 5"
+  },
+  {
+    "question": "How many todo items are still incomplete (not checked off)?",
+    "choices": {
+      "A": "12",
+      "B": "9",
+      "C": "10",
+      "D": "11"
+    },
+    "correct": "D",
+    "category": "element_counting",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "How many todo items are still incomplete (not checked off)?\n  A) 12\n  B) 9\n  C) 10\n  D) 11"
+  },
+  {
+    "question": "How many todo items are displayed in the list in total?",
+    "choices": {
+      "A": "16",
+      "B": "17",
+      "C": "15",
+      "D": "14"
+    },
+    "correct": "C",
+    "category": "element_counting",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "How many todo items are displayed in the list in total?\n  A) 16\n  B) 17\n  C) 15\n  D) 14"
+  },
+  {
+    "question": "Which of the following todo items is currently marked as done (checked)?",
+    "choices": {
+      "A": "Meditate for 30",
+      "B": "Tidy living room",
+      "C": "Visit grandma",
+      "D": "Plan weekly meals"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is currently marked as done (checked)?\n  A) Meditate for 30\n  B) Tidy living room\n  C) Visit grandma\n  D) Plan weekly meals"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Book doctor appointment.",
+      "B": "Tidy living room",
+      "C": "Buy groceries",
+      "D": "Water plants"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Book doctor appointment.\n  B) Tidy living room\n  C) Buy groceries\n  D) Water plants"
+  },
+  {
+    "question": "What is the first todo item shown at the top of the list?",
+    "choices": {
+      "A": "Update calendar",
+      "B": "Read before bed",
+      "C": "Visit grandma",
+      "D": "Check budget"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What is the first todo item shown at the top of the list?\n  A) Update calendar\n  B) Read before bed\n  C) Visit grandma\n  D) Check budget"
+  },
+  {
+    "question": "What is the last todo item shown at the bottom of the list?",
+    "choices": {
+      "A": "Check budget",
+      "B": "Walk for 20 minutes",
+      "C": "Sort medical papers",
+      "D": "Read before bed"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What is the last todo item shown at the bottom of the list?\n  A) Check budget\n  B) Walk for 20 minutes\n  C) Sort medical papers\n  D) Read before bed"
+  },
+  {
+    "question": "What happens when you click the checkbox next to a todo item?",
+    "choices": {
+      "A": "Deletes the todo item",
+      "B": "Toggles the item between done and not done",
+      "C": "Selects the item for bulk actions",
+      "D": "Opens the item for editing"
+    },
+    "correct": "B",
+    "category": "element_interaction",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What happens when you click the checkbox next to a todo item?\n  A) Deletes the todo item\n  B) Toggles the item between done and not done\n  C) Selects the item for bulk actions\n  D) Opens the item for editing"
+  },
+  {
+    "question": "What type of UI element is used to mark a todo item as complete?",
+    "choices": {
+      "A": "Toggle switch",
+      "B": "Radio button",
+      "C": "Button labeled 'Done'",
+      "D": "Checkbox"
+    },
+    "correct": "D",
+    "category": "element_identification",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What type of UI element is used to mark a todo item as complete?\n  A) Toggle switch\n  B) Radio button\n  C) Button labeled 'Done'\n  D) Checkbox"
+  },
+  {
+    "question": "What two action buttons appear next to each todo item?",
+    "choices": {
+      "A": "Delete and Archive",
+      "B": "Complete and Skip",
+      "C": "Edit and Remove",
+      "D": "Save and Cancel"
+    },
+    "correct": "C",
+    "category": "element_identification",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What two action buttons appear next to each todo item?\n  A) Delete and Archive\n  B) Complete and Skip\n  C) Edit and Remove\n  D) Save and Cancel"
+  },
+  {
+    "question": "What placeholder text is shown in the input field for adding a new todo?",
+    "choices": {
+      "A": "Type a new item",
+      "B": "Enter todo here",
+      "C": "Add a task",
+      "D": "New Todo"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What placeholder text is shown in the input field for adding a new todo?\n  A) Type a new item\n  B) Enter todo here\n  C) Add a task\n  D) New Todo"
+  },
+  {
+    "question": "What is the label on the button used to add a new todo item?",
+    "choices": {
+      "A": "Add",
+      "B": "Submit",
+      "C": "Create",
+      "D": "Save"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What is the label on the button used to add a new todo item?\n  A) Add\n  B) Submit\n  C) Create\n  D) Save"
+  },
+  {
+    "question": "What title is displayed at the top of the todo app page?",
+    "choices": {
+      "A": "OpenTodos",
+      "B": "Todo List",
+      "C": "Task Manager",
+      "D": "My Tasks"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What title is displayed at the top of the todo app page?\n  A) OpenTodos\n  B) Todo List\n  C) Task Manager\n  D) My Tasks"
+  },
+  {
+    "question": "What is the 3rd todo item in the list?",
+    "choices": {
+      "A": "Answer emails",
+      "B": "Water plants",
+      "C": "Call Aunt Lisa",
+      "D": "Plan weekly meals"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 3rd todo item in the list?\n  A) Answer emails\n  B) Water plants\n  C) Call Aunt Lisa\n  D) Plan weekly meals"
+  },
+  {
+    "question": "Which of the following items does NOT appear in the todo list?",
+    "choices": {
+      "A": "Plan weekly meals",
+      "B": "Return library books",
+      "C": "Check budget",
+      "D": "Tidy living room"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which of the following items does NOT appear in the todo list?\n  A) Plan weekly meals\n  B) Return library books\n  C) Check budget\n  D) Tidy living room"
+  },
+  {
+    "question": "How do you navigate back to the main app list from the todo app?",
+    "choices": {
+      "A": "A home icon in the top navigation bar",
+      "B": "A back arrow button in the header",
+      "C": "A 'Return to List of Apps' link at the bottom",
+      "D": "Clicking the app logo/title"
+    },
+    "correct": "C",
+    "category": "navigation",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "How do you navigate back to the main app list from the todo app?\n  A) A home icon in the top navigation bar\n  B) A back arrow button in the header\n  C) A 'Return to List of Apps' link at the bottom\n  D) Clicking the app logo/title"
+  },
+  {
+    "question": "How many events are stored in the calendar in total?",
+    "choices": {
+      "A": "47",
+      "B": "45",
+      "C": "50",
+      "D": "49"
+    },
+    "correct": "A",
+    "category": "element_counting",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How many events are stored in the calendar in total?\n  A) 47\n  B) 45\n  C) 50\n  D) 49"
+  },
+  {
+    "question": "How many birthday events are on the calendar?",
+    "choices": {
+      "A": "24",
+      "B": "21",
+      "C": "20",
+      "D": "18"
+    },
+    "correct": "B",
+    "category": "element_counting",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How many birthday events are on the calendar?\n  A) 24\n  B) 21\n  C) 20\n  D) 18"
+  },
+  {
+    "question": "What type of UI element is used to choose how often a calendar event recurs?",
+    "choices": {
+      "A": "A dropdown/select menu with options like Weekly, Monthly, Yearly",
+      "B": "Checkboxes for each day of the week",
+      "C": "A text input where you type the recurrence",
+      "D": "Radio buttons for each recurrence type"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What type of UI element is used to choose how often a calendar event recurs?\n  A) A dropdown/select menu with options like Weekly, Monthly, Yearly\n  B) Checkboxes for each day of the week\n  C) A text input where you type the recurrence\n  D) Radio buttons for each recurrence type"
+  },
+  {
+    "question": "What two view modes can you toggle between on the calendar page?",
+    "choices": {
+      "A": "Calendar (grid) and Agenda (list)",
+      "B": "Day and Week views",
+      "C": "Month and Year views",
+      "D": "Timeline and Board views"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What two view modes can you toggle between on the calendar page?\n  A) Calendar (grid) and Agenda (list)\n  B) Day and Week views\n  C) Month and Year views\n  D) Timeline and Board views"
+  },
+  {
+    "question": "Which of the following events appears on the calendar?",
+    "choices": {
+      "A": "Team Standup Meeting",
+      "B": "Mom's Anniversary",
+      "C": "IJCNN 2026 Deadline",
+      "D": "Dentist Appointment"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "Which of the following events appears on the calendar?\n  A) Team Standup Meeting\n  B) Mom's Anniversary\n  C) IJCNN 2026 Deadline\n  D) Dentist Appointment"
+  },
+  {
+    "question": "What date is the event 'WSDM 2026 Abstract Deadline' scheduled for?",
+    "choices": {
+      "A": "2025-07-24",
+      "B": "2025-08-07",
+      "C": "2025-07-31",
+      "D": "2026-01-31"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'WSDM 2026 Abstract Deadline' scheduled for?\n  A) 2025-07-24\n  B) 2025-08-07\n  C) 2025-07-31\n  D) 2026-01-31"
+  },
+  {
+    "question": "What fields are available in the form to create a new calendar event?",
+    "choices": {
+      "A": "Title, Date, Description, URL, Invitees, Location, Recurring",
+      "B": "Title, Start Date, End Date, All Day, Reminders",
+      "C": "Title, Date, Time, Priority, Color",
+      "D": "Title, Date, Category, Assignee, Status"
+    },
+    "correct": "A",
+    "category": "form_structure",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What fields are available in the form to create a new calendar event?\n  A) Title, Date, Description, URL, Invitees, Location, Recurring\n  B) Title, Start Date, End Date, All Day, Reminders\n  C) Title, Date, Time, Priority, Color\n  D) Title, Date, Category, Assignee, Status"
+  },
+  {
+    "question": "How do you navigate to a different month on the calendar?",
+    "choices": {
+      "A": "A dropdown to select the month",
+      "B": "'< Prev' and 'Next >' buttons flanking the month name",
+      "C": "Swiping gestures on the calendar grid",
+      "D": "Left and right arrow keys"
+    },
+    "correct": "B",
+    "category": "navigation",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How do you navigate to a different month on the calendar?\n  A) A dropdown to select the month\n  B) '< Prev' and 'Next >' buttons flanking the month name\n  C) Swiping gestures on the calendar grid\n  D) Left and right arrow keys"
+  },
+  {
+    "question": "How do you delete an event from the calendar?",
+    "choices": {
+      "A": "A swipe-to-delete gesture on the event",
+      "B": "Right-clicking the event and selecting 'Delete'",
+      "C": "Dragging the event to a trash icon",
+      "D": "A 'Delete Event' button on the event detail page"
+    },
+    "correct": "D",
+    "category": "element_interaction",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How do you delete an event from the calendar?\n  A) A swipe-to-delete gesture on the event\n  B) Right-clicking the event and selecting 'Delete'\n  C) Dragging the event to a trash icon\n  D) A 'Delete Event' button on the event detail page"
+  },
+  {
+    "question": "How many conversations are shown in the messenger app?",
+    "choices": {
+      "A": "6",
+      "B": "4",
+      "C": "2",
+      "D": "5"
+    },
+    "correct": "B",
+    "category": "element_counting",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "How many conversations are shown in the messenger app?\n  A) 6\n  B) 4\n  C) 2\n  D) 5"
+  },
+  {
+    "question": "Which of the following contacts appears in the messenger?",
+    "choices": {
+      "A": "Frank",
+      "B": "Henry",
+      "C": "Eve",
+      "D": "Charlie"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contacts appears in the messenger?\n  A) Frank\n  B) Henry\n  C) Eve\n  D) Charlie"
+  },
+  {
+    "question": "How many messages are in the conversation with Bob?",
+    "choices": {
+      "A": "7",
+      "B": "5",
+      "C": "6",
+      "D": "2"
+    },
+    "correct": "B",
+    "category": "element_counting",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "How many messages are in the conversation with Bob?\n  A) 7\n  B) 5\n  C) 6\n  D) 2"
+  },
+  {
+    "question": "What icon or label is on the button to send a message in the messenger?",
+    "choices": {
+      "A": "The word 'Send'",
+      "B": "A checkmark icon",
+      "C": "An arrow pointing right",
+      "D": "A paper plane icon"
+    },
+    "correct": "D",
+    "category": "element_identification",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "What icon or label is on the button to send a message in the messenger?\n  A) The word 'Send'\n  B) A checkmark icon\n  C) An arrow pointing right\n  D) A paper plane icon"
+  },
+  {
+    "question": "How do you search for messages within a conversation?",
+    "choices": {
+      "A": "There is no search feature in conversations",
+      "B": "A keyboard shortcut (Ctrl+F)",
+      "C": "A magnifying glass icon button in the chat header that reveals a search bar",
+      "D": "A search bar always visible at the top of the chat"
+    },
+    "correct": "C",
+    "category": "element_interaction",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "How do you search for messages within a conversation?\n  A) There is no search feature in conversations\n  B) A keyboard shortcut (Ctrl+F)\n  C) A magnifying glass icon button in the chat header that reveals a search bar\n  D) A search bar always visible at the top of the chat"
+  },
+  {
+    "question": "Is there a group chat visible in the messenger?",
+    "choices": {
+      "A": "Yes \u2014 'Team Chat'",
+      "B": "No, only individual conversations",
+      "C": "Yes \u2014 'General Channel'",
+      "D": "Yes \u2014 'Fantastic4GroupChat'"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Is there a group chat visible in the messenger?\n  A) Yes \u2014 'Team Chat'\n  B) No, only individual conversations\n  C) Yes \u2014 'General Channel'\n  D) Yes \u2014 'Fantastic4GroupChat'"
+  },
+  {
+    "question": "How many saved locations (bookmarked places) are shown on the map?",
+    "choices": {
+      "A": "5",
+      "B": "6",
+      "C": "8",
+      "D": "4"
+    },
+    "correct": "A",
+    "category": "element_counting",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "How many saved locations (bookmarked places) are shown on the map?\n  A) 5\n  B) 6\n  C) 8\n  D) 4"
+  },
+  {
+    "question": "Which of the following is a saved location on the map?",
+    "choices": {
+      "A": "Central Park",
+      "B": "Buckingham Palace",
+      "C": "Big Ben",
+      "D": "Eiffel Tower"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following is a saved location on the map?\n  A) Central Park\n  B) Buckingham Palace\n  C) Big Ben\n  D) Eiffel Tower"
+  },
+  {
+    "question": "How do you delete a saved location from the map?",
+    "choices": {
+      "A": "An 'x' button next to the location name in the sidebar list",
+      "B": "Right-clicking the map marker and selecting 'Remove'",
+      "C": "Dragging the marker off the map",
+      "D": "A 'Delete All' button at the bottom of the sidebar"
+    },
+    "correct": "A",
+    "category": "element_interaction",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "How do you delete a saved location from the map?\n  A) An 'x' button next to the location name in the sidebar list\n  B) Right-clicking the map marker and selecting 'Remove'\n  C) Dragging the marker off the map\n  D) A 'Delete All' button at the bottom of the sidebar"
+  },
+  {
+    "question": "Where is the sidebar that shows saved locations and search?",
+    "choices": {
+      "A": "On the left side of the page",
+      "B": "At the bottom of the page, below the map",
+      "C": "In a floating overlay on top of the map",
+      "D": "On the right side of the page, next to the map"
+    },
+    "correct": "D",
+    "category": "element_location",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Where is the sidebar that shows saved locations and search?\n  A) On the left side of the page\n  B) At the bottom of the page, below the map\n  C) In a floating overlay on top of the map\n  D) On the right side of the page, next to the map"
+  },
+  {
+    "question": "How is the search feature presented in the map app?",
+    "choices": {
+      "A": "A dropdown with predefined locations to choose from",
+      "B": "A voice-activated search with a microphone icon",
+      "C": "A search icon that expands into an overlay search bar",
+      "D": "A text input with placeholder 'Search location...' and a 'Search' button"
+    },
+    "correct": "D",
+    "category": "element_identification",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "How is the search feature presented in the map app?\n  A) A dropdown with predefined locations to choose from\n  B) A voice-activated search with a microphone icon\n  C) A search icon that expands into an overlay search bar\n  D) A text input with placeholder 'Search location...' and a 'Search' button"
+  },
+  {
+    "question": "How many app tiles are displayed on the start (home) page?",
+    "choices": {
+      "A": "8",
+      "B": "6",
+      "C": "5",
+      "D": "4"
+    },
+    "correct": "B",
+    "category": "element_counting",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "How many app tiles are displayed on the start (home) page?\n  A) 8\n  B) 6\n  C) 5\n  D) 4"
+  },
+  {
+    "question": "Which of the following is NOT an app shown on the start page?",
+    "choices": {
+      "A": "OpenTodos",
+      "B": "OpenCalendar",
+      "C": "OpenMessages",
+      "D": "OpenNotes"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenTodos\n  B) OpenCalendar\n  C) OpenMessages\n  D) OpenNotes"
+  },
+  {
+    "question": "What headline text is displayed on the start page?",
+    "choices": {
+      "A": "Home",
+      "B": "App Dashboard",
+      "C": "Welcome to OpenApps!",
+      "D": "My Apps"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "What headline text is displayed on the start page?\n  A) Home\n  B) App Dashboard\n  C) Welcome to OpenApps!\n  D) My Apps"
+  },
+  {
+    "question": "How are apps visually presented on the start page?",
+    "choices": {
+      "A": "A plain text list of links",
+      "B": "A horizontal scrolling carousel of screenshots",
+      "C": "Colored tiles/cards with an icon, title, and description in a grid",
+      "D": "A sidebar navigation menu"
+    },
+    "correct": "C",
+    "category": "element_identification",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "How are apps visually presented on the start page?\n  A) A plain text list of links\n  B) A horizontal scrolling carousel of screenshots\n  C) Colored tiles/cards with an icon, title, and description in a grid\n  D) A sidebar navigation menu"
+  },
+  {
+    "question": "Which app uses an HTML table as its main layout element?",
+    "choices": {
+      "A": "Calendar (for the monthly grid view)",
+      "B": "Todo (for the task list)",
+      "C": "Maps (for the saved locations list)",
+      "D": "Messenger (for the conversation list)"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "cross_app",
+    "difficulty": "hard",
+    "formatted": "Which app uses an HTML table as its main layout element?\n  A) Calendar (for the monthly grid view)\n  B) Todo (for the task list)\n  C) Maps (for the saved locations list)\n  D) Messenger (for the conversation list)"
+  },
+  {
+    "question": "Which apps include a search feature?",
+    "choices": {
+      "A": "Only the Online Shop",
+      "B": "Maps, Messenger, and Online Shop",
+      "C": "All apps have search",
+      "D": "Only Maps and Online Shop"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "cross_app",
+    "difficulty": "hard",
+    "formatted": "Which apps include a search feature?\n  A) Only the Online Shop\n  B) Maps, Messenger, and Online Shop\n  C) All apps have search\n  D) Only Maps and Online Shop"
+  },
+  {
+    "question": "Do all sub-apps provide a way to navigate back to the main start page?",
+    "choices": {
+      "A": "No, you must use the browser back button from some apps",
+      "B": "No, only the Todo and Calendar apps have it",
+      "C": "Yes, every app has a 'Return to List of Apps' link or button",
+      "D": "Only the start page has navigation links to other apps"
+    },
+    "correct": "C",
+    "category": "navigation",
+    "app": "cross_app",
+    "difficulty": "easy",
+    "formatted": "Do all sub-apps provide a way to navigate back to the main start page?\n  A) No, you must use the browser back button from some apps\n  B) No, only the Todo and Calendar apps have it\n  C) Yes, every app has a 'Return to List of Apps' link or button\n  D) Only the start page has navigation links to other apps"
+  }
+]
