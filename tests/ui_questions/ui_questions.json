@@ -11,7 +11,8 @@
     "category": "element_counting",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "How many todo items are currently marked as done (checked off)?\n  A) 3\n  B) 2\n  C) 4\n  D) 5"
+    "formatted": "How many todo items are currently marked as done (checked off)?\n  A) 3\n  B) 2\n  C) 4\n  D) 5",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "How many todo items are still incomplete (not checked off)?",
@@ -25,7 +26,8 @@
     "category": "element_counting",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "How many todo items are still incomplete (not checked off)?\n  A) 12\n  B) 9\n  C) 10\n  D) 11"
+    "formatted": "How many todo items are still incomplete (not checked off)?\n  A) 12\n  B) 9\n  C) 10\n  D) 11",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "How many todo items are displayed in the list in total?",
@@ -39,111 +41,839 @@
     "category": "element_counting",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "How many todo items are displayed in the list in total?\n  A) 16\n  B) 17\n  C) 15\n  D) 14"
+    "formatted": "How many todo items are displayed in the list in total?\n  A) 16\n  B) 17\n  C) 15\n  D) 14",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "Which of the following todo items is currently marked as done (checked)?",
     "choices": {
-      "A": "Meditate for 30",
-      "B": "Tidy living room",
-      "C": "Visit grandma",
-      "D": "Plan weekly meals"
+      "A": "Book doctor appointment.",
+      "B": "Visit grandma",
+      "C": "Check budget",
+      "D": "Make fruit salad"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is currently marked as done (checked)?\n  A) Book doctor appointment.\n  B) Visit grandma\n  C) Check budget\n  D) Make fruit salad",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is currently marked as done (checked)?",
+    "choices": {
+      "A": "Check budget",
+      "B": "Call Aunt Lisa",
+      "C": "Plan weekly meals",
+      "D": "Walk for 20 minutes"
     },
     "correct": "B",
     "category": "element_state",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "Which of the following todo items is currently marked as done (checked)?\n  A) Meditate for 30\n  B) Tidy living room\n  C) Visit grandma\n  D) Plan weekly meals"
+    "formatted": "Which of the following todo items is currently marked as done (checked)?\n  A) Check budget\n  B) Call Aunt Lisa\n  C) Plan weekly meals\n  D) Walk for 20 minutes",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is currently marked as done (checked)?",
+    "choices": {
+      "A": "Tidy living room",
+      "B": "Read before bed",
+      "C": "Sort medical papers",
+      "D": "Meditate for 30"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is currently marked as done (checked)?\n  A) Tidy living room\n  B) Read before bed\n  C) Sort medical papers\n  D) Meditate for 30",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is currently marked as done (checked)?",
+    "choices": {
+      "A": "Update calendar",
+      "B": "Answer emails",
+      "C": "Visit grandma",
+      "D": "Water plants"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is currently marked as done (checked)?\n  A) Update calendar\n  B) Answer emails\n  C) Visit grandma\n  D) Water plants",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Call Aunt Lisa",
+      "B": "Visit grandma",
+      "C": "Water plants",
+      "D": "Tidy living room"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Call Aunt Lisa\n  B) Visit grandma\n  C) Water plants\n  D) Tidy living room",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Book doctor appointment.",
+      "B": "Water plants",
+      "C": "Sort medical papers",
+      "D": "Tidy living room"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Book doctor appointment.\n  B) Water plants\n  C) Sort medical papers\n  D) Tidy living room",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Plan weekly meals",
+      "B": "Book doctor appointment.",
+      "C": "Call Aunt Lisa",
+      "D": "Tidy living room"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Plan weekly meals\n  B) Book doctor appointment.\n  C) Call Aunt Lisa\n  D) Tidy living room",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Buy groceries",
+      "B": "Tidy living room",
+      "C": "Water plants",
+      "D": "Call Aunt Lisa"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Buy groceries\n  B) Tidy living room\n  C) Water plants\n  D) Call Aunt Lisa",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Tidy living room",
+      "B": "Water plants",
+      "C": "Check budget",
+      "D": "Book doctor appointment."
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Tidy living room\n  B) Water plants\n  C) Check budget\n  D) Book doctor appointment.",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Water plants",
+      "B": "Book doctor appointment.",
+      "C": "Walk for 20 minutes",
+      "D": "Call Aunt Lisa"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Water plants\n  B) Book doctor appointment.\n  C) Walk for 20 minutes\n  D) Call Aunt Lisa",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "Which of the following todo items is still incomplete (not checked)?",
     "choices": {
       "A": "Book doctor appointment.",
       "B": "Tidy living room",
-      "C": "Buy groceries",
-      "D": "Water plants"
+      "C": "Meditate for 30",
+      "D": "Call Aunt Lisa"
     },
     "correct": "C",
     "category": "element_state",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Book doctor appointment.\n  B) Tidy living room\n  C) Buy groceries\n  D) Water plants"
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Book doctor appointment.\n  B) Tidy living room\n  C) Meditate for 30\n  D) Call Aunt Lisa",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Update calendar",
+      "B": "Tidy living room",
+      "C": "Book doctor appointment.",
+      "D": "Call Aunt Lisa"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Update calendar\n  B) Tidy living room\n  C) Book doctor appointment.\n  D) Call Aunt Lisa",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Answer emails",
+      "B": "Book doctor appointment.",
+      "C": "Water plants",
+      "D": "Call Aunt Lisa"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Answer emails\n  B) Book doctor appointment.\n  C) Water plants\n  D) Call Aunt Lisa",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Water plants",
+      "B": "Call Aunt Lisa",
+      "C": "Make fruit salad",
+      "D": "Tidy living room"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Water plants\n  B) Call Aunt Lisa\n  C) Make fruit salad\n  D) Tidy living room",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following todo items is still incomplete (not checked)?",
+    "choices": {
+      "A": "Water plants",
+      "B": "Book doctor appointment.",
+      "C": "Tidy living room",
+      "D": "Read before bed"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "Which of the following todo items is still incomplete (not checked)?\n  A) Water plants\n  B) Book doctor appointment.\n  C) Tidy living room\n  D) Read before bed",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Visit grandma'?",
+    "choices": {
+      "A": "Checked (done)",
+      "B": "Unchecked (not done)",
+      "C": "Grayed out (archived)",
+      "D": "Highlighted (in progress)"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Visit grandma'?\n  A) Checked (done)\n  B) Unchecked (not done)\n  C) Grayed out (archived)\n  D) Highlighted (in progress)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Sort medical papers'?",
+    "choices": {
+      "A": "Unchecked (not done)",
+      "B": "Grayed out (archived)",
+      "C": "Checked (done)",
+      "D": "Highlighted (in progress)"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Sort medical papers'?\n  A) Unchecked (not done)\n  B) Grayed out (archived)\n  C) Checked (done)\n  D) Highlighted (in progress)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Plan weekly meals'?",
+    "choices": {
+      "A": "Checked (done)",
+      "B": "Unchecked (not done)",
+      "C": "Highlighted (in progress)",
+      "D": "Grayed out (archived)"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Plan weekly meals'?\n  A) Checked (done)\n  B) Unchecked (not done)\n  C) Highlighted (in progress)\n  D) Grayed out (archived)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Book doctor appointment.'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Unchecked (not done)",
+      "C": "Grayed out (archived)",
+      "D": "Checked (done)"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Book doctor appointment.'?\n  A) Highlighted (in progress)\n  B) Unchecked (not done)\n  C) Grayed out (archived)\n  D) Checked (done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Buy groceries'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Checked (done)",
+      "C": "Unchecked (not done)",
+      "D": "Grayed out (archived)"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Buy groceries'?\n  A) Highlighted (in progress)\n  B) Checked (done)\n  C) Unchecked (not done)\n  D) Grayed out (archived)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Call Aunt Lisa'?",
+    "choices": {
+      "A": "Grayed out (archived)",
+      "B": "Unchecked (not done)",
+      "C": "Checked (done)",
+      "D": "Highlighted (in progress)"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Call Aunt Lisa'?\n  A) Grayed out (archived)\n  B) Unchecked (not done)\n  C) Checked (done)\n  D) Highlighted (in progress)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Check budget'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Checked (done)",
+      "C": "Grayed out (archived)",
+      "D": "Unchecked (not done)"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Check budget'?\n  A) Highlighted (in progress)\n  B) Checked (done)\n  C) Grayed out (archived)\n  D) Unchecked (not done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Tidy living room'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Checked (done)",
+      "C": "Grayed out (archived)",
+      "D": "Unchecked (not done)"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Tidy living room'?\n  A) Highlighted (in progress)\n  B) Checked (done)\n  C) Grayed out (archived)\n  D) Unchecked (not done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Walk for 20 minutes'?",
+    "choices": {
+      "A": "Checked (done)",
+      "B": "Unchecked (not done)",
+      "C": "Highlighted (in progress)",
+      "D": "Grayed out (archived)"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Walk for 20 minutes'?\n  A) Checked (done)\n  B) Unchecked (not done)\n  C) Highlighted (in progress)\n  D) Grayed out (archived)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Meditate for 30'?",
+    "choices": {
+      "A": "Grayed out (archived)",
+      "B": "Unchecked (not done)",
+      "C": "Highlighted (in progress)",
+      "D": "Checked (done)"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Meditate for 30'?\n  A) Grayed out (archived)\n  B) Unchecked (not done)\n  C) Highlighted (in progress)\n  D) Checked (done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Update calendar'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Checked (done)",
+      "C": "Grayed out (archived)",
+      "D": "Unchecked (not done)"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Update calendar'?\n  A) Highlighted (in progress)\n  B) Checked (done)\n  C) Grayed out (archived)\n  D) Unchecked (not done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Answer emails'?",
+    "choices": {
+      "A": "Checked (done)",
+      "B": "Grayed out (archived)",
+      "C": "Unchecked (not done)",
+      "D": "Highlighted (in progress)"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Answer emails'?\n  A) Checked (done)\n  B) Grayed out (archived)\n  C) Unchecked (not done)\n  D) Highlighted (in progress)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Water plants'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Checked (done)",
+      "C": "Unchecked (not done)",
+      "D": "Grayed out (archived)"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Water plants'?\n  A) Highlighted (in progress)\n  B) Checked (done)\n  C) Unchecked (not done)\n  D) Grayed out (archived)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Make fruit salad'?",
+    "choices": {
+      "A": "Checked (done)",
+      "B": "Grayed out (archived)",
+      "C": "Highlighted (in progress)",
+      "D": "Unchecked (not done)"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Make fruit salad'?\n  A) Checked (done)\n  B) Grayed out (archived)\n  C) Highlighted (in progress)\n  D) Unchecked (not done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the current state of the todo item 'Read before bed'?",
+    "choices": {
+      "A": "Highlighted (in progress)",
+      "B": "Checked (done)",
+      "C": "Grayed out (archived)",
+      "D": "Unchecked (not done)"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the current state of the todo item 'Read before bed'?\n  A) Highlighted (in progress)\n  B) Checked (done)\n  C) Grayed out (archived)\n  D) Unchecked (not done)",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What is the first todo item shown at the top of the list?",
     "choices": {
-      "A": "Update calendar",
-      "B": "Read before bed",
+      "A": "Plan weekly meals",
+      "B": "Meditate for 30",
       "C": "Visit grandma",
-      "D": "Check budget"
+      "D": "Read before bed"
     },
     "correct": "C",
     "category": "element_content",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "What is the first todo item shown at the top of the list?\n  A) Update calendar\n  B) Read before bed\n  C) Visit grandma\n  D) Check budget"
+    "formatted": "What is the first todo item shown at the top of the list?\n  A) Plan weekly meals\n  B) Meditate for 30\n  C) Visit grandma\n  D) Read before bed",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What is the last todo item shown at the bottom of the list?",
     "choices": {
-      "A": "Check budget",
-      "B": "Walk for 20 minutes",
+      "A": "Walk for 20 minutes",
+      "B": "Plan weekly meals",
+      "C": "Read before bed",
+      "D": "Buy groceries"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What is the last todo item shown at the bottom of the list?\n  A) Walk for 20 minutes\n  B) Plan weekly meals\n  C) Read before bed\n  D) Buy groceries",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 2nd todo item in the list?",
+    "choices": {
+      "A": "Sort medical papers",
+      "B": "Tidy living room",
+      "C": "Water plants",
+      "D": "Call Aunt Lisa"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 2nd todo item in the list?\n  A) Sort medical papers\n  B) Tidy living room\n  C) Water plants\n  D) Call Aunt Lisa",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 3rd todo item in the list?",
+    "choices": {
+      "A": "Buy groceries",
+      "B": "Make fruit salad",
       "C": "Sort medical papers",
-      "D": "Read before bed"
+      "D": "Plan weekly meals"
     },
     "correct": "D",
     "category": "element_content",
     "app": "todo",
-    "difficulty": "easy",
-    "formatted": "What is the last todo item shown at the bottom of the list?\n  A) Check budget\n  B) Walk for 20 minutes\n  C) Sort medical papers\n  D) Read before bed"
+    "difficulty": "medium",
+    "formatted": "What is the 3rd todo item in the list?\n  A) Buy groceries\n  B) Make fruit salad\n  C) Sort medical papers\n  D) Plan weekly meals",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 4th todo item in the list?",
+    "choices": {
+      "A": "Buy groceries",
+      "B": "Meditate for 30",
+      "C": "Book doctor appointment.",
+      "D": "Update calendar"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 4th todo item in the list?\n  A) Buy groceries\n  B) Meditate for 30\n  C) Book doctor appointment.\n  D) Update calendar",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 5th todo item in the list?",
+    "choices": {
+      "A": "Visit grandma",
+      "B": "Answer emails",
+      "C": "Buy groceries",
+      "D": "Water plants"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 5th todo item in the list?\n  A) Visit grandma\n  B) Answer emails\n  C) Buy groceries\n  D) Water plants",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 6th todo item in the list?",
+    "choices": {
+      "A": "Call Aunt Lisa",
+      "B": "Check budget",
+      "C": "Sort medical papers",
+      "D": "Read before bed"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 6th todo item in the list?\n  A) Call Aunt Lisa\n  B) Check budget\n  C) Sort medical papers\n  D) Read before bed",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 7th todo item in the list?",
+    "choices": {
+      "A": "Meditate for 30",
+      "B": "Book doctor appointment.",
+      "C": "Check budget",
+      "D": "Plan weekly meals"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 7th todo item in the list?\n  A) Meditate for 30\n  B) Book doctor appointment.\n  C) Check budget\n  D) Plan weekly meals",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 8th todo item in the list?",
+    "choices": {
+      "A": "Check budget",
+      "B": "Make fruit salad",
+      "C": "Book doctor appointment.",
+      "D": "Tidy living room"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 8th todo item in the list?\n  A) Check budget\n  B) Make fruit salad\n  C) Book doctor appointment.\n  D) Tidy living room",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 9th todo item in the list?",
+    "choices": {
+      "A": "Call Aunt Lisa",
+      "B": "Walk for 20 minutes",
+      "C": "Check budget",
+      "D": "Make fruit salad"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 9th todo item in the list?\n  A) Call Aunt Lisa\n  B) Walk for 20 minutes\n  C) Check budget\n  D) Make fruit salad",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What is the 10th todo item in the list?",
+    "choices": {
+      "A": "Read before bed",
+      "B": "Answer emails",
+      "C": "Make fruit salad",
+      "D": "Meditate for 30"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "What is the 10th todo item in the list?\n  A) Read before bed\n  B) Answer emails\n  C) Make fruit salad\n  D) Meditate for 30",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which todo item appears directly after 'Water plants' in the list?",
+    "choices": {
+      "A": "Sort medical papers",
+      "B": "Tidy living room",
+      "C": "Walk for 20 minutes",
+      "D": "Make fruit salad"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which todo item appears directly after 'Water plants' in the list?\n  A) Sort medical papers\n  B) Tidy living room\n  C) Walk for 20 minutes\n  D) Make fruit salad",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which todo item appears directly after 'Visit grandma' in the list?",
+    "choices": {
+      "A": "Sort medical papers",
+      "B": "Call Aunt Lisa",
+      "C": "Book doctor appointment.",
+      "D": "Buy groceries"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which todo item appears directly after 'Visit grandma' in the list?\n  A) Sort medical papers\n  B) Call Aunt Lisa\n  C) Book doctor appointment.\n  D) Buy groceries",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which todo item appears directly after 'Buy groceries' in the list?",
+    "choices": {
+      "A": "Walk for 20 minutes",
+      "B": "Call Aunt Lisa",
+      "C": "Visit grandma",
+      "D": "Book doctor appointment."
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which todo item appears directly after 'Buy groceries' in the list?\n  A) Walk for 20 minutes\n  B) Call Aunt Lisa\n  C) Visit grandma\n  D) Book doctor appointment.",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which todo item appears directly after 'Plan weekly meals' in the list?",
+    "choices": {
+      "A": "Book doctor appointment.",
+      "B": "Meditate for 30",
+      "C": "Walk for 20 minutes",
+      "D": "Check budget"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which todo item appears directly after 'Plan weekly meals' in the list?\n  A) Book doctor appointment.\n  B) Meditate for 30\n  C) Walk for 20 minutes\n  D) Check budget",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which todo item appears directly after 'Check budget' in the list?",
+    "choices": {
+      "A": "Buy groceries",
+      "B": "Book doctor appointment.",
+      "C": "Tidy living room",
+      "D": "Plan weekly meals"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which todo item appears directly after 'Check budget' in the list?\n  A) Buy groceries\n  B) Book doctor appointment.\n  C) Tidy living room\n  D) Plan weekly meals",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following items does NOT appear in the todo list?",
+    "choices": {
+      "A": "Visit grandma",
+      "B": "Answer emails",
+      "C": "Call Aunt Lisa",
+      "D": "Feed the cat"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which of the following items does NOT appear in the todo list?\n  A) Visit grandma\n  B) Answer emails\n  C) Call Aunt Lisa\n  D) Feed the cat",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following items does NOT appear in the todo list?",
+    "choices": {
+      "A": "Read before bed",
+      "B": "Make fruit salad",
+      "C": "Fix the sink",
+      "D": "Walk for 20 minutes"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which of the following items does NOT appear in the todo list?\n  A) Read before bed\n  B) Make fruit salad\n  C) Fix the sink\n  D) Walk for 20 minutes",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following items does NOT appear in the todo list?",
+    "choices": {
+      "A": "Make fruit salad",
+      "B": "Sort medical papers",
+      "C": "Plan weekly meals",
+      "D": "Paint the fence"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which of the following items does NOT appear in the todo list?\n  A) Make fruit salad\n  B) Sort medical papers\n  C) Plan weekly meals\n  D) Paint the fence",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "Which of the following items does NOT appear in the todo list?",
+    "choices": {
+      "A": "Meditate for 30",
+      "B": "Return library books",
+      "C": "Sort medical papers",
+      "D": "Check budget"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "todo",
+    "difficulty": "medium",
+    "formatted": "Which of the following items does NOT appear in the todo list?\n  A) Meditate for 30\n  B) Return library books\n  C) Sort medical papers\n  D) Check budget",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What happens when you click the checkbox next to a todo item?",
     "choices": {
-      "A": "Deletes the todo item",
-      "B": "Toggles the item between done and not done",
-      "C": "Selects the item for bulk actions",
-      "D": "Opens the item for editing"
+      "A": "Selects the item for bulk actions",
+      "B": "Opens the item for editing",
+      "C": "Deletes the todo item",
+      "D": "Toggles the item between done and not done"
     },
-    "correct": "B",
+    "correct": "D",
     "category": "element_interaction",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "What happens when you click the checkbox next to a todo item?\n  A) Deletes the todo item\n  B) Toggles the item between done and not done\n  C) Selects the item for bulk actions\n  D) Opens the item for editing"
+    "formatted": "What happens when you click the checkbox next to a todo item?\n  A) Selects the item for bulk actions\n  B) Opens the item for editing\n  C) Deletes the todo item\n  D) Toggles the item between done and not done",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What happens when you click the 'Edit' button on a todo item?",
+    "choices": {
+      "A": "Copies the item text to clipboard",
+      "B": "Deletes the item after confirmation",
+      "C": "Opens an inline edit form to change the item's title and status",
+      "D": "Marks the item as high priority"
+    },
+    "correct": "C",
+    "category": "element_interaction",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What happens when you click the 'Edit' button on a todo item?\n  A) Copies the item text to clipboard\n  B) Deletes the item after confirmation\n  C) Opens an inline edit form to change the item's title and status\n  D) Marks the item as high priority",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What happens when you click the 'Remove' button on a todo item?",
+    "choices": {
+      "A": "Permanently removes the todo item from the list",
+      "B": "Moves the item to a trash folder",
+      "C": "Hides the item but keeps it in the database",
+      "D": "Marks the item as done"
+    },
+    "correct": "A",
+    "category": "element_interaction",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What happens when you click the 'Remove' button on a todo item?\n  A) Permanently removes the todo item from the list\n  B) Moves the item to a trash folder\n  C) Hides the item but keeps it in the database\n  D) Marks the item as done",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What type of UI element is used to mark a todo item as complete?",
     "choices": {
-      "A": "Toggle switch",
-      "B": "Radio button",
-      "C": "Button labeled 'Done'",
-      "D": "Checkbox"
+      "A": "Checkbox",
+      "B": "Button labeled 'Done'",
+      "C": "Radio button",
+      "D": "Toggle switch"
     },
-    "correct": "D",
+    "correct": "A",
     "category": "element_identification",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "What type of UI element is used to mark a todo item as complete?\n  A) Toggle switch\n  B) Radio button\n  C) Button labeled 'Done'\n  D) Checkbox"
+    "formatted": "What type of UI element is used to mark a todo item as complete?\n  A) Checkbox\n  B) Button labeled 'Done'\n  C) Radio button\n  D) Toggle switch",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What two action buttons appear next to each todo item?",
     "choices": {
-      "A": "Delete and Archive",
-      "B": "Complete and Skip",
-      "C": "Edit and Remove",
-      "D": "Save and Cancel"
+      "A": "Save and Cancel",
+      "B": "Edit and Remove",
+      "C": "Delete and Archive",
+      "D": "Complete and Skip"
     },
-    "correct": "C",
+    "correct": "B",
     "category": "element_identification",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "What two action buttons appear next to each todo item?\n  A) Delete and Archive\n  B) Complete and Skip\n  C) Edit and Remove\n  D) Save and Cancel"
+    "formatted": "What two action buttons appear next to each todo item?\n  A) Save and Cancel\n  B) Edit and Remove\n  C) Delete and Archive\n  D) Complete and Skip",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What placeholder text is shown in the input field for adding a new todo?",
     "choices": {
-      "A": "Type a new item",
-      "B": "Enter todo here",
+      "A": "Enter todo here",
+      "B": "Type a new item",
       "C": "Add a task",
       "D": "New Todo"
     },
@@ -151,454 +881,2632 @@
     "category": "element_content",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "What placeholder text is shown in the input field for adding a new todo?\n  A) Type a new item\n  B) Enter todo here\n  C) Add a task\n  D) New Todo"
+    "formatted": "What placeholder text is shown in the input field for adding a new todo?\n  A) Enter todo here\n  B) Type a new item\n  C) Add a task\n  D) New Todo",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "What is the label on the button used to add a new todo item?",
     "choices": {
-      "A": "Add",
-      "B": "Submit",
+      "A": "Submit",
+      "B": "Save",
       "C": "Create",
-      "D": "Save"
-    },
-    "correct": "A",
-    "category": "element_content",
-    "app": "todo",
-    "difficulty": "easy",
-    "formatted": "What is the label on the button used to add a new todo item?\n  A) Add\n  B) Submit\n  C) Create\n  D) Save"
-  },
-  {
-    "question": "What title is displayed at the top of the todo app page?",
-    "choices": {
-      "A": "OpenTodos",
-      "B": "Todo List",
-      "C": "Task Manager",
-      "D": "My Tasks"
-    },
-    "correct": "A",
-    "category": "element_content",
-    "app": "todo",
-    "difficulty": "easy",
-    "formatted": "What title is displayed at the top of the todo app page?\n  A) OpenTodos\n  B) Todo List\n  C) Task Manager\n  D) My Tasks"
-  },
-  {
-    "question": "What is the 3rd todo item in the list?",
-    "choices": {
-      "A": "Answer emails",
-      "B": "Water plants",
-      "C": "Call Aunt Lisa",
-      "D": "Plan weekly meals"
+      "D": "Add"
     },
     "correct": "D",
     "category": "element_content",
     "app": "todo",
-    "difficulty": "medium",
-    "formatted": "What is the 3rd todo item in the list?\n  A) Answer emails\n  B) Water plants\n  C) Call Aunt Lisa\n  D) Plan weekly meals"
+    "difficulty": "easy",
+    "formatted": "What is the label on the button used to add a new todo item?\n  A) Submit\n  B) Save\n  C) Create\n  D) Add",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
-    "question": "Which of the following items does NOT appear in the todo list?",
+    "question": "What title is displayed at the top of the todo app page?",
     "choices": {
-      "A": "Plan weekly meals",
-      "B": "Return library books",
-      "C": "Check budget",
-      "D": "Tidy living room"
+      "A": "Task Manager",
+      "B": "My Tasks",
+      "C": "OpenTodos",
+      "D": "Todo List"
     },
-    "correct": "B",
+    "correct": "C",
     "category": "element_content",
     "app": "todo",
-    "difficulty": "medium",
-    "formatted": "Which of the following items does NOT appear in the todo list?\n  A) Plan weekly meals\n  B) Return library books\n  C) Check budget\n  D) Tidy living room"
+    "difficulty": "easy",
+    "formatted": "What title is displayed at the top of the todo app page?\n  A) Task Manager\n  B) My Tasks\n  C) OpenTodos\n  D) Todo List",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "How do you navigate back to the main app list from the todo app?",
     "choices": {
-      "A": "A home icon in the top navigation bar",
-      "B": "A back arrow button in the header",
-      "C": "A 'Return to List of Apps' link at the bottom",
-      "D": "Clicking the app logo/title"
+      "A": "Clicking the app logo/title",
+      "B": "A home icon in the top navigation bar",
+      "C": "A back arrow button in the header",
+      "D": "A 'Return to List of Apps' link at the bottom"
     },
-    "correct": "C",
+    "correct": "D",
     "category": "navigation",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "How do you navigate back to the main app list from the todo app?\n  A) A home icon in the top navigation bar\n  B) A back arrow button in the header\n  C) A 'Return to List of Apps' link at the bottom\n  D) Clicking the app logo/title"
+    "formatted": "How do you navigate back to the main app list from the todo app?\n  A) Clicking the app logo/title\n  B) A home icon in the top navigation bar\n  C) A back arrow button in the header\n  D) A 'Return to List of Apps' link at the bottom",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What elements appear in the edit form when you edit a todo item?",
+    "choices": {
+      "A": "A text input, a date picker, and a 'Confirm' button",
+      "B": "A text input for the title and a 'Submit' button",
+      "C": "A text input for the title, a 'Done' checkbox, and a 'Save' button",
+      "D": "A text area, a priority dropdown, and an 'Update' button"
+    },
+    "correct": "C",
+    "category": "form_structure",
+    "app": "todo",
+    "difficulty": "easy",
+    "formatted": "What elements appear in the edit form when you edit a todo item?\n  A) A text input, a date picker, and a 'Confirm' button\n  B) A text input for the title and a 'Submit' button\n  C) A text input for the title, a 'Done' checkbox, and a 'Save' button\n  D) A text area, a priority dropdown, and an 'Update' button",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
+  },
+  {
+    "question": "What HTML structure is used to display the list of todo items?",
+    "choices": {
+      "A": "A table with rows",
+      "B": "An unordered list (<ul>) with list items",
+      "C": "A series of <div> paragraphs",
+      "D": "A grid of cards"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "todo",
+    "difficulty": "hard",
+    "formatted": "What HTML structure is used to display the list of todo items?\n  A) A table with rows\n  B) An unordered list (<ul>) with list items\n  C) A series of <div> paragraphs\n  D) A grid of cards",
+    "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
     "question": "How many events are stored in the calendar in total?",
     "choices": {
-      "A": "47",
-      "B": "45",
-      "C": "50",
-      "D": "49"
-    },
-    "correct": "A",
-    "category": "element_counting",
-    "app": "calendar",
-    "difficulty": "easy",
-    "formatted": "How many events are stored in the calendar in total?\n  A) 47\n  B) 45\n  C) 50\n  D) 49"
-  },
-  {
-    "question": "How many birthday events are on the calendar?",
-    "choices": {
-      "A": "24",
-      "B": "21",
-      "C": "20",
-      "D": "18"
+      "A": "44",
+      "B": "47",
+      "C": "48",
+      "D": "45"
     },
     "correct": "B",
     "category": "element_counting",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "How many birthday events are on the calendar?\n  A) 24\n  B) 21\n  C) 20\n  D) 18"
+    "formatted": "How many events are stored in the calendar in total?\n  A) 44\n  B) 47\n  C) 48\n  D) 45",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
-    "question": "What type of UI element is used to choose how often a calendar event recurs?",
+    "question": "How many birthday events are on the calendar?",
     "choices": {
-      "A": "A dropdown/select menu with options like Weekly, Monthly, Yearly",
-      "B": "Checkboxes for each day of the week",
-      "C": "A text input where you type the recurrence",
-      "D": "Radio buttons for each recurrence type"
+      "A": "21",
+      "B": "22",
+      "C": "20",
+      "D": "24"
     },
     "correct": "A",
-    "category": "element_identification",
+    "category": "element_counting",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What type of UI element is used to choose how often a calendar event recurs?\n  A) A dropdown/select menu with options like Weekly, Monthly, Yearly\n  B) Checkboxes for each day of the week\n  C) A text input where you type the recurrence\n  D) Radio buttons for each recurrence type"
+    "formatted": "How many birthday events are on the calendar?\n  A) 21\n  B) 22\n  C) 20\n  D) 24",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
-    "question": "What two view modes can you toggle between on the calendar page?",
+    "question": "How many conference deadline or paper submission events are on the calendar?",
     "choices": {
-      "A": "Calendar (grid) and Agenda (list)",
-      "B": "Day and Week views",
-      "C": "Month and Year views",
-      "D": "Timeline and Board views"
+      "A": "29",
+      "B": "28",
+      "C": "23",
+      "D": "26"
     },
-    "correct": "A",
-    "category": "element_identification",
+    "correct": "D",
+    "category": "element_counting",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What two view modes can you toggle between on the calendar page?\n  A) Calendar (grid) and Agenda (list)\n  B) Day and Week views\n  C) Month and Year views\n  D) Timeline and Board views"
+    "formatted": "How many conference deadline or paper submission events are on the calendar?\n  A) 29\n  B) 28\n  C) 23\n  D) 26",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "How many events on the calendar are set to recur (yearly, monthly, or weekly)?",
+    "choices": {
+      "A": "19",
+      "B": "24",
+      "C": "21",
+      "D": "22"
+    },
+    "correct": "C",
+    "category": "element_counting",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How many events on the calendar are set to recur (yearly, monthly, or weekly)?\n  A) 19\n  B) 24\n  C) 21\n  D) 22",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'ICLR 2026 Paper Deadline' scheduled for?",
+    "choices": {
+      "A": "2025-09-04",
+      "B": "2025-08-07",
+      "C": "2025-09-25",
+      "D": "2025-07-11"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'ICLR 2026 Paper Deadline' scheduled for?\n  A) 2025-09-04\n  B) 2025-08-07\n  C) 2025-09-25\n  D) 2025-07-11",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'ICLR 2026 Abstract Deadline' scheduled for?",
+    "choices": {
+      "A": "2025-09-12",
+      "B": "2025-11-25",
+      "C": "2025-09-20",
+      "D": "1993-07-17"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'ICLR 2026 Abstract Deadline' scheduled for?\n  A) 2025-09-12\n  B) 2025-11-25\n  C) 2025-09-20\n  D) 1993-07-17",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'Siegline's Birthday' scheduled for?",
+    "choices": {
+      "A": "1984-08-20",
+      "B": "2026-03-06",
+      "C": "2025-11-01",
+      "D": "1987-02-14"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'Siegline's Birthday' scheduled for?\n  A) 1984-08-20\n  B) 2026-03-06\n  C) 2025-11-01\n  D) 1987-02-14",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'Greta's Birthday' scheduled for?",
+    "choices": {
+      "A": "1982-06-23",
+      "B": "2025-11-01",
+      "C": "1992-05-10",
+      "D": "2025-08-18"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'Greta's Birthday' scheduled for?\n  A) 1982-06-23\n  B) 2025-11-01\n  C) 1992-05-10\n  D) 2025-08-18",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'Bob's Birthday' scheduled for?",
+    "choices": {
+      "A": "1984-08-20",
+      "B": "1972-12-05",
+      "C": "1980-04-15",
+      "D": "1987-09-22"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'Bob's Birthday' scheduled for?\n  A) 1984-08-20\n  B) 1972-12-05\n  C) 1980-04-15\n  D) 1987-09-22",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'LREC 2026 Deadline' scheduled for?",
+    "choices": {
+      "A": "1993-07-17",
+      "B": "2025-10-17",
+      "C": "2025-09-25",
+      "D": "1987-02-14"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'LREC 2026 Deadline' scheduled for?\n  A) 1993-07-17\n  B) 2025-10-17\n  C) 2025-09-25\n  D) 1987-02-14",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'CHI 2026 Abstract Deadline' scheduled for?",
+    "choices": {
+      "A": "2025-07-25",
+      "B": "2025-11-01",
+      "C": "2025-09-04",
+      "D": "2025-09-11"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'CHI 2026 Abstract Deadline' scheduled for?\n  A) 2025-07-25\n  B) 2025-11-01\n  C) 2025-09-04\n  D) 2025-09-11",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What date is the event 'SIGKDD 2026 Paper Deadline' scheduled for?",
+    "choices": {
+      "A": "2025-07-31",
+      "B": "2025-07-18",
+      "C": "1992-05-10",
+      "D": "2025-10-17"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "What date is the event 'SIGKDD 2026 Paper Deadline' scheduled for?\n  A) 2025-07-31\n  B) 2025-07-18\n  C) 1992-05-10\n  D) 2025-10-17",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'Charlie's Birthday' a recurring event?",
+    "choices": {
+      "A": "No, it is a one-time event",
+      "B": "Yes, it recurs yearly",
+      "C": "Yes, it recurs weekly",
+      "D": "Yes, it recurs monthly"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'Charlie's Birthday' a recurring event?\n  A) No, it is a one-time event\n  B) Yes, it recurs yearly\n  C) Yes, it recurs weekly\n  D) Yes, it recurs monthly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'WACV 2026 Second Paper Deadline' a recurring event?",
+    "choices": {
+      "A": "Yes, it recurs monthly",
+      "B": "No, it is a one-time event",
+      "C": "Yes, it recurs yearly",
+      "D": "Yes, it recurs weekly"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'WACV 2026 Second Paper Deadline' a recurring event?\n  A) Yes, it recurs monthly\n  B) No, it is a one-time event\n  C) Yes, it recurs yearly\n  D) Yes, it recurs weekly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'UbiComp/ISWC 2025 November Deadline' a recurring event?",
+    "choices": {
+      "A": "No, it is a one-time event",
+      "B": "Yes, it recurs yearly",
+      "C": "Yes, it recurs weekly",
+      "D": "Yes, it recurs monthly"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'UbiComp/ISWC 2025 November Deadline' a recurring event?\n  A) No, it is a one-time event\n  B) Yes, it recurs yearly\n  C) Yes, it recurs weekly\n  D) Yes, it recurs monthly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'CHI 2026 Abstract Deadline' a recurring event?",
+    "choices": {
+      "A": "No, it is a one-time event",
+      "B": "Yes, it recurs weekly",
+      "C": "Yes, it recurs yearly",
+      "D": "Yes, it recurs monthly"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'CHI 2026 Abstract Deadline' a recurring event?\n  A) No, it is a one-time event\n  B) Yes, it recurs weekly\n  C) Yes, it recurs yearly\n  D) Yes, it recurs monthly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'ICLR 2026 Paper Deadline' a recurring event?",
+    "choices": {
+      "A": "No, it is a one-time event",
+      "B": "Yes, it recurs monthly",
+      "C": "Yes, it recurs weekly",
+      "D": "Yes, it recurs yearly"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'ICLR 2026 Paper Deadline' a recurring event?\n  A) No, it is a one-time event\n  B) Yes, it recurs monthly\n  C) Yes, it recurs weekly\n  D) Yes, it recurs yearly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'Gottfried's Birthday' a recurring event?",
+    "choices": {
+      "A": "Yes, it recurs monthly",
+      "B": "Yes, it recurs yearly",
+      "C": "Yes, it recurs weekly",
+      "D": "No, it is a one-time event"
+    },
+    "correct": "B",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'Gottfried's Birthday' a recurring event?\n  A) Yes, it recurs monthly\n  B) Yes, it recurs yearly\n  C) Yes, it recurs weekly\n  D) No, it is a one-time event",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'Josef's Birthday' a recurring event?",
+    "choices": {
+      "A": "Yes, it recurs yearly",
+      "B": "No, it is a one-time event",
+      "C": "Yes, it recurs monthly",
+      "D": "Yes, it recurs weekly"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'Josef's Birthday' a recurring event?\n  A) Yes, it recurs yearly\n  B) No, it is a one-time event\n  C) Yes, it recurs monthly\n  D) Yes, it recurs weekly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'Priya's Birthday' a recurring event?",
+    "choices": {
+      "A": "Yes, it recurs weekly",
+      "B": "No, it is a one-time event",
+      "C": "Yes, it recurs monthly",
+      "D": "Yes, it recurs yearly"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'Priya's Birthday' a recurring event?\n  A) Yes, it recurs weekly\n  B) No, it is a one-time event\n  C) Yes, it recurs monthly\n  D) Yes, it recurs yearly",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event 'Franz's Birthday' a recurring event?",
+    "choices": {
+      "A": "Yes, it recurs monthly",
+      "B": "Yes, it recurs weekly",
+      "C": "Yes, it recurs yearly",
+      "D": "No, it is a one-time event"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event 'Franz's Birthday' a recurring event?\n  A) Yes, it recurs monthly\n  B) Yes, it recurs weekly\n  C) Yes, it recurs yearly\n  D) No, it is a one-time event",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Is the event '3DV 2026 Deadline' a recurring event?",
+    "choices": {
+      "A": "Yes, it recurs yearly",
+      "B": "Yes, it recurs weekly",
+      "C": "Yes, it recurs monthly",
+      "D": "No, it is a one-time event"
+    },
+    "correct": "D",
+    "category": "element_state",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Is the event '3DV 2026 Deadline' a recurring event?\n  A) Yes, it recurs yearly\n  B) Yes, it recurs weekly\n  C) Yes, it recurs monthly\n  D) No, it is a one-time event",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What is the location listed for the event 'WSDM 2026 Paper Deadline'?",
+    "choices": {
+      "A": "Online",
+      "B": "Room 301",
+      "C": "Conference Hall B",
+      "D": "Library"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What is the location listed for the event 'WSDM 2026 Paper Deadline'?\n  A) Online\n  B) Room 301\n  C) Conference Hall B\n  D) Library",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What is the location listed for the event 'UbiComp/ISWC 2025 November Deadline'?",
+    "choices": {
+      "A": "Library",
+      "B": "Conference Hall B",
+      "C": "Online",
+      "D": "New York City"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What is the location listed for the event 'UbiComp/ISWC 2025 November Deadline'?\n  A) Library\n  B) Conference Hall B\n  C) Online\n  D) New York City",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What is the location listed for the event 'ICLR 2026 Paper Deadline'?",
+    "choices": {
+      "A": "Online",
+      "B": "Conference Hall B",
+      "C": "Room 301",
+      "D": "New York City"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What is the location listed for the event 'ICLR 2026 Paper Deadline'?\n  A) Online\n  B) Conference Hall B\n  C) Room 301\n  D) New York City",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What is the location listed for the event 'WSDM 2026 Abstract Deadline'?",
+    "choices": {
+      "A": "Library",
+      "B": "Virtual",
+      "C": "New York City",
+      "D": "Online"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What is the location listed for the event 'WSDM 2026 Abstract Deadline'?\n  A) Library\n  B) Virtual\n  C) New York City\n  D) Online",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What is the location listed for the event 'AAAI 2026 Paper Deadline'?",
+    "choices": {
+      "A": "Virtual",
+      "B": "Online",
+      "C": "Library",
+      "D": "New York City"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What is the location listed for the event 'AAAI 2026 Paper Deadline'?\n  A) Virtual\n  B) Online\n  C) Library\n  D) New York City",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What is the location listed for the event 'SIGKDD 2026 Paper Deadline'?",
+    "choices": {
+      "A": "Virtual",
+      "B": "Online",
+      "C": "Library",
+      "D": "Room 301"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What is the location listed for the event 'SIGKDD 2026 Paper Deadline'?\n  A) Virtual\n  B) Online\n  C) Library\n  D) Room 301",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "Which of the following events appears on the calendar?",
     "choices": {
       "A": "Team Standup Meeting",
-      "B": "Mom's Anniversary",
-      "C": "IJCNN 2026 Deadline",
-      "D": "Dentist Appointment"
+      "B": "Yoga Class",
+      "C": "CPAL 2025 Deadline",
+      "D": "Board Meeting"
     },
     "correct": "C",
     "category": "element_content",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Which of the following events appears on the calendar?\n  A) Team Standup Meeting\n  B) Mom's Anniversary\n  C) IJCNN 2026 Deadline\n  D) Dentist Appointment"
+    "formatted": "Which of the following events appears on the calendar?\n  A) Team Standup Meeting\n  B) Yoga Class\n  C) CPAL 2025 Deadline\n  D) Board Meeting",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
-    "question": "What date is the event 'WSDM 2026 Abstract Deadline' scheduled for?",
+    "question": "Which of the following events appears on the calendar?",
     "choices": {
-      "A": "2025-07-24",
-      "B": "2025-08-07",
-      "C": "2025-07-31",
-      "D": "2026-01-31"
+      "A": "Karl's Birthday",
+      "B": "Yoga Class",
+      "C": "Dentist Appointment",
+      "D": "Mom's Anniversary"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "Which of the following events appears on the calendar?\n  A) Karl's Birthday\n  B) Yoga Class\n  C) Dentist Appointment\n  D) Mom's Anniversary",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events appears on the calendar?",
+    "choices": {
+      "A": "Yoga Class",
+      "B": "Charlie's Birthday",
+      "C": "Sprint Planning",
+      "D": "Dentist Appointment"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "Which of the following events appears on the calendar?\n  A) Yoga Class\n  B) Charlie's Birthday\n  C) Sprint Planning\n  D) Dentist Appointment",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events appears on the calendar?",
+    "choices": {
+      "A": "NeurIPS 2026 Deadline",
+      "B": "Sprint Planning",
+      "C": "Guitar Lesson",
+      "D": "ICASSP 2026 Deadline"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "Which of the following events appears on the calendar?\n  A) NeurIPS 2026 Deadline\n  B) Sprint Planning\n  C) Guitar Lesson\n  D) ICASSP 2026 Deadline",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events appears on the calendar?",
+    "choices": {
+      "A": "Team Standup Meeting",
+      "B": "NeurIPS 2026 Deadline",
+      "C": "Yoga Class",
+      "D": "Franz's Birthday"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "Which of the following events appears on the calendar?\n  A) Team Standup Meeting\n  B) NeurIPS 2026 Deadline\n  C) Yoga Class\n  D) Franz's Birthday",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events appears on the calendar?",
+    "choices": {
+      "A": "Dentist Appointment",
+      "B": "Jamal's Birthday",
+      "C": "Team Standup Meeting",
+      "D": "NeurIPS 2026 Deadline"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "Which of the following events appears on the calendar?\n  A) Dentist Appointment\n  B) Jamal's Birthday\n  C) Team Standup Meeting\n  D) NeurIPS 2026 Deadline",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events does NOT appear on the calendar?",
+    "choices": {
+      "A": "Gottfried's Birthday",
+      "B": "NeurIPS 2026 Deadline",
+      "C": "Josef's Birthday",
+      "D": "WACV 2026 Second Paper Deadline"
     },
     "correct": "B",
     "category": "element_content",
     "app": "calendar",
     "difficulty": "medium",
-    "formatted": "What date is the event 'WSDM 2026 Abstract Deadline' scheduled for?\n  A) 2025-07-24\n  B) 2025-08-07\n  C) 2025-07-31\n  D) 2026-01-31"
+    "formatted": "Which of the following events does NOT appear on the calendar?\n  A) Gottfried's Birthday\n  B) NeurIPS 2026 Deadline\n  C) Josef's Birthday\n  D) WACV 2026 Second Paper Deadline",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events does NOT appear on the calendar?",
+    "choices": {
+      "A": "Priya's Birthday",
+      "B": "Team Standup Meeting",
+      "C": "WSDM 2026 Abstract Deadline",
+      "D": "Helga's Birthday"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Which of the following events does NOT appear on the calendar?\n  A) Priya's Birthday\n  B) Team Standup Meeting\n  C) WSDM 2026 Abstract Deadline\n  D) Helga's Birthday",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events does NOT appear on the calendar?",
+    "choices": {
+      "A": "WACV 2026 Paper Deadline",
+      "B": "Dentist Appointment",
+      "C": "Karl's Birthday",
+      "D": "IUI 2026 Paper Deadline"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Which of the following events does NOT appear on the calendar?\n  A) WACV 2026 Paper Deadline\n  B) Dentist Appointment\n  C) Karl's Birthday\n  D) IUI 2026 Paper Deadline",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Which of the following events does NOT appear on the calendar?",
+    "choices": {
+      "A": "Karl's Birthday",
+      "B": "Jamal's Birthday",
+      "C": "ICML 2026 Workshop",
+      "D": "AAAI 2026 Paper Deadline"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Which of the following events does NOT appear on the calendar?\n  A) Karl's Birthday\n  B) Jamal's Birthday\n  C) ICML 2026 Workshop\n  D) AAAI 2026 Paper Deadline",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "In what month is Siegline's birthday?",
+    "choices": {
+      "A": "February",
+      "B": "April",
+      "C": "December",
+      "D": "August"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "In what month is Siegline's birthday?\n  A) February\n  B) April\n  C) December\n  D) August",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "In what month is Charlie's birthday?",
+    "choices": {
+      "A": "August",
+      "B": "May",
+      "C": "September",
+      "D": "July"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "In what month is Charlie's birthday?\n  A) August\n  B) May\n  C) September\n  D) July",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "In what month is Helga's birthday?",
+    "choices": {
+      "A": "June",
+      "B": "May",
+      "C": "September",
+      "D": "April"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "In what month is Helga's birthday?\n  A) June\n  B) May\n  C) September\n  D) April",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "In what month is Franz's birthday?",
+    "choices": {
+      "A": "September",
+      "B": "July",
+      "C": "January",
+      "D": "February"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "In what month is Franz's birthday?\n  A) September\n  B) July\n  C) January\n  D) February",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "In what month is Alex's birthday?",
+    "choices": {
+      "A": "November",
+      "B": "May",
+      "C": "April",
+      "D": "June"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "In what month is Alex's birthday?\n  A) November\n  B) May\n  C) April\n  D) June",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "In what month is Elena's birthday?",
+    "choices": {
+      "A": "December",
+      "B": "January",
+      "C": "August",
+      "D": "October"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "In what month is Elena's birthday?\n  A) December\n  B) January\n  C) August\n  D) October",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1984-08-20?",
+    "choices": {
+      "A": "Elena",
+      "B": "Otto",
+      "C": "Josef",
+      "D": "Granni"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1984-08-20?\n  A) Elena\n  B) Otto\n  C) Josef\n  D) Granni",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1995-07-30?",
+    "choices": {
+      "A": "Elena",
+      "B": "Franz",
+      "C": "Zack",
+      "D": "Anna"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1995-07-30?\n  A) Elena\n  B) Franz\n  C) Zack\n  D) Anna",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1972-12-05?",
+    "choices": {
+      "A": "Jamal",
+      "B": "Gottfried",
+      "C": "Karl",
+      "D": "Josef"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1972-12-05?\n  A) Jamal\n  B) Gottfried\n  C) Karl\n  D) Josef",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1985-08-03?",
+    "choices": {
+      "A": "Alex",
+      "B": "Granni",
+      "C": "Anna",
+      "D": "Franz"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1985-08-03?\n  A) Alex\n  B) Granni\n  C) Anna\n  D) Franz",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1968-10-12?",
+    "choices": {
+      "A": "Luka",
+      "B": "Josef",
+      "C": "Helga",
+      "D": "Franz"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1968-10-12?\n  A) Luka\n  B) Josef\n  C) Helga\n  D) Franz",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1965-03-22?",
+    "choices": {
+      "A": "Siegline",
+      "B": "Jamal",
+      "C": "Franz",
+      "D": "Hans"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1965-03-22?\n  A) Siegline\n  B) Jamal\n  C) Franz\n  D) Hans",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1978-09-08?",
+    "choices": {
+      "A": "Siegline",
+      "B": "Hans",
+      "C": "Alex",
+      "D": "Charlie"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1978-09-08?\n  A) Siegline\n  B) Hans\n  C) Alex\n  D) Charlie",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "Whose birthday is on 1970-01-25?",
+    "choices": {
+      "A": "Alex",
+      "B": "Dad",
+      "C": "Franz",
+      "D": "Elena"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "medium",
+    "formatted": "Whose birthday is on 1970-01-25?\n  A) Alex\n  B) Dad\n  C) Franz\n  D) Elena",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What type of UI element is used to choose how often a calendar event recurs?",
+    "choices": {
+      "A": "Checkboxes for each day of the week",
+      "B": "A dropdown/select menu with options like Weekly, Monthly, Yearly",
+      "C": "Radio buttons for each recurrence type",
+      "D": "A text input where you type the recurrence"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What type of UI element is used to choose how often a calendar event recurs?\n  A) Checkboxes for each day of the week\n  B) A dropdown/select menu with options like Weekly, Monthly, Yearly\n  C) Radio buttons for each recurrence type\n  D) A text input where you type the recurrence",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What two view modes can you toggle between on the calendar page?",
+    "choices": {
+      "A": "Timeline and Board views",
+      "B": "Month and Year views",
+      "C": "Day and Week views",
+      "D": "Calendar (grid) and Agenda (list)"
+    },
+    "correct": "D",
+    "category": "element_identification",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What two view modes can you toggle between on the calendar page?\n  A) Timeline and Board views\n  B) Month and Year views\n  C) Day and Week views\n  D) Calendar (grid) and Agenda (list)",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What fields are available in the form to create a new calendar event?",
     "choices": {
-      "A": "Title, Date, Description, URL, Invitees, Location, Recurring",
-      "B": "Title, Start Date, End Date, All Day, Reminders",
-      "C": "Title, Date, Time, Priority, Color",
-      "D": "Title, Date, Category, Assignee, Status"
+      "A": "Title, Date, Time, Priority, Color",
+      "B": "Title, Date, Category, Assignee, Status",
+      "C": "Title, Start Date, End Date, All Day, Reminders",
+      "D": "Title, Date, Description, URL, Invitees, Location, Recurring"
     },
-    "correct": "A",
+    "correct": "D",
     "category": "form_structure",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What fields are available in the form to create a new calendar event?\n  A) Title, Date, Description, URL, Invitees, Location, Recurring\n  B) Title, Start Date, End Date, All Day, Reminders\n  C) Title, Date, Time, Priority, Color\n  D) Title, Date, Category, Assignee, Status"
+    "formatted": "What fields are available in the form to create a new calendar event?\n  A) Title, Date, Time, Priority, Color\n  B) Title, Date, Category, Assignee, Status\n  C) Title, Start Date, End Date, All Day, Reminders\n  D) Title, Date, Description, URL, Invitees, Location, Recurring",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "How do you navigate to a different month on the calendar?",
     "choices": {
-      "A": "A dropdown to select the month",
-      "B": "'< Prev' and 'Next >' buttons flanking the month name",
-      "C": "Swiping gestures on the calendar grid",
-      "D": "Left and right arrow keys"
+      "A": "Left and right arrow keys",
+      "B": "Swiping gestures on the calendar grid",
+      "C": "'< Prev' and 'Next >' buttons flanking the month name",
+      "D": "A dropdown to select the month"
     },
-    "correct": "B",
+    "correct": "C",
     "category": "navigation",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "How do you navigate to a different month on the calendar?\n  A) A dropdown to select the month\n  B) '< Prev' and 'Next >' buttons flanking the month name\n  C) Swiping gestures on the calendar grid\n  D) Left and right arrow keys"
+    "formatted": "How do you navigate to a different month on the calendar?\n  A) Left and right arrow keys\n  B) Swiping gestures on the calendar grid\n  C) '< Prev' and 'Next >' buttons flanking the month name\n  D) A dropdown to select the month",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "How do you delete an event from the calendar?",
     "choices": {
-      "A": "A swipe-to-delete gesture on the event",
-      "B": "Right-clicking the event and selecting 'Delete'",
-      "C": "Dragging the event to a trash icon",
+      "A": "Right-clicking the event and selecting 'Delete'",
+      "B": "Dragging the event to a trash icon",
+      "C": "A swipe-to-delete gesture on the event",
       "D": "A 'Delete Event' button on the event detail page"
     },
     "correct": "D",
     "category": "element_interaction",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "How do you delete an event from the calendar?\n  A) A swipe-to-delete gesture on the event\n  B) Right-clicking the event and selecting 'Delete'\n  C) Dragging the event to a trash icon\n  D) A 'Delete Event' button on the event detail page"
+    "formatted": "How do you delete an event from the calendar?\n  A) Right-clicking the event and selecting 'Delete'\n  B) Dragging the event to a trash icon\n  C) A swipe-to-delete gesture on the event\n  D) A 'Delete Event' button on the event detail page",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "How is the event date entered in the 'Create New Event' form?",
+    "choices": {
+      "A": "A date picker calendar widget",
+      "B": "A text input with placeholder 'YYYY-MM-DD'",
+      "C": "A set of three dropdowns (year, month, day)",
+      "D": "A date/time combined picker"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How is the event date entered in the 'Create New Event' form?\n  A) A date picker calendar widget\n  B) A text input with placeholder 'YYYY-MM-DD'\n  C) A set of three dropdowns (year, month, day)\n  D) A date/time combined picker",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "What column headers appear across the top of the calendar grid?",
+    "choices": {
+      "A": "Mon, Tue, Wed, Thu, Fri, Sat, Sun",
+      "B": "M, T, W, T, F, S, S",
+      "C": "Sunday through Saturday",
+      "D": "Monday through Friday only"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "What column headers appear across the top of the calendar grid?\n  A) Mon, Tue, Wed, Thu, Fri, Sat, Sun\n  B) M, T, W, T, F, S, S\n  C) Sunday through Saturday\n  D) Monday through Friday only",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
+  },
+  {
+    "question": "How do you access the form to add a new calendar event?",
+    "choices": {
+      "A": "A button at the bottom of the calendar page that opens a new tab",
+      "B": "A '+' floating action button in the corner",
+      "C": "Double-clicking on a calendar day cell",
+      "D": "A menu item in a hamburger menu"
+    },
+    "correct": "A",
+    "category": "navigation",
+    "app": "calendar",
+    "difficulty": "easy",
+    "formatted": "How do you access the form to add a new calendar event?\n  A) A button at the bottom of the calendar page that opens a new tab\n  B) A '+' floating action button in the corner\n  C) Double-clicking on a calendar day cell\n  D) A menu item in a hamburger menu",
+    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "How many conversations are shown in the messenger app?",
     "choices": {
-      "A": "6",
+      "A": "7",
       "B": "4",
-      "C": "2",
-      "D": "5"
+      "C": "5",
+      "D": "2"
     },
     "correct": "B",
     "category": "element_counting",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "How many conversations are shown in the messenger app?\n  A) 6\n  B) 4\n  C) 2\n  D) 5"
+    "formatted": "How many conversations are shown in the messenger app?\n  A) 7\n  B) 4\n  C) 5\n  D) 2",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contacts appears in the messenger?",
+    "choices": {
+      "A": "Diana",
+      "B": "Ivan",
+      "C": "Alice",
+      "D": "Frank"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contacts appears in the messenger?\n  A) Diana\n  B) Ivan\n  C) Alice\n  D) Frank",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contacts appears in the messenger?",
+    "choices": {
+      "A": "Eve",
+      "B": "Diana",
+      "C": "Henry",
+      "D": "Bob"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contacts appears in the messenger?\n  A) Eve\n  B) Diana\n  C) Henry\n  D) Bob",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contacts appears in the messenger?",
+    "choices": {
+      "A": "Ivan",
+      "B": "Grace",
+      "C": "Charlie",
+      "D": "Henry"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contacts appears in the messenger?\n  A) Ivan\n  B) Grace\n  C) Charlie\n  D) Henry",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Which of the following contacts appears in the messenger?",
     "choices": {
       "A": "Frank",
-      "B": "Henry",
-      "C": "Eve",
+      "B": "Ivan",
+      "C": "Fantastic4GroupChat",
+      "D": "Julia"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contacts appears in the messenger?\n  A) Frank\n  B) Ivan\n  C) Fantastic4GroupChat\n  D) Julia",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contacts does NOT appear in the messenger?",
+    "choices": {
+      "A": "Charlie",
+      "B": "Fantastic4GroupChat",
+      "C": "Diana",
+      "D": "Alice"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "Which of the following contacts does NOT appear in the messenger?\n  A) Charlie\n  B) Fantastic4GroupChat\n  C) Diana\n  D) Alice",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contacts does NOT appear in the messenger?",
+    "choices": {
+      "A": "Bob",
+      "B": "Fantastic4GroupChat",
+      "C": "Alice",
+      "D": "Eve"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "Which of the following contacts does NOT appear in the messenger?\n  A) Bob\n  B) Fantastic4GroupChat\n  C) Alice\n  D) Eve",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contacts does NOT appear in the messenger?",
+    "choices": {
+      "A": "Fantastic4GroupChat",
+      "B": "Charlie",
+      "C": "Frank",
+      "D": "Bob"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "Which of the following contacts does NOT appear in the messenger?\n  A) Fantastic4GroupChat\n  B) Charlie\n  C) Frank\n  D) Bob",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How many messages are in the conversation with Alice?",
+    "choices": {
+      "A": "2",
+      "B": "7",
+      "C": "5",
+      "D": "3"
+    },
+    "correct": "C",
+    "category": "element_counting",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "How many messages are in the conversation with Alice?\n  A) 2\n  B) 7\n  C) 5\n  D) 3",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How many messages are in the conversation with Bob?",
+    "choices": {
+      "A": "2",
+      "B": "5",
+      "C": "8",
+      "D": "3"
+    },
+    "correct": "B",
+    "category": "element_counting",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "How many messages are in the conversation with Bob?\n  A) 2\n  B) 5\n  C) 8\n  D) 3",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How many messages are in the conversation with Charlie?",
+    "choices": {
+      "A": "3",
+      "B": "5",
+      "C": "7",
+      "D": "6"
+    },
+    "correct": "B",
+    "category": "element_counting",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "How many messages are in the conversation with Charlie?\n  A) 3\n  B) 5\n  C) 7\n  D) 6",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How many messages are in the conversation with Fantastic4GroupChat?",
+    "choices": {
+      "A": "5",
+      "B": "2",
+      "C": "4",
+      "D": "3"
+    },
+    "correct": "A",
+    "category": "element_counting",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "How many messages are in the conversation with Fantastic4GroupChat?\n  A) 5\n  B) 2\n  C) 4\n  D) 3",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the first (oldest) message in the conversation with Alice?",
+    "choices": {
+      "A": "Hello Yann, have you made any progress on self-supervised learning ...",
+      "B": "Fascinating! Keep me posted!",
+      "C": "Absolutely, Alice! Self-supervised learning is the future of AI. I'...",
+      "D": "Yes, the goal is to give machines common sense by learning from vas..."
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the first (oldest) message in the conversation with Alice?\n  A) Hello Yann, have you made any progress on self-supervised learning ...\n  B) Fascinating! Keep me posted!\n  C) Absolutely, Alice! Self-supervised learning is the future of AI. I'...\n  D) Yes, the goal is to give machines common sense by learning from vas...",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the first (oldest) message in the conversation with Bob?",
+    "choices": {
+      "A": "Do you think AI will ever reach human-level intelligence?",
+      "B": "I believe we are still far from human-level AI, but progress is acc...",
+      "C": "Thanks for your insights, Yann!",
+      "D": "Hi Yann! What's your favorite neural network architecture?"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the first (oldest) message in the conversation with Bob?\n  A) Do you think AI will ever reach human-level intelligence?\n  B) I believe we are still far from human-level AI, but progress is acc...\n  C) Thanks for your insights, Yann!\n  D) Hi Yann! What's your favorite neural network architecture?",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the first (oldest) message in the conversation with Charlie?",
+    "choices": {
+      "A": "Merci! What excites you most about the future of AI?",
+      "B": "Inspiring! Thank you, Yann.",
+      "C": "The potential for AI to augment human intelligence and solve real-w...",
+      "D": "Bonjour Yann! Any advice for aspiring AI researchers?"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the first (oldest) message in the conversation with Charlie?\n  A) Merci! What excites you most about the future of AI?\n  B) Inspiring! Thank you, Yann.\n  C) The potential for AI to augment human intelligence and solve real-w...\n  D) Bonjour Yann! Any advice for aspiring AI researchers?",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the first (oldest) message in the conversation with Fantastic4GroupChat?",
+    "choices": {
+      "A": "Hey team! How's everyone doing?",
+      "B": "Doing great, Alice! Just working on some new AI models.",
+      "C": "Same here! Excited about the latest advancements in AI.",
+      "D": "Absolutely! Together we can achieve amazing things."
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the first (oldest) message in the conversation with Fantastic4GroupChat?\n  A) Hey team! How's everyone doing?\n  B) Doing great, Alice! Just working on some new AI models.\n  C) Same here! Excited about the latest advancements in AI.\n  D) Absolutely! Together we can achieve amazing things.",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the most recent message in the conversation with Alice?",
+    "choices": {
+      "A": "That's exciting! Will it help machines understand the world better?",
+      "B": "Yes, the goal is to give machines common sense by learning from vas...",
+      "C": "Absolutely, Alice! Self-supervised learning is the future of AI. I'...",
+      "D": "Fascinating! Keep me posted!"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the most recent message in the conversation with Alice?\n  A) That's exciting! Will it help machines understand the world better?\n  B) Yes, the goal is to give machines common sense by learning from vas...\n  C) Absolutely, Alice! Self-supervised learning is the future of AI. I'...\n  D) Fascinating! Keep me posted!",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the most recent message in the conversation with Bob?",
+    "choices": {
+      "A": "Hello Bob! I have a soft spot for convolutional neural networks, bu...",
+      "B": "I believe we are still far from human-level AI, but progress is acc...",
+      "C": "Thanks for your insights, Yann!",
+      "D": "Do you think AI will ever reach human-level intelligence?"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the most recent message in the conversation with Bob?\n  A) Hello Bob! I have a soft spot for convolutional neural networks, bu...\n  B) I believe we are still far from human-level AI, but progress is acc...\n  C) Thanks for your insights, Yann!\n  D) Do you think AI will ever reach human-level intelligence?",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the most recent message in the conversation with Charlie?",
+    "choices": {
+      "A": "Bonjour Charlie! Stay curious, read papers, and experiment with new...",
+      "B": "Inspiring! Thank you, Yann.",
+      "C": "Bonjour Yann! Any advice for aspiring AI researchers?",
+      "D": "Merci! What excites you most about the future of AI?"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the most recent message in the conversation with Charlie?\n  A) Bonjour Charlie! Stay curious, read papers, and experiment with new...\n  B) Inspiring! Thank you, Yann.\n  C) Bonjour Yann! Any advice for aspiring AI researchers?\n  D) Merci! What excites you most about the future of AI?",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What is the most recent message in the conversation with Fantastic4GroupChat?",
+    "choices": {
+      "A": "Hey team! How's everyone doing?",
+      "B": "Same here! Excited about the latest advancements in AI.",
+      "C": "Me too! Let's keep pushing the boundaries of what's possible with AI.",
+      "D": "Absolutely! Together we can achieve amazing things."
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "What is the most recent message in the conversation with Fantastic4GroupChat?\n  A) Hey team! How's everyone doing?\n  B) Same here! Excited about the latest advancements in AI.\n  C) Me too! Let's keep pushing the boundaries of what's possible with AI.\n  D) Absolutely! Together we can achieve amazing things.",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the most recent message in the conversation with Alice?",
+    "choices": {
+      "A": "Alice",
+      "B": "Charlie",
+      "C": "Bob",
+      "D": "you"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the most recent message in the conversation with Alice?\n  A) Alice\n  B) Charlie\n  C) Bob\n  D) you",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the most recent message in the conversation with Bob?",
+    "choices": {
+      "A": "Charlie",
+      "B": "Bob",
+      "C": "you",
+      "D": "Alice"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the most recent message in the conversation with Bob?\n  A) Charlie\n  B) Bob\n  C) you\n  D) Alice",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the most recent message in the conversation with Charlie?",
+    "choices": {
+      "A": "Bob",
+      "B": "you",
+      "C": "Alice",
       "D": "Charlie"
     },
     "correct": "D",
     "category": "element_content",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Which of the following contacts appears in the messenger?\n  A) Frank\n  B) Henry\n  C) Eve\n  D) Charlie"
+    "formatted": "Who sent the most recent message in the conversation with Charlie?\n  A) Bob\n  B) you\n  C) Alice\n  D) Charlie",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
-    "question": "How many messages are in the conversation with Bob?",
+    "question": "Who sent the most recent message in the conversation with Fantastic4GroupChat?",
     "choices": {
-      "A": "7",
-      "B": "5",
-      "C": "6",
-      "D": "2"
+      "A": "Alice",
+      "B": "Bob",
+      "C": "you",
+      "D": "Charlie"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the most recent message in the conversation with Fantastic4GroupChat?\n  A) Alice\n  B) Bob\n  C) you\n  D) Charlie",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the first message in the conversation with Alice?",
+    "choices": {
+      "A": "Alice",
+      "B": "Charlie",
+      "C": "Bob",
+      "D": "you"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the first message in the conversation with Alice?\n  A) Alice\n  B) Charlie\n  C) Bob\n  D) you",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the first message in the conversation with Bob?",
+    "choices": {
+      "A": "Charlie",
+      "B": "Bob",
+      "C": "Alice",
+      "D": "you"
     },
     "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the first message in the conversation with Bob?\n  A) Charlie\n  B) Bob\n  C) Alice\n  D) you",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the first message in the conversation with Charlie?",
+    "choices": {
+      "A": "you",
+      "B": "Charlie",
+      "C": "Alice",
+      "D": "Bob"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the first message in the conversation with Charlie?\n  A) you\n  B) Charlie\n  C) Alice\n  D) Bob",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Who sent the first message in the conversation with Fantastic4GroupChat?",
+    "choices": {
+      "A": "Bob",
+      "B": "Alice",
+      "C": "Charlie",
+      "D": "you"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Who sent the first message in the conversation with Fantastic4GroupChat?\n  A) Bob\n  B) Alice\n  C) Charlie\n  D) you",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How many messages are there across all conversations in the messenger?",
+    "choices": {
+      "A": "23",
+      "B": "19",
+      "C": "22",
+      "D": "20"
+    },
+    "correct": "D",
     "category": "element_counting",
     "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "How many messages are there across all conversations in the messenger?\n  A) 23\n  B) 19\n  C) 22\n  D) 20",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which conversation has the most messages?",
+    "choices": {
+      "A": "Bob",
+      "B": "Charlie",
+      "C": "Alice",
+      "D": "Fantastic4GroupChat"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
     "difficulty": "medium",
-    "formatted": "How many messages are in the conversation with Bob?\n  A) 7\n  B) 5\n  C) 6\n  D) 2"
+    "formatted": "Which conversation has the most messages?\n  A) Bob\n  B) Charlie\n  C) Alice\n  D) Fantastic4GroupChat",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "What icon or label is on the button to send a message in the messenger?",
     "choices": {
-      "A": "The word 'Send'",
-      "B": "A checkmark icon",
-      "C": "An arrow pointing right",
-      "D": "A paper plane icon"
+      "A": "An arrow pointing right",
+      "B": "A paper plane icon",
+      "C": "A checkmark icon",
+      "D": "The word 'Send'"
     },
-    "correct": "D",
+    "correct": "B",
     "category": "element_identification",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "What icon or label is on the button to send a message in the messenger?\n  A) The word 'Send'\n  B) A checkmark icon\n  C) An arrow pointing right\n  D) A paper plane icon"
+    "formatted": "What icon or label is on the button to send a message in the messenger?\n  A) An arrow pointing right\n  B) A paper plane icon\n  C) A checkmark icon\n  D) The word 'Send'",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "How do you search for messages within a conversation?",
     "choices": {
       "A": "There is no search feature in conversations",
       "B": "A keyboard shortcut (Ctrl+F)",
-      "C": "A magnifying glass icon button in the chat header that reveals a search bar",
-      "D": "A search bar always visible at the top of the chat"
+      "C": "A search bar always visible at the top of the chat",
+      "D": "A magnifying glass icon button in the chat header that reveals a search bar"
     },
-    "correct": "C",
+    "correct": "D",
     "category": "element_interaction",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "How do you search for messages within a conversation?\n  A) There is no search feature in conversations\n  B) A keyboard shortcut (Ctrl+F)\n  C) A magnifying glass icon button in the chat header that reveals a search bar\n  D) A search bar always visible at the top of the chat"
+    "formatted": "How do you search for messages within a conversation?\n  A) There is no search feature in conversations\n  B) A keyboard shortcut (Ctrl+F)\n  C) A search bar always visible at the top of the chat\n  D) A magnifying glass icon button in the chat header that reveals a search bar",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Is there a group chat visible in the messenger?",
     "choices": {
-      "A": "Yes \u2014 'Team Chat'",
+      "A": "Yes \u2014 'Fantastic4GroupChat'",
       "B": "No, only individual conversations",
       "C": "Yes \u2014 'General Channel'",
-      "D": "Yes \u2014 'Fantastic4GroupChat'"
+      "D": "Yes \u2014 'Team Chat'"
     },
-    "correct": "D",
+    "correct": "A",
     "category": "element_content",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Is there a group chat visible in the messenger?\n  A) Yes \u2014 'Team Chat'\n  B) No, only individual conversations\n  C) Yes \u2014 'General Channel'\n  D) Yes \u2014 'Fantastic4GroupChat'"
+    "formatted": "Is there a group chat visible in the messenger?\n  A) Yes \u2014 'Fantastic4GroupChat'\n  B) No, only individual conversations\n  C) Yes \u2014 'General Channel'\n  D) Yes \u2014 'Team Chat'",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How do you navigate from a chat back to the conversation list in the messenger?",
+    "choices": {
+      "A": "A hamburger menu with a 'Back' option",
+      "B": "The browser back button is the only option",
+      "C": "A 'Back' text link below the messages",
+      "D": "A left-pointing arrow icon in the top-left of the chat header"
+    },
+    "correct": "D",
+    "category": "navigation",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "How do you navigate from a chat back to the conversation list in the messenger?\n  A) A hamburger menu with a 'Back' option\n  B) The browser back button is the only option\n  C) A 'Back' text link below the messages\n  D) A left-pointing arrow icon in the top-left of the chat header",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What placeholder text appears in the message input field?",
+    "choices": {
+      "A": "Type a message",
+      "B": "Write something...",
+      "C": "Say something...",
+      "D": "Enter message"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "What placeholder text appears in the message input field?\n  A) Type a message\n  B) Write something...\n  C) Say something...\n  D) Enter message",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "How are sent vs. received messages visually distinguished in the chat?",
+    "choices": {
+      "A": "All messages are left-aligned",
+      "B": "Messages alternate sides regardless of sender",
+      "C": "Sent messages are on the left; received on the right",
+      "D": "Sent messages appear on the right; received messages on the left"
+    },
+    "correct": "D",
+    "category": "element_identification",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "How are sent vs. received messages visually distinguished in the chat?\n  A) All messages are left-aligned\n  B) Messages alternate sides regardless of sender\n  C) Sent messages are on the left; received on the right\n  D) Sent messages appear on the right; received messages on the left",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "How many saved locations (bookmarked places) are shown on the map?",
     "choices": {
-      "A": "5",
-      "B": "6",
-      "C": "8",
-      "D": "4"
+      "A": "6",
+      "B": "2",
+      "C": "5",
+      "D": "7"
     },
-    "correct": "A",
+    "correct": "C",
     "category": "element_counting",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "How many saved locations (bookmarked places) are shown on the map?\n  A) 5\n  B) 6\n  C) 8\n  D) 4"
+    "formatted": "How many saved locations (bookmarked places) are shown on the map?\n  A) 6\n  B) 2\n  C) 5\n  D) 7",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following is a saved location on the map?",
+    "choices": {
+      "A": "Eiffel Tower",
+      "B": "Sydney Opera House",
+      "C": "Buckingham Palace",
+      "D": "Statue of Liberty"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following is a saved location on the map?\n  A) Eiffel Tower\n  B) Sydney Opera House\n  C) Buckingham Palace\n  D) Statue of Liberty",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Which of the following is a saved location on the map?",
     "choices": {
       "A": "Central Park",
       "B": "Buckingham Palace",
-      "C": "Big Ben",
-      "D": "Eiffel Tower"
+      "C": "Taj Mahal",
+      "D": "Golden Gate Bridge"
     },
     "correct": "A",
     "category": "element_content",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Which of the following is a saved location on the map?\n  A) Central Park\n  B) Buckingham Palace\n  C) Big Ben\n  D) Eiffel Tower"
+    "formatted": "Which of the following is a saved location on the map?\n  A) Central Park\n  B) Buckingham Palace\n  C) Taj Mahal\n  D) Golden Gate Bridge",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following is a saved location on the map?",
+    "choices": {
+      "A": "Eiffel Tower",
+      "B": "Brooklyn Bridge",
+      "C": "Taj Mahal",
+      "D": "Big Ben"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following is a saved location on the map?\n  A) Eiffel Tower\n  B) Brooklyn Bridge\n  C) Taj Mahal\n  D) Big Ben",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following is a saved location on the map?",
+    "choices": {
+      "A": "Eiffel Tower",
+      "B": "Times Square",
+      "C": "Taj Mahal",
+      "D": "Golden Gate Bridge"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following is a saved location on the map?\n  A) Eiffel Tower\n  B) Times Square\n  C) Taj Mahal\n  D) Golden Gate Bridge",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following is a saved location on the map?",
+    "choices": {
+      "A": "Empire State Building",
+      "B": "Big Ben",
+      "C": "Eiffel Tower",
+      "D": "Sydney Opera House"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following is a saved location on the map?\n  A) Empire State Building\n  B) Big Ben\n  C) Eiffel Tower\n  D) Sydney Opera House",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following locations is NOT saved on the map?",
+    "choices": {
+      "A": "Empire State Building",
+      "B": "Brooklyn Bridge",
+      "C": "Times Square",
+      "D": "Golden Gate Bridge"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "medium",
+    "formatted": "Which of the following locations is NOT saved on the map?\n  A) Empire State Building\n  B) Brooklyn Bridge\n  C) Times Square\n  D) Golden Gate Bridge",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following locations is NOT saved on the map?",
+    "choices": {
+      "A": "Eiffel Tower",
+      "B": "Central Park",
+      "C": "Empire State Building",
+      "D": "Statue of Liberty"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "medium",
+    "formatted": "Which of the following locations is NOT saved on the map?\n  A) Eiffel Tower\n  B) Central Park\n  C) Empire State Building\n  D) Statue of Liberty",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following locations is NOT saved on the map?",
+    "choices": {
+      "A": "Central Park",
+      "B": "Times Square",
+      "C": "Buckingham Palace",
+      "D": "Brooklyn Bridge"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "medium",
+    "formatted": "Which of the following locations is NOT saved on the map?\n  A) Central Park\n  B) Times Square\n  C) Buckingham Palace\n  D) Brooklyn Bridge",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "How do you delete a saved location from the map?",
     "choices": {
-      "A": "An 'x' button next to the location name in the sidebar list",
-      "B": "Right-clicking the map marker and selecting 'Remove'",
-      "C": "Dragging the marker off the map",
+      "A": "Right-clicking the map marker and selecting 'Remove'",
+      "B": "Dragging the marker off the map",
+      "C": "An 'x' button next to the location name in the sidebar list",
       "D": "A 'Delete All' button at the bottom of the sidebar"
     },
-    "correct": "A",
+    "correct": "C",
     "category": "element_interaction",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "How do you delete a saved location from the map?\n  A) An 'x' button next to the location name in the sidebar list\n  B) Right-clicking the map marker and selecting 'Remove'\n  C) Dragging the marker off the map\n  D) A 'Delete All' button at the bottom of the sidebar"
+    "formatted": "How do you delete a saved location from the map?\n  A) Right-clicking the map marker and selecting 'Remove'\n  B) Dragging the marker off the map\n  C) An 'x' button next to the location name in the sidebar list\n  D) A 'Delete All' button at the bottom of the sidebar",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Where is the sidebar that shows saved locations and search?",
     "choices": {
-      "A": "On the left side of the page",
-      "B": "At the bottom of the page, below the map",
-      "C": "In a floating overlay on top of the map",
-      "D": "On the right side of the page, next to the map"
+      "A": "On the right side of the page, next to the map",
+      "B": "On the left side of the page",
+      "C": "At the bottom of the page, below the map",
+      "D": "In a floating overlay on top of the map"
     },
-    "correct": "D",
+    "correct": "A",
     "category": "element_location",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Where is the sidebar that shows saved locations and search?\n  A) On the left side of the page\n  B) At the bottom of the page, below the map\n  C) In a floating overlay on top of the map\n  D) On the right side of the page, next to the map"
+    "formatted": "Where is the sidebar that shows saved locations and search?\n  A) On the right side of the page, next to the map\n  B) On the left side of the page\n  C) At the bottom of the page, below the map\n  D) In a floating overlay on top of the map",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "How is the search feature presented in the map app?",
     "choices": {
-      "A": "A dropdown with predefined locations to choose from",
-      "B": "A voice-activated search with a microphone icon",
-      "C": "A search icon that expands into an overlay search bar",
-      "D": "A text input with placeholder 'Search location...' and a 'Search' button"
+      "A": "A text input with placeholder 'Search location...' and a 'Search' button",
+      "B": "A search icon that expands into an overlay search bar",
+      "C": "A voice-activated search with a microphone icon",
+      "D": "A dropdown with predefined locations to choose from"
     },
-    "correct": "D",
+    "correct": "A",
     "category": "element_identification",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "How is the search feature presented in the map app?\n  A) A dropdown with predefined locations to choose from\n  B) A voice-activated search with a microphone icon\n  C) A search icon that expands into an overlay search bar\n  D) A text input with placeholder 'Search location...' and a 'Search' button"
+    "formatted": "How is the search feature presented in the map app?\n  A) A text input with placeholder 'Search location...' and a 'Search' button\n  B) A search icon that expands into an overlay search bar\n  C) A voice-activated search with a microphone icon\n  D) A dropdown with predefined locations to choose from",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "How do you save a new location from search results in the map app?",
+    "choices": {
+      "A": "A right-click context menu on the map",
+      "B": "A 'Save' button that appears when you click on the map",
+      "C": "Dragging a pin onto the map from a toolbar",
+      "D": "A bookmark icon button next to each search result"
+    },
+    "correct": "D",
+    "category": "element_interaction",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "How do you save a new location from search results in the map app?\n  A) A right-click context menu on the map\n  B) A 'Save' button that appears when you click on the map\n  C) Dragging a pin onto the map from a toolbar\n  D) A bookmark icon button next to each search result",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "How can you customize the appearance of a map marker?",
+    "choices": {
+      "A": "You cannot customize markers",
+      "B": "A settings page accessible from the sidebar",
+      "C": "A modal dialog that lets you choose an icon and a color",
+      "D": "A color picker tooltip on the marker itself"
+    },
+    "correct": "C",
+    "category": "element_interaction",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "How can you customize the appearance of a map marker?\n  A) You cannot customize markers\n  B) A settings page accessible from the sidebar\n  C) A modal dialog that lets you choose an icon and a color\n  D) A color picker tooltip on the marker itself",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "What happens when you click on a spot on the map?",
+    "choices": {
+      "A": "A tooltip with the place name pops up",
+      "B": "The 'Current Location Info' box shows the latitude, longitude, and address",
+      "C": "Nothing happens when you click the map",
+      "D": "The map zooms in to that location"
+    },
+    "correct": "B",
+    "category": "element_interaction",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "What happens when you click on a spot on the map?\n  A) A tooltip with the place name pops up\n  B) The 'Current Location Info' box shows the latitude, longitude, and address\n  C) Nothing happens when you click the map\n  D) The map zooms in to that location",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "What is the label on the button that navigates back to the start page from the map app?",
+    "choices": {
+      "A": "Back to Home",
+      "B": "Main Menu",
+      "C": "Return to List of Apps",
+      "D": "Go Home"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "What is the label on the button that navigates back to the start page from the map app?\n  A) Back to Home\n  B) Main Menu\n  C) Return to List of Apps\n  D) Go Home",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "What heading appears above the list of saved places in the map sidebar?",
+    "choices": {
+      "A": "My Bookmarks",
+      "B": "Saved Locations",
+      "C": "Pinned Locations",
+      "D": "Favorite Places"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "What heading appears above the list of saved places in the map sidebar?\n  A) My Bookmarks\n  B) Saved Locations\n  C) Pinned Locations\n  D) Favorite Places",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "What heading labels the section that displays information about a clicked map location?",
+    "choices": {
+      "A": "Selected Point Details",
+      "B": "Coordinates",
+      "C": "Location Data",
+      "D": "Current Location Info"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "What heading labels the section that displays information about a clicked map location?\n  A) Selected Point Details\n  B) Coordinates\n  C) Location Data\n  D) Current Location Info",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "What map tile provider does the map app use by default?",
+    "choices": {
+      "A": "Mapbox",
+      "B": "OpenStreetMap (by default)",
+      "C": "Google Maps",
+      "D": "Apple Maps"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "What map tile provider does the map app use by default?\n  A) Mapbox\n  B) OpenStreetMap (by default)\n  C) Google Maps\n  D) Apple Maps",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "What is the approximate width split between the map and the sidebar?",
+    "choices": {
+      "A": "The map and sidebar are equal width (50/50)",
+      "B": "The map takes about 80% width and the sidebar about 20%",
+      "C": "The map is full width with a collapsible sidebar overlay",
+      "D": "The sidebar is wider than the map"
+    },
+    "correct": "B",
+    "category": "element_location",
+    "app": "map",
+    "difficulty": "hard",
+    "formatted": "What is the approximate width split between the map and the sidebar?\n  A) The map and sidebar are equal width (50/50)\n  B) The map takes about 80% width and the sidebar about 20%\n  C) The map is full width with a collapsible sidebar overlay\n  D) The sidebar is wider than the map",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "How many files are in the code editor's file tree?",
+    "choices": {
+      "A": "6",
+      "B": "3",
+      "C": "5",
+      "D": "8"
+    },
+    "correct": "C",
+    "category": "element_counting",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How many files are in the code editor's file tree?\n  A) 6\n  B) 3\n  C) 5\n  D) 8",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How many folders are in the code editor's file tree?",
+    "choices": {
+      "A": "4",
+      "B": "2",
+      "C": "5",
+      "D": "1"
+    },
+    "correct": "A",
+    "category": "element_counting",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How many folders are in the code editor's file tree?\n  A) 4\n  B) 2\n  C) 5\n  D) 1",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files exists in the code editor?",
+    "choices": {
+      "A": "test.py",
+      "B": "index.html",
+      "C": "app.js",
+      "D": "basic_imports.py"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following files exists in the code editor?\n  A) test.py\n  B) index.html\n  C) app.js\n  D) basic_imports.py",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files exists in the code editor?",
+    "choices": {
+      "A": "app.js",
+      "B": "test.py",
+      "C": "inner_file.py",
+      "D": "Makefile"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following files exists in the code editor?\n  A) app.js\n  B) test.py\n  C) inner_file.py\n  D) Makefile",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files exists in the code editor?",
+    "choices": {
+      "A": "config.yaml",
+      "B": "README.md",
+      "C": "index.html",
+      "D": "simple_python.py"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following files exists in the code editor?\n  A) config.yaml\n  B) README.md\n  C) index.html\n  D) simple_python.py",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files exists in the code editor?",
+    "choices": {
+      "A": "script.py",
+      "B": "Makefile",
+      "C": "test.py",
+      "D": "README.md"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following files exists in the code editor?\n  A) script.py\n  B) Makefile\n  C) test.py\n  D) README.md",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files exists in the code editor?",
+    "choices": {
+      "A": "Makefile",
+      "B": "index.html",
+      "C": "untitled_c.c",
+      "D": "main.go"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following files exists in the code editor?\n  A) Makefile\n  B) index.html\n  C) untitled_c.c\n  D) main.go",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files does NOT exist in the code editor?",
+    "choices": {
+      "A": "simple_python.py",
+      "B": "untitled_c.c",
+      "C": "inner_file.py",
+      "D": "index.html"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "Which of the following files does NOT exist in the code editor?\n  A) simple_python.py\n  B) untitled_c.c\n  C) inner_file.py\n  D) index.html",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files does NOT exist in the code editor?",
+    "choices": {
+      "A": "basic_imports.py",
+      "B": "script.py",
+      "C": "main.go",
+      "D": "simple_python.py"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "Which of the following files does NOT exist in the code editor?\n  A) basic_imports.py\n  B) script.py\n  C) main.go\n  D) simple_python.py",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following files does NOT exist in the code editor?",
+    "choices": {
+      "A": "simple_python.py",
+      "B": "script.py",
+      "C": "basic_imports.py",
+      "D": "README.md"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "Which of the following files does NOT exist in the code editor?\n  A) simple_python.py\n  B) script.py\n  C) basic_imports.py\n  D) README.md",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following folders exists in the code editor's file tree?",
+    "choices": {
+      "A": "docs",
+      "B": "developing",
+      "C": "assets",
+      "D": "tests"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following folders exists in the code editor's file tree?\n  A) docs\n  B) developing\n  C) assets\n  D) tests",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following folders exists in the code editor's file tree?",
+    "choices": {
+      "A": "folder_in_folder",
+      "B": "docs",
+      "C": "dist",
+      "D": "src"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following folders exists in the code editor's file tree?\n  A) folder_in_folder\n  B) docs\n  C) dist\n  D) src",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following folders exists in the code editor's file tree?",
+    "choices": {
+      "A": "inner_folder",
+      "B": "src",
+      "C": "assets",
+      "D": "tests"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following folders exists in the code editor's file tree?\n  A) inner_folder\n  B) src\n  C) assets\n  D) tests",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following folders exists in the code editor's file tree?",
+    "choices": {
+      "A": "empty_folder",
+      "B": "lib",
+      "C": "src",
+      "D": "tests"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Which of the following folders exists in the code editor's file tree?\n  A) empty_folder\n  B) lib\n  C) src\n  D) tests",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "What is the first line of code in the file 'simple_python.py'?",
+    "choices": {
+      "A": "# Basic imports for data manipulation and analysis",
+      "B": "# The first Python program for many beginners!",
+      "C": "# The inner file in the folder_in_folder directory",
+      "D": "// Very simple C program that does nothing"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "What is the first line of code in the file 'simple_python.py'?\n  A) # Basic imports for data manipulation and analysis\n  B) # The first Python program for many beginners!\n  C) # The inner file in the folder_in_folder directory\n  D) // Very simple C program that does nothing",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "What is the first line of code in the file 'untitled_c.c'?",
+    "choices": {
+      "A": "# Basic imports for data manipulation and analysis",
+      "B": "// Very simple C program that does nothing",
+      "C": "# The inner file in the folder_in_folder directory",
+      "D": "# The first Python program for many beginners!"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "What is the first line of code in the file 'untitled_c.c'?\n  A) # Basic imports for data manipulation and analysis\n  B) // Very simple C program that does nothing\n  C) # The inner file in the folder_in_folder directory\n  D) # The first Python program for many beginners!",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "What is the first line of code in the file 'inner_file.py'?",
+    "choices": {
+      "A": "# Basic PyTorch tensor operation",
+      "B": "# Basic imports for data manipulation and analysis",
+      "C": "# The inner file in the folder_in_folder directory",
+      "D": "# The first Python program for many beginners!"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "What is the first line of code in the file 'inner_file.py'?\n  A) # Basic PyTorch tensor operation\n  B) # Basic imports for data manipulation and analysis\n  C) # The inner file in the folder_in_folder directory\n  D) # The first Python program for many beginners!",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "What is the first line of code in the file 'script.py'?",
+    "choices": {
+      "A": "// Very simple C program that does nothing",
+      "B": "# The first Python program for many beginners!",
+      "C": "# Basic PyTorch tensor operation",
+      "D": "# The inner file in the folder_in_folder directory"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "What is the first line of code in the file 'script.py'?\n  A) // Very simple C program that does nothing\n  B) # The first Python program for many beginners!\n  C) # Basic PyTorch tensor operation\n  D) # The inner file in the folder_in_folder directory",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Based on its file extension, what programming language is 'basic_imports.py'?",
+    "choices": {
+      "A": "YAML",
+      "B": "Go",
+      "C": "Python",
+      "D": "HTML"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Based on its file extension, what programming language is 'basic_imports.py'?\n  A) YAML\n  B) Go\n  C) Python\n  D) HTML",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Based on its file extension, what programming language is 'inner_file.py'?",
+    "choices": {
+      "A": "Go",
+      "B": "C",
+      "C": "Python",
+      "D": "YAML"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Based on its file extension, what programming language is 'inner_file.py'?\n  A) Go\n  B) C\n  C) Python\n  D) YAML",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Based on its file extension, what programming language is 'simple_python.py'?",
+    "choices": {
+      "A": "Python",
+      "B": "HTML",
+      "C": "JavaScript",
+      "D": "CSS"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Based on its file extension, what programming language is 'simple_python.py'?\n  A) Python\n  B) HTML\n  C) JavaScript\n  D) CSS",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Based on its file extension, what programming language is 'script.py'?",
+    "choices": {
+      "A": "CSS",
+      "B": "JavaScript",
+      "C": "Go",
+      "D": "Python"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Based on its file extension, what programming language is 'script.py'?\n  A) CSS\n  B) JavaScript\n  C) Go\n  D) Python",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Based on its file extension, what programming language is 'untitled_c.c'?",
+    "choices": {
+      "A": "HTML",
+      "B": "C",
+      "C": "CSS",
+      "D": "JavaScript"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Based on its file extension, what programming language is 'untitled_c.c'?\n  A) HTML\n  B) C\n  C) CSS\n  D) JavaScript",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following folders in the code editor is empty (contains no files)?",
+    "choices": {
+      "A": "tests",
+      "B": "folder_in_folder",
+      "C": "inner_folder",
+      "D": "src"
+    },
+    "correct": "C",
+    "category": "element_state",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "Which of the following folders in the code editor is empty (contains no files)?\n  A) tests\n  B) folder_in_folder\n  C) inner_folder\n  D) src",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Which of the following folders in the code editor is empty (contains no files)?",
+    "choices": {
+      "A": "empty_folder",
+      "B": "developing",
+      "C": "lib",
+      "D": "folder_in_folder"
+    },
+    "correct": "A",
+    "category": "element_state",
+    "app": "codeeditor",
+    "difficulty": "medium",
+    "formatted": "Which of the following folders in the code editor is empty (contains no files)?\n  A) empty_folder\n  B) developing\n  C) lib\n  D) folder_in_folder",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "Where is the file browser located in the code editor?",
+    "choices": {
+      "A": "A file list across the top of the page",
+      "B": "A floating file browser overlay in the center",
+      "C": "A right-side panel taking half the width",
+      "D": "A file tree on the left side, taking about 1/6 of the page width"
+    },
+    "correct": "D",
+    "category": "element_location",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "Where is the file browser located in the code editor?\n  A) A file list across the top of the page\n  B) A floating file browser overlay in the center\n  C) A right-side panel taking half the width\n  D) A file tree on the left side, taking about 1/6 of the page width",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How do you change the syntax highlighting language in the code editor?",
+    "choices": {
+      "A": "A dropdown/select menu with language options like Python, JavaScript, CSS",
+      "B": "Radio buttons for each language",
+      "C": "A text input where you type the language name",
+      "D": "Language is auto-detected from the file extension with no manual control"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How do you change the syntax highlighting language in the code editor?\n  A) A dropdown/select menu with language options like Python, JavaScript, CSS\n  B) Radio buttons for each language\n  C) A text input where you type the language name\n  D) Language is auto-detected from the file extension with no manual control",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How do you change the editor color theme in the code editor?",
+    "choices": {
+      "A": "A dropdown/select menu with themes like monokai, eclipse, solarized, dracula",
+      "B": "A color picker for custom theming",
+      "C": "There is no theme selection",
+      "D": "A toggle between light and dark mode only"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How do you change the editor color theme in the code editor?\n  A) A dropdown/select menu with themes like monokai, eclipse, solarized, dracula\n  B) A color picker for custom theming\n  C) There is no theme selection\n  D) A toggle between light and dark mode only",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How do you create a new file or folder in the code editor?",
+    "choices": {
+      "A": "Two buttons in the sidebar: 'New File' and 'New Folder'",
+      "B": "Right-clicking in the file tree",
+      "C": "A single '+' button that opens a menu",
+      "D": "A menu bar option under 'File'"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How do you create a new file or folder in the code editor?\n  A) Two buttons in the sidebar: 'New File' and 'New Folder'\n  B) Right-clicking in the file tree\n  C) A single '+' button that opens a menu\n  D) A menu bar option under 'File'",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How do you rename a file in the code editor?",
+    "choices": {
+      "A": "You cannot rename files",
+      "B": "A dedicated 'Rename' button in the toolbar",
+      "C": "Right-clicking the file and selecting 'Rename'",
+      "D": "Double-clicking on the file name in the header area"
+    },
+    "correct": "D",
+    "category": "element_interaction",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How do you rename a file in the code editor?\n  A) You cannot rename files\n  B) A dedicated 'Rename' button in the toolbar\n  C) Right-clicking the file and selecting 'Rename'\n  D) Double-clicking on the file name in the header area",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "What action buttons appear when viewing a file in the code editor?",
+    "choices": {
+      "A": "Save and Delete buttons",
+      "B": "Save, Run, and Debug buttons",
+      "C": "Only a Save button",
+      "D": "Save, Undo, and Redo buttons"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "What action buttons appear when viewing a file in the code editor?\n  A) Save and Delete buttons\n  B) Save, Run, and Debug buttons\n  C) Only a Save button\n  D) Save, Undo, and Redo buttons",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How do you expand or collapse a folder in the code editor's file tree?",
+    "choices": {
+      "A": "Folders are always fully expanded",
+      "B": "Double-click the folder name",
+      "C": "Click the triangle/arrow icon next to the folder name to expand or collapse it",
+      "D": "Hover over the folder to auto-expand"
+    },
+    "correct": "C",
+    "category": "element_interaction",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How do you expand or collapse a folder in the code editor's file tree?\n  A) Folders are always fully expanded\n  B) Double-click the folder name\n  C) Click the triangle/arrow icon next to the folder name to expand or collapse it\n  D) Hover over the folder to auto-expand",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
+  },
+  {
+    "question": "How are multiple open files managed in the code editor?",
+    "choices": {
+      "A": "There is only one editor view with no tabs",
+      "B": "Files open in separate browser tabs",
+      "C": "A split-pane view shows multiple files side by side",
+      "D": "Open files appear as tabs in a tab bar above the editor with close ('x') buttons"
+    },
+    "correct": "D",
+    "category": "element_identification",
+    "app": "codeeditor",
+    "difficulty": "easy",
+    "formatted": "How are multiple open files managed in the code editor?\n  A) There is only one editor view with no tabs\n  B) Files open in separate browser tabs\n  C) A split-pane view shows multiple files side by side\n  D) Open files appear as tabs in a tab bar above the editor with close ('x') buttons",
+    "screenshot_path": "tests/generated_screenshots/default/codeeditor.png"
   },
   {
     "question": "How many app tiles are displayed on the start (home) page?",
     "choices": {
-      "A": "8",
-      "B": "6",
-      "C": "5",
-      "D": "4"
+      "A": "5",
+      "B": "8",
+      "C": "4",
+      "D": "6"
     },
-    "correct": "B",
+    "correct": "D",
     "category": "element_counting",
     "app": "start_page",
     "difficulty": "easy",
-    "formatted": "How many app tiles are displayed on the start (home) page?\n  A) 8\n  B) 6\n  C) 5\n  D) 4"
+    "formatted": "How many app tiles are displayed on the start (home) page?\n  A) 5\n  B) 8\n  C) 4\n  D) 6",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   },
   {
     "question": "Which of the following is NOT an app shown on the start page?",
     "choices": {
       "A": "OpenTodos",
-      "B": "OpenCalendar",
-      "C": "OpenMessages",
-      "D": "OpenNotes"
+      "B": "OpenMessages",
+      "C": "OpenNotes",
+      "D": "OpenCalendar"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenTodos\n  B) OpenMessages\n  C) OpenNotes\n  D) OpenCalendar",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is an app available on the start page?",
+    "choices": {
+      "A": "OpenMusic",
+      "B": "OpenTravel",
+      "C": "OpenBanking",
+      "D": "OpenTodos"
     },
     "correct": "D",
     "category": "element_content",
     "app": "start_page",
     "difficulty": "easy",
-    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenTodos\n  B) OpenCalendar\n  C) OpenMessages\n  D) OpenNotes"
+    "formatted": "Which of the following is an app available on the start page?\n  A) OpenMusic\n  B) OpenTravel\n  C) OpenBanking\n  D) OpenTodos",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   },
   {
-    "question": "What headline text is displayed on the start page?",
+    "question": "Which of the following is an app available on the start page?",
     "choices": {
-      "A": "Home",
-      "B": "App Dashboard",
-      "C": "Welcome to OpenApps!",
-      "D": "My Apps"
+      "A": "OpenCalendar",
+      "B": "OpenTravel",
+      "C": "OpenNotes",
+      "D": "OpenFitness"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "Which of the following is an app available on the start page?\n  A) OpenCalendar\n  B) OpenTravel\n  C) OpenNotes\n  D) OpenFitness",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is an app available on the start page?",
+    "choices": {
+      "A": "OpenMessages",
+      "B": "OpenWeather",
+      "C": "OpenNotes",
+      "D": "OpenMusic"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "Which of the following is an app available on the start page?\n  A) OpenMessages\n  B) OpenWeather\n  C) OpenNotes\n  D) OpenMusic",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is an app available on the start page?",
+    "choices": {
+      "A": "OpenMusic",
+      "B": "OpenWeather",
+      "C": "OpenMaps",
+      "D": "OpenNotes"
     },
     "correct": "C",
     "category": "element_content",
     "app": "start_page",
     "difficulty": "easy",
-    "formatted": "What headline text is displayed on the start page?\n  A) Home\n  B) App Dashboard\n  C) Welcome to OpenApps!\n  D) My Apps"
+    "formatted": "Which of the following is an app available on the start page?\n  A) OpenMusic\n  B) OpenWeather\n  C) OpenMaps\n  D) OpenNotes",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is an app available on the start page?",
+    "choices": {
+      "A": "OpenFitness",
+      "B": "OpenBanking",
+      "C": "OpenWeather",
+      "D": "OpenCodeEditor"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "Which of the following is an app available on the start page?\n  A) OpenFitness\n  B) OpenBanking\n  C) OpenWeather\n  D) OpenCodeEditor",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is an app available on the start page?",
+    "choices": {
+      "A": "OpenShop",
+      "B": "OpenMusic",
+      "C": "OpenNotes",
+      "D": "OpenWeather"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "Which of the following is an app available on the start page?\n  A) OpenShop\n  B) OpenMusic\n  C) OpenNotes\n  D) OpenWeather",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "What headline text is displayed on the start page?",
+    "choices": {
+      "A": "My Apps",
+      "B": "App Dashboard",
+      "C": "Home",
+      "D": "Welcome to OpenApps!"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "What headline text is displayed on the start page?\n  A) My Apps\n  B) App Dashboard\n  C) Home\n  D) Welcome to OpenApps!",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   },
   {
     "question": "How are apps visually presented on the start page?",
     "choices": {
       "A": "A plain text list of links",
-      "B": "A horizontal scrolling carousel of screenshots",
+      "B": "A sidebar navigation menu",
       "C": "Colored tiles/cards with an icon, title, and description in a grid",
-      "D": "A sidebar navigation menu"
+      "D": "A horizontal scrolling carousel of screenshots"
     },
     "correct": "C",
     "category": "element_identification",
     "app": "start_page",
     "difficulty": "easy",
-    "formatted": "How are apps visually presented on the start page?\n  A) A plain text list of links\n  B) A horizontal scrolling carousel of screenshots\n  C) Colored tiles/cards with an icon, title, and description in a grid\n  D) A sidebar navigation menu"
+    "formatted": "How are apps visually presented on the start page?\n  A) A plain text list of links\n  B) A sidebar navigation menu\n  C) Colored tiles/cards with an icon, title, and description in a grid\n  D) A horizontal scrolling carousel of screenshots",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   },
   {
-    "question": "Which app uses an HTML table as its main layout element?",
+    "question": "What information is shown on each app tile on the start page?",
     "choices": {
-      "A": "Calendar (for the monthly grid view)",
-      "B": "Todo (for the task list)",
-      "C": "Maps (for the saved locations list)",
-      "D": "Messenger (for the conversation list)"
+      "A": "Only the app title as a text link",
+      "B": "A screenshot of the app and its title",
+      "C": "The app title and a star rating",
+      "D": "An icon image, the app title, and a description"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "easy",
+    "formatted": "What information is shown on each app tile on the start page?\n  A) Only the app title as a text link\n  B) A screenshot of the app and its title\n  C) The app title and a star rating\n  D) An icon image, the app title, and a description",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "What is the 1st app tile shown on the start page?",
+    "choices": {
+      "A": "OpenTodos",
+      "B": "OpenMaps",
+      "C": "OpenMessages",
+      "D": "OpenCalendar"
     },
     "correct": "A",
-    "category": "element_identification",
-    "app": "cross_app",
-    "difficulty": "hard",
-    "formatted": "Which app uses an HTML table as its main layout element?\n  A) Calendar (for the monthly grid view)\n  B) Todo (for the task list)\n  C) Maps (for the saved locations list)\n  D) Messenger (for the conversation list)"
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "What is the 1st app tile shown on the start page?\n  A) OpenTodos\n  B) OpenMaps\n  C) OpenMessages\n  D) OpenCalendar",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   },
   {
-    "question": "Which apps include a search feature?",
+    "question": "What is the 2nd app tile shown on the start page?",
     "choices": {
-      "A": "Only the Online Shop",
-      "B": "Maps, Messenger, and Online Shop",
-      "C": "All apps have search",
-      "D": "Only Maps and Online Shop"
+      "A": "OpenCodeEditor",
+      "B": "OpenCalendar",
+      "C": "OpenShop",
+      "D": "OpenMessages"
     },
     "correct": "B",
-    "category": "element_identification",
-    "app": "cross_app",
-    "difficulty": "hard",
-    "formatted": "Which apps include a search feature?\n  A) Only the Online Shop\n  B) Maps, Messenger, and Online Shop\n  C) All apps have search\n  D) Only Maps and Online Shop"
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "What is the 2nd app tile shown on the start page?\n  A) OpenCodeEditor\n  B) OpenCalendar\n  C) OpenShop\n  D) OpenMessages",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   },
   {
-    "question": "Do all sub-apps provide a way to navigate back to the main start page?",
+    "question": "What is the 3rd app tile shown on the start page?",
     "choices": {
-      "A": "No, you must use the browser back button from some apps",
-      "B": "No, only the Todo and Calendar apps have it",
-      "C": "Yes, every app has a 'Return to List of Apps' link or button",
-      "D": "Only the start page has navigation links to other apps"
+      "A": "OpenMessages",
+      "B": "OpenShop",
+      "C": "OpenCodeEditor",
+      "D": "OpenCalendar"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "What is the 3rd app tile shown on the start page?\n  A) OpenMessages\n  B) OpenShop\n  C) OpenCodeEditor\n  D) OpenCalendar",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "What is the 4th app tile shown on the start page?",
+    "choices": {
+      "A": "OpenTodos",
+      "B": "OpenMaps",
+      "C": "OpenCalendar",
+      "D": "OpenShop"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "What is the 4th app tile shown on the start page?\n  A) OpenTodos\n  B) OpenMaps\n  C) OpenCalendar\n  D) OpenShop",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "What is the 5th app tile shown on the start page?",
+    "choices": {
+      "A": "OpenCalendar",
+      "B": "OpenTodos",
+      "C": "OpenShop",
+      "D": "OpenCodeEditor"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "What is the 5th app tile shown on the start page?\n  A) OpenCalendar\n  B) OpenTodos\n  C) OpenShop\n  D) OpenCodeEditor",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "What is the 6th app tile shown on the start page?",
+    "choices": {
+      "A": "OpenCalendar",
+      "B": "OpenMaps",
+      "C": "OpenShop",
+      "D": "OpenMessages"
     },
     "correct": "C",
-    "category": "navigation",
-    "app": "cross_app",
-    "difficulty": "easy",
-    "formatted": "Do all sub-apps provide a way to navigate back to the main start page?\n  A) No, you must use the browser back button from some apps\n  B) No, only the Todo and Calendar apps have it\n  C) Yes, every app has a 'Return to List of Apps' link or button\n  D) Only the start page has navigation links to other apps"
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "What is the 6th app tile shown on the start page?\n  A) OpenCalendar\n  B) OpenMaps\n  C) OpenShop\n  D) OpenMessages",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is NOT an app shown on the start page?",
+    "choices": {
+      "A": "OpenShop",
+      "B": "OpenMessages",
+      "C": "OpenCodeEditor",
+      "D": "OpenNotes"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenShop\n  B) OpenMessages\n  C) OpenCodeEditor\n  D) OpenNotes",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is NOT an app shown on the start page?",
+    "choices": {
+      "A": "OpenMaps",
+      "B": "OpenWeather",
+      "C": "OpenCalendar",
+      "D": "OpenShop"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenMaps\n  B) OpenWeather\n  C) OpenCalendar\n  D) OpenShop",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is NOT an app shown on the start page?",
+    "choices": {
+      "A": "OpenShop",
+      "B": "OpenMessages",
+      "C": "OpenCodeEditor",
+      "D": "OpenMusic"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenShop\n  B) OpenMessages\n  C) OpenCodeEditor\n  D) OpenMusic",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "Which of the following is NOT an app shown on the start page?",
+    "choices": {
+      "A": "OpenShop",
+      "B": "OpenTodos",
+      "C": "OpenMaps",
+      "D": "OpenFitness"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "start_page",
+    "difficulty": "medium",
+    "formatted": "Which of the following is NOT an app shown on the start page?\n  A) OpenShop\n  B) OpenTodos\n  C) OpenMaps\n  D) OpenFitness",
+    "screenshot_path": "tests/generated_screenshots/default/start_page.png"
   }
 ]
