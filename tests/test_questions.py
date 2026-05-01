@@ -31,7 +31,11 @@ def client_and_config(tmpdir_factory):
         config = compose(config_name="config", overrides=[f"logs_dir={logs_dir}"])
     Path(config.logs_dir).mkdir(parents=True, exist_ok=True)
     Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
-    initialize_routes_and_configure_task(config.apps)
+    try:
+        initialize_routes_and_configure_task(config.apps)
+    # skip if already initialized
+    except Exception:
+        pass
     return TestClient(app), config
 
 
