@@ -79,6 +79,8 @@ def build_variation_overrides(include_onlineshop: bool) -> dict[str, list[str]]:
         "default": onlineshop_overrides,
         "dark_theme": onlineshop_overrides
         + [f"apps/{app_name}/appearance=dark_theme" for app_name in appearance_apps],
+        "challenging_font": onlineshop_overrides
+        + [f"apps/{app_name}/appearance=challenging_font" for app_name in appearance_apps],
         "german": onlineshop_overrides
         + [f"apps/{app_name}/content=german" for app_name in content_apps],
         "long_descriptions": onlineshop_overrides
@@ -115,8 +117,8 @@ def parse_args() -> argparse.Namespace:
         "--variation",
         dest="variations",
         nargs="*",
-        choices=["default", "dark_theme", "german", "long_descriptions"],
-        default=["default", "dark_theme", "german", "long_descriptions"],
+        choices=["default", "dark_theme", "challenging_font", "german", "long_descriptions"],
+        default=["default", "dark_theme", "challenging_font", "german", "long_descriptions"],
         help="Variation names to capture.",
     )
     parser.add_argument(
