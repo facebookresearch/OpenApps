@@ -16,6 +16,7 @@ from open_apps.launcher import AgentLauncher
 
 def run_task(config: DictConfig) -> None:
     from open_apps.apps.start_page.main import app  # need to import apps to serve
+
     launcher = AgentLauncher(config)
     launcher.launch()
 
@@ -37,8 +38,21 @@ def main(config: DictConfig) -> None:
     sweep_dir = os.path.join(sweep_root_logs_dir, "sweep")
     print("Logging sweep to ", sweep_dir)
 
-    executor = submitit.AutoExecutor(folder=sweep_dir)
-    executor.update_parameters(**config.slurm_sweep_launcher)
+    cluster = config.get("cluster")
+
+    if cluster == "local":
+        run_locally(config, parallel_configs, num_jobs)
+    elif cluster == "slurm":
+        run_via_slurm(config, parallel_configs, num_jobs, sweep_dir)
+    else:
+        raise ValueError(f"cluster= {cluster} not supported for parallel agents")
+
+
+def run_via_slurm(config, parallel_configs, num_jobs, sweep_dir):
+    cluster = config.get("cluster")
+    executor = submitit.AutoExecutor(folder=sweep_dir, cluster=cluster)
+    if hasattr(config, "slurm_sweep_launcher"):
+        executor.update_parameters(**config.slurm_sweep_launcher)
     jobs = []
     with executor.batch():
         for i, job_config in enumerate(parallel_configs):
@@ -47,8 +61,23 @@ def main(config: DictConfig) -> None:
             job = executor.submit(run_task, job_config)
             jobs.append(job)
 
-    print(f"Submitting {len(jobs)} parallel agent tasks the cluster.")
+    print(f"Submitting {len(jobs)} parallel agent tasks via cluster={cluster}.")
     print("First Job ID:", jobs[0].job_id)
+
+
+def run_locally(config, parallel_configs, num_jobs):
+    # Run each job sequentially in the parent process so output streams
+    # directly to the terminal instead of being captured by submitit
+    # subprocess log files.
+    base_logs_dir = str(config.logs_dir)
+    for i, job_config in enumerate(parallel_configs):
+        job_config.job_id = i
+        job_config.num_jobs = num_jobs
+        job_config.logs_dir = f"{base_logs_dir}/{i}"
+        job_config.databases_dir = f"{job_config.logs_dir}/databases"
+        print(f"\n=== Running local job {i + 1}/{num_jobs} (job_id={i}) ===")
+        run_task(job_config)
+    print(f"\nFinished {num_jobs} local jobs.")
 
 
 if __name__ == "__main__":
