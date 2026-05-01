@@ -4,6 +4,8 @@ project: open_apps
 logs_dir:  /checkpoint/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${oc.env:USER}-${agent.model_name}/${job_id}
 databases_dir: ${logs_dir}/databases
 
+cluster: slurm
+
 slurm_sweep_launcher:
   gpus_per_node: 0
   nodes: 1
