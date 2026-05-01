@@ -53,9 +53,23 @@ message_bob_to_meet:
   message: "Let's meet"
   expected_reply: "Yes, let's play on Saturday!"
 
+message_alice_about_badminton:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Send a message to Alice 'Wanna play badminton?'
+  to: "Alice"
+  message: "Wanna play badminton?"
+  expected_reply: "Yes, I want to play badminton!"
+
 save_paris_to_my_favorite_places:
   _target_: open_apps.tasks.tasks.SavePlaceTask
   goal: Save Paris, France to my favorite places
   name: Paris, Île-de-France, France métropolitaine, France
   latitude: 48.8589
   longitude: 2.3200
+
+save_bockelwitz_to_my_favorite_places:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save Bockelwitz, Germany to my favorite places
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
