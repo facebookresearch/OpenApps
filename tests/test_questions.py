@@ -21,7 +21,11 @@ from tests.ui_questions.question_generation.generator import (
     generate_questions_from_state,
     questions_to_json,
 )
-from tests.ui_questions.question_generation.templates import MCQuestion, ALL_TEMPLATES
+from tests.ui_questions.question_generation.templates import (
+    MCQuestion,
+    ALL_TEMPLATES,
+    MAX_VISIBLE_TODOS,
+)
 
 
 @pytest.fixture(scope="module")
@@ -70,8 +74,10 @@ class TestQuestionGeneration:
     def test_todo_counting_questions_correct(self, client_and_config):
         client, config = client_and_config
         todo_state = client.get("/todo_all").json()
-        done_count = sum(1 for t in todo_state if t.get("done"))
-        not_done_count = len(todo_state) - done_count
+        # Counting templates only consider the visible prefix of the todo list.
+        visible = todo_state[:MAX_VISIBLE_TODOS]
+        done_count = sum(1 for t in visible if t.get("done"))
+        not_done_count = len(visible) - done_count
 
         questions = generate_questions_from_client(client, config, apps=["todo"])
         counting_qs = [q for q in questions if q.category == "element_counting"]
@@ -79,12 +85,11 @@ class TestQuestionGeneration:
 
         for q in counting_qs:
             correct_value = q.choices[q.correct]
-            if "done" in q.question.lower() and "not" not in q.question.lower() and "incomplete" not in q.question.lower():
+            q_lower = q.question.lower()
+            if "checked" in q_lower and "unchecked" not in q_lower:
                 assert correct_value == str(done_count)
-            elif "incomplete" in q.question.lower() or "not checked" in q.question.lower():
+            elif "unchecked" in q_lower or "not done" in q_lower:
                 assert correct_value == str(not_done_count)
-            elif "total" in q.question.lower():
-                assert correct_value == str(len(todo_state))
 
     def test_generates_questions_for_each_app(self, client_and_config):
         client, config = client_and_config

@@ -21,6 +21,7 @@ Usage:
 
 import json
 import random
+from datetime import date
 from pathlib import Path
 
 import requests
@@ -94,6 +95,7 @@ def generate_questions(
     config: dict | None = None,
     seed: int = 42,
     apps: list[str] | None = None,
+    current_month: tuple[int, int] | None = None,
 ) -> list[MCQuestion]:
     """
     Generate all questions from templates given app state and config.
@@ -104,6 +106,10 @@ def generate_questions(
         config: Hydra config dict (optional, used for appearance/content-aware questions).
         seed: Random seed for reproducible question generation.
         apps: List of app names to generate questions for. None = all.
+        current_month: (year, month) tuple of the calendar month visible in the
+            screenshot. Defaults to today's month — which matches the calendar
+            app's default landing view, so the same value is correct for both
+            screenshot and question generation when run together.
 
     Returns:
         List of MCQuestion instances.
@@ -111,6 +117,10 @@ def generate_questions(
     config = config or {}
     rng = random.Random(seed)
     questions = []
+
+    if current_month is None:
+        today = date.today()
+        current_month = (today.year, today.month)
 
     target_apps = apps or list(ALL_TEMPLATES.keys())
 
@@ -120,7 +130,7 @@ def generate_questions(
 
         for template_fn in templates:
             try:
-                qs = template_fn(state, app_config, rng)
+                qs = template_fn(state, app_config, rng, current_month=current_month)
                 questions.extend(qs)
             except (KeyError, IndexError, ValueError):
                 continue
@@ -133,10 +143,11 @@ def generate_questions_from_server(
     config: dict | None = None,
     seed: int = 42,
     apps: list[str] | None = None,
+    current_month: tuple[int, int] | None = None,
 ) -> list[MCQuestion]:
     """Generate questions by fetching state from a running server."""
     state = _fetch_state_from_server(base_url)
-    return generate_questions(state, config, seed, apps)
+    return generate_questions(state, config, seed, apps, current_month)
 
 
 def generate_questions_from_client(
@@ -144,11 +155,12 @@ def generate_questions_from_client(
     config=None,
     seed: int = 42,
     apps: list[str] | None = None,
+    current_month: tuple[int, int] | None = None,
 ) -> list[MCQuestion]:
     """Generate questions by fetching state from a Starlette TestClient."""
     state = _fetch_state_from_client(client)
     config_dict = _config_to_dict(config)
-    return generate_questions(state, config_dict, seed, apps)
+    return generate_questions(state, config_dict, seed, apps, current_month)
 
 
 def generate_questions_from_state(
@@ -156,9 +168,10 @@ def generate_questions_from_state(
     config: dict | None = None,
     seed: int = 42,
     apps: list[str] | None = None,
+    current_month: tuple[int, int] | None = None,
 ) -> list[MCQuestion]:
     """Generate questions from a pre-loaded state dict (e.g., from a JSON file)."""
-    return generate_questions(state, config, seed, apps)
+    return generate_questions(state, config, seed, apps, current_month)
 
 
 APP_TO_SCREENSHOT = {

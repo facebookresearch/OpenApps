@@ -8,23 +8,40 @@ LICENSE file in the root directory of this source tree.
 """
 Question templates for testing UI understanding.
 
-Each template is a function that takes app state (from /*_all endpoints) and/or
-Hydra config, and returns a list of MCQuestion instances. Templates are grouped
-by the UI-understanding skill they test.
+Each template returns multiple-choice questions whose answer is grounded in what
+is *visible in the rendered screenshot of one app*. Templates that would require
+inspecting state outside of the screenshot (off-screen list items, other months,
+forms/modals shown only after a click, HTML structure, framework choice, etc.)
+have been removed.
+
+Two assumptions about the screenshots:
+
+1. The todo list is rendered at full page height but, in the captured screenshot,
+   only the first ~12 items are visible. Templates that reason about the list
+   only consider the visible prefix (``MAX_VISIBLE_TODOS``).
+2. The calendar shows a single month grid. Only events that fall in that month
+   appear on screen, and only their title + date number are visible (no location,
+   no recurring marker, no description). Calendar templates filter to the
+   currently-displayed month using ``current_month`` (defaults to today).
 """
 
-from dataclasses import dataclass
+import calendar as cal_mod
 import random
+from dataclasses import dataclass
+from datetime import datetime, date
+
+
+MAX_VISIBLE_TODOS = 12
 
 
 @dataclass
 class MCQuestion:
     question: str
-    choices: dict[str, str]  # {"A": "...", "B": "...", ...}
-    correct: str  # "A", "B", "C", or "D"
+    choices: dict[str, str]
+    correct: str
     category: str
     app: str
-    difficulty: str = "easy"  # easy, medium, hard
+    difficulty: str = "easy"
 
     def format_as_prompt(self) -> str:
         lines = [self.question]
@@ -36,7 +53,6 @@ class MCQuestion:
 def _shuffle_choices(
     correct: str, distractors: list[str], rng: random.Random
 ) -> tuple[dict[str, str], str]:
-    """Shuffle correct answer among distractors, return (choices_dict, correct_letter)."""
     all_options = [correct] + distractors[:3]
     rng.shuffle(all_options)
     labels = ["A", "B", "C", "D"]
@@ -45,10 +61,7 @@ def _shuffle_choices(
     return choices, correct_letter
 
 
-def _nearby_integers(
-    correct: int, upper_bound: int, rng: random.Random
-) -> list[str]:
-    """Generate 3 plausible but wrong integer alternatives."""
+def _nearby_integers(correct: int, _upper_bound: int, rng: random.Random) -> list[str]:
     candidates = set()
     for delta in [-2, -1, 1, 2, 3, -3]:
         val = correct + delta
@@ -66,75 +79,89 @@ def _ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
-def _collect_files(node: dict) -> list[dict]:
-    """Recursively collect all files from a codeeditor state tree."""
-    files = []
-    if node.get("type") == "file":
-        files.append(node)
-    for child in node.get("children", []):
-        files.extend(_collect_files(child))
-    return files
+def _top_level_files(node: dict) -> list[dict]:
+    """Files at the root of the codeeditor tree (visible without expanding folders)."""
+    return [c for c in node.get("children", []) if c.get("type") == "file"]
 
 
-def _collect_folders(node: dict) -> list[dict]:
-    """Recursively collect all folders from a codeeditor state tree."""
-    folders = []
-    if node.get("type") == "folder" and node.get("name"):
-        folders.append(node)
-    for child in node.get("children", []):
-        folders.extend(_collect_folders(child))
-    return folders
+def _top_level_folders(node: dict) -> list[dict]:
+    """Folders at the root of the codeeditor tree."""
+    return [c for c in node.get("children", []) if c.get("type") == "folder"]
+
+
+def _resolve_current_month(current_month) -> tuple[int, int]:
+    """Normalize the current_month context to a (year, month) tuple."""
+    if current_month is None:
+        today = date.today()
+        return today.year, today.month
+    if isinstance(current_month, (tuple, list)):
+        return int(current_month[0]), int(current_month[1])
+    raise ValueError(f"Unrecognized current_month: {current_month!r}")
+
+
+def _events_in_month(events: list[dict], year: int, month: int) -> list[dict]:
+    """Return events whose date (or yearly/monthly recurrence) lands in (year, month)."""
+    visible = []
+    for e in events:
+        d = e.get("date")
+        if not d:
+            continue
+        try:
+            ev_date = datetime.strptime(d, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        recurring = (e.get("recurring") or "").lower()
+        if ev_date.year == year and ev_date.month == month:
+            visible.append(e)
+        elif recurring == "yearly" and ev_date.month == month:
+            visible.append(e)
+        elif recurring == "monthly":
+            visible.append(e)
+        elif recurring == "weekly":
+            # weekly events show up every week of every month
+            visible.append(e)
+    return visible
 
 
 # ===========================================================================
-# Todo App Templates
+# Todo App Templates — only reason about the first MAX_VISIBLE_TODOS items
 # ===========================================================================
 
 
-def todo_count_done(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    todos = state["todo"]
+def _visible_todos(state: dict) -> list[dict]:
+    return state.get("todo", [])[:MAX_VISIBLE_TODOS]
+
+
+def todo_count_done(state, config, rng, **_):
+    todos = _visible_todos(state)
+    if len(todos) < 4:
+        return []
     done_count = sum(1 for t in todos if t.get("done"))
     distractors = _nearby_integers(done_count, len(todos), rng)
     choices, correct_letter = _shuffle_choices(str(done_count), distractors, rng)
-    return [
-        MCQuestion(
-            question="How many todo items are currently marked as done (checked off)?",
-            choices=choices, correct=correct_letter,
-            category="element_counting", app="todo",
-        )
-    ]
+    return [MCQuestion(
+        question="Looking at the visible todo list, how many items are checked (marked as done)?",
+        choices=choices, correct=correct_letter,
+        category="element_counting", app="todo",
+    )]
 
 
-def todo_count_not_done(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    todos = state["todo"]
+def todo_count_not_done(state, config, rng, **_):
+    todos = _visible_todos(state)
+    if len(todos) < 4:
+        return []
     not_done_count = sum(1 for t in todos if not t.get("done"))
     distractors = _nearby_integers(not_done_count, len(todos), rng)
     choices, correct_letter = _shuffle_choices(str(not_done_count), distractors, rng)
-    return [
-        MCQuestion(
-            question="How many todo items are still incomplete (not checked off)?",
-            choices=choices, correct=correct_letter,
-            category="element_counting", app="todo",
-        )
-    ]
+    return [MCQuestion(
+        question="Looking at the visible todo list, how many items are unchecked (not done)?",
+        choices=choices, correct=correct_letter,
+        category="element_counting", app="todo",
+    )]
 
 
-def todo_total_count(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    total = len(state["todo"])
-    distractors = _nearby_integers(total, total + 5, rng)
-    choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
-    return [
-        MCQuestion(
-            question="How many todo items are displayed in the list in total?",
-            choices=choices, correct=correct_letter,
-            category="element_counting", app="todo",
-        )
-    ]
-
-
-def todo_identify_done_items(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Generate one question per done item: 'Which of these is done?'"""
-    todos = state["todo"]
+def todo_identify_done_items(state, config, rng, **_):
+    todos = _visible_todos(state)
     done = [t["title"] for t in todos if t.get("done")]
     not_done = [t["title"] for t in todos if not t.get("done")]
     if len(done) < 1 or len(not_done) < 3:
@@ -143,114 +170,83 @@ def todo_identify_done_items(state: dict, config: dict, rng: random.Random) -> l
     for title in done:
         distractors = rng.sample(not_done, 3)
         choices, correct_letter = _shuffle_choices(title, distractors, rng)
-        questions.append(
-            MCQuestion(
-                question="Which of the following todo items is currently marked as done (checked)?",
-                choices=choices, correct=correct_letter,
-                category="element_state", app="todo",
-            )
-        )
+        questions.append(MCQuestion(
+            question="Which of the following visible todo items is shown with its checkbox checked?",
+            choices=choices, correct=correct_letter,
+            category="element_state", app="todo",
+        ))
     return questions
 
 
-def todo_identify_not_done_items(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Generate one question per not-done item: 'Which of these is incomplete?'"""
-    todos = state["todo"]
+def todo_identify_not_done_items(state, config, rng, **_):
+    todos = _visible_todos(state)
     done = [t["title"] for t in todos if t.get("done")]
     not_done = [t["title"] for t in todos if not t.get("done")]
     if len(not_done) < 1 or len(done) < 3:
         return []
     questions = []
     for title in not_done:
-        distractors = rng.sample(done, min(3, len(done)))
+        distractors = rng.sample(done, 3)
         choices, correct_letter = _shuffle_choices(title, distractors, rng)
-        questions.append(
-            MCQuestion(
-                question="Which of the following todo items is still incomplete (not checked)?",
-                choices=choices, correct=correct_letter,
-                category="element_state", app="todo",
-            )
-        )
+        questions.append(MCQuestion(
+            question="Which of the following visible todo items is shown with its checkbox unchecked?",
+            choices=choices, correct=correct_letter,
+            category="element_state", app="todo",
+        ))
     return questions
 
 
-def todo_specific_item_state(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """For each item, ask whether it is done or not."""
-    todos = state["todo"]
+def todo_specific_item_state(state, config, rng, **_):
+    todos = _visible_todos(state)
     questions = []
     for t in todos:
         is_done = bool(t.get("done"))
-        correct = "Checked (done)" if is_done else "Unchecked (not done)"
-        wrong = "Unchecked (not done)" if is_done else "Checked (done)"
-        distractors = [wrong, "Grayed out (archived)", "Highlighted (in progress)"]
+        correct = "Checkbox is checked" if is_done else "Checkbox is unchecked"
+        wrong = "Checkbox is unchecked" if is_done else "Checkbox is checked"
+        distractors = [wrong, "The item is shown in red", "The item is struck through"]
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(
-            MCQuestion(
-                question=f"What is the current state of the todo item '{t['title']}'?",
-                choices=choices, correct=correct_letter,
-                category="element_state", app="todo", difficulty="medium",
-            )
-        )
+        questions.append(MCQuestion(
+            question=f"In the visible todo list, what is the state of the checkbox next to '{t['title']}'?",
+            choices=choices, correct=correct_letter,
+            category="element_state", app="todo", difficulty="medium",
+        ))
     return questions
 
 
-def todo_first_item(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    todos = state["todo"]
+def todo_first_item(state, config, rng, **_):
+    todos = _visible_todos(state)
     if len(todos) < 4:
         return []
     correct = todos[0]["title"]
     distractors = rng.sample([t["title"] for t in todos[1:]], 3)
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [
-        MCQuestion(
-            question="What is the first todo item shown at the top of the list?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="todo",
-        )
-    ]
+    return [MCQuestion(
+        question="What is the first todo item shown at the top of the list?",
+        choices=choices, correct=correct_letter,
+        category="element_content", app="todo",
+    )]
 
 
-def todo_last_item(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    todos = state["todo"]
-    if len(todos) < 4:
-        return []
-    correct = todos[-1]["title"]
-    distractors = rng.sample([t["title"] for t in todos[:-1]], 3)
-    choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [
-        MCQuestion(
-            question="What is the last todo item shown at the bottom of the list?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="todo",
-        )
-    ]
-
-
-def todo_items_at_positions(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Ask about items at positions 2 through min(10, len-1)."""
-    todos = state["todo"]
+def todo_items_at_positions(state, config, rng, **_):
+    todos = _visible_todos(state)
     if len(todos) < 6:
         return []
     questions = []
-    upper = min(10, len(todos))
-    for pos in range(2, upper + 1):
+    for pos in range(2, len(todos) + 1):
         correct = todos[pos - 1]["title"]
         others = [t["title"] for i, t in enumerate(todos) if i != pos - 1]
-        distractors = rng.sample(others, min(3, len(others)))
+        distractors = rng.sample(others, 3)
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(
-            MCQuestion(
-                question=f"What is the {_ordinal(pos)} todo item in the list?",
-                choices=choices, correct=correct_letter,
-                category="element_content", app="todo", difficulty="medium",
-            )
-        )
+        questions.append(MCQuestion(
+            question=f"What is the {_ordinal(pos)} todo item shown in the visible list?",
+            choices=choices, correct=correct_letter,
+            category="element_content", app="todo", difficulty="medium",
+        ))
     return questions
 
 
-def todo_item_neighbor(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """What item comes right after X?"""
-    todos = state["todo"]
+def todo_item_neighbor(state, config, rng, **_):
+    todos = _visible_todos(state)
     if len(todos) < 5:
         return []
     questions = []
@@ -264,127 +260,60 @@ def todo_item_neighbor(state: dict, config: dict, rng: random.Random) -> list[MC
             continue
         distractors = rng.sample(others, 3)
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(
-            MCQuestion(
-                question=f"Which todo item appears directly after '{current}' in the list?",
-                choices=choices, correct=correct_letter,
-                category="element_content", app="todo", difficulty="medium",
-            )
-        )
+        questions.append(MCQuestion(
+            question=f"In the visible todo list, which item appears directly below '{current}'?",
+            choices=choices, correct=correct_letter,
+            category="element_content", app="todo", difficulty="medium",
+        ))
     return questions
 
 
-def todo_item_not_in_list(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Generate multiple 'which does NOT appear' questions."""
-    todos = state["todo"]
-    titles = {t["title"] for t in todos}
-    fake_items = [
-        "Feed the cat", "Fix the sink", "Paint the fence", "Return library books",
-        "Renew passport", "Schedule haircut", "Clean garage", "Buy birthday card",
-        "Wash the dishes", "Iron clothes", "Mow the lawn", "Write a letter",
-    ]
-    fake_items = [f for f in fake_items if f not in titles]
-    if len(fake_items) < 3 or len(todos) < 3:
-        return []
-    questions = []
-    for fake in fake_items[:4]:
-        real_items = rng.sample([t["title"] for t in todos], 3)
-        choices, correct_letter = _shuffle_choices(fake, real_items, rng)
-        questions.append(
-            MCQuestion(
-                question="Which of the following items does NOT appear in the todo list?",
-                choices=choices, correct=correct_letter,
-                category="element_content", app="todo", difficulty="medium",
-            )
-        )
-    return questions
-
-
-def todo_button_purpose(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def todo_element_type_for_completion(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Toggles the item between done and not done",
-        ["Deletes the todo item", "Opens the item for editing", "Selects the item for bulk actions"],
-        rng,
+        "Checkbox", ["Toggle switch", "Radio button", "Star icon"], rng,
     )
     return [MCQuestion(
-        question="What happens when you click the checkbox next to a todo item?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="todo",
-    )]
-
-
-def todo_edit_button_purpose(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Opens an inline edit form to change the item's title and status",
-        ["Deletes the item after confirmation", "Marks the item as high priority", "Copies the item text to clipboard"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What happens when you click the 'Edit' button on a todo item?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="todo",
-    )]
-
-
-def todo_remove_button_purpose(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Permanently removes the todo item from the list",
-        ["Marks the item as done", "Moves the item to a trash folder", "Hides the item but keeps it in the database"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What happens when you click the 'Remove' button on a todo item?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="todo",
-    )]
-
-
-def todo_element_type_for_completion(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Checkbox", ["Toggle switch", "Radio button", "Button labeled 'Done'"], rng,
-    )
-    return [MCQuestion(
-        question="What type of UI element is used to mark a todo item as complete?",
+        question="What type of UI element appears to the left of each todo item title?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="todo",
     )]
 
 
-def todo_controls_per_item(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def todo_controls_per_item(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "Edit and Remove",
         ["Delete and Archive", "Save and Cancel", "Complete and Skip"],
         rng,
     )
     return [MCQuestion(
-        question="What two action buttons appear next to each todo item?",
+        question="What two button labels are shown beneath each todo item?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="todo",
     )]
 
 
-def todo_input_placeholder(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def todo_input_placeholder(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "New Todo", ["Add a task", "Enter todo here", "Type a new item"], rng,
     )
     return [MCQuestion(
-        question="What placeholder text is shown in the input field for adding a new todo?",
+        question="What placeholder text is shown in the input field at the top of the todo app?",
         choices=choices, correct=correct_letter,
         category="element_content", app="todo",
     )]
 
 
-def todo_add_button_label(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def todo_add_button_label(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices("Add", ["Submit", "Create", "Save"], rng)
     return [MCQuestion(
-        question="What is the label on the button used to add a new todo item?",
+        question="What is the label on the button to the right of the new-todo input field?",
         choices=choices, correct=correct_letter,
         category="element_content", app="todo",
     )]
 
 
-def todo_app_title(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    title = config.get("title", "OpenTodos")
+def todo_app_title(state, config, rng, **_):
+    title = (config or {}).get("title", "OpenTodos")
     distractors = ["My Tasks", "Todo List", "Task Manager"]
     if title != "OpenTodos":
         distractors = ["OpenTodos"] + distractors[:2]
@@ -396,433 +325,223 @@ def todo_app_title(state: dict, config: dict, rng: random.Random) -> list[MCQues
     )]
 
 
-def todo_nav_element(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A 'Return to List of Apps' link at the bottom",
-        ["A home icon in the top navigation bar", "Clicking the app logo/title", "A back arrow button in the header"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How do you navigate back to the main app list from the todo app?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="todo",
-    )]
-
-
-def todo_edit_form_elements(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A text input for the title, a 'Done' checkbox, and a 'Save' button",
-        [
-            "A text input for the title and a 'Submit' button",
-            "A text area, a priority dropdown, and an 'Update' button",
-            "A text input, a date picker, and a 'Confirm' button",
-        ],
-        rng,
-    )
-    return [MCQuestion(
-        question="What elements appear in the edit form when you edit a todo item?",
-        choices=choices, correct=correct_letter,
-        category="form_structure", app="todo",
-    )]
-
-
-def todo_list_element_type(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "An unordered list (<ul>) with list items",
-        ["A table with rows", "A grid of cards", "A series of <div> paragraphs"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What HTML structure is used to display the list of todo items?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="todo", difficulty="hard",
-    )]
-
-
 # ===========================================================================
-# Calendar App Templates
+# Calendar App Templates — restricted to the currently-displayed month
 # ===========================================================================
 
 
-def calendar_count_events(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    events = state["calendar"]
-    total = len(events)
-    distractors = _nearby_integers(total, total + 10, rng)
-    choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
+def calendar_displayed_month(state, config, rng, current_month=None, **_):
+    year, month = _resolve_current_month(current_month)
+    correct = f"{cal_mod.month_name[month]} {year}"
+    other_months = [m for m in range(1, 13) if m != month]
+    rng.shuffle(other_months)
+    distractors = [f"{cal_mod.month_name[m]} {year}" for m in other_months[:3]]
+    choices, correct_letter = _shuffle_choices(correct, distractors, rng)
     return [MCQuestion(
-        question="How many events are stored in the calendar in total?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="calendar",
-    )]
-
-
-def calendar_count_birthdays(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    events = state["calendar"]
-    birthday_count = sum(1 for e in events if "birthday" in e.get("title", "").lower())
-    if birthday_count == 0:
-        return []
-    distractors = _nearby_integers(birthday_count, birthday_count + 8, rng)
-    choices, correct_letter = _shuffle_choices(str(birthday_count), distractors, rng)
-    return [MCQuestion(
-        question="How many birthday events are on the calendar?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="calendar",
-    )]
-
-
-def calendar_count_conference_deadlines(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    events = state["calendar"]
-    deadline_count = sum(
-        1 for e in events
-        if "deadline" in e.get("title", "").lower() or "paper" in e.get("title", "").lower()
-    )
-    if deadline_count == 0:
-        return []
-    distractors = _nearby_integers(deadline_count, deadline_count + 8, rng)
-    choices, correct_letter = _shuffle_choices(str(deadline_count), distractors, rng)
-    return [MCQuestion(
-        question="How many conference deadline or paper submission events are on the calendar?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="calendar",
-    )]
-
-
-def calendar_count_recurring(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    events = state["calendar"]
-    recurring_count = sum(1 for e in events if e.get("recurring"))
-    if recurring_count == 0:
-        return []
-    distractors = _nearby_integers(recurring_count, recurring_count + 8, rng)
-    choices, correct_letter = _shuffle_choices(str(recurring_count), distractors, rng)
-    return [MCQuestion(
-        question="How many events on the calendar are set to recur (yearly, monthly, or weekly)?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="calendar",
-    )]
-
-
-def calendar_event_dates(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Ask for the date of multiple specific events."""
-    events = state["calendar"]
-    events_with_dates = [e for e in events if e.get("date")]
-    if len(events_with_dates) < 6:
-        return []
-    all_dates = list({e["date"] for e in events_with_dates})
-    rng.shuffle(events_with_dates)
-    questions = []
-    for target in events_with_dates[:8]:
-        correct = target["date"]
-        other_dates = [d for d in all_dates if d != correct]
-        if len(other_dates) < 3:
-            continue
-        distractors = rng.sample(other_dates, 3)
-        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"What date is the event '{target['title']}' scheduled for?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar", difficulty="medium",
-        ))
-    return questions
-
-
-def calendar_event_is_recurring(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """For specific events, ask whether they recur."""
-    events = state["calendar"]
-    recurring = [e for e in events if e.get("recurring")]
-    non_recurring = [e for e in events if not e.get("recurring")]
-    if len(recurring) < 2 or len(non_recurring) < 2:
-        return []
-    questions = []
-    samples = rng.sample(recurring, min(5, len(recurring))) + rng.sample(non_recurring, min(5, len(non_recurring)))
-    rng.shuffle(samples)
-    for event in samples:
-        is_rec = bool(event.get("recurring"))
-        correct = f"Yes, it recurs {event['recurring']}" if is_rec else "No, it is a one-time event"
-        distractors = [
-            "No, it is a one-time event" if is_rec else "Yes, it recurs yearly",
-            "Yes, it recurs weekly",
-            "Yes, it recurs monthly",
-        ]
-        if is_rec:
-            distractors = [d for d in distractors if event["recurring"] not in d][:3]
-            if len(distractors) < 3:
-                distractors.append("No, it is a one-time event")
-        choices, correct_letter = _shuffle_choices(correct, distractors[:3], rng)
-        questions.append(MCQuestion(
-            question=f"Is the event '{event['title']}' a recurring event?",
-            choices=choices, correct=correct_letter,
-            category="element_state", app="calendar", difficulty="medium",
-        ))
-    return questions
-
-
-def calendar_event_location(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Ask for the location of specific events."""
-    events = state["calendar"]
-    with_location = [e for e in events if e.get("location")]
-    if len(with_location) < 4:
-        return []
-    questions = []
-    rng.shuffle(with_location)
-    for event in with_location[:6]:
-        correct = event["location"]
-        fake_locations = ["Room 301", "Virtual", "New York City", "Conference Hall B", "Online", "Library"]
-        fake_locations = [f for f in fake_locations if f != correct]
-        distractors = rng.sample(fake_locations, min(3, len(fake_locations)))
-        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"What is the location listed for the event '{event['title']}'?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar",
-        ))
-    return questions
-
-
-def calendar_event_exists_multi(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Multiple 'which event appears on the calendar' questions."""
-    events = state["calendar"]
-    if len(events) < 4:
-        return []
-    event_titles = [e["title"] for e in events]
-    fake_events = [
-        "NeurIPS 2026 Deadline", "Team Standup Meeting", "Dentist Appointment",
-        "ICML 2026 Workshop", "Mom's Anniversary", "Sprint Planning",
-        "Yoga Class", "Guitar Lesson", "Board Meeting",
-    ]
-    fake_events = [f for f in fake_events if f not in event_titles]
-    questions = []
-    rng.shuffle(event_titles)
-    for correct in event_titles[:6]:
-        distractors = rng.sample(fake_events, min(3, len(fake_events)))
-        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following events appears on the calendar?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar",
-        ))
-    return questions
-
-
-def calendar_event_not_exists(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Which event does NOT appear on the calendar?"""
-    events = state["calendar"]
-    event_titles = [e["title"] for e in events]
-    fake_events = [
-        "NeurIPS 2026 Deadline", "Team Standup Meeting", "Dentist Appointment",
-        "ICML 2026 Workshop", "Sprint Retrospective", "Board Meeting",
-    ]
-    fake_events = [f for f in fake_events if f not in event_titles]
-    if len(fake_events) < 2 or len(event_titles) < 3:
-        return []
-    questions = []
-    for fake in fake_events[:4]:
-        real = rng.sample(event_titles, 3)
-        choices, correct_letter = _shuffle_choices(fake, real, rng)
-        questions.append(MCQuestion(
-            question="Which of the following events does NOT appear on the calendar?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar", difficulty="medium",
-        ))
-    return questions
-
-
-def calendar_birthday_month(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Whose birthday is in month X?"""
-    events = state["calendar"]
-    birthdays = [e for e in events if "birthday" in e.get("title", "").lower() and e.get("date")]
-    if len(birthdays) < 4:
-        return []
-    import calendar as cal_mod
-    questions = []
-    rng.shuffle(birthdays)
-    for bday in birthdays[:6]:
-        month_num = int(bday["date"].split("-")[1])
-        month_name = cal_mod.month_name[month_num]
-        name = bday["title"].replace("'s Birthday", "")
-        correct = month_name
-        other_months = [cal_mod.month_name[m] for m in range(1, 13) if m != month_num]
-        distractors = rng.sample(other_months, 3)
-        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"In what month is {name}'s birthday?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar", difficulty="medium",
-        ))
-    return questions
-
-
-def calendar_whose_birthday(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Given a date, whose birthday is it?"""
-    events = state["calendar"]
-    birthdays = [e for e in events if "birthday" in e.get("title", "").lower()]
-    if len(birthdays) < 4:
-        return []
-    names = [e["title"].replace("'s Birthday", "") for e in birthdays]
-    questions = []
-    rng.shuffle(birthdays)
-    for bday in birthdays[:8]:
-        name = bday["title"].replace("'s Birthday", "")
-        date = bday.get("date", "")
-        others = [n for n in names if n != name]
-        if len(others) < 3:
-            continue
-        distractors = rng.sample(others, 3)
-        choices, correct_letter = _shuffle_choices(name, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"Whose birthday is on {date}?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar", difficulty="medium",
-        ))
-    return questions
-
-
-def calendar_recurring_type(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A dropdown/select menu with options like Weekly, Monthly, Yearly",
-        ["Radio buttons for each recurrence type", "A text input where you type the recurrence", "Checkboxes for each day of the week"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What type of UI element is used to choose how often a calendar event recurs?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="calendar",
-    )]
-
-
-def calendar_view_toggle(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Calendar (grid) and Agenda (list)",
-        ["Day and Week views", "Month and Year views", "Timeline and Board views"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What two view modes can you toggle between on the calendar page?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="calendar",
-    )]
-
-
-def calendar_create_event_fields(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Title, Date, Description, URL, Invitees, Location, Recurring",
-        [
-            "Title, Date, Time, Priority, Color",
-            "Title, Start Date, End Date, All Day, Reminders",
-            "Title, Date, Category, Assignee, Status",
-        ],
-        rng,
-    )
-    return [MCQuestion(
-        question="What fields are available in the form to create a new calendar event?",
-        choices=choices, correct=correct_letter,
-        category="form_structure", app="calendar",
-    )]
-
-
-def calendar_month_navigation(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "'< Prev' and 'Next >' buttons flanking the month name",
-        ["A dropdown to select the month", "Left and right arrow keys", "Swiping gestures on the calendar grid"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How do you navigate to a different month on the calendar?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="calendar",
-    )]
-
-
-def calendar_delete_event_element(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A 'Delete Event' button on the event detail page",
-        ["Right-clicking the event and selecting 'Delete'", "Dragging the event to a trash icon", "A swipe-to-delete gesture on the event"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How do you delete an event from the calendar?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="calendar",
-    )]
-
-
-def calendar_date_input_type(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A text input with placeholder 'YYYY-MM-DD'",
-        ["A date picker calendar widget", "A set of three dropdowns (year, month, day)", "A date/time combined picker"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How is the event date entered in the 'Create New Event' form?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="calendar",
-    )]
-
-
-def calendar_weekday_headers(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Mon, Tue, Wed, Thu, Fri, Sat, Sun",
-        ["Sunday through Saturday", "M, T, W, T, F, S, S", "Monday through Friday only"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What column headers appear across the top of the calendar grid?",
+        question="Which month and year does the calendar currently display?",
         choices=choices, correct=correct_letter,
         category="element_content", app="calendar",
     )]
 
 
-def calendar_add_event_location(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def calendar_count_events_in_month(state, config, rng, current_month=None, **_):
+    year, month = _resolve_current_month(current_month)
+    visible = _events_in_month(state.get("calendar", []), year, month)
+    count = len(visible)
+    if count == 0:
+        return []
+    distractors = _nearby_integers(count, count + 5, rng)
+    choices, correct_letter = _shuffle_choices(str(count), distractors, rng)
+    return [MCQuestion(
+        question="How many events are shown on the calendar grid for the displayed month?",
+        choices=choices, correct=correct_letter,
+        category="element_counting", app="calendar",
+    )]
+
+
+def calendar_event_exists_in_month(state, config, rng, current_month=None, **_):
+    year, month = _resolve_current_month(current_month)
+    visible = _events_in_month(state.get("calendar", []), year, month)
+    if len(visible) < 1:
+        return []
+    visible_titles = [e["title"] for e in visible]
+    fake_events = [
+        "NeurIPS 2026 Deadline", "Team Standup Meeting", "Dentist Appointment",
+        "ICML 2026 Workshop", "Mom's Anniversary", "Sprint Planning",
+        "Yoga Class", "Guitar Lesson", "Board Meeting",
+    ]
+    fake_events = [f for f in fake_events if f not in visible_titles]
+    if len(fake_events) < 3:
+        return []
+    questions = []
+    for correct in visible_titles:
+        distractors = rng.sample(fake_events, 3)
+        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
+        questions.append(MCQuestion(
+            question="Which of the following events appears on the displayed calendar month?",
+            choices=choices, correct=correct_letter,
+            category="element_content", app="calendar",
+        ))
+    return questions
+
+
+def calendar_event_day_in_month(state, config, rng, current_month=None, **_):
+    """For each visible event, ask which day-of-month its cell falls on."""
+    year, month = _resolve_current_month(current_month)
+    visible = _events_in_month(state.get("calendar", []), year, month)
+    if len(visible) < 1:
+        return []
+    last_day = cal_mod.monthrange(year, month)[1]
+    questions = []
+    for ev in visible:
+        try:
+            ev_date = datetime.strptime(ev["date"], "%Y-%m-%d").date()
+        except (KeyError, ValueError):
+            continue
+        correct_day = ev_date.day
+        if correct_day > last_day:
+            continue
+        other_days = [d for d in range(1, last_day + 1) if d != correct_day]
+        distractors = [str(d) for d in rng.sample(other_days, min(3, len(other_days)))]
+        if len(distractors) < 3:
+            continue
+        choices, correct_letter = _shuffle_choices(str(correct_day), distractors, rng)
+        questions.append(MCQuestion(
+            question=f"On which day of the displayed month is the event '{ev['title']}' shown?",
+            choices=choices, correct=correct_letter,
+            category="element_content", app="calendar", difficulty="medium",
+        ))
+    return questions
+
+
+def calendar_view_toggle(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A button at the bottom of the calendar page that opens a new tab",
-        ["A '+' floating action button in the corner", "A menu item in a hamburger menu", "Double-clicking on a calendar day cell"],
+        "Calendar and Agenda",
+        ["Day and Week", "Month and Year", "Timeline and Board"],
         rng,
     )
     return [MCQuestion(
-        question="How do you access the form to add a new calendar event?",
+        question="What two view-toggle buttons are shown above the calendar grid?",
+        choices=choices, correct=correct_letter,
+        category="element_identification", app="calendar",
+    )]
+
+
+def calendar_month_navigation(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "'< Prev' on the left and 'Next >' on the right of the month name",
+        [
+            "A dropdown to select the month",
+            "Up and down arrow keys",
+            "A search box for jumping to a date",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="What controls are shown for navigating between months on the calendar?",
+        choices=choices, correct=correct_letter,
+        category="navigation", app="calendar",
+    )]
+
+
+def calendar_weekday_headers(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Mon, Tue, Wed, Thu, Fri, Sat, Sun",
+        [
+            "Sun, Mon, Tue, Wed, Thu, Fri, Sat",
+            "M, T, W, T, F, S, S",
+            "Monday through Friday only",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="What weekday header labels appear across the top of the calendar grid?",
+        choices=choices, correct=correct_letter,
+        category="element_content", app="calendar",
+    )]
+
+
+def calendar_app_title(state, config, rng, **_):
+    title = (config or {}).get("title", "OpenCalendar")
+    distractors = ["My Calendar", "Schedule", "Events"]
+    if title != "OpenCalendar":
+        distractors = ["OpenCalendar"] + distractors[:2]
+    choices, correct_letter = _shuffle_choices(title, distractors, rng)
+    return [MCQuestion(
+        question="What title is displayed at the top of the calendar app page?",
+        choices=choices, correct=correct_letter,
+        category="element_content", app="calendar",
+    )]
+
+
+def calendar_add_event_button(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Add Event",
+        ["New Event", "Create Event", "+ Event"],
+        rng,
+    )
+    return [MCQuestion(
+        question="What is the label on the button at the bottom-left of the calendar page?",
+        choices=choices, correct=correct_letter,
+        category="element_content", app="calendar",
+    )]
+
+
+def calendar_return_button(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Return to List of Apps",
+        ["Back to Home", "Main Menu", "All Apps"],
+        rng,
+    )
+    return [MCQuestion(
+        question="What is the label on the button at the bottom-right of the calendar page?",
         choices=choices, correct=correct_letter,
         category="navigation", app="calendar",
     )]
 
 
 # ===========================================================================
-# Messenger App Templates
+# Messenger App Templates — only the conversation-list view is on screen
 # ===========================================================================
 
 
-def messenger_count_conversations(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    conversations = state["messenger"]
+def messenger_count_conversations(state, config, rng, **_):
+    conversations = state.get("messenger", [])
     total = len(conversations)
+    if total == 0:
+        return []
     distractors = _nearby_integers(total, total + 4, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
     return [MCQuestion(
-        question="How many conversations are shown in the messenger app?",
+        question="How many conversation rows are shown in the messenger conversation list?",
         choices=choices, correct=correct_letter,
         category="element_counting", app="messenger",
     )]
 
 
-def messenger_contact_exists_multi(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """One question per contact: does this contact appear?"""
-    conversations = state["messenger"]
-    if len(conversations) < 2:
+def messenger_contact_exists(state, config, rng, **_):
+    conversations = state.get("messenger", [])
+    if len(conversations) < 1:
         return []
     contact_names = [c["user"] for c in conversations]
     fake_contacts = ["Diana", "Eve", "Frank", "Grace", "Henry", "Ivan", "Julia"]
     fake_contacts = [f for f in fake_contacts if f not in contact_names]
+    if len(fake_contacts) < 3:
+        return []
     questions = []
     for name in contact_names:
-        distractors = rng.sample(fake_contacts, min(3, len(fake_contacts)))
+        distractors = rng.sample(fake_contacts, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
         questions.append(MCQuestion(
-            question="Which of the following contacts appears in the messenger?",
+            question="Which of the following contact names is shown in the messenger conversation list?",
             choices=choices, correct=correct_letter,
             category="element_content", app="messenger",
         ))
     return questions
 
 
-def messenger_contact_not_exists(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    conversations = state["messenger"]
+def messenger_contact_not_exists(state, config, rng, **_):
+    conversations = state.get("messenger", [])
     contact_names = [c["user"] for c in conversations]
     fake_contacts = ["Diana", "Eve", "Frank", "Grace", "Henry"]
     fake_contacts = [f for f in fake_contacts if f not in contact_names]
@@ -830,131 +549,18 @@ def messenger_contact_not_exists(state: dict, config: dict, rng: random.Random) 
         return []
     questions = []
     for fake in fake_contacts[:3]:
-        real = rng.sample(contact_names, min(3, len(contact_names)))
+        real = rng.sample(contact_names, 3)
         choices, correct_letter = _shuffle_choices(fake, real, rng)
         questions.append(MCQuestion(
-            question="Which of the following contacts does NOT appear in the messenger?",
+            question="Which of the following contact names does NOT appear in the messenger conversation list?",
             choices=choices, correct=correct_letter,
             category="element_content", app="messenger", difficulty="medium",
         ))
     return questions
 
 
-def messenger_message_count_per_contact(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """One question per conversation: how many messages?"""
-    conversations = state["messenger"]
-    questions = []
-    for conv in conversations:
-        msg_count = len(conv["messages"])
-        distractors = _nearby_integers(msg_count, msg_count + 5, rng)
-        choices, correct_letter = _shuffle_choices(str(msg_count), distractors, rng)
-        questions.append(MCQuestion(
-            question=f"How many messages are in the conversation with {conv['user']}?",
-            choices=choices, correct=correct_letter,
-            category="element_counting", app="messenger", difficulty="medium",
-        ))
-    return questions
-
-
-def messenger_first_message(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """What is the first message in each conversation?"""
-    conversations = state["messenger"]
-    questions = []
-    for conv in conversations:
-        if not conv["messages"]:
-            continue
-        first_msg = conv["messages"][0][0]
-        if len(first_msg) > 70:
-            first_msg = first_msg[:67] + "..."
-        other_msgs = [m[0][:67] + "..." if len(m[0]) > 70 else m[0] for m in conv["messages"][1:]]
-        if len(other_msgs) < 3:
-            continue
-        distractors = rng.sample(other_msgs, 3)
-        choices, correct_letter = _shuffle_choices(first_msg, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"What is the first (oldest) message in the conversation with {conv['user']}?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="messenger", difficulty="medium",
-        ))
-    return questions
-
-
-def messenger_last_message(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """What is the last message in each conversation?"""
-    conversations = state["messenger"]
-    questions = []
-    for conv in conversations:
-        if not conv["messages"]:
-            continue
-        last_msg = conv["messages"][-1][0]
-        if len(last_msg) > 70:
-            last_msg = last_msg[:67] + "..."
-        other_msgs = [m[0][:67] + "..." if len(m[0]) > 70 else m[0] for m in conv["messages"][:-1]]
-        if len(other_msgs) < 3:
-            continue
-        distractors = rng.sample(other_msgs, 3)
-        choices, correct_letter = _shuffle_choices(last_msg, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"What is the most recent message in the conversation with {conv['user']}?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="messenger", difficulty="medium",
-        ))
-    return questions
-
-
-def messenger_who_sent_last(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Who sent the last message in each conversation?"""
-    conversations = state["messenger"]
-    all_senders = set()
-    for conv in conversations:
-        for msg in conv["messages"]:
-            all_senders.add(msg[1])
-    questions = []
-    for conv in conversations:
-        if not conv["messages"]:
-            continue
-        correct = conv["messages"][-1][1]
-        others = [s for s in all_senders if s != correct]
-        if len(others) < 3:
-            others += ["Diana", "Eve", "Frank"]
-        distractors = rng.sample(list(set(others))[:6], min(3, len(others)))
-        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"Who sent the most recent message in the conversation with {conv['user']}?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="messenger",
-        ))
-    return questions
-
-
-def messenger_send_button_icon(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A paper plane icon",
-        ["An arrow pointing right", "A checkmark icon", "The word 'Send'"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What icon or label is on the button to send a message in the messenger?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="messenger",
-    )]
-
-
-def messenger_search_feature(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A magnifying glass icon button in the chat header that reveals a search bar",
-        ["A search bar always visible at the top of the chat", "A keyboard shortcut (Ctrl+F)", "There is no search feature in conversations"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How do you search for messages within a conversation?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="messenger",
-    )]
-
-
-def messenger_group_chat_exists(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    conversations = state["messenger"]
+def messenger_group_chat_exists(state, config, rng, **_):
+    conversations = state.get("messenger", [])
     group_chats = [c for c in conversations if "group" in c["user"].lower()]
     has_group = len(group_chats) > 0
     if has_group:
@@ -965,131 +571,60 @@ def messenger_group_chat_exists(state: dict, config: dict, rng: random.Random) -
         distractors = ["Yes — 'Fantastic4GroupChat'", "Yes — 'Team Chat'", "Yes — 'General Channel'"]
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
     return [MCQuestion(
-        question="Is there a group chat visible in the messenger?",
+        question="Is a group chat row visible in the messenger conversation list?",
         choices=choices, correct=correct_letter,
         category="element_content", app="messenger",
     )]
 
 
-def messenger_back_button(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def messenger_app_title(state, config, rng, **_):
+    title = (config or {}).get("title", "OpenMessages")
+    distractors = ["My Messages", "Chats", "Inbox"]
+    if title != "OpenMessages":
+        distractors = ["OpenMessages"] + distractors[:2]
+    choices, correct_letter = _shuffle_choices(title, distractors, rng)
+    return [MCQuestion(
+        question="What title is displayed at the top of the messenger page?",
+        choices=choices, correct=correct_letter,
+        category="element_content", app="messenger",
+    )]
+
+
+def messenger_return_button(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A left-pointing arrow icon in the top-left of the chat header",
-        ["A 'Back' text link below the messages", "The browser back button is the only option", "A hamburger menu with a 'Back' option"],
+        "Return to List of Apps",
+        ["Back", "Home", "Main Menu"],
         rng,
     )
     return [MCQuestion(
-        question="How do you navigate from a chat back to the conversation list in the messenger?",
+        question="What is the label on the button at the bottom of the messenger page?",
         choices=choices, correct=correct_letter,
         category="navigation", app="messenger",
     )]
 
 
-def messenger_input_placeholder(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Type a message", ["Write something...", "Enter message", "Say something..."],
-        rng,
-    )
-    return [MCQuestion(
-        question="What placeholder text appears in the message input field?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="messenger",
-    )]
+# ===========================================================================
+# Map App Templates — sidebar + map are fully visible
+# ===========================================================================
 
 
-def messenger_who_sent_first(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Who sent the first message in each conversation?"""
-    conversations = state["messenger"]
-    all_senders = set()
-    for conv in conversations:
-        for msg in conv["messages"]:
-            all_senders.add(msg[1])
-    questions = []
-    for conv in conversations:
-        if not conv["messages"]:
-            continue
-        correct = conv["messages"][0][1]
-        others = [s for s in all_senders if s != correct]
-        if len(others) < 3:
-            others += ["Diana", "Eve", "Frank"]
-        distractors = rng.sample(list(set(others))[:6], min(3, len(others)))
-        choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"Who sent the first message in the conversation with {conv['user']}?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="messenger",
-        ))
-    return questions
-
-
-def messenger_total_message_count(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    conversations = state["messenger"]
-    total = sum(len(c["messages"]) for c in conversations)
+def map_count_saved_places(state, config, rng, **_):
+    places = state.get("map", [])
+    total = len(places)
     if total == 0:
         return []
-    distractors = _nearby_integers(total, total + 8, rng)
-    choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
-    return [MCQuestion(
-        question="How many messages are there across all conversations in the messenger?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="messenger",
-    )]
-
-
-def messenger_conversation_with_most_messages(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    conversations = state["messenger"]
-    if len(conversations) < 3:
-        return []
-    sorted_convs = sorted(conversations, key=lambda c: len(c["messages"]), reverse=True)
-    correct = sorted_convs[0]["user"]
-    distractors = [c["user"] for c in sorted_convs[1:4]]
-    if len(distractors) < 3:
-        return []
-    choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [MCQuestion(
-        question="Which conversation has the most messages?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="messenger", difficulty="medium",
-    )]
-
-
-def messenger_chat_bubble_alignment(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Sent messages appear on the right; received messages on the left",
-        [
-            "All messages are left-aligned",
-            "Sent messages are on the left; received on the right",
-            "Messages alternate sides regardless of sender",
-        ],
-        rng,
-    )
-    return [MCQuestion(
-        question="How are sent vs. received messages visually distinguished in the chat?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="messenger",
-    )]
-
-
-# ===========================================================================
-# Map App Templates
-# ===========================================================================
-
-
-def map_count_saved_places(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    places = state["map"]
-    total = len(places)
     distractors = _nearby_integers(total, total + 5, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
     return [MCQuestion(
-        question="How many saved locations (bookmarked places) are shown on the map?",
+        question="How many entries are listed under 'Saved Locations' in the map sidebar?",
         choices=choices, correct=correct_letter,
         category="element_counting", app="map",
     )]
 
 
-def map_place_exists_multi(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """One question per saved place."""
-    places = state["map"]
-    if len(places) < 2:
+def map_place_exists(state, config, rng, **_):
+    places = state.get("map", [])
+    if len(places) < 1:
         return []
     place_names = [p["name"] for p in places]
     fake_places = [
@@ -1097,20 +632,22 @@ def map_place_exists_multi(state: dict, config: dict, rng: random.Random) -> lis
         "Sydney Opera House", "Big Ben", "Colosseum", "Taj Mahal",
     ]
     fake_places = [f for f in fake_places if f not in place_names]
+    if len(fake_places) < 3:
+        return []
     questions = []
     for name in place_names:
-        distractors = rng.sample(fake_places, min(3, len(fake_places)))
+        distractors = rng.sample(fake_places, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
         questions.append(MCQuestion(
-            question="Which of the following is a saved location on the map?",
+            question="Which of the following appears under 'Saved Locations' in the map sidebar?",
             choices=choices, correct=correct_letter,
             category="element_content", app="map",
         ))
     return questions
 
 
-def map_place_not_saved(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    places = state["map"]
+def map_place_not_saved(state, config, rng, **_):
+    places = state.get("map", [])
     place_names = [p["name"] for p in places]
     fake_places = [
         "Golden Gate Bridge", "Eiffel Tower", "Buckingham Palace",
@@ -1124,276 +661,220 @@ def map_place_not_saved(state: dict, config: dict, rng: random.Random) -> list[M
         real = rng.sample(place_names, 3)
         choices, correct_letter = _shuffle_choices(fake, real, rng)
         questions.append(MCQuestion(
-            question="Which of the following locations is NOT saved on the map?",
+            question="Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
             choices=choices, correct=correct_letter,
             category="element_content", app="map", difficulty="medium",
         ))
     return questions
 
 
-def map_delete_location_element(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_delete_button(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "An 'x' button next to the location name in the sidebar list",
-        ["Right-clicking the map marker and selecting 'Remove'", "Dragging the marker off the map", "A 'Delete All' button at the bottom of the sidebar"],
+        "An 'x' button next to each saved location in the sidebar",
+        [
+            "A trash-can icon at the bottom of the sidebar",
+            "A 'Delete' button below the map",
+            "There is no visible delete control",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="How do you delete a saved location from the map?",
+        question="What control is shown next to each saved location row in the map sidebar?",
         choices=choices, correct=correct_letter,
         category="element_interaction", app="map",
     )]
 
 
-def map_sidebar_location(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_sidebar_location(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "On the right side of the page, next to the map",
-        ["On the left side of the page", "At the bottom of the page, below the map", "In a floating overlay on top of the map"],
+        [
+            "On the left side of the page",
+            "At the bottom of the page, below the map",
+            "In a floating overlay on top of the map",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="Where is the sidebar that shows saved locations and search?",
+        question="Where is the sidebar containing search and saved locations positioned?",
         choices=choices, correct=correct_letter,
         category="element_location", app="map",
     )]
 
 
-def map_search_element(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_search_placeholder(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A text input with placeholder 'Search location...' and a 'Search' button",
-        ["A search icon that expands into an overlay search bar", "A dropdown with predefined locations to choose from", "A voice-activated search with a microphone icon"],
+        "Search location...",
+        ["Find a place", "Where to?", "Enter address"],
         rng,
     )
     return [MCQuestion(
-        question="How is the search feature presented in the map app?",
+        question="What placeholder text is shown inside the search input in the map sidebar?",
         choices=choices, correct=correct_letter,
-        category="element_identification", app="map",
+        category="element_content", app="map",
     )]
 
 
-def map_save_location_interaction(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_search_button_label(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A bookmark icon button next to each search result",
-        ["A 'Save' button that appears when you click on the map", "Dragging a pin onto the map from a toolbar", "A right-click context menu on the map"],
+        "Search",
+        ["Go", "Find", "Lookup"],
         rng,
     )
     return [MCQuestion(
-        question="How do you save a new location from search results in the map app?",
+        question="What is the label on the button to the right of the search input in the map sidebar?",
         choices=choices, correct=correct_letter,
-        category="element_interaction", app="map",
+        category="element_content", app="map",
     )]
 
 
-def map_marker_customization(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "A modal dialog that lets you choose an icon and a color",
-        ["You cannot customize markers", "A color picker tooltip on the marker itself", "A settings page accessible from the sidebar"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How can you customize the appearance of a map marker?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="map",
-    )]
-
-
-def map_click_info(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The 'Current Location Info' box shows the latitude, longitude, and address",
-        ["Nothing happens when you click the map", "A tooltip with the place name pops up", "The map zooms in to that location"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What happens when you click on a spot on the map?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="map",
-    )]
-
-
-def map_return_button_label(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_return_button_label(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "Return to List of Apps",
         ["Back to Home", "Go Home", "Main Menu"],
         rng,
     )
     return [MCQuestion(
-        question="What is the label on the button that navigates back to the start page from the map app?",
+        question="What is the label on the button at the top-right of the map page?",
         choices=choices, correct=correct_letter,
-        category="element_content", app="map",
+        category="navigation", app="map",
     )]
 
 
-def map_saved_locations_heading(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_saved_locations_heading(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "Saved Locations",
         ["My Bookmarks", "Favorite Places", "Pinned Locations"],
         rng,
     )
     return [MCQuestion(
-        question="What heading appears above the list of saved places in the map sidebar?",
+        question="What heading appears in the map sidebar above the list of saved places?",
         choices=choices, correct=correct_letter,
         category="element_content", app="map",
     )]
 
 
-def map_current_location_info(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_current_location_info_heading(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "Current Location Info",
         ["Selected Point Details", "Location Data", "Coordinates"],
         rng,
     )
     return [MCQuestion(
-        question="What heading labels the section that displays information about a clicked map location?",
+        question="What heading appears in the map sidebar between the search input and 'Saved Locations'?",
         choices=choices, correct=correct_letter,
         category="element_content", app="map",
     )]
 
 
-def map_tile_provider(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def map_app_title(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "OpenStreetMap (by default)",
-        ["Google Maps", "Apple Maps", "Mapbox"],
+        "OpenMaps",
+        ["My Maps", "Map App", "Locations"],
         rng,
     )
     return [MCQuestion(
-        question="What map tile provider does the map app use by default?",
+        question="What title is displayed at the top of the map sidebar?",
+        choices=choices, correct=correct_letter,
+        category="element_content", app="map",
+    )]
+
+
+def map_tile_provider_options(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, CartoDB Dark, CartoDB Voyager, OpenStreetMap Transport",
+        [
+            "Google Maps, Apple Maps, Bing Maps",
+            "Mapbox Streets, Mapbox Satellite, Mapbox Outdoors",
+            "Only OpenStreetMap is offered",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="What set of map tile-provider radio options is shown at the top-right of the map?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="map",
     )]
 
 
-def map_width_ratio(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The map takes about 80% width and the sidebar about 20%",
-        ["The map and sidebar are equal width (50/50)", "The sidebar is wider than the map", "The map is full width with a collapsible sidebar overlay"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What is the approximate width split between the map and the sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="map", difficulty="hard",
-    )]
-
-
 # ===========================================================================
-# Code Editor App Templates
+# Code Editor App Templates — only the visible (collapsed) tree is on screen
 # ===========================================================================
 
 
-def codeeditor_file_count(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    files = _collect_files(state.get("codeeditor", {}))
+def codeeditor_top_level_file_count(state, config, rng, **_):
+    files = _top_level_files(state.get("codeeditor", {}))
     total = len(files)
     if total == 0:
         return []
     distractors = _nearby_integers(total, total + 5, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
     return [MCQuestion(
-        question="How many files are in the code editor's file tree?",
+        question="How many top-level file entries are shown in the code editor's file tree?",
         choices=choices, correct=correct_letter,
         category="element_counting", app="codeeditor",
     )]
 
 
-def codeeditor_folder_count(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    folders = _collect_folders(state.get("codeeditor", {}))
+def codeeditor_top_level_folder_count(state, config, rng, **_):
+    folders = _top_level_folders(state.get("codeeditor", {}))
     total = len(folders)
     if total == 0:
         return []
     distractors = _nearby_integers(total, total + 4, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
     return [MCQuestion(
-        question="How many folders are in the code editor's file tree?",
+        question="How many top-level folder entries are shown in the code editor's file tree?",
         choices=choices, correct=correct_letter,
         category="element_counting", app="codeeditor",
     )]
 
 
-def codeeditor_file_exists(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Which files exist in the editor?"""
-    files = _collect_files(state.get("codeeditor", {}))
-    if len(files) < 3:
+def codeeditor_top_level_file_exists(state, config, rng, **_):
+    files = _top_level_files(state.get("codeeditor", {}))
+    if len(files) < 1:
         return []
     file_names = [f["name"] for f in files]
     fake_files = ["index.html", "main.go", "README.md", "app.js", "config.yaml", "Makefile", "test.py"]
     fake_files = [f for f in fake_files if f not in file_names]
+    if len(fake_files) < 3:
+        return []
     questions = []
     for name in file_names:
-        distractors = rng.sample(fake_files, min(3, len(fake_files)))
+        distractors = rng.sample(fake_files, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
         questions.append(MCQuestion(
-            question="Which of the following files exists in the code editor?",
+            question="Which of the following file names is shown at the top level of the code editor's file tree?",
             choices=choices, correct=correct_letter,
             category="element_content", app="codeeditor",
         ))
     return questions
 
 
-def codeeditor_file_not_exists(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    files = _collect_files(state.get("codeeditor", {}))
-    file_names = [f["name"] for f in files]
-    fake_files = ["index.html", "main.go", "README.md", "app.js", "config.yaml", "Makefile"]
-    fake_files = [f for f in fake_files if f not in file_names]
-    if len(fake_files) < 2 or len(file_names) < 3:
-        return []
-    questions = []
-    for fake in fake_files[:3]:
-        real = rng.sample(file_names, min(3, len(file_names)))
-        choices, correct_letter = _shuffle_choices(fake, real, rng)
-        questions.append(MCQuestion(
-            question="Which of the following files does NOT exist in the code editor?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="codeeditor", difficulty="medium",
-        ))
-    return questions
-
-
-def codeeditor_folder_exists(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    folders = _collect_folders(state.get("codeeditor", {}))
-    if len(folders) < 2:
+def codeeditor_top_level_folder_exists(state, config, rng, **_):
+    folders = _top_level_folders(state.get("codeeditor", {}))
+    if len(folders) < 1:
         return []
     folder_names = [f["name"] for f in folders]
     fake_folders = ["src", "lib", "tests", "docs", "build", "dist", "assets"]
     fake_folders = [f for f in fake_folders if f not in folder_names]
+    if len(fake_folders) < 3:
+        return []
     questions = []
     for name in folder_names:
-        distractors = rng.sample(fake_folders, min(3, len(fake_folders)))
+        distractors = rng.sample(fake_folders, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
         questions.append(MCQuestion(
-            question="Which of the following folders exists in the code editor's file tree?",
+            question="Which of the following folder names is shown at the top level of the code editor's file tree?",
             choices=choices, correct=correct_letter,
             category="element_content", app="codeeditor",
         ))
     return questions
 
 
-def codeeditor_file_content(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """What does a specific file contain?"""
-    files = _collect_files(state.get("codeeditor", {}))
-    if len(files) < 3:
-        return []
-    questions = []
-    rng.shuffle(files)
-    for f in files[:4]:
-        content = f.get("content", "").strip()
-        if not content:
-            continue
-        snippet = content.split("\n")[0][:80]
-        other_files = [of for of in files if of["name"] != f["name"] and of.get("content", "").strip()]
-        if len(other_files) < 3:
-            continue
-        fake_snippets = [of.get("content", "").strip().split("\n")[0][:80] for of in rng.sample(other_files, 3)]
-        choices, correct_letter = _shuffle_choices(snippet, fake_snippets, rng)
-        questions.append(MCQuestion(
-            question=f"What is the first line of code in the file '{f['name']}'?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="codeeditor", difficulty="medium",
-        ))
-    return questions
-
-
-def codeeditor_file_extension(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """What language/type is each file based on its extension?"""
-    files = _collect_files(state.get("codeeditor", {}))
-    if len(files) < 3:
+def codeeditor_file_extension(state, config, rng, **_):
+    files = _top_level_files(state.get("codeeditor", {}))
+    if len(files) < 1:
         return []
     ext_to_lang = {
         ".py": "Python", ".c": "C", ".js": "JavaScript", ".css": "CSS",
@@ -1411,460 +892,194 @@ def codeeditor_file_extension(state: dict, config: dict, rng: random.Random) -> 
         rng.shuffle(distractors)
         choices, correct_letter = _shuffle_choices(lang, distractors[:3], rng)
         questions.append(MCQuestion(
-            question=f"Based on its file extension, what programming language is '{name}'?",
+            question=f"Based on the file extension shown in the file tree, what language is '{name}'?",
             choices=choices, correct=correct_letter,
             category="element_content", app="codeeditor",
         ))
     return questions
 
 
-def codeeditor_empty_folder(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Which folders are empty?"""
-    folders = _collect_folders(state.get("codeeditor", {}))
-    empty = [f["name"] for f in folders if len(f.get("children", [])) == 0]
-    non_empty = [f["name"] for f in folders if len(f.get("children", [])) > 0]
-    if not empty or len(non_empty) < 2:
-        return []
-    questions = []
-    for name in empty:
-        fake_folders = ["src", "lib", "tests", "docs"]
-        distractors = non_empty + [f for f in fake_folders if f not in [name] + non_empty]
-        rng.shuffle(distractors)
-        choices, correct_letter = _shuffle_choices(name, distractors[:3], rng)
-        questions.append(MCQuestion(
-            question="Which of the following folders in the code editor is empty (contains no files)?",
-            choices=choices, correct=correct_letter,
-            category="element_state", app="codeeditor", difficulty="medium",
-        ))
-    return questions
-
-
-def codeeditor_sidebar_location(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def codeeditor_sidebar_location(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A file tree on the left side, taking about 1/6 of the page width",
-        ["A file list across the top of the page", "A right-side panel taking half the width", "A floating file browser overlay in the center"],
+        "On the left side of the page, in a narrow column",
+        [
+            "Across the top of the page as a horizontal list",
+            "On the right side of the page",
+            "Hidden behind a hamburger menu",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="Where is the file browser located in the code editor?",
+        question="Where is the file tree positioned in the code editor?",
         choices=choices, correct=correct_letter,
         category="element_location", app="codeeditor",
     )]
 
 
-def codeeditor_language_selector(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def codeeditor_new_file_buttons(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A dropdown/select menu with language options like Python, JavaScript, CSS",
-        ["Language is auto-detected from the file extension with no manual control", "Radio buttons for each language", "A text input where you type the language name"],
+        "Two buttons labeled 'New File' and 'New Folder' at the top of the sidebar",
+        [
+            "A single '+' button at the top of the sidebar",
+            "A 'File' menu in a top menu bar",
+            "Right-click the file tree to open a context menu",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="How do you change the syntax highlighting language in the code editor?",
+        question="What buttons are shown at the top of the code editor's file tree sidebar?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="codeeditor",
     )]
 
 
-def codeeditor_theme_selector(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def codeeditor_language_dropdown(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "A dropdown/select menu with themes like monokai, eclipse, solarized, dracula",
-        ["A toggle between light and dark mode only", "A color picker for custom theming", "There is no theme selection"],
+        "A 'Language:' dropdown",
+        [
+            "A row of language icon buttons",
+            "A text input where you type the language",
+            "Radio buttons for each language",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="How do you change the editor color theme in the code editor?",
+        question="How is the syntax language selected in the top-right of the code editor?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="codeeditor",
     )]
 
 
-def codeeditor_new_file_button(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def codeeditor_theme_dropdown(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Two buttons in the sidebar: 'New File' and 'New Folder'",
-        ["A single '+' button that opens a menu", "Right-clicking in the file tree", "A menu bar option under 'File'"],
+        "A 'Theme:' dropdown",
+        [
+            "A toggle between light and dark mode only",
+            "A color-swatch picker",
+            "There is no theme selector",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="How do you create a new file or folder in the code editor?",
+        question="How is the editor theme selected in the top-right of the code editor?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="codeeditor",
     )]
 
 
-def codeeditor_rename_interaction(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def codeeditor_app_title(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Double-clicking on the file name in the header area",
-        ["Right-clicking the file and selecting 'Rename'", "A dedicated 'Rename' button in the toolbar", "You cannot rename files"],
+        "OpenCodeEditor",
+        ["My Editor", "CodeApp", "Editor"],
         rng,
     )
     return [MCQuestion(
-        question="How do you rename a file in the code editor?",
+        question="What title is displayed at the top-left of the code editor page?",
         choices=choices, correct=correct_letter,
-        category="element_interaction", app="codeeditor",
+        category="element_content", app="codeeditor",
     )]
 
 
-def codeeditor_action_buttons(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def codeeditor_no_file_selected_message(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Save and Delete buttons",
-        ["Save, Run, and Debug buttons", "Save, Undo, and Redo buttons", "Only a Save button"],
+        "No file selected",
+        ["Open a file to begin", "Choose a file from the sidebar", "Welcome"],
         rng,
     )
     return [MCQuestion(
-        question="What action buttons appear when viewing a file in the code editor?",
+        question="What message is shown in the code editor's main pane header when no file is open?",
         choices=choices, correct=correct_letter,
-        category="element_identification", app="codeeditor",
-    )]
-
-
-def codeeditor_folder_collapse(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Click the triangle/arrow icon next to the folder name to expand or collapse it",
-        ["Double-click the folder name", "Hover over the folder to auto-expand", "Folders are always fully expanded"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How do you expand or collapse a folder in the code editor's file tree?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="codeeditor",
-    )]
-
-
-def codeeditor_tab_behavior(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Open files appear as tabs in a tab bar above the editor with close ('x') buttons",
-        ["There is only one editor view with no tabs", "Files open in separate browser tabs", "A split-pane view shows multiple files side by side"],
-        rng,
-    )
-    return [MCQuestion(
-        question="How are multiple open files managed in the code editor?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="codeeditor",
+        category="element_content", app="codeeditor",
     )]
 
 
 # ===========================================================================
-# Start Page Templates
+# Start Page Templates — 5 visible app tiles (no OnlineShop)
 # ===========================================================================
 
+_START_PAGE_APPS = ["OpenTodos", "OpenCalendar", "OpenMessages", "OpenMaps", "OpenCodeEditor"]
+_FAKE_APPS = ["OpenNotes", "OpenWeather", "OpenMusic", "OpenFitness", "OpenBanking", "OpenTravel", "OpenShop"]
 
-def start_page_app_count(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices("6", ["4", "5", "8"], rng)
+
+def start_page_app_count(state, config, rng, **_):
+    correct = str(len(_START_PAGE_APPS))
+    distractors = _nearby_integers(len(_START_PAGE_APPS), 10, rng)
+    choices, correct_letter = _shuffle_choices(correct, distractors, rng)
     return [MCQuestion(
-        question="How many app tiles are displayed on the start (home) page?",
+        question="How many app tiles are shown in the grid on the start page?",
         choices=choices, correct=correct_letter,
         category="element_counting", app="start_page",
     )]
 
 
-def start_page_app_names(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "OpenNotes", ["OpenTodos", "OpenCalendar", "OpenMessages"], rng,
-    )
-    return [MCQuestion(
-        question="Which of the following is NOT an app shown on the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="start_page",
-    )]
-
-
-def start_page_app_names_positive(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Generate a question per real app name."""
-    real_apps = ["OpenTodos", "OpenCalendar", "OpenMessages", "OpenMaps", "OpenCodeEditor", "OpenShop"]
-    fake_apps = ["OpenNotes", "OpenWeather", "OpenMusic", "OpenFitness", "OpenBanking", "OpenTravel"]
+def start_page_app_names_positive(state, config, rng, **_):
     questions = []
-    for app_name in real_apps:
-        distractors = rng.sample(fake_apps, 3)
+    for app_name in _START_PAGE_APPS:
+        distractors = rng.sample(_FAKE_APPS, 3)
         choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
         questions.append(MCQuestion(
-            question="Which of the following is an app available on the start page?",
+            question="Which of the following app names is shown on a tile on the start page?",
             choices=choices, correct=correct_letter,
             category="element_content", app="start_page",
         ))
     return questions
 
 
-def start_page_headline(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def start_page_not_an_app(state, config, rng, **_):
+    questions = []
+    for fake in _FAKE_APPS[:4]:
+        real = rng.sample(_START_PAGE_APPS, 3)
+        choices, correct_letter = _shuffle_choices(fake, real, rng)
+        questions.append(MCQuestion(
+            question="Which of the following app names is NOT shown on any tile on the start page?",
+            choices=choices, correct=correct_letter,
+            category="element_content", app="start_page", difficulty="medium",
+        ))
+    return questions
+
+
+def start_page_headline(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Welcome to OpenApps!", ["My Apps", "App Dashboard", "Home"], rng,
+        "Welcome to OpenApps!",
+        ["My Apps", "App Dashboard", "Home"],
+        rng,
     )
     return [MCQuestion(
-        question="What headline text is displayed on the start page?",
+        question="What headline text is displayed at the top of the start page?",
         choices=choices, correct=correct_letter,
         category="element_content", app="start_page",
     )]
 
 
-def start_page_tile_layout(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
+def start_page_tile_layout(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Colored tiles/cards with an icon, title, and description in a grid",
-        ["A plain text list of links", "A sidebar navigation menu", "A horizontal scrolling carousel of screenshots"],
+        "Colored rounded tiles arranged in a grid, each containing an icon and the app name",
+        [
+            "A vertical list of plain text links",
+            "A horizontal carousel of screenshots",
+            "A sidebar with collapsible sections",
+        ],
         rng,
     )
     return [MCQuestion(
-        question="How are apps visually presented on the start page?",
+        question="How are the apps presented visually on the start page?",
         choices=choices, correct=correct_letter,
         category="element_identification", app="start_page",
     )]
 
 
-def start_page_tile_contents(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "An icon image, the app title, and a description",
-        ["Only the app title as a text link", "A screenshot of the app and its title", "The app title and a star rating"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What information is shown on each app tile on the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="start_page",
-    )]
-
-
-def start_page_app_order(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """What is the first/second/third app tile on the start page?"""
-    app_order = ["OpenTodos", "OpenCalendar", "OpenMessages", "OpenMaps", "OpenCodeEditor", "OpenShop"]
-    fake_apps = ["OpenNotes", "OpenWeather", "OpenMusic", "OpenFitness"]
+def start_page_app_order(state, config, rng, **_):
     questions = []
-    for i, app_name in enumerate(app_order):
-        distractors = [a for a in app_order if a != app_name]
+    for i, app_name in enumerate(_START_PAGE_APPS):
+        distractors = [a for a in _START_PAGE_APPS if a != app_name]
         rng.shuffle(distractors)
         choices, correct_letter = _shuffle_choices(app_name, distractors[:3], rng)
         questions.append(MCQuestion(
-            question=f"What is the {_ordinal(i+1)} app tile shown on the start page?",
+            question=f"What is the {_ordinal(i+1)} app tile shown on the start page (left-to-right, top-to-bottom)?",
             choices=choices, correct=correct_letter,
             category="element_content", app="start_page", difficulty="medium",
         ))
     return questions
-
-
-def start_page_not_an_app(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    """Multiple 'which is NOT an app' with different fakes."""
-    real_apps = ["OpenTodos", "OpenCalendar", "OpenMessages", "OpenMaps", "OpenCodeEditor", "OpenShop"]
-    fake_apps = ["OpenNotes", "OpenWeather", "OpenMusic", "OpenFitness", "OpenBanking", "OpenTravel"]
-    questions = []
-    for fake in fake_apps[:4]:
-        real = rng.sample(real_apps, 3)
-        choices, correct_letter = _shuffle_choices(fake, real, rng)
-        questions.append(MCQuestion(
-            question="Which of the following is NOT an app shown on the start page?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="start_page", difficulty="medium",
-        ))
-    return questions
-
-
-# ===========================================================================
-# Cross-App Templates
-# ===========================================================================
-
-
-def cross_app_which_uses_table(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Calendar (for the monthly grid view)",
-        ["Todo (for the task list)", "Messenger (for the conversation list)", "Maps (for the saved locations list)"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which app uses an HTML table as its main layout element?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_search(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Maps, Messenger, and Online Shop",
-        ["Only Maps and Online Shop", "All apps have search", "Only the Online Shop"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps include a search feature?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_return_button(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Yes, every app has a 'Return to List of Apps' link or button",
-        ["No, only the Todo and Calendar apps have it", "No, you must use the browser back button from some apps", "Only the start page has navigation links to other apps"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Do all sub-apps provide a way to navigate back to the main start page?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="cross_app",
-    )]
-
-
-def cross_app_which_uses_checkboxes(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The Todo app (for marking items done)",
-        ["The Calendar app (for selecting event days)", "The Messenger app (for selecting messages)", "The Maps app (for toggling map layers)"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which app uses checkboxes as a primary interaction element?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_uses_dropdowns(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Calendar (recurring frequency) and Code Editor (language, theme)",
-        ["Only the Online Shop (product categories)", "Todo (priority levels) and Calendar (recurring)", "None of the apps use dropdown menus"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps use dropdown/select menus in their interface?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_sidebar(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Maps (saved locations & search) and Code Editor (file tree)",
-        ["Only Maps has a sidebar", "All apps have sidebars", "None of the apps have sidebars"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps feature a sidebar panel in their layout?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_uses_tabs(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The Code Editor (for open files)",
-        ["The Calendar (for switching between months)", "The Todo app (for filtering done vs. not done)", "The Messenger (for switching between chats)"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which app uses a tab bar in its interface?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_modals(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The Calendar (event detail dialog), Maps (marker customization), and Code Editor (error/folder dialogs)",
-        ["Only the Calendar has modals", "None of the apps use modals", "Only Maps and the Online Shop use modals"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps use modal dialogs or pop-up overlays?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_forms(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Todo (add/edit items), Calendar (create event), and Messenger (send message)",
-        ["Only the Calendar has forms", "All apps except Maps have forms", "Only Todo and Calendar have forms"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps contain HTML forms for user input?",
-        choices=choices, correct=correct_letter,
-        category="form_structure", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_uses_sqlite(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Todo, Calendar, and Messenger each use their own SQLite database",
-        ["Only the Online Shop uses a database", "All apps share a single SQLite database", "No apps use databases — they store data in memory"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps store their data in a SQLite database?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_pagination(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The Calendar (month navigation) and the Online Shop (search results pages)",
-        ["All apps have pagination", "Only the Todo app paginates its list", "None of the apps have pagination"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps use pagination to navigate through content?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_avatars(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The Messenger app shows avatar images for each contact",
-        ["All apps show user avatars", "Only the start page shows icons per app", "None of the apps display avatar images"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which app displays user avatar images?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app",
-    )]
-
-
-def cross_app_which_has_icons(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The start page (app tile icons), Maps (marker icons), and Messenger (Font Awesome icons)",
-        ["Only the start page uses icons", "No apps use icons — they rely on text labels only", "Only Maps uses icons for markers"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps make use of icons in their interface?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_framework_identification(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Most apps use FastHTML; Maps and Online Shop use FastAPI",
-        ["All apps use React", "All apps use FastAPI", "Most apps use Django; Maps uses Flask"],
-        rng,
-    )
-    return [MCQuestion(
-        question="What web framework(s) power the OpenApps applications?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_has_hidden_inputs(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "Todo (edit form ID field) and Messenger (interlocutor field)",
-        ["No apps use hidden inputs", "Only the Online Shop checkout form", "All apps use hidden input fields"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which apps use hidden input fields in their forms?",
-        choices=choices, correct=correct_letter,
-        category="form_structure", app="cross_app", difficulty="hard",
-    )]
-
-
-def cross_app_which_uses_htmx(state: dict, config: dict, rng: random.Random) -> list[MCQuestion]:
-    choices, correct_letter = _shuffle_choices(
-        "The Todo app uses htmx for adding, toggling, and editing items without page reload",
-        ["All apps use htmx", "No apps use htmx — they all use standard form submissions", "Only the Messenger uses htmx for sending messages"],
-        rng,
-    )
-    return [MCQuestion(
-        question="Which app uses htmx for dynamic, partial page updates?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="cross_app", difficulty="hard",
-    )]
 
 
 # ===========================================================================
@@ -1875,108 +1090,71 @@ ALL_TEMPLATES: dict[str, list] = {
     "todo": [
         todo_count_done,
         todo_count_not_done,
-        todo_total_count,
         todo_identify_done_items,
         todo_identify_not_done_items,
         todo_specific_item_state,
         todo_first_item,
-        todo_last_item,
         todo_items_at_positions,
         todo_item_neighbor,
-        todo_item_not_in_list,
-        todo_button_purpose,
-        todo_edit_button_purpose,
-        todo_remove_button_purpose,
         todo_element_type_for_completion,
         todo_controls_per_item,
         todo_input_placeholder,
         todo_add_button_label,
         todo_app_title,
-        todo_nav_element,
-        todo_edit_form_elements,
-        todo_list_element_type,
     ],
     "calendar": [
-        calendar_count_events,
-        calendar_count_birthdays,
-        calendar_count_conference_deadlines,
-        calendar_count_recurring,
-        calendar_event_dates,
-        calendar_event_is_recurring,
-        calendar_event_location,
-        calendar_event_exists_multi,
-        calendar_event_not_exists,
-        calendar_birthday_month,
-        calendar_whose_birthday,
-        calendar_recurring_type,
+        calendar_displayed_month,
+        calendar_count_events_in_month,
+        calendar_event_exists_in_month,
+        calendar_event_day_in_month,
         calendar_view_toggle,
-        calendar_create_event_fields,
         calendar_month_navigation,
-        calendar_delete_event_element,
-        calendar_date_input_type,
         calendar_weekday_headers,
-        calendar_add_event_location,
+        calendar_app_title,
+        calendar_add_event_button,
+        calendar_return_button,
     ],
     "messenger": [
         messenger_count_conversations,
-        messenger_contact_exists_multi,
+        messenger_contact_exists,
         messenger_contact_not_exists,
-        messenger_message_count_per_contact,
-        messenger_first_message,
-        messenger_last_message,
-        messenger_who_sent_last,
-        messenger_who_sent_first,
-        messenger_total_message_count,
-        messenger_conversation_with_most_messages,
-        messenger_send_button_icon,
-        messenger_search_feature,
         messenger_group_chat_exists,
-        messenger_back_button,
-        messenger_input_placeholder,
-        messenger_chat_bubble_alignment,
+        messenger_app_title,
+        messenger_return_button,
     ],
     "map": [
         map_count_saved_places,
-        map_place_exists_multi,
+        map_place_exists,
         map_place_not_saved,
-        map_delete_location_element,
+        map_delete_button,
         map_sidebar_location,
-        map_search_element,
-        map_save_location_interaction,
-        map_marker_customization,
-        map_click_info,
+        map_search_placeholder,
+        map_search_button_label,
         map_return_button_label,
         map_saved_locations_heading,
-        map_current_location_info,
-        map_tile_provider,
-        map_width_ratio,
+        map_current_location_info_heading,
+        map_app_title,
+        map_tile_provider_options,
     ],
     "codeeditor": [
-        codeeditor_file_count,
-        codeeditor_folder_count,
-        codeeditor_file_exists,
-        codeeditor_file_not_exists,
-        codeeditor_folder_exists,
-        codeeditor_file_content,
+        codeeditor_top_level_file_count,
+        codeeditor_top_level_folder_count,
+        codeeditor_top_level_file_exists,
+        codeeditor_top_level_folder_exists,
         codeeditor_file_extension,
-        codeeditor_empty_folder,
         codeeditor_sidebar_location,
-        codeeditor_language_selector,
-        codeeditor_theme_selector,
-        codeeditor_new_file_button,
-        codeeditor_rename_interaction,
-        codeeditor_action_buttons,
-        codeeditor_folder_collapse,
-        codeeditor_tab_behavior,
+        codeeditor_new_file_buttons,
+        codeeditor_language_dropdown,
+        codeeditor_theme_dropdown,
+        codeeditor_app_title,
+        codeeditor_no_file_selected_message,
     ],
     "start_page": [
         start_page_app_count,
-        start_page_app_names,
         start_page_app_names_positive,
+        start_page_not_an_app,
         start_page_headline,
         start_page_tile_layout,
-        start_page_tile_contents,
         start_page_app_order,
-        start_page_not_an_app,
     ],
 }
