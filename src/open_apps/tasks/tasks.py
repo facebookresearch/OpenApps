@@ -355,7 +355,7 @@ class SavePlaceTask(Task):
 
 @dataclass
 class NavigateToTask(Task):
-    app: str
+    app_name: str
 
     def check_if_task_is_complete(
         self, initial_state: dict, current_state: dict, current_url: str | None = None
