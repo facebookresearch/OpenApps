@@ -365,7 +365,7 @@ class NavigateToTask(Task):
             return False
 
         current_url = current_url.rstrip("/")
-        if current_url.endswith(self.app.lower()):
+        if current_url.endswith(self.app_name.lower()):
             return True
         return False
 
