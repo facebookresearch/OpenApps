@@ -108,7 +108,7 @@ class OpenAppsTask(AbstractBrowserTask):
     def reward(self) -> float:
         """Return 1.0 if the item was marked as done, else 0.0."""
         current_state = get_current_state(self.url)
-        current_url = sefl.page.url.rstrip("/")
+        current_url = self.page.url.rstrip("/")
 
         return (
             1.0
