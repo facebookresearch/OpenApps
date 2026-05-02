@@ -1,6 +1,7 @@
 add_meeting_with_dennis:
   _target_: open_apps.tasks.tasks.AddEventTask
-  goal: Go to the Calendar app and add my meeting with Dennis on April 1st of 2026. The title should be 'Dennis-Bob'
+  goal: Go to the Calendar app and add my meeting with Dennis on April 1st of
+    2026. The title should be 'Dennis-Bob'
   title: Dennis-Bob
   date: 2026-04-01
   description: null
@@ -10,7 +11,8 @@ add_meeting_with_dennis:
 
 add_christmas_shopping_event:
   _target_: open_apps.tasks.tasks.AddEventTask
-  goal: Make a calendar entry for Christmas shopping on the 14th (2025). The title should read 'Shopping for Christmas gifts'.
+  goal: Make a calendar entry for Christmas shopping on the 14th (2025). The title
+    should read 'Shopping for Christmas gifts'.
   title: Shopping for Christmas gifts
   date: 2025-12-14
   description: null
@@ -20,7 +22,10 @@ add_christmas_shopping_event:
 
 add_paper_reading_meeting_with_einstein:
   _target_: open_apps.tasks.tasks.AddEventTask
-  goal: Go to the Calendar app and add my meeting with Einstein on April 1st of 2027. The title should be 'Einstein-Bob'. Set the description as 'paper reading', omit the URL and set the location to New York City. Make sure to add Einstein as an invitee.
+  goal: Go to the Calendar app and add my meeting with Einstein on April 1st of
+    2027. The title should be 'Einstein-Bob'. Set the description as 'paper
+    reading', omit the URL and set the location to New York City. Make sure to
+    add Einstein as an invitee.
   title: Einstein-Bob
   date: 2027-04-01
   description: paper reading
@@ -73,3 +78,8 @@ save_bockelwitz_to_my_favorite_places:
   name: Bockelwitz
   latitude: 51.1991
   longitude: 12.9568
+
+navigate_to_todo:
+  _target_: open_apps.tasks.tasks.NavigateToTask
+  goal: Navigate to the ToDo app.
+  app_name: "todo"
