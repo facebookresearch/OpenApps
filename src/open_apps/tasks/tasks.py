@@ -139,7 +139,7 @@ class Task(ABC):
 
     @abstractmethod
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         # Implement your logic to check if the event has been added successfully
         # commpare initial state and target state
@@ -187,7 +187,7 @@ class AddEventTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict | DictConfig
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         if isinstance(current_state, DictConfig):
             current_state = OmegaConf.to_container(current_state, resolve=True)
@@ -222,7 +222,7 @@ class RemoveEventTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -250,7 +250,7 @@ class AddToDoTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -283,7 +283,7 @@ class MarkToDoDoneTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -320,7 +320,7 @@ class SendMessageTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -346,11 +346,28 @@ class SavePlaceTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
         return app_state_comparison.compare()
+
+
+@dataclass
+class NavigateToTask(Task):
+    app: str
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if current_url is None:
+            print("current url not available")
+            return False
+
+        current_url = current_url.rstrip("/")
+        if current_url.endswith("app"):
+            return True
+        return False
 
 
 if __name__ == "__main__":
