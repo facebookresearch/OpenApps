@@ -292,6 +292,74 @@ def todo_controls_per_item(state, config, rng, **_):
     )]
 
 
+def todo_add_button_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "The 'Add' button immediately to the right of the new-todo input",
+        [
+            "The 'Edit' button under the first todo item",
+            "The checkbox next to the first todo item",
+            "The 'Return to List of Apps' button below the list",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible control would you use to submit a new todo after typing it?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="todo",
+    )]
+
+
+def todo_item_edit_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "The 'Edit' button beneath that todo item",
+        [
+            "The checkbox to the left of the item",
+            "The 'Add' button in the input row",
+            "The 'Remove' button beneath the next item",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible control would you use to modify the text of a todo item?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="todo",
+    )]
+
+
+def todo_input_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "At the top of the todo card, above the visible list items",
+        [
+            "At the bottom of the page below the return button",
+            "In a sidebar on the left side of the page",
+            "Inside each todo item row",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where is the new-todo input field positioned on the todo page?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="todo",
+    )]
+
+
+def todo_return_button_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Below the todo card/list",
+        [
+            "Above the app title",
+            "Inside the new-todo input row",
+            "In the right edge of each todo item",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where is the 'Return to List of Apps' control located on the todo page?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="todo",
+    )]
+
+
 def todo_input_placeholder(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
         "New Todo", ["Add a task", "Enter todo here", "Type a new item"], rng,
@@ -500,6 +568,74 @@ def calendar_return_button(state, config, rng, **_):
     )]
 
 
+def calendar_add_event_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "The 'Add Event' button in the footer area",
+        [
+            "The 'Next >' button beside the month name",
+            "A date number inside the calendar grid",
+            "The 'Agenda' view-toggle button",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible control would you use to start creating a new calendar event?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="calendar",
+    )]
+
+
+def calendar_next_month_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "The 'Next >' button to the right of the month heading",
+        [
+            "The '< Prev' button to the left of the month heading",
+            "The 'Calendar' view-toggle button",
+            "The 'Return to List of Apps' button in the footer",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible control would you use to move to the following month?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="calendar",
+    )]
+
+
+def calendar_view_toggle_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Near the top of the page, above the calendar grid",
+        [
+            "Inside the bottom footer next to the return button",
+            "In the leftmost column of the calendar grid",
+            "In a right-side sidebar",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where are the 'Calendar' and 'Agenda' view-toggle controls positioned?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="calendar",
+    )]
+
+
+def calendar_footer_controls_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "At the bottom of the calendar page, beneath the grid",
+        [
+            "Above the month navigation controls",
+            "In the first row of weekday headers",
+            "Floating over the top-right calendar cell",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where are the 'Add Event' and 'Return to List of Apps' controls located?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="calendar",
+    )]
+
+
 # ===========================================================================
 # Messenger App Templates — only the conversation-list view is on screen
 # ===========================================================================
@@ -603,6 +739,40 @@ def messenger_return_button(state, config, rng, **_):
     )]
 
 
+def messenger_open_chat_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Select the conversation row with the contact's name and avatar",
+        [
+            "Use a compose box at the bottom of the conversation list",
+            "Click the page title at the top",
+            "Use the 'Return to List of Apps' button",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible element would you use to open a conversation from the messenger list?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="messenger",
+    )]
+
+
+def messenger_return_button_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Below the conversation list",
+        [
+            "Above the app title",
+            "To the right of each contact name",
+            "Inside a top navigation bar",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where is the 'Return to List of Apps' button positioned on the messenger list page?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="messenger",
+    )]
+
+
 # ===========================================================================
 # Map App Templates — sidebar + map are fully visible
 # ===========================================================================
@@ -697,6 +867,57 @@ def map_sidebar_location(state, config, rng, **_):
     )
     return [MCQuestion(
         question="Where is the sidebar containing search and saved locations positioned?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="map",
+    )]
+
+
+def map_search_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Type in the search input and use the 'Search' button beside it",
+        [
+            "Click directly on the 'Saved Locations' heading",
+            "Use the map tile-provider radio buttons",
+            "Use the 'x' button beside a saved location",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible controls would you use to look up a location in the map sidebar?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="map",
+    )]
+
+
+def map_return_button_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "At the top of the right-hand sidebar",
+        [
+            "At the bottom-left corner of the map",
+            "Inside the saved-location list",
+            "Centered below the map",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where is the 'Return to List of Apps' button located on the map page?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="map",
+    )]
+
+
+def map_tile_provider_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "In a control panel over the top-right of the map area",
+        [
+            "Under the 'Saved Locations' heading in the sidebar",
+            "In a footer below the map",
+            "Above the app title in the sidebar",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where are the map tile-provider radio options positioned?",
         choices=choices, correct=correct_letter,
         category="element_location", app="map",
     )]
@@ -993,6 +1214,74 @@ def codeeditor_no_file_selected_message(state, config, rng, **_):
     )]
 
 
+def codeeditor_new_file_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "The 'New File' button at the top of the file-tree sidebar",
+        [
+            "The 'Language:' dropdown in the editor header",
+            "The 'Theme:' dropdown in the editor header",
+            "A top-level file entry in the tree",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible control would you use to create a new file in the code editor?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="codeeditor",
+    )]
+
+
+def codeeditor_theme_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "The 'Theme:' dropdown in the top-right of the editor pane",
+        [
+            "The 'New Folder' button in the sidebar",
+            "The file tree entry icons",
+            "The 'Language:' dropdown",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible control would you use to change the editor's color theme?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="codeeditor",
+    )]
+
+
+def codeeditor_main_pane_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "To the right of the file-tree sidebar",
+        [
+            "Above the file-tree sidebar",
+            "Below the 'Return to List of Apps' button",
+            "Inside a pop-up modal",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where is the main editor pane positioned relative to the file tree?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="codeeditor",
+    )]
+
+
+def codeeditor_dropdowns_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "In the top-right area of the main editor pane",
+        [
+            "At the bottom of the file-tree sidebar",
+            "Centered below the app title",
+            "Under each file name in the tree",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where are the 'Language:' and 'Theme:' dropdowns positioned in the code editor?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="codeeditor",
+    )]
+
+
 # ===========================================================================
 # Start Page Templates — 5 visible app tiles (no OnlineShop)
 # ===========================================================================
@@ -1082,6 +1371,40 @@ def start_page_app_order(state, config, rng, **_):
     return questions
 
 
+def start_page_tile_interaction(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Select the colored tile with the desired app's icon and name",
+        [
+            "Use a search input at the top of the page",
+            "Click a text-only link in a left sidebar",
+            "Open a dropdown menu beneath the headline",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Which visible element would you use to open one of the apps from the start page?",
+        choices=choices, correct=correct_letter,
+        category="element_interaction", app="start_page",
+    )]
+
+
+def start_page_tile_grid_location(state, config, rng, **_):
+    choices, correct_letter = _shuffle_choices(
+        "Below the welcome headline, in the center of the page",
+        [
+            "In a vertical sidebar on the left edge",
+            "Inside a footer at the bottom of the page",
+            "In a dropdown menu at the top-right",
+        ],
+        rng,
+    )
+    return [MCQuestion(
+        question="Where is the grid of app tiles positioned on the start page?",
+        choices=choices, correct=correct_letter,
+        category="element_location", app="start_page",
+    )]
+
+
 # ===========================================================================
 # Template Registry
 # ===========================================================================
@@ -1098,6 +1421,10 @@ ALL_TEMPLATES: dict[str, list] = {
         todo_item_neighbor,
         todo_element_type_for_completion,
         todo_controls_per_item,
+        todo_add_button_interaction,
+        todo_item_edit_interaction,
+        todo_input_location,
+        todo_return_button_location,
         todo_input_placeholder,
         todo_add_button_label,
         todo_app_title,
@@ -1113,6 +1440,10 @@ ALL_TEMPLATES: dict[str, list] = {
         calendar_app_title,
         calendar_add_event_button,
         calendar_return_button,
+        calendar_add_event_interaction,
+        calendar_next_month_interaction,
+        calendar_view_toggle_location,
+        calendar_footer_controls_location,
     ],
     "messenger": [
         messenger_count_conversations,
@@ -1121,6 +1452,8 @@ ALL_TEMPLATES: dict[str, list] = {
         messenger_group_chat_exists,
         messenger_app_title,
         messenger_return_button,
+        messenger_open_chat_interaction,
+        messenger_return_button_location,
     ],
     "map": [
         map_count_saved_places,
@@ -1128,6 +1461,9 @@ ALL_TEMPLATES: dict[str, list] = {
         map_place_not_saved,
         map_delete_button,
         map_sidebar_location,
+        map_search_interaction,
+        map_return_button_location,
+        map_tile_provider_location,
         map_search_placeholder,
         map_search_button_label,
         map_return_button_label,
@@ -1148,6 +1484,10 @@ ALL_TEMPLATES: dict[str, list] = {
         codeeditor_theme_dropdown,
         codeeditor_app_title,
         codeeditor_no_file_selected_message,
+        codeeditor_new_file_interaction,
+        codeeditor_theme_interaction,
+        codeeditor_main_pane_location,
+        codeeditor_dropdowns_location,
     ],
     "start_page": [
         start_page_app_count,
@@ -1156,5 +1496,7 @@ ALL_TEMPLATES: dict[str, list] = {
         start_page_headline,
         start_page_tile_layout,
         start_page_app_order,
+        start_page_tile_interaction,
+        start_page_tile_grid_location,
     ],
 }
