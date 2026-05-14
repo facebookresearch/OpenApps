@@ -30,7 +30,6 @@ import random
 from dataclasses import dataclass
 from datetime import datetime, date
 
-
 MAX_VISIBLE_TODOS = 12
 
 
@@ -139,11 +138,15 @@ def todo_count_done(state, config, rng, **_):
     done_count = sum(1 for t in todos if t.get("done"))
     distractors = _nearby_integers(done_count, len(todos), rng)
     choices, correct_letter = _shuffle_choices(str(done_count), distractors, rng)
-    return [MCQuestion(
-        question="Looking at the visible todo list, how many items are checked (marked as done)?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="Looking at the visible todo list, how many items are checked (marked as done)?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="todo",
+        )
+    ]
 
 
 def todo_count_not_done(state, config, rng, **_):
@@ -153,11 +156,15 @@ def todo_count_not_done(state, config, rng, **_):
     not_done_count = sum(1 for t in todos if not t.get("done"))
     distractors = _nearby_integers(not_done_count, len(todos), rng)
     choices, correct_letter = _shuffle_choices(str(not_done_count), distractors, rng)
-    return [MCQuestion(
-        question="Looking at the visible todo list, how many items are unchecked (not done)?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="Looking at the visible todo list, how many items are unchecked (not done)?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="todo",
+        )
+    ]
 
 
 def todo_identify_done_items(state, config, rng, **_):
@@ -170,11 +177,15 @@ def todo_identify_done_items(state, config, rng, **_):
     for title in done:
         distractors = rng.sample(not_done, 3)
         choices, correct_letter = _shuffle_choices(title, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following visible todo items is shown with its checkbox checked?",
-            choices=choices, correct=correct_letter,
-            category="element_state", app="todo",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following visible todo items is shown with its checkbox checked?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_state",
+                app="todo",
+            )
+        )
     return questions
 
 
@@ -188,11 +199,15 @@ def todo_identify_not_done_items(state, config, rng, **_):
     for title in not_done:
         distractors = rng.sample(done, 3)
         choices, correct_letter = _shuffle_choices(title, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following visible todo items is shown with its checkbox unchecked?",
-            choices=choices, correct=correct_letter,
-            category="element_state", app="todo",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following visible todo items is shown with its checkbox unchecked?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_state",
+                app="todo",
+            )
+        )
     return questions
 
 
@@ -205,11 +220,16 @@ def todo_specific_item_state(state, config, rng, **_):
         wrong = "Checkbox is unchecked" if is_done else "Checkbox is checked"
         distractors = [wrong, "The item is shown in red", "The item is struck through"]
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"In the visible todo list, what is the state of the checkbox next to '{t['title']}'?",
-            choices=choices, correct=correct_letter,
-            category="element_state", app="todo", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question=f"In the visible todo list, what is the state of the checkbox next to '{t['title']}'?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_state",
+                app="todo",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -220,11 +240,15 @@ def todo_first_item(state, config, rng, **_):
     correct = todos[0]["title"]
     distractors = rng.sample([t["title"] for t in todos[1:]], 3)
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [MCQuestion(
-        question="What is the first todo item shown at the top of the list?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="What is the first todo item shown at the top of the list?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="todo",
+        )
+    ]
 
 
 def todo_items_at_positions(state, config, rng, **_):
@@ -237,11 +261,16 @@ def todo_items_at_positions(state, config, rng, **_):
         others = [t["title"] for i, t in enumerate(todos) if i != pos - 1]
         distractors = rng.sample(others, 3)
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"What is the {_ordinal(pos)} todo item shown in the visible list?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="todo", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question=f"What is the {_ordinal(pos)} todo item shown in the visible list?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="todo",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -260,23 +289,34 @@ def todo_item_neighbor(state, config, rng, **_):
             continue
         distractors = rng.sample(others, 3)
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question=f"In the visible todo list, which item appears directly below '{current}'?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="todo", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question=f"In the visible todo list, which item appears directly below '{current}'?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="todo",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
 def todo_element_type_for_completion(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Checkbox", ["Toggle switch", "Radio button", "Star icon"], rng,
+        "Checkbox",
+        ["Toggle switch", "Radio button", "Star icon"],
+        rng,
     )
-    return [MCQuestion(
-        question="What type of UI element appears to the left of each todo item title?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="What type of UI element appears to the left of each todo item title?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="todo",
+        )
+    ]
 
 
 def todo_controls_per_item(state, config, rng, **_):
@@ -285,11 +325,15 @@ def todo_controls_per_item(state, config, rng, **_):
         ["Delete and Archive", "Save and Cancel", "Complete and Skip"],
         rng,
     )
-    return [MCQuestion(
-        question="What two button labels are shown beneath each todo item?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="What two button labels are shown beneath each todo item?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="todo",
+        )
+    ]
 
 
 def todo_add_button_interaction(state, config, rng, **_):
@@ -302,11 +346,15 @@ def todo_add_button_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible control would you use to submit a new todo after typing it?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible control would you use to submit a new todo after typing it?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="todo",
+        )
+    ]
 
 
 def todo_item_edit_interaction(state, config, rng, **_):
@@ -319,11 +367,15 @@ def todo_item_edit_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible control would you use to modify the text of a todo item?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible control would you use to modify the text of a todo item?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="todo",
+        )
+    ]
 
 
 def todo_input_location(state, config, rng, **_):
@@ -336,16 +388,20 @@ def todo_input_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the new-todo input field positioned on the todo page?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the new-todo input field positioned on the todo page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="todo",
+        )
+    ]
 
 
 def todo_return_button_location(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Below the todo card/list",
+        "Top right next to the search bar",
         [
             "Above the app title",
             "Inside the new-todo input row",
@@ -353,31 +409,45 @@ def todo_return_button_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the 'Return to List of Apps' control located on the todo page?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the 'Add button' control located on the todo page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="todo",
+        )
+    ]
 
 
 def todo_input_placeholder(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "New Todo", ["Add a task", "Enter todo here", "Type a new item"], rng,
+        "New Todo",
+        ["Add a task", "Enter todo here", "Type a new item"],
+        rng,
     )
-    return [MCQuestion(
-        question="What placeholder text is shown in the input field at the top of the todo app?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="What placeholder text is shown in the input field at the top of the todo app?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="todo",
+        )
+    ]
 
 
 def todo_add_button_label(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices("Add", ["Submit", "Create", "Save"], rng)
-    return [MCQuestion(
-        question="What is the label on the button to the right of the new-todo input field?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="What is the label on the button to the right of the new-todo input field?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="todo",
+        )
+    ]
 
 
 def todo_app_title(state, config, rng, **_):
@@ -386,11 +456,15 @@ def todo_app_title(state, config, rng, **_):
     if title != "OpenTodos":
         distractors = ["OpenTodos"] + distractors[:2]
     choices, correct_letter = _shuffle_choices(title, distractors, rng)
-    return [MCQuestion(
-        question="What title is displayed at the top of the todo app page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="todo",
-    )]
+    return [
+        MCQuestion(
+            question="What title is displayed at the top of the todo app page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="todo",
+        )
+    ]
 
 
 # ===========================================================================
@@ -405,11 +479,15 @@ def calendar_displayed_month(state, config, rng, current_month=None, **_):
     rng.shuffle(other_months)
     distractors = [f"{cal_mod.month_name[m]} {year}" for m in other_months[:3]]
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [MCQuestion(
-        question="Which month and year does the calendar currently display?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="Which month and year does the calendar currently display?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_count_events_in_month(state, config, rng, current_month=None, **_):
@@ -420,11 +498,15 @@ def calendar_count_events_in_month(state, config, rng, current_month=None, **_):
         return []
     distractors = _nearby_integers(count, count + 5, rng)
     choices, correct_letter = _shuffle_choices(str(count), distractors, rng)
-    return [MCQuestion(
-        question="How many events are shown on the calendar grid for the displayed month?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="How many events are shown on the calendar grid for the displayed month?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_event_exists_in_month(state, config, rng, current_month=None, **_):
@@ -434,9 +516,15 @@ def calendar_event_exists_in_month(state, config, rng, current_month=None, **_):
         return []
     visible_titles = [e["title"] for e in visible]
     fake_events = [
-        "NeurIPS 2026 Deadline", "Team Standup Meeting", "Dentist Appointment",
-        "ICML 2026 Workshop", "Mom's Anniversary", "Sprint Planning",
-        "Yoga Class", "Guitar Lesson", "Board Meeting",
+        "NeurIPS 2026 Deadline",
+        "Team Standup Meeting",
+        "Dentist Appointment",
+        "ICML 2026 Workshop",
+        "Mom's Anniversary",
+        "Sprint Planning",
+        "Yoga Class",
+        "Guitar Lesson",
+        "Board Meeting",
     ]
     fake_events = [f for f in fake_events if f not in visible_titles]
     if len(fake_events) < 3:
@@ -445,11 +533,15 @@ def calendar_event_exists_in_month(state, config, rng, current_month=None, **_):
     for correct in visible_titles:
         distractors = rng.sample(fake_events, 3)
         choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following events appears on the displayed calendar month?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following events appears on the displayed calendar month?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="calendar",
+            )
+        )
     return questions
 
 
@@ -474,11 +566,16 @@ def calendar_event_day_in_month(state, config, rng, current_month=None, **_):
         if len(distractors) < 3:
             continue
         choices, correct_letter = _shuffle_choices(str(correct_day), distractors, rng)
-        questions.append(MCQuestion(
-            question=f"On which day of the displayed month is the event '{ev['title']}' shown?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="calendar", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question=f"On which day of the displayed month is the event '{ev['title']}' shown?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="calendar",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -488,11 +585,15 @@ def calendar_view_toggle(state, config, rng, **_):
         ["Day and Week", "Month and Year", "Timeline and Board"],
         rng,
     )
-    return [MCQuestion(
-        question="What two view-toggle buttons are shown above the calendar grid?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="What two view-toggle buttons are shown above the calendar grid?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_month_navigation(state, config, rng, **_):
@@ -505,11 +606,15 @@ def calendar_month_navigation(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="What controls are shown for navigating between months on the calendar?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="What controls are shown for navigating between months on the calendar?",
+            choices=choices,
+            correct=correct_letter,
+            category="navigation",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_weekday_headers(state, config, rng, **_):
@@ -522,11 +627,15 @@ def calendar_weekday_headers(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="What weekday header labels appear across the top of the calendar grid?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="What weekday header labels appear across the top of the calendar grid?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_app_title(state, config, rng, **_):
@@ -535,11 +644,15 @@ def calendar_app_title(state, config, rng, **_):
     if title != "OpenCalendar":
         distractors = ["OpenCalendar"] + distractors[:2]
     choices, correct_letter = _shuffle_choices(title, distractors, rng)
-    return [MCQuestion(
-        question="What title is displayed at the top of the calendar app page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="What title is displayed at the top of the calendar app page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_add_event_button(state, config, rng, **_):
@@ -548,11 +661,15 @@ def calendar_add_event_button(state, config, rng, **_):
         ["New Event", "Create Event", "+ Event"],
         rng,
     )
-    return [MCQuestion(
-        question="What is the label on the button at the bottom-left of the calendar page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="What is the label on the button at the bottom-left of the calendar page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_return_button(state, config, rng, **_):
@@ -561,11 +678,15 @@ def calendar_return_button(state, config, rng, **_):
         ["Back to Home", "Main Menu", "All Apps"],
         rng,
     )
-    return [MCQuestion(
-        question="What is the label on the button at the bottom-right of the calendar page?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="What is the label on the button at the bottom-right of the calendar page?",
+            choices=choices,
+            correct=correct_letter,
+            category="navigation",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_add_event_interaction(state, config, rng, **_):
@@ -578,11 +699,15 @@ def calendar_add_event_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible control would you use to start creating a new calendar event?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible control would you use to start creating a new calendar event?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_next_month_interaction(state, config, rng, **_):
@@ -595,11 +720,15 @@ def calendar_next_month_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible control would you use to move to the following month?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible control would you use to move to the following month?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_view_toggle_location(state, config, rng, **_):
@@ -612,11 +741,15 @@ def calendar_view_toggle_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where are the 'Calendar' and 'Agenda' view-toggle controls positioned?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="Where are the 'Calendar' and 'Agenda' view-toggle controls positioned?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="calendar",
+        )
+    ]
 
 
 def calendar_footer_controls_location(state, config, rng, **_):
@@ -629,11 +762,15 @@ def calendar_footer_controls_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where are the 'Add Event' and 'Return to List of Apps' controls located?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="calendar",
-    )]
+    return [
+        MCQuestion(
+            question="Where are the 'Add Event' and 'Return to List of Apps' controls located?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="calendar",
+        )
+    ]
 
 
 # ===========================================================================
@@ -648,11 +785,15 @@ def messenger_count_conversations(state, config, rng, **_):
         return []
     distractors = _nearby_integers(total, total + 4, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
-    return [MCQuestion(
-        question="How many conversation rows are shown in the messenger conversation list?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="messenger",
-    )]
+    return [
+        MCQuestion(
+            question="How many conversation rows are shown in the messenger conversation list?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="messenger",
+        )
+    ]
 
 
 def messenger_contact_exists(state, config, rng, **_):
@@ -668,11 +809,15 @@ def messenger_contact_exists(state, config, rng, **_):
     for name in contact_names:
         distractors = rng.sample(fake_contacts, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following contact names is shown in the messenger conversation list?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="messenger",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following contact names is shown in the messenger conversation list?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="messenger",
+            )
+        )
     return questions
 
 
@@ -687,11 +832,16 @@ def messenger_contact_not_exists(state, config, rng, **_):
     for fake in fake_contacts[:3]:
         real = rng.sample(contact_names, 3)
         choices, correct_letter = _shuffle_choices(fake, real, rng)
-        questions.append(MCQuestion(
-            question="Which of the following contact names does NOT appear in the messenger conversation list?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="messenger", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following contact names does NOT appear in the messenger conversation list?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="messenger",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -701,16 +851,28 @@ def messenger_group_chat_exists(state, config, rng, **_):
     has_group = len(group_chats) > 0
     if has_group:
         correct = f"Yes — '{group_chats[0]['user']}'"
-        distractors = ["No, only individual conversations", "Yes — 'Team Chat'", "Yes — 'General Channel'"]
+        distractors = [
+            "No, only individual conversations",
+            "Yes — 'Team Chat'",
+            "Yes — 'General Channel'",
+        ]
     else:
         correct = "No, only individual conversations"
-        distractors = ["Yes — 'Fantastic4GroupChat'", "Yes — 'Team Chat'", "Yes — 'General Channel'"]
+        distractors = [
+            "Yes — 'Fantastic4GroupChat'",
+            "Yes — 'Team Chat'",
+            "Yes — 'General Channel'",
+        ]
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [MCQuestion(
-        question="Is a group chat row visible in the messenger conversation list?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="messenger",
-    )]
+    return [
+        MCQuestion(
+            question="Is a group chat row visible in the messenger conversation list?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="messenger",
+        )
+    ]
 
 
 def messenger_app_title(state, config, rng, **_):
@@ -719,11 +881,15 @@ def messenger_app_title(state, config, rng, **_):
     if title != "OpenMessages":
         distractors = ["OpenMessages"] + distractors[:2]
     choices, correct_letter = _shuffle_choices(title, distractors, rng)
-    return [MCQuestion(
-        question="What title is displayed at the top of the messenger page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="messenger",
-    )]
+    return [
+        MCQuestion(
+            question="What title is displayed at the top of the messenger page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="messenger",
+        )
+    ]
 
 
 def messenger_return_button(state, config, rng, **_):
@@ -732,11 +898,15 @@ def messenger_return_button(state, config, rng, **_):
         ["Back", "Home", "Main Menu"],
         rng,
     )
-    return [MCQuestion(
-        question="What is the label on the button at the bottom of the messenger page?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="messenger",
-    )]
+    return [
+        MCQuestion(
+            question="What is the label on the button at the bottom of the messenger page?",
+            choices=choices,
+            correct=correct_letter,
+            category="navigation",
+            app="messenger",
+        )
+    ]
 
 
 def messenger_open_chat_interaction(state, config, rng, **_):
@@ -749,11 +919,15 @@ def messenger_open_chat_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible element would you use to open a conversation from the messenger list?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="messenger",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible element would you use to open a conversation from the messenger list?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="messenger",
+        )
+    ]
 
 
 def messenger_return_button_location(state, config, rng, **_):
@@ -766,11 +940,15 @@ def messenger_return_button_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the 'Return to List of Apps' button positioned on the messenger list page?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="messenger",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the 'Return to List of Apps' button positioned on the messenger list page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="messenger",
+        )
+    ]
 
 
 # ===========================================================================
@@ -785,11 +963,15 @@ def map_count_saved_places(state, config, rng, **_):
         return []
     distractors = _nearby_integers(total, total + 5, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
-    return [MCQuestion(
-        question="How many entries are listed under 'Saved Locations' in the map sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="How many entries are listed under 'Saved Locations' in the map sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="map",
+        )
+    ]
 
 
 def map_place_exists(state, config, rng, **_):
@@ -798,8 +980,13 @@ def map_place_exists(state, config, rng, **_):
         return []
     place_names = [p["name"] for p in places]
     fake_places = [
-        "Golden Gate Bridge", "Eiffel Tower", "Buckingham Palace",
-        "Sydney Opera House", "Big Ben", "Colosseum", "Taj Mahal",
+        "Golden Gate Bridge",
+        "Eiffel Tower",
+        "Buckingham Palace",
+        "Sydney Opera House",
+        "Big Ben",
+        "Colosseum",
+        "Taj Mahal",
     ]
     fake_places = [f for f in fake_places if f not in place_names]
     if len(fake_places) < 3:
@@ -808,11 +995,15 @@ def map_place_exists(state, config, rng, **_):
     for name in place_names:
         distractors = rng.sample(fake_places, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following appears under 'Saved Locations' in the map sidebar?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="map",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following appears under 'Saved Locations' in the map sidebar?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="map",
+            )
+        )
     return questions
 
 
@@ -820,8 +1011,12 @@ def map_place_not_saved(state, config, rng, **_):
     places = state.get("map", [])
     place_names = [p["name"] for p in places]
     fake_places = [
-        "Golden Gate Bridge", "Eiffel Tower", "Buckingham Palace",
-        "Sydney Opera House", "Big Ben", "Colosseum",
+        "Golden Gate Bridge",
+        "Eiffel Tower",
+        "Buckingham Palace",
+        "Sydney Opera House",
+        "Big Ben",
+        "Colosseum",
     ]
     fake_places = [f for f in fake_places if f not in place_names]
     if len(fake_places) < 3 or len(place_names) < 3:
@@ -830,11 +1025,16 @@ def map_place_not_saved(state, config, rng, **_):
     for fake in fake_places[:3]:
         real = rng.sample(place_names, 3)
         choices, correct_letter = _shuffle_choices(fake, real, rng)
-        questions.append(MCQuestion(
-            question="Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="map", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="map",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -848,11 +1048,15 @@ def map_delete_button(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="What control is shown next to each saved location row in the map sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What control is shown next to each saved location row in the map sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="map",
+        )
+    ]
 
 
 def map_sidebar_location(state, config, rng, **_):
@@ -865,11 +1069,15 @@ def map_sidebar_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the sidebar containing search and saved locations positioned?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the sidebar containing search and saved locations positioned?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="map",
+        )
+    ]
 
 
 def map_search_interaction(state, config, rng, **_):
@@ -882,11 +1090,15 @@ def map_search_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible controls would you use to look up a location in the map sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible controls would you use to look up a location in the map sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="map",
+        )
+    ]
 
 
 def map_return_button_location(state, config, rng, **_):
@@ -899,11 +1111,15 @@ def map_return_button_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the 'Return to List of Apps' button located on the map page?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the 'Return to List of Apps' button located on the map page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="map",
+        )
+    ]
 
 
 def map_tile_provider_location(state, config, rng, **_):
@@ -916,11 +1132,15 @@ def map_tile_provider_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where are the map tile-provider radio options positioned?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="Where are the map tile-provider radio options positioned?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="map",
+        )
+    ]
 
 
 def map_search_placeholder(state, config, rng, **_):
@@ -929,11 +1149,15 @@ def map_search_placeholder(state, config, rng, **_):
         ["Find a place", "Where to?", "Enter address"],
         rng,
     )
-    return [MCQuestion(
-        question="What placeholder text is shown inside the search input in the map sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What placeholder text is shown inside the search input in the map sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="map",
+        )
+    ]
 
 
 def map_search_button_label(state, config, rng, **_):
@@ -942,11 +1166,15 @@ def map_search_button_label(state, config, rng, **_):
         ["Go", "Find", "Lookup"],
         rng,
     )
-    return [MCQuestion(
-        question="What is the label on the button to the right of the search input in the map sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What is the label on the button to the right of the search input in the map sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="map",
+        )
+    ]
 
 
 def map_return_button_label(state, config, rng, **_):
@@ -955,11 +1183,15 @@ def map_return_button_label(state, config, rng, **_):
         ["Back to Home", "Go Home", "Main Menu"],
         rng,
     )
-    return [MCQuestion(
-        question="What is the label on the button at the top-right of the map page?",
-        choices=choices, correct=correct_letter,
-        category="navigation", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What is the label on the button at the top-right of the map page?",
+            choices=choices,
+            correct=correct_letter,
+            category="navigation",
+            app="map",
+        )
+    ]
 
 
 def map_saved_locations_heading(state, config, rng, **_):
@@ -968,11 +1200,15 @@ def map_saved_locations_heading(state, config, rng, **_):
         ["My Bookmarks", "Favorite Places", "Pinned Locations"],
         rng,
     )
-    return [MCQuestion(
-        question="What heading appears in the map sidebar above the list of saved places?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What heading appears in the map sidebar above the list of saved places?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="map",
+        )
+    ]
 
 
 def map_current_location_info_heading(state, config, rng, **_):
@@ -981,11 +1217,15 @@ def map_current_location_info_heading(state, config, rng, **_):
         ["Selected Point Details", "Location Data", "Coordinates"],
         rng,
     )
-    return [MCQuestion(
-        question="What heading appears in the map sidebar between the search input and 'Saved Locations'?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What heading appears in the map sidebar between the search input and 'Saved Locations'?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="map",
+        )
+    ]
 
 
 def map_app_title(state, config, rng, **_):
@@ -994,11 +1234,15 @@ def map_app_title(state, config, rng, **_):
         ["My Maps", "Map App", "Locations"],
         rng,
     )
-    return [MCQuestion(
-        question="What title is displayed at the top of the map sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What title is displayed at the top of the map sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="map",
+        )
+    ]
 
 
 def map_tile_provider_options(state, config, rng, **_):
@@ -1011,11 +1255,15 @@ def map_tile_provider_options(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="What set of map tile-provider radio options is shown at the top-right of the map?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="map",
-    )]
+    return [
+        MCQuestion(
+            question="What set of map tile-provider radio options is shown at the top-right of the map?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="map",
+        )
+    ]
 
 
 # ===========================================================================
@@ -1030,11 +1278,15 @@ def codeeditor_top_level_file_count(state, config, rng, **_):
         return []
     distractors = _nearby_integers(total, total + 5, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
-    return [MCQuestion(
-        question="How many top-level file entries are shown in the code editor's file tree?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="How many top-level file entries are shown in the code editor's file tree?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_top_level_folder_count(state, config, rng, **_):
@@ -1044,11 +1296,15 @@ def codeeditor_top_level_folder_count(state, config, rng, **_):
         return []
     distractors = _nearby_integers(total, total + 4, rng)
     choices, correct_letter = _shuffle_choices(str(total), distractors, rng)
-    return [MCQuestion(
-        question="How many top-level folder entries are shown in the code editor's file tree?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="How many top-level folder entries are shown in the code editor's file tree?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_top_level_file_exists(state, config, rng, **_):
@@ -1056,7 +1312,15 @@ def codeeditor_top_level_file_exists(state, config, rng, **_):
     if len(files) < 1:
         return []
     file_names = [f["name"] for f in files]
-    fake_files = ["index.html", "main.go", "README.md", "app.js", "config.yaml", "Makefile", "test.py"]
+    fake_files = [
+        "index.html",
+        "main.go",
+        "README.md",
+        "app.js",
+        "config.yaml",
+        "Makefile",
+        "test.py",
+    ]
     fake_files = [f for f in fake_files if f not in file_names]
     if len(fake_files) < 3:
         return []
@@ -1064,11 +1328,15 @@ def codeeditor_top_level_file_exists(state, config, rng, **_):
     for name in file_names:
         distractors = rng.sample(fake_files, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following file names is shown at the top level of the code editor's file tree?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="codeeditor",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following file names is shown at the top level of the code editor's file tree?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="codeeditor",
+            )
+        )
     return questions
 
 
@@ -1085,11 +1353,15 @@ def codeeditor_top_level_folder_exists(state, config, rng, **_):
     for name in folder_names:
         distractors = rng.sample(fake_folders, 3)
         choices, correct_letter = _shuffle_choices(name, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following folder names is shown at the top level of the code editor's file tree?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="codeeditor",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following folder names is shown at the top level of the code editor's file tree?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="codeeditor",
+            )
+        )
     return questions
 
 
@@ -1098,8 +1370,14 @@ def codeeditor_file_extension(state, config, rng, **_):
     if len(files) < 1:
         return []
     ext_to_lang = {
-        ".py": "Python", ".c": "C", ".js": "JavaScript", ".css": "CSS",
-        ".yaml": "YAML", ".md": "Markdown", ".go": "Go", ".html": "HTML",
+        ".py": "Python",
+        ".c": "C",
+        ".js": "JavaScript",
+        ".css": "CSS",
+        ".yaml": "YAML",
+        ".md": "Markdown",
+        ".go": "Go",
+        ".html": "HTML",
     }
     all_langs = list(ext_to_lang.values())
     questions = []
@@ -1112,11 +1390,15 @@ def codeeditor_file_extension(state, config, rng, **_):
         distractors = [l for l in all_langs if l != lang]
         rng.shuffle(distractors)
         choices, correct_letter = _shuffle_choices(lang, distractors[:3], rng)
-        questions.append(MCQuestion(
-            question=f"Based on the file extension shown in the file tree, what language is '{name}'?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="codeeditor",
-        ))
+        questions.append(
+            MCQuestion(
+                question=f"Based on the file extension shown in the file tree, what language is '{name}'?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="codeeditor",
+            )
+        )
     return questions
 
 
@@ -1130,11 +1412,15 @@ def codeeditor_sidebar_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the file tree positioned in the code editor?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the file tree positioned in the code editor?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_new_file_buttons(state, config, rng, **_):
@@ -1147,11 +1433,15 @@ def codeeditor_new_file_buttons(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="What buttons are shown at the top of the code editor's file tree sidebar?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="What buttons are shown at the top of the code editor's file tree sidebar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_language_dropdown(state, config, rng, **_):
@@ -1164,11 +1454,15 @@ def codeeditor_language_dropdown(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="How is the syntax language selected in the top-right of the code editor?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="How is the syntax language selected in the top-right of the code editor?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_theme_dropdown(state, config, rng, **_):
@@ -1181,11 +1475,15 @@ def codeeditor_theme_dropdown(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="How is the editor theme selected in the top-right of the code editor?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="How is the editor theme selected in the top-right of the code editor?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_app_title(state, config, rng, **_):
@@ -1194,11 +1492,15 @@ def codeeditor_app_title(state, config, rng, **_):
         ["My Editor", "CodeApp", "Editor"],
         rng,
     )
-    return [MCQuestion(
-        question="What title is displayed at the top-left of the code editor page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="What title is displayed at the top-left of the code editor page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_no_file_selected_message(state, config, rng, **_):
@@ -1207,11 +1509,15 @@ def codeeditor_no_file_selected_message(state, config, rng, **_):
         ["Open a file to begin", "Choose a file from the sidebar", "Welcome"],
         rng,
     )
-    return [MCQuestion(
-        question="What message is shown in the code editor's main pane header when no file is open?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="What message is shown in the code editor's main pane header when no file is open?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_new_file_interaction(state, config, rng, **_):
@@ -1224,11 +1530,15 @@ def codeeditor_new_file_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible control would you use to create a new file in the code editor?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible control would you use to create a new file in the code editor?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_theme_interaction(state, config, rng, **_):
@@ -1241,11 +1551,15 @@ def codeeditor_theme_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible control would you use to change the editor's color theme?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible control would you use to change the editor's color theme?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_main_pane_location(state, config, rng, **_):
@@ -1258,11 +1572,15 @@ def codeeditor_main_pane_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the main editor pane positioned relative to the file tree?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the main editor pane positioned relative to the file tree?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="codeeditor",
+        )
+    ]
 
 
 def codeeditor_dropdowns_location(state, config, rng, **_):
@@ -1275,30 +1593,52 @@ def codeeditor_dropdowns_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where are the 'Language:' and 'Theme:' dropdowns positioned in the code editor?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="codeeditor",
-    )]
+    return [
+        MCQuestion(
+            question="Where are the 'Language:' and 'Theme:' dropdowns positioned in the code editor?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="codeeditor",
+        )
+    ]
 
 
 # ===========================================================================
 # Start Page Templates — 5 visible app tiles (no OnlineShop)
 # ===========================================================================
 
-_START_PAGE_APPS = ["OpenTodos", "OpenCalendar", "OpenMessages", "OpenMaps", "OpenCodeEditor"]
-_FAKE_APPS = ["OpenNotes", "OpenWeather", "OpenMusic", "OpenFitness", "OpenBanking", "OpenTravel", "OpenShop"]
+_START_PAGE_APPS = [
+    "OpenTodos",
+    "OpenCalendar",
+    "OpenMessages",
+    "OpenMaps",
+    "OpenCodeEditor",
+]
+_FAKE_APPS = [
+    "OpenNotes",
+    "OpenWeather",
+    "OpenMusic",
+    "OpenFitness",
+    "OpenBanking",
+    "OpenTravel",
+    "OpenShop",
+]
 
 
 def start_page_app_count(state, config, rng, **_):
     correct = str(len(_START_PAGE_APPS))
     distractors = _nearby_integers(len(_START_PAGE_APPS), 10, rng)
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
-    return [MCQuestion(
-        question="How many app tiles are shown in the grid on the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_counting", app="start_page",
-    )]
+    return [
+        MCQuestion(
+            question="How many app tiles are shown in the grid on the start page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="start_page",
+        )
+    ]
 
 
 def start_page_app_names_positive(state, config, rng, **_):
@@ -1306,11 +1646,15 @@ def start_page_app_names_positive(state, config, rng, **_):
     for app_name in _START_PAGE_APPS:
         distractors = rng.sample(_FAKE_APPS, 3)
         choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
-        questions.append(MCQuestion(
-            question="Which of the following app names is shown on a tile on the start page?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="start_page",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following app names is shown on a tile on the start page?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="start_page",
+            )
+        )
     return questions
 
 
@@ -1319,11 +1663,16 @@ def start_page_not_an_app(state, config, rng, **_):
     for fake in _FAKE_APPS[:4]:
         real = rng.sample(_START_PAGE_APPS, 3)
         choices, correct_letter = _shuffle_choices(fake, real, rng)
-        questions.append(MCQuestion(
-            question="Which of the following app names is NOT shown on any tile on the start page?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="start_page", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question="Which of the following app names is NOT shown on any tile on the start page?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="start_page",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -1333,11 +1682,15 @@ def start_page_headline(state, config, rng, **_):
         ["My Apps", "App Dashboard", "Home"],
         rng,
     )
-    return [MCQuestion(
-        question="What headline text is displayed at the top of the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_content", app="start_page",
-    )]
+    return [
+        MCQuestion(
+            question="What headline text is displayed at the top of the start page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app="start_page",
+        )
+    ]
 
 
 def start_page_tile_layout(state, config, rng, **_):
@@ -1350,11 +1703,15 @@ def start_page_tile_layout(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="How are the apps presented visually on the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_identification", app="start_page",
-    )]
+    return [
+        MCQuestion(
+            question="How are the apps presented visually on the start page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="start_page",
+        )
+    ]
 
 
 def start_page_app_order(state, config, rng, **_):
@@ -1363,11 +1720,16 @@ def start_page_app_order(state, config, rng, **_):
         distractors = [a for a in _START_PAGE_APPS if a != app_name]
         rng.shuffle(distractors)
         choices, correct_letter = _shuffle_choices(app_name, distractors[:3], rng)
-        questions.append(MCQuestion(
-            question=f"What is the {_ordinal(i+1)} app tile shown on the start page (left-to-right, top-to-bottom)?",
-            choices=choices, correct=correct_letter,
-            category="element_content", app="start_page", difficulty="medium",
-        ))
+        questions.append(
+            MCQuestion(
+                question=f"What is the {_ordinal(i+1)} app tile shown on the start page (left-to-right, top-to-bottom)?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="start_page",
+                difficulty="medium",
+            )
+        )
     return questions
 
 
@@ -1381,11 +1743,15 @@ def start_page_tile_interaction(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Which visible element would you use to open one of the apps from the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_interaction", app="start_page",
-    )]
+    return [
+        MCQuestion(
+            question="Which visible element would you use to open one of the apps from the start page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="start_page",
+        )
+    ]
 
 
 def start_page_tile_grid_location(state, config, rng, **_):
@@ -1398,11 +1764,15 @@ def start_page_tile_grid_location(state, config, rng, **_):
         ],
         rng,
     )
-    return [MCQuestion(
-        question="Where is the grid of app tiles positioned on the start page?",
-        choices=choices, correct=correct_letter,
-        category="element_location", app="start_page",
-    )]
+    return [
+        MCQuestion(
+            question="Where is the grid of app tiles positioned on the start page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app="start_page",
+        )
+    ]
 
 
 # ===========================================================================
