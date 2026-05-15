@@ -56,6 +56,9 @@ ROUTES = (
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
     RouteSpec("onlineshop", "/onlineshop/", "input[name='search_query']"),
+    RouteSpec("onlineshop_electronics", "/onlineshop/search/electronics/1", ".card"),
+    RouteSpec("onlineshop_fashion", "/onlineshop/search/fashion/1", ".card"),
+    RouteSpec("onlineshop_home_kitchen", "/onlineshop/search/home,kitchen/1", ".card"),
 )
 
 
@@ -120,6 +123,14 @@ def parse_args() -> argparse.Namespace:
         choices=["default", "dark_theme", "challenging_font", "german", "long_descriptions"],
         default=["default", "dark_theme", "challenging_font", "german", "long_descriptions"],
         help="Variation names to capture.",
+    )
+    parser.add_argument(
+        "--route",
+        dest="route_names",
+        nargs="*",
+        choices=[route.name for route in ROUTES],
+        default=None,
+        help="Route names to capture. Defaults to all routes.",
     )
     parser.add_argument(
         "--timeout-ms",
@@ -391,6 +402,12 @@ def main() -> int:
     variation_overrides = build_variation_overrides(include_onlineshop)
     compare_against_reference = reference_root_exists(reference_dir)
 
+    selected_route_names = set(args.route_names) if args.route_names else None
+    routes_to_capture = [
+        route for route in ROUTES
+        if selected_route_names is None or route.name in selected_route_names
+    ]
+
     saved_paths: list[Path] = []
     skipped_routes: list[str] = []
     missing_references: list[Path] = []
@@ -414,8 +431,8 @@ def main() -> int:
                     context = browser.new_context(viewport=VIEWPORT, device_scale_factor=1)
                     page = context.new_page()
 
-                    for route in ROUTES:
-                        if route.name == "onlineshop" and not include_onlineshop:
+                    for route in routes_to_capture:
+                        if route.path.startswith("/onlineshop") and not include_onlineshop:
                             skipped_routes.append(
                                 f"{variation}/{route.name}: skipped because Java 21 is unavailable ({java_version})"
                             )
