@@ -2113,5 +2113,410 @@
     "difficulty": "easy",
     "formatted": "Where is the grid of app tiles positioned on the start page?\n  A) Below the welcome headline, in the center of the page\n  B) In a dropdown menu at the top-right\n  C) In a vertical sidebar on the left edge\n  D) Inside a footer at the bottom of the page",
     "screenshot_path": "tests/generated_screenshots/default/start_page.png"
+  },
+  {
+    "question": "What search keyword is shown in quotes in the search-results heading above the product cards?",
+    "choices": {
+      "A": "\"toys\"",
+      "B": "\"books\"",
+      "C": "\"electronics\"",
+      "D": "\"garden\""
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "What search keyword is shown in quotes in the search-results heading above the product cards?\n  A) \"toys\"\n  B) \"books\"\n  C) \"electronics\"\n  D) \"garden\"",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "What breadcrumb trail is shown above the search-results heading?",
+    "choices": {
+      "A": "Home / Cart / Search Results",
+      "B": "Home / Search Results",
+      "C": "Shop / Categories",
+      "D": "Home / Electronics / Results"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "What breadcrumb trail is shown above the search-results heading?\n  A) Home / Cart / Search Results\n  B) Home / Search Results\n  C) Shop / Categories\n  D) Home / Electronics / Results",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "What button label appears at the bottom of each product card on the search-results page?",
+    "choices": {
+      "A": "View Details",
+      "B": "Buy Now",
+      "C": "Add to Cart",
+      "D": "More Info"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "What button label appears at the bottom of each product card on the search-results page?\n  A) View Details\n  B) Buy Now\n  C) Add to Cart\n  D) More Info",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "Where is the product image positioned within each product card on the results page?",
+    "choices": {
+      "A": "On the right side of the card",
+      "B": "Centered at the top of the card",
+      "C": "On the left side of the card",
+      "D": "As a background behind the title"
+    },
+    "correct": "C",
+    "category": "element_location",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "Where is the product image positioned within each product card on the results page?\n  A) On the right side of the card\n  B) Centered at the top of the card\n  C) On the left side of the card\n  D) As a background behind the title",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "What text appears at the top-left corner of the shop page navigation bar?",
+    "choices": {
+      "A": "OpenMarket",
+      "B": "OpenStore",
+      "C": "OpenShop",
+      "D": "MyShop"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "What text appears at the top-left corner of the shop page navigation bar?\n  A) OpenMarket\n  B) OpenStore\n  C) OpenShop\n  D) MyShop",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "Which two items appear at the top-right of the shop page navigation bar?",
+    "choices": {
+      "A": "Orders and Cart",
+      "B": "Login and Sign Up",
+      "C": "Search and Filter",
+      "D": "Profile and Settings"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "Which two items appear at the top-right of the shop page navigation bar?\n  A) Orders and Cart\n  B) Login and Sign Up\n  C) Search and Filter\n  D) Profile and Settings",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "Where is the 'Page X of N (Total: M)' indicator displayed on the results page?",
+    "choices": {
+      "A": "Top-right of the results section, aligned with the heading",
+      "B": "Centered directly above the breadcrumb",
+      "C": "Inside each product card next to the price",
+      "D": "In a footer below the bottom-most product card"
+    },
+    "correct": "A",
+    "category": "element_location",
+    "app": "onlineshop_electronics",
+    "difficulty": "medium",
+    "formatted": "Where is the 'Page X of N (Total: M)' indicator displayed on the results page?\n  A) Top-right of the results section, aligned with the heading\n  B) Centered directly above the breadcrumb\n  C) Inside each product card next to the price\n  D) In a footer below the bottom-most product card",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "What color is the price text shown in on each product card?",
+    "choices": {
+      "A": "Blue",
+      "B": "Red",
+      "C": "Green",
+      "D": "Black"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "What color is the price text shown in on each product card?\n  A) Blue\n  B) Red\n  C) Green\n  D) Black",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "What icon appears next to the numeric rating on product cards that show a rating?",
+    "choices": {
+      "A": "A yellow star",
+      "B": "A red heart",
+      "C": "A thumbs-up",
+      "D": "A green check mark"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "onlineshop_electronics",
+    "difficulty": "easy",
+    "formatted": "What icon appears next to the numeric rating on product cards that show a rating?\n  A) A yellow star\n  B) A red heart\n  C) A thumbs-up\n  D) A green check mark",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_electronics.png"
+  },
+  {
+    "question": "What search keyword is shown in quotes in the search-results heading above the product cards?",
+    "choices": {
+      "A": "\"groceries\"",
+      "B": "\"garden\"",
+      "C": "\"fashion\"",
+      "D": "\"toys\""
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "What search keyword is shown in quotes in the search-results heading above the product cards?\n  A) \"groceries\"\n  B) \"garden\"\n  C) \"fashion\"\n  D) \"toys\"",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "What breadcrumb trail is shown above the search-results heading?",
+    "choices": {
+      "A": "Shop / Categories",
+      "B": "Home / Electronics / Results",
+      "C": "Home / Search Results",
+      "D": "Home / Cart / Search Results"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "What breadcrumb trail is shown above the search-results heading?\n  A) Shop / Categories\n  B) Home / Electronics / Results\n  C) Home / Search Results\n  D) Home / Cart / Search Results",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "What button label appears at the bottom of each product card on the search-results page?",
+    "choices": {
+      "A": "Add to Cart",
+      "B": "More Info",
+      "C": "View Details",
+      "D": "Buy Now"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "What button label appears at the bottom of each product card on the search-results page?\n  A) Add to Cart\n  B) More Info\n  C) View Details\n  D) Buy Now",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "Where is the product image positioned within each product card on the results page?",
+    "choices": {
+      "A": "On the left side of the card",
+      "B": "On the right side of the card",
+      "C": "As a background behind the title",
+      "D": "Centered at the top of the card"
+    },
+    "correct": "A",
+    "category": "element_location",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "Where is the product image positioned within each product card on the results page?\n  A) On the left side of the card\n  B) On the right side of the card\n  C) As a background behind the title\n  D) Centered at the top of the card",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "What text appears at the top-left corner of the shop page navigation bar?",
+    "choices": {
+      "A": "MyShop",
+      "B": "OpenStore",
+      "C": "OpenMarket",
+      "D": "OpenShop"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "What text appears at the top-left corner of the shop page navigation bar?\n  A) MyShop\n  B) OpenStore\n  C) OpenMarket\n  D) OpenShop",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "Which two items appear at the top-right of the shop page navigation bar?",
+    "choices": {
+      "A": "Login and Sign Up",
+      "B": "Orders and Cart",
+      "C": "Search and Filter",
+      "D": "Profile and Settings"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "Which two items appear at the top-right of the shop page navigation bar?\n  A) Login and Sign Up\n  B) Orders and Cart\n  C) Search and Filter\n  D) Profile and Settings",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "Where is the 'Page X of N (Total: M)' indicator displayed on the results page?",
+    "choices": {
+      "A": "Centered directly above the breadcrumb",
+      "B": "In a footer below the bottom-most product card",
+      "C": "Top-right of the results section, aligned with the heading",
+      "D": "Inside each product card next to the price"
+    },
+    "correct": "C",
+    "category": "element_location",
+    "app": "onlineshop_fashion",
+    "difficulty": "medium",
+    "formatted": "Where is the 'Page X of N (Total: M)' indicator displayed on the results page?\n  A) Centered directly above the breadcrumb\n  B) In a footer below the bottom-most product card\n  C) Top-right of the results section, aligned with the heading\n  D) Inside each product card next to the price",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "What color is the price text shown in on each product card?",
+    "choices": {
+      "A": "Red",
+      "B": "Black",
+      "C": "Blue",
+      "D": "Green"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "What color is the price text shown in on each product card?\n  A) Red\n  B) Black\n  C) Blue\n  D) Green",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "What icon appears next to the numeric rating on product cards that show a rating?",
+    "choices": {
+      "A": "A red heart",
+      "B": "A yellow star",
+      "C": "A thumbs-up",
+      "D": "A green check mark"
+    },
+    "correct": "B",
+    "category": "element_identification",
+    "app": "onlineshop_fashion",
+    "difficulty": "easy",
+    "formatted": "What icon appears next to the numeric rating on product cards that show a rating?\n  A) A red heart\n  B) A yellow star\n  C) A thumbs-up\n  D) A green check mark",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_fashion.png"
+  },
+  {
+    "question": "What search keyword is shown in quotes in the search-results heading above the product cards?",
+    "choices": {
+      "A": "\"home kitchen\"",
+      "B": "\"garden\"",
+      "C": "\"automotive\"",
+      "D": "\"books\""
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "What search keyword is shown in quotes in the search-results heading above the product cards?\n  A) \"home kitchen\"\n  B) \"garden\"\n  C) \"automotive\"\n  D) \"books\"",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "What breadcrumb trail is shown above the search-results heading?",
+    "choices": {
+      "A": "Home / Cart / Search Results",
+      "B": "Home / Search Results",
+      "C": "Shop / Categories",
+      "D": "Home / Electronics / Results"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "What breadcrumb trail is shown above the search-results heading?\n  A) Home / Cart / Search Results\n  B) Home / Search Results\n  C) Shop / Categories\n  D) Home / Electronics / Results",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "What button label appears at the bottom of each product card on the search-results page?",
+    "choices": {
+      "A": "More Info",
+      "B": "Add to Cart",
+      "C": "Buy Now",
+      "D": "View Details"
+    },
+    "correct": "D",
+    "category": "element_content",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "What button label appears at the bottom of each product card on the search-results page?\n  A) More Info\n  B) Add to Cart\n  C) Buy Now\n  D) View Details",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "Where is the product image positioned within each product card on the results page?",
+    "choices": {
+      "A": "Centered at the top of the card",
+      "B": "On the right side of the card",
+      "C": "As a background behind the title",
+      "D": "On the left side of the card"
+    },
+    "correct": "D",
+    "category": "element_location",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "Where is the product image positioned within each product card on the results page?\n  A) Centered at the top of the card\n  B) On the right side of the card\n  C) As a background behind the title\n  D) On the left side of the card",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "What text appears at the top-left corner of the shop page navigation bar?",
+    "choices": {
+      "A": "OpenStore",
+      "B": "MyShop",
+      "C": "OpenShop",
+      "D": "OpenMarket"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "What text appears at the top-left corner of the shop page navigation bar?\n  A) OpenStore\n  B) MyShop\n  C) OpenShop\n  D) OpenMarket",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "Which two items appear at the top-right of the shop page navigation bar?",
+    "choices": {
+      "A": "Login and Sign Up",
+      "B": "Search and Filter",
+      "C": "Orders and Cart",
+      "D": "Profile and Settings"
+    },
+    "correct": "C",
+    "category": "element_identification",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "Which two items appear at the top-right of the shop page navigation bar?\n  A) Login and Sign Up\n  B) Search and Filter\n  C) Orders and Cart\n  D) Profile and Settings",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "Where is the 'Page X of N (Total: M)' indicator displayed on the results page?",
+    "choices": {
+      "A": "Centered directly above the breadcrumb",
+      "B": "Inside each product card next to the price",
+      "C": "In a footer below the bottom-most product card",
+      "D": "Top-right of the results section, aligned with the heading"
+    },
+    "correct": "D",
+    "category": "element_location",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "medium",
+    "formatted": "Where is the 'Page X of N (Total: M)' indicator displayed on the results page?\n  A) Centered directly above the breadcrumb\n  B) Inside each product card next to the price\n  C) In a footer below the bottom-most product card\n  D) Top-right of the results section, aligned with the heading",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "What color is the price text shown in on each product card?",
+    "choices": {
+      "A": "Red",
+      "B": "Blue",
+      "C": "Green",
+      "D": "Black"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "What color is the price text shown in on each product card?\n  A) Red\n  B) Blue\n  C) Green\n  D) Black",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
+  },
+  {
+    "question": "What icon appears next to the numeric rating on product cards that show a rating?",
+    "choices": {
+      "A": "A yellow star",
+      "B": "A green check mark",
+      "C": "A red heart",
+      "D": "A thumbs-up"
+    },
+    "correct": "A",
+    "category": "element_identification",
+    "app": "onlineshop_home_kitchen",
+    "difficulty": "easy",
+    "formatted": "What icon appears next to the numeric rating on product cards that show a rating?\n  A) A yellow star\n  B) A green check mark\n  C) A red heart\n  D) A thumbs-up",
+    "screenshot_path": "tests/generated_screenshots/default/onlineshop_home_kitchen.png"
   }
 ]

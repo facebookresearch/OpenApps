@@ -181,6 +181,9 @@ APP_TO_SCREENSHOT = {
     "map": "tests/generated_screenshots/default/maps.png",
     "codeeditor": "tests/generated_screenshots/default/codeeditor.png",
     "start_page": "tests/generated_screenshots/default/start_page.png",
+    "onlineshop_electronics": "tests/generated_screenshots/default/onlineshop_electronics.png",
+    "onlineshop_fashion": "tests/generated_screenshots/default/onlineshop_fashion.png",
+    "onlineshop_home_kitchen": "tests/generated_screenshots/default/onlineshop_home_kitchen.png",
 }
 
 

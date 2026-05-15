@@ -1776,6 +1776,211 @@ def start_page_tile_grid_location(state, config, rng, **_):
 
 
 # ===========================================================================
+# Online Shop Category Page Templates
+#
+# These templates target the screenshots at
+#   tests/generated_screenshots/default/onlineshop_{electronics,fashion,home_kitchen}.png
+# captured by `tests/save_screenshots.py`. Each screenshot shows a search-results
+# page (the route a user lands on after clicking one of the homepage category
+# tiles), with the chrome below in view:
+#   - Top navbar: "OpenShop" brand on the left, "Orders" and "Cart (N)" on the right.
+#   - Breadcrumb: "Home / Search Results".
+#   - Heading: `Search Results for "<keyword>"` with a "Page X of N (Total: M)"
+#     indicator aligned to the right.
+#   - Product cards: image on the left, title/price/rating/description/View
+#     Details button on the right. Prices are rendered in blue; ratings include
+#     a yellow star icon.
+# Questions reference only these visible elements (no off-screen state).
+# ===========================================================================
+#
+# `_FAKE_SHOP_KEYWORDS` are plausible search keywords NOT shown in any of the
+# three default screenshots — used as distractors for the heading question.
+
+_FAKE_SHOP_KEYWORDS = ["books", "groceries", "toys", "automotive", "garden"]
+
+
+def _shop_category_questions(app: str, keyword: str, rng: random.Random) -> list[MCQuestion]:
+    """Question set shared by all three shop category result pages."""
+    questions: list[MCQuestion] = []
+
+    # 1. Heading keyword
+    keyword_distractors = rng.sample(
+        [f'"{k}"' for k in _FAKE_SHOP_KEYWORDS], 3
+    )
+    choices, correct_letter = _shuffle_choices(
+        f'"{keyword}"', keyword_distractors, rng
+    )
+    questions.append(
+        MCQuestion(
+            question="What search keyword is shown in quotes in the search-results heading above the product cards?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app=app,
+        )
+    )
+
+    # 2. Breadcrumb trail
+    choices, correct_letter = _shuffle_choices(
+        "Home / Search Results",
+        [
+            "Shop / Categories",
+            "Home / Cart / Search Results",
+            "Home / Electronics / Results",
+        ],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="What breadcrumb trail is shown above the search-results heading?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app=app,
+        )
+    )
+
+    # 3. Card button label
+    choices, correct_letter = _shuffle_choices(
+        "View Details",
+        ["Buy Now", "Add to Cart", "More Info"],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="What button label appears at the bottom of each product card on the search-results page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app=app,
+        )
+    )
+
+    # 4. Card image position
+    choices, correct_letter = _shuffle_choices(
+        "On the left side of the card",
+        [
+            "On the right side of the card",
+            "Centered at the top of the card",
+            "As a background behind the title",
+        ],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="Where is the product image positioned within each product card on the results page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app=app,
+        )
+    )
+
+    # 5. Navbar brand text
+    choices, correct_letter = _shuffle_choices(
+        "OpenShop",
+        ["OpenStore", "MyShop", "OpenMarket"],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="What text appears at the top-left corner of the shop page navigation bar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app=app,
+        )
+    )
+
+    # 6. Navbar right-side items
+    choices, correct_letter = _shuffle_choices(
+        "Orders and Cart",
+        [
+            "Profile and Settings",
+            "Login and Sign Up",
+            "Search and Filter",
+        ],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="Which two items appear at the top-right of the shop page navigation bar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app=app,
+        )
+    )
+
+    # 7. Page indicator location
+    choices, correct_letter = _shuffle_choices(
+        "Top-right of the results section, aligned with the heading",
+        [
+            "Centered directly above the breadcrumb",
+            "Inside each product card next to the price",
+            "In a footer below the bottom-most product card",
+        ],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="Where is the 'Page X of N (Total: M)' indicator displayed on the results page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_location",
+            app=app,
+            difficulty="medium",
+        )
+    )
+
+    # 8. Price text color
+    choices, correct_letter = _shuffle_choices(
+        "Blue",
+        ["Red", "Green", "Black"],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="What color is the price text shown in on each product card?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
+            app=app,
+        )
+    )
+
+    # 9. Rating icon
+    choices, correct_letter = _shuffle_choices(
+        "A yellow star",
+        ["A red heart", "A green check mark", "A thumbs-up"],
+        rng,
+    )
+    questions.append(
+        MCQuestion(
+            question="What icon appears next to the numeric rating on product cards that show a rating?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app=app,
+        )
+    )
+
+    return questions
+
+
+def onlineshop_electronics_results(state, config, rng, **_):
+    return _shop_category_questions("onlineshop_electronics", "electronics", rng)
+
+
+def onlineshop_fashion_results(state, config, rng, **_):
+    return _shop_category_questions("onlineshop_fashion", "fashion", rng)
+
+
+def onlineshop_home_kitchen_results(state, config, rng, **_):
+    return _shop_category_questions("onlineshop_home_kitchen", "home kitchen", rng)
+
+
+# ===========================================================================
 # Template Registry
 # ===========================================================================
 
@@ -1869,4 +2074,7 @@ ALL_TEMPLATES: dict[str, list] = {
         start_page_tile_interaction,
         start_page_tile_grid_location,
     ],
+    "onlineshop_electronics": [onlineshop_electronics_results],
+    "onlineshop_fashion": [onlineshop_fashion_results],
+    "onlineshop_home_kitchen": [onlineshop_home_kitchen_results],
 }
