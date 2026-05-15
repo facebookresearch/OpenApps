@@ -22,7 +22,6 @@ from playwright.sync_api import sync_playwright
 from open_apps.apps.start_page.helper import get_java_version
 from open_apps.launcher import OpenAppsLauncher
 
-
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parent
 DEFAULT_OUTPUT_DIR = TESTS_DIR / "generated_screenshots"
@@ -83,7 +82,10 @@ def build_variation_overrides(include_onlineshop: bool) -> dict[str, list[str]]:
         "dark_theme": onlineshop_overrides
         + [f"apps/{app_name}/appearance=dark_theme" for app_name in appearance_apps],
         "challenging_font": onlineshop_overrides
-        + [f"apps/{app_name}/appearance=challenging_font" for app_name in appearance_apps],
+        + [
+            f"apps/{app_name}/appearance=challenging_font"
+            for app_name in appearance_apps
+        ],
         "german": onlineshop_overrides
         + [f"apps/{app_name}/content=german" for app_name in content_apps],
         "long_descriptions": onlineshop_overrides
@@ -120,8 +122,20 @@ def parse_args() -> argparse.Namespace:
         "--variation",
         dest="variations",
         nargs="*",
-        choices=["default", "dark_theme", "challenging_font", "german", "long_descriptions"],
-        default=["default", "dark_theme", "challenging_font", "german", "long_descriptions"],
+        choices=[
+            "default",
+            "dark_theme",
+            "challenging_font",
+            "german",
+            "long_descriptions",
+        ],
+        default=[
+            "default",
+            "dark_theme",
+            "challenging_font",
+            "german",
+            "long_descriptions",
+        ],
         help="Variation names to capture.",
     )
     parser.add_argument(
@@ -172,7 +186,9 @@ def compose_config(logs_dir: Path, overrides: list[str]) -> DictConfig:
         )
 
 
-def launch_variation(variation: str, runtime_dir: Path, overrides: list[str]) -> tuple[OpenAppsLauncher, subprocess.Popen[bytes]]:
+def launch_variation(
+    variation: str, runtime_dir: Path, overrides: list[str]
+) -> tuple[OpenAppsLauncher, subprocess.Popen[bytes]]:
     if runtime_dir.exists():
         shutil.rmtree(runtime_dir)
     runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -214,12 +230,10 @@ def wait_for_server(
     while time.time() < deadline:
         if process.poll() is not None:
             output = read_process_output(process)
-            raise RuntimeError(
-                f"OpenApps exited early for {variation}.\n{output}"
-            )
+            raise RuntimeError(f"OpenApps exited early for {variation}.\n{output}")
         if launcher.is_app_running():
             return
-        time.sleep(2)
+        time.sleep(7)
     raise TimeoutError(f"Timed out waiting for OpenApps to start for {variation}.")
 
 
@@ -313,7 +327,9 @@ def wait_for_page_ready(page, route: RouteSpec, timeout_ms: int) -> None:
     page.wait_for_timeout(1_000)
 
 
-def wait_for_function(page, expression: str, timeout_ms: int, optional: bool = False) -> None:
+def wait_for_function(
+    page, expression: str, timeout_ms: int, optional: bool = False
+) -> None:
     try:
         page.wait_for_function(expression, timeout=timeout_ms)
     except PlaywrightTimeoutError:
@@ -321,8 +337,12 @@ def wait_for_function(page, expression: str, timeout_ms: int, optional: bool = F
             raise
 
 
-def capture_route(page, base_url: str, route: RouteSpec, target_path: Path, timeout_ms: int) -> int:
-    response = page.goto(route_url(base_url, route), wait_until="domcontentloaded", timeout=timeout_ms)
+def capture_route(
+    page, base_url: str, route: RouteSpec, target_path: Path, timeout_ms: int
+) -> int:
+    response = page.goto(
+        route_url(base_url, route), wait_until="domcontentloaded", timeout=timeout_ms
+    )
     if response is not None and response.status >= 400:
         return response.status
 
@@ -339,7 +359,10 @@ def compare_images(
     max_mean_diff: float,
     max_changed_ratio: float,
 ) -> ComparisonResult:
-    with Image.open(actual_path) as actual_image, Image.open(reference_path) as reference_image:
+    with (
+        Image.open(actual_path) as actual_image,
+        Image.open(reference_path) as reference_image,
+    ):
         actual = actual_image.convert("RGBA")
         reference = reference_image.convert("RGBA")
 
@@ -353,7 +376,9 @@ def compare_images(
         if diff.getbbox() is None:
             if diff_path.exists():
                 diff_path.unlink()
-            return ComparisonResult(matches=True, summary="exact match", mean_diff=0.0, changed_ratio=0.0)
+            return ComparisonResult(
+                matches=True, summary="exact match", mean_diff=0.0, changed_ratio=0.0
+            )
 
         stat = ImageStat.Stat(diff)
         mean_diff = sum(stat.mean) / len(stat.mean)
@@ -376,8 +401,7 @@ def compare_images(
         return ComparisonResult(
             matches=matches,
             summary=(
-                f"mean_diff={mean_diff:.4f}, "
-                f"changed_ratio={changed_ratio:.6f}"
+                f"mean_diff={mean_diff:.4f}, " f"changed_ratio={changed_ratio:.6f}"
             ),
             mean_diff=mean_diff,
             changed_ratio=changed_ratio,
@@ -404,7 +428,8 @@ def main() -> int:
 
     selected_route_names = set(args.route_names) if args.route_names else None
     routes_to_capture = [
-        route for route in ROUTES
+        route
+        for route in ROUTES
         if selected_route_names is None or route.name in selected_route_names
     ]
 
@@ -428,11 +453,16 @@ def main() -> int:
                         variation_overrides[variation],
                     )
 
-                    context = browser.new_context(viewport=VIEWPORT, device_scale_factor=1)
+                    context = browser.new_context(
+                        viewport=VIEWPORT, device_scale_factor=1
+                    )
                     page = context.new_page()
 
                     for route in routes_to_capture:
-                        if route.path.startswith("/onlineshop") and not include_onlineshop:
+                        if (
+                            route.path.startswith("/onlineshop")
+                            and not include_onlineshop
+                        ):
                             skipped_routes.append(
                                 f"{variation}/{route.name}: skipped because Java 21 is unavailable ({java_version})"
                             )
@@ -468,12 +498,16 @@ def main() -> int:
                         saved_paths.append(target_path)
 
                         if compare_against_reference:
-                            reference_path = reference_dir / variation / f"{route.name}.png"
+                            reference_path = (
+                                reference_dir / variation / f"{route.name}.png"
+                            )
                             if not reference_path.exists():
                                 missing_references.append(reference_path)
                                 continue
 
-                            diff_path = output_dir / "_diffs" / variation / f"{route.name}.png"
+                            diff_path = (
+                                output_dir / "_diffs" / variation / f"{route.name}.png"
+                            )
                             comparison = compare_images(
                                 target_path,
                                 reference_path,
