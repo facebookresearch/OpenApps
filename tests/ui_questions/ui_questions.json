@@ -727,7 +727,7 @@
       "C": "In the right edge of each todo item",
       "D": "Above the app title"
     },
-    "correct": "B",
+    "correct": "A",
     "category": "element_location",
     "app": "todo",
     "difficulty": "easy",
