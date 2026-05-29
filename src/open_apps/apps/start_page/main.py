@@ -56,28 +56,64 @@ AVAILABLE_APPS = {
     ),
 }
 
+_APP_CFG_KEYS = {
+    "open_apps.apps.todo_app": "todo",
+    "open_apps.apps.calendar_app": "calendar",
+    "open_apps.apps.messenger_app": "messenger",
+    "open_apps.apps.codeeditor_app": "code_editor",
+    "open_apps.apps.map_app": "maps",
+}
+
+
+def _drop_app_tables(module, apps_cfg) -> None:
+    """Drop all SQLite tables for an app so set_environment can re-seed.
+
+    set_environment loops `insert(...)` over the configured rows but
+    does not wipe what's already there, so a second call hits unique
+    constraint violations. Drop first, then re-seed.
+    """
+    cfg_key = _APP_CFG_KEYS.get(module.__name__)
+    if cfg_key is None:
+        return
+    sub_cfg = getattr(apps_cfg, cfg_key, None)
+    if sub_cfg is None or not hasattr(sub_cfg, "database_path"):
+        return
+    try:
+        from fastlite import database as fl_database
+
+        db = fl_database(sub_cfg.database_path)
+        for table_name in db.table_names():
+            db[table_name].drop()
+    except Exception:
+        # If the DB or fastlite is unavailable, fall through — the
+        # set_environment call below will surface a clearer error.
+        pass
+
+
 def reset_all_apps(config: DictConfig):
     """Reset all app databases to their configured initial state.
 
-    Re-runs the set_environment loop for every registered app, which
-    wipes and re-seeds SQLite tables from the Hydra config. This is
-    the generic reset mechanism used by OpenAppsEnv.reset() in swm.
+    Drops sqlite/filesystem state per-app, then re-runs set_environment
+    so the apps re-seed from the Hydra config. This is the generic
+    reset mechanism used by ``open_apps.runtime.Runtime.reset()``.
 
     Args:
-        config: The full OpenApps DictConfig.
+        config: The full OpenApps DictConfig (typically ``cfg.apps``).
     """
     import shutil
     from pathlib import Path
 
-    # Code editor special case: clean filesystem before reset (§5.3)
-    if hasattr(config, "codeeditor") and hasattr(config.codeeditor, "folder_path"):
-        folder = Path(config.codeeditor.folder_path)
+    # Code editor: clean filesystem; tables don't apply.
+    if hasattr(config, "code_editor") and hasattr(config.code_editor, "database_path"):
+        folder = Path(config.code_editor.database_path)
         if folder.exists():
             shutil.rmtree(folder)
 
     for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
         try:
             module = __import__(module_path, fromlist=[getter_func])
+            if app_name != "codeeditor":
+                _drop_app_tables(module, config)
             if hasattr(module, "set_environment"):
                 module.set_environment(config)
         except Exception as e:
