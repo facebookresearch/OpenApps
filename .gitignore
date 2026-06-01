@@ -197,3 +197,5 @@ src/open_apps/apps/onlineshop_app/goals*
 CLAUDE.md
 
 tests/generated_screenshots/.runtime/*
+
+internal-*
