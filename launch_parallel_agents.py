@@ -12,6 +12,9 @@ from omegaconf import OmegaConf
 import submitit
 import os
 from open_apps.launcher import AgentLauncher
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def run_task(config: DictConfig) -> None:
