@@ -94,7 +94,22 @@ class AppStateComparison:
                 "coords": [int(place["coords"][0] * 10), int(place["coords"][1] * 10)],
             }
             normalized_places.append(new_place)
-        state["map"] = sorted(normalized_places, key=lambda p: p["name"])
+        state["map"] = normalized_places
+        return state
+
+    def sort_lists(self, state: dict) -> dict:
+        """To ensure comparisons don't fail
+        due to different list orders, we sort.
+        """
+        # field by which to sort
+        app_and_field = [
+            ("map", "name"),
+            ("todo", "title"),
+            ("calendar", "title"),
+            ("messenger", "user"),
+        ]
+        for app, field in app_and_field:
+            state[app] = sorted(state[app], key=lambda p: p[field])
         return state
 
     @staticmethod
