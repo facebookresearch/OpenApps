@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 model_name: "gpt-5-5-genai-responses"
-model_pretty_name: "gpt-5.5"
+model_pretty_name: "gpt-5.5-text-only"
 api_version: null
 client_type: "openai"
 hostname: null
@@ -15,3 +15,5 @@ aws_access_key: null
 aws_secret_key: null
 aws_session_token: null
 aws_region: us-west-2
+
+use_screenshot: False # enable screenshot observation
