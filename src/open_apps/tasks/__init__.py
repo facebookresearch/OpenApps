@@ -12,6 +12,7 @@ from __future__ import annotations
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
+from open_apps import config_dir
 from open_apps.tasks.tasks import (
     AddEventTask,
     AddToDoTask,
@@ -59,10 +60,6 @@ _TASK_CLASS_TO_APP: dict[str, str] = {
 
 
 def _tasks_yaml_path():
-    # Deferred import to keep ``from open_apps.tasks import ...`` light;
-    # ``open_apps.runtime`` pulls in hydra/uvicorn at module load.
-    from open_apps.runtime import config_dir
-
     return config_dir() / "tasks" / "all_tasks.yaml"
 
 

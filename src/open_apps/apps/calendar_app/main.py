@@ -19,7 +19,7 @@ import yaml, json
 from feedgen.feed import FeedGenerator
 from starlette.responses import Response
 from typing import Optional, List
-from src.open_apps.apps.start_page.helper import create_logo_header
+from open_apps.apps.start_page.helper import create_logo_header
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

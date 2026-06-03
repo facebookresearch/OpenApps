@@ -407,8 +407,8 @@ class RemoveLandmarkTask(Task):
 
 
 # Maps a target-app key to URL-path prefixes that count as "in that app".
-# Mirrors open_apps.runtime.APP_URL_PATHS; inlined here to keep the tasks
-# package import light (runtime pulls in hydra/uvicorn at module load).
+# Mirrors open_apps.mcp.registry.APP_URL_PATHS; inlined here to keep the
+# tasks package import light (avoids pulling in hydra/uvicorn).
 _NAV_APP_URL_PREFIXES: dict[str, tuple[str, ...]] = {
     "todo": ("/todo",),
     "calendar": ("/calendar",),

@@ -7,32 +7,18 @@ LICENSE file in the root directory of this source tree.
 # assets come from https://html5up.net/story
 from fasthtml.common import *
 import random
-try:
-    from helper import (
-        Wrapper,
-        ItemContent,
-        Gallery,
-        PageWrapper,
-        get_app,
-        footer,
-        serve,
-        Modal,
-        get_java_version,
-        generate_random_colors,
-    )
-except ImportError:
-    from open_apps.apps.start_page.helper import (
-        Wrapper,
-        ItemContent,
-        Gallery,
-        PageWrapper,
-        get_app,
-        footer,
-        serve,
-        Modal,
-        get_java_version,
-        generate_random_colors,
-    )
+from open_apps.apps.start_page.helper import (
+    Wrapper,
+    ItemContent,
+    Gallery,
+    PageWrapper,
+    get_app,
+    footer,
+    serve,
+    Modal,
+    get_java_version,
+    generate_random_colors,
+)
 from omegaconf import DictConfig, OmegaConf
 
 # Define available apps and their route getters
@@ -95,7 +81,7 @@ def reset_all_apps(config: DictConfig):
 
     Drops sqlite/filesystem state per-app, then re-runs set_environment
     so the apps re-seed from the Hydra config. This is the generic
-    reset mechanism used by ``open_apps.runtime.Runtime.reset()``.
+    reset mechanism used by ``open_apps.mcp.appserver.AppServer.reset()``.
 
     Args:
         config: The full OpenApps DictConfig (typically ``cfg.apps``).
