@@ -249,8 +249,12 @@ def uitars_parser(result):
     # click(point='(375,292)') or click(point='<point>200 300</point>') ->  mouse_click(x=375.0, y=292.0)
     if result["action"].startswith("click(point=") or result["action"].startswith("click(start_box=") or result["action"].startswith("click(x="):
         coords = re.findall(r'\d+', result["action"])
-        if coords:
-            result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])})"
+        if len(coords) < 2:
+            raise ParseError(
+                f"Could not parse two integer coordinates from click action: {result['action']!r}. "
+                "Expected format like click(point='(x,y)'), click(start_box='(x,y)'), or click(x=X, y=Y)."
+            )
+        result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])})"
     # type(content=text) -> keyboard_type(text=text)
     if result["action"].startswith("type(content="):
         content = re.findall(r'type\(content=\'(.*?)\'\)', result["action"])
@@ -269,8 +273,12 @@ def uitars_parser(result):
     # right_single(point='(531,256)') -> mouse_click(x, y, button='right')
     if result["action"].startswith("right_single(point="):
         coords = re.findall(r'\d+', result["action"])
-        if coords:
-            result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])}, button='right')"
+        if len(coords) < 2:
+            raise ParseError(
+                f"Could not parse two integer coordinates from right_single action: {result['action']!r}. "
+                "Expected format like right_single(point='(x,y)')."
+            )
+        result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])}, button='right')"
     # hotkey(key='ctrl alt e') -> keyboard_press(key=key_comb)
     if result["action"].startswith("hotkey(key="):
         key_comb = re.findall(r"hotkey\(key='(.*?)'\)", result["action"])
