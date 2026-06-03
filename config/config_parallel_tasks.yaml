@@ -25,10 +25,14 @@ parallel_tasks:
     - add_call_mom_to_my_todo
     - save_paris_to_my_favorite_places
   app_variations:
-    - ["apps/start_page/content=default", "apps/calendar/content=german"]
+    - ["apps/start_page/content=default", "apps/calendar/content=default"]
     - [
         "apps/start_page/appearance=dark_theme",
         "apps/calendar/appearance=dark_theme",
+        "apps/todo/appearance=dark_theme",
+        "apps/messenger/appearance=dark_theme",
+        "apps/maps/appearance=dark_theme",
+        "apps/codeeditor/appearance=dark_theme",
       ]
 
 # auto-populated by launch_parallel_agents.py
