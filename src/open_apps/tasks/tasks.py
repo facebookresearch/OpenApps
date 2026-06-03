@@ -58,6 +58,7 @@ class AppStateComparison:
         state = self._remove_id_key(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
+        state = self.sort_lists(state)
         return state
 
     def _remove_id_key(self, state: dict) -> dict:
