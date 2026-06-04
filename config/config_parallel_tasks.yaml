@@ -37,7 +37,7 @@ parallel_tasks:
         "apps/todo/appearance=dark_theme",
         "apps/messenger/appearance=dark_theme",
         "apps/maps/appearance=dark_theme",
-        "apps/codeeditor/appearance=dark_theme",
+        "apps/code_editor/appearance=dark_theme",
       ]
 
 # auto-populated by launch_parallel_agents.py
