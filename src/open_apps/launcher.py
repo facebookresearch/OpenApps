@@ -196,7 +196,7 @@ class OpenAppsLauncher:
             port=self.web_app_port,
             host=self.web_app_host,
         )
-        sleep(10)
+        sleep(12)
 
     def launch_apps_via_shell(self):
         file_dir = os.path.dirname(
@@ -222,7 +222,7 @@ class OpenAppsLauncher:
             shell=True,
             stdout=subprocess.PIPE,
             start_new_session=True,
-            executable='/bin/bash',  # Use bash explicitly for 'source' command
+            executable="/bin/bash",  # Use bash explicitly for 'source' command
         )
         sleep(30)
         return process
@@ -314,6 +314,7 @@ class AgentLauncher(OpenAppsLauncher):
 
         # running and logging results
         exp_args.prepare(self.config.logs_dir)
+        self.agent_args.save_dir = str(exp_args.exp_dir)
         exp_args.run()
 
         # loading and printing results

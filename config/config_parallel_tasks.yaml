@@ -20,6 +20,8 @@ parallel_tasks:
   _target_: open_apps.tasks.parallel_tasks.AppVariationParallelTasksConfig
   task_names:
     - add_meeting_with_dennis
+    - navigate_to_todo
+    - mark_water_plants_as_done
     - add_call_mom_to_my_todo
     - save_paris_to_my_favorite_places
   app_variations:

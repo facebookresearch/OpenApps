@@ -50,7 +50,7 @@ use_screenshot: True # enable screenshot observation
 
 # ---- these are not really changed, but leaving it here for future reference ----
 # use_html: False # enable HTML observation
-use_som: False # Add a set of marks to the screenshot.
+save_som: False # Add a set of marks to the screenshot.
 # extract_visible_tag: False # Add a "visible" tag to visible elements in the AXTree.
 # extract_clickable_tag: False #  Add a "clickable" tag to clickable elements in the AXTree.
 extract_coords: False # Add the coordinates of the elements.
