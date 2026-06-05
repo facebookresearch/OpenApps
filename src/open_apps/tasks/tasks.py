@@ -65,7 +65,12 @@ class AppStateComparison:
     def _normalize_todo_done_field(self, state: dict) -> dict:
         for todo in state["todo"]:
             done_value = todo.get("done")
-            if done_value is None or done_value is False or done_value == 0 or done_value == "0":
+            if (
+                done_value is None
+                or done_value is False
+                or done_value == 0
+                or done_value == "0"
+            ):
                 todo["done"] = False
             elif done_value is True or done_value == 1 or done_value == "1":
                 todo["done"] = True
