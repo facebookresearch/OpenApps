@@ -249,6 +249,36 @@ def flexible_parser(response: str) -> dict:
     return result
 
 
+def translate_uitars_type_action(action: str) -> str:
+    """Translate a UI-TARS ``type(content=...)`` action to BrowserGym's
+    ``keyboard_type(text=...)``.
+
+    Accepts both single- and double-quoted content and preserves embedded
+    newlines. UI-TARS convention is that a trailing ``\\n`` in ``content``
+    means "submit the input" — playwright's ``keyboard.type`` honors that by
+    pressing Enter, which triggers form submission in our chat UI.
+    """
+    match = re.match(
+        r"type\(content=(['\"])(.*)\1\s*\)\s*$",
+        action,
+        re.DOTALL,
+    )
+    if not match:
+        raise ParseError(
+            f"Could not parse content from type action: {action!r}. "
+            "Expected format like type(content='text') or type(content=\"text\")."
+        )
+    raw_content = match.group(2)
+    # Models usually emit Python-source-style escapes (\\n, \\', ...).
+    # Decode them so keyboard_type receives the intended characters.
+    try:
+        content = raw_content.encode("utf-8").decode("unicode_escape")
+    except UnicodeDecodeError:
+        content = raw_content
+    # Re-quote with repr so the resulting Python call survives downstream exec.
+    return f"keyboard_type(text={content!r})"
+
+
 def uitars_parser(result):
     "Translates UITARS actions to browser gym actions"
     # note karenu: I am not sure if the translation is perfect
@@ -272,9 +302,7 @@ def uitars_parser(result):
         result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])})"
     # type(content=text) -> keyboard_type(text=text)
     if result["action"].startswith("type(content="):
-        content = re.findall(r"type\(content=\'(.*?)\'\)", result["action"])
-        if content:
-            result["action"] = f"keyboard_type(text='{content[0]}')"
+        result["action"] = translate_uitars_type_action(result["action"])
     # scroll(direction='down', point='(906,509)') -> scroll(dx, dy)
     if result["action"].startswith("scroll(direction=d"):
         direction = re.findall(
