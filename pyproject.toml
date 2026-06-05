@@ -18,7 +18,7 @@ dependencies = [
     "pip",
     "pyserini==0.44.0",
     "python-fasthtml>=0.12.14",
-    "python-multipart>=0.0.20",
+    "python-multipart>=0.0.27",
     "spacy==3.8.5",
     "thefuzz==0.22.1",
     "submitit>=1.5.2",
