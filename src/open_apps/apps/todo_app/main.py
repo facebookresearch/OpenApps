@@ -8,7 +8,7 @@ from fasthtml.common import *
 from dataclasses import dataclass
 import json
 from typing import List
-from open_apps.apps.start_page.helper import create_logo_header
+from src.open_apps.apps.start_page.helper import create_logo_header
 
 
 @dataclass

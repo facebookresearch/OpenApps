@@ -153,3 +153,47 @@ class TestActionParity:
 
     def test_noop(self):
         assert _our_calls("noop(500)") == _browsergym_calls(bg_functions.noop, 500)
+
+
+class TestEndToEnd:
+    """Drive the todo app through the MCP Session and check the task scores.
+
+    The MCP analogue of ``test_apps.py::test_state_comparison_for_add_todo``:
+    instead of comparing against a recorded state, it resets, clicks the
+    new-todo field, types "Call Mom" and presses Enter, then asserts the
+    bound ``AddToDoTask`` reaches reward 1.0 — a worked example for building
+    on the MCP server. Skipped if a browser isn't available.
+    """
+
+    def test_add_todo_scores_reward(self):
+        from open_apps.mcp.session import Session
+        from open_apps.tasks.tasks import AddToDoTask
+
+        async def run() -> float:
+            session = Session("todo")
+            try:
+                await session.start()
+            except Exception as e:  # e.g. chromium not installed
+                await session.close()
+                pytest.skip(f"browser unavailable: {e}")
+            try:
+                await session.reset()
+                session.set_task(
+                    AddToDoTask(
+                        goal="Add 'Call Mom' to my todo list.",
+                        todo_name="Call Mom",
+                        is_done=False,
+                    )
+                )
+                # Click the new-todo input at its real pixel centre, type, submit.
+                await session.page.wait_for_selector("#new-title", timeout=5000)
+                box = await session.page.locator("#new-title").bounding_box()
+                cx, cy = int(box["x"] + box["width"] / 2), int(box["y"] + box["height"] / 2)
+                await session.act(f"mouse_click({cx}, {cy})")
+                await session.act("keyboard_type('Call Mom')")
+                obs = await session.act("keyboard_press('Enter')")
+                return obs.reward
+            finally:
+                await session.close()
+
+        assert asyncio.run(run()) == 1.0

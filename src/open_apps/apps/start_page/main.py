@@ -7,18 +7,32 @@ LICENSE file in the root directory of this source tree.
 # assets come from https://html5up.net/story
 from fasthtml.common import *
 import random
-from open_apps.apps.start_page.helper import (
-    Wrapper,
-    ItemContent,
-    Gallery,
-    PageWrapper,
-    get_app,
-    footer,
-    serve,
-    Modal,
-    get_java_version,
-    generate_random_colors,
-)
+try:
+    from helper import (
+        Wrapper,
+        ItemContent,
+        Gallery,
+        PageWrapper,
+        get_app,
+        footer,
+        serve,
+        Modal,
+        get_java_version,
+        generate_random_colors,
+    )
+except ImportError:
+    from open_apps.apps.start_page.helper import (
+        Wrapper,
+        ItemContent,
+        Gallery,
+        PageWrapper,
+        get_app,
+        footer,
+        serve,
+        Modal,
+        get_java_version,
+        generate_random_colors,
+    )
 from omegaconf import DictConfig, OmegaConf
 
 # Define available apps and their route getters
@@ -42,7 +56,7 @@ AVAILABLE_APPS = {
     ),
 }
 
-_APP_CFG_KEYS = {
+APP_MODULE_TO_NAME = {
     "open_apps.apps.todo_app": "todo",
     "open_apps.apps.calendar_app": "calendar",
     "open_apps.apps.messenger_app": "messenger",
@@ -58,7 +72,7 @@ def _drop_app_tables(module, apps_cfg) -> None:
     does not wipe what's already there, so a second call hits unique
     constraint violations. Drop first, then re-seed.
     """
-    cfg_key = _APP_CFG_KEYS.get(module.__name__)
+    cfg_key = APP_MODULE_TO_NAME.get(module.__name__)
     if cfg_key is None:
         return
     sub_cfg = getattr(apps_cfg, cfg_key, None)

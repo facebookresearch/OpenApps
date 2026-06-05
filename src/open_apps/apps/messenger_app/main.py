@@ -10,7 +10,7 @@ from datetime import datetime
 import random
 import ast
 import json
-from open_apps.apps.start_page.helper import create_logo_header
+from src.open_apps.apps.start_page.helper import create_logo_header
 
 
 @dataclass
