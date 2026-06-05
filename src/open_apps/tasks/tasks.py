@@ -56,9 +56,19 @@ class AppStateComparison:
     def preprocess(self, state: dict) -> dict:
         state = state.copy()
         state = self._remove_id_key(state)
+        state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
         state = self.sort_lists(state)
+        return state
+
+    def _normalize_todo_done_field(self, state: dict) -> dict:
+        for todo in state["todo"]:
+            done_value = todo.get("done")
+            if done_value is None or done_value is False or done_value == 0 or done_value == "0":
+                todo["done"] = False
+            elif done_value is True or done_value == 1 or done_value == "1":
+                todo["done"] = True
         return state
 
     def _remove_id_key(self, state: dict) -> dict:
