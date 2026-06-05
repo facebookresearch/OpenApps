@@ -22,13 +22,22 @@ parallel_tasks:
     - add_meeting_with_dennis
     - navigate_to_todo
     - mark_water_plants_as_done
+    - mark_visit_grandma_as_done
     - add_call_mom_to_my_todo
     - save_paris_to_my_favorite_places
+    - navigate_to_messenger
+    - navigate_to_calendar
+    - message_bob_to_meet
+    - message_alice_about_badminton
   app_variations:
-    - ["apps/start_page/content=default", "apps/calendar/content=german"]
+    - ["apps/start_page/content=default", "apps/calendar/content=default"]
     - [
         "apps/start_page/appearance=dark_theme",
         "apps/calendar/appearance=dark_theme",
+        "apps/todo/appearance=dark_theme",
+        "apps/messenger/appearance=dark_theme",
+        "apps/maps/appearance=dark_theme",
+        "apps/code_editor/appearance=dark_theme",
       ]
 
 # auto-populated by launch_parallel_agents.py

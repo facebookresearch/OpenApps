@@ -92,14 +92,14 @@ action_map = {
 @dataclasses.dataclass
 class CustomActionSetArgs(HighLevelActionSetArgs):
     custom_actions: list[str] = dataclasses.field(default_factory=list)
-    
+
     def make_action_set(self):
         if self.custom_actions is None or len(self.custom_actions) == 0:
             custom_actions = action_map.keys()
         else:
             custom_actions = self.custom_actions
         return HighLevelActionSet(
-            subsets=['custom'],  # define a subset of the action space
+            subsets=["custom"],  # define a subset of the action space
             custom_actions=[
                 action_map[action] for action in custom_actions if action in action_map
             ],
@@ -160,7 +160,7 @@ def retry(
     tries = 0
     while tries < n_retry:
         answer = chat(messages)
-      
+
         logging.info(f"LLM response at try {tries}: {answer['content']}")
         try:
             return parser(answer["content"])
@@ -180,37 +180,46 @@ def flexible_parser(response: str) -> dict:
     """
     response = response.strip()
     result = {"action": None, "think": None}
-    
+
     if not response:
         raise ParseError("Empty response received from the model.")
-    
-    
+
     # Try HTML tags first (properly closed)
-    action_match = re.search(r'<action>(.*?)</action>', response, re.DOTALL | re.IGNORECASE)
-    think_match = re.search(r'<think>(.*?)</think>', response, re.DOTALL | re.IGNORECASE)
-    
+    action_match = re.search(
+        r"<action>(.*?)</action>", response, re.DOTALL | re.IGNORECASE
+    )
+    think_match = re.search(
+        r"<think>(.*?)</think>", response, re.DOTALL | re.IGNORECASE
+    )
+
     if action_match:
         result["action"] = action_match.group(1).strip()
     if think_match:
         result["think"] = think_match.group(1).strip()
-    
+
     # Try unclosed HTML tags if properly closed ones weren't found
     if not result["action"]:
         # Match <action> followed by content until </action> or end of string
-        unclosed_action_match = re.search(r'<action>\s*(.*?)(?:</action>|$)', response, re.DOTALL | re.IGNORECASE)
+        unclosed_action_match = re.search(
+            r"<action>\s*(.*?)(?:</action>|$)", response, re.DOTALL | re.IGNORECASE
+        )
         if unclosed_action_match:
             result["action"] = unclosed_action_match.group(1).strip()
-    
+
     if not result["think"]:
         # Match <think> followed by content until </think> or end of string
-        unclosed_think_match = re.search(r'<think>\s*(.*?)(?:</think>|$)', response, re.DOTALL | re.IGNORECASE)
+        unclosed_think_match = re.search(
+            r"<think>\s*(.*?)(?:</think>|$)", response, re.DOTALL | re.IGNORECASE
+        )
         if unclosed_think_match:
             result["think"] = unclosed_think_match.group(1).strip()
-    
+
     # If no HTML tags found, try prefix format
     if not result["action"] or not result["think"]:
         # First try to parse inline format (Thought:...Action:...)
-        thought_action_match = re.search(r'thought:\s*(.*?)action:\s*(.*)', response, re.DOTALL | re.IGNORECASE)
+        thought_action_match = re.search(
+            r"thought:\s*(.*?)action:\s*(.*)", response, re.DOTALL | re.IGNORECASE
+        )
         if thought_action_match:
             if not result["think"]:
                 result["think"] = thought_action_match.group(1).strip()
@@ -218,25 +227,57 @@ def flexible_parser(response: str) -> dict:
                 result["action"] = thought_action_match.group(2).strip()
             # ADDED: Fallback to line-by-line parsing if still missing
     if not result["action"] or not result["think"]:
-        lines = response.split('\n')
+        lines = response.split("\n")
         for line in lines:
             line = line.strip()
-            if not result["action"] and re.match(r'^action:\s*', line, re.IGNORECASE):
-                result["action"] = re.sub(r'^action:\s*', '', line, flags=re.IGNORECASE)
-            elif not result["think"] and re.match(r'^(think|thought):\s*', line, re.IGNORECASE):
-                result["think"] = re.sub(r'^(think|thought):\s*', '', line, flags=re.IGNORECASE)
-
+            if not result["action"] and re.match(r"^action:\s*", line, re.IGNORECASE):
+                result["action"] = re.sub(r"^action:\s*", "", line, flags=re.IGNORECASE)
+            elif not result["think"] and re.match(
+                r"^(think|thought):\s*", line, re.IGNORECASE
+            ):
+                result["think"] = re.sub(
+                    r"^(think|thought):\s*", "", line, flags=re.IGNORECASE
+                )
 
     if result["action"] is None or not result["action"].strip():
         raise ParseError(f"Failed to parse action from response: {response}")
-    
-    
+
     # HACK to help UI TARS: remap UI TARS native actions to browser gym actions
-    result["displayed_action"] = result["action"] # store model native actions
+    result["displayed_action"] = result["action"]  # store model native actions
     result = uitars_parser(result)
 
     return result
-    
+
+
+def translate_uitars_type_action(action: str) -> str:
+    """Translate a UI-TARS ``type(content=...)`` action to BrowserGym's
+    ``keyboard_type(text=...)``.
+
+    Accepts both single- and double-quoted content and preserves embedded
+    newlines. UI-TARS convention is that a trailing ``\\n`` in ``content``
+    means "submit the input" — playwright's ``keyboard.type`` honors that by
+    pressing Enter, which triggers form submission in our chat UI.
+    """
+    match = re.match(
+        r"type\(content=(['\"])(.*)\1\s*\)\s*$",
+        action,
+        re.DOTALL,
+    )
+    if not match:
+        raise ParseError(
+            f"Could not parse content from type action: {action!r}. "
+            "Expected format like type(content='text') or type(content=\"text\")."
+        )
+    raw_content = match.group(2)
+    # Models usually emit Python-source-style escapes (\\n, \\', ...).
+    # Decode them so keyboard_type receives the intended characters.
+    try:
+        content = raw_content.encode("utf-8").decode("unicode_escape")
+    except UnicodeDecodeError:
+        content = raw_content
+    # Re-quote with repr so the resulting Python call survives downstream exec.
+    return f"keyboard_type(text={content!r})"
+
 
 def uitars_parser(result):
     "Translates UITARS actions to browser gym actions"
@@ -247,30 +288,48 @@ def uitars_parser(result):
     # UITARS API -> BrowserGym API
 
     # click(point='(375,292)') or click(point='<point>200 300</point>') ->  mouse_click(x=375.0, y=292.0)
-    if result["action"].startswith("click(point=") or result["action"].startswith("click(start_box=") or result["action"].startswith("click(x="):
-        coords = re.findall(r'\d+', result["action"])
-        if coords:
-            result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])})"
+    if (
+        result["action"].startswith("click(point=")
+        or result["action"].startswith("click(start_box=")
+        or result["action"].startswith("click(x=")
+    ):
+        coords = re.findall(r"\d+", result["action"])
+        if len(coords) < 2:
+            raise ParseError(
+                f"Could not parse two integer coordinates from click action: {result['action']!r}. "
+                "Expected format like click(point='(x,y)'), click(start_box='(x,y)'), or click(x=X, y=Y)."
+            )
+        result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])})"
     # type(content=text) -> keyboard_type(text=text)
     if result["action"].startswith("type(content="):
-        content = re.findall(r'type\(content=\'(.*?)\'\)', result["action"])
-        if content:
-            result["action"] = f"keyboard_type(text='{content[0]}')"
+        result["action"] = translate_uitars_type_action(result["action"])
     # scroll(direction='down', point='(906,509)') -> scroll(dx, dy)
     if result["action"].startswith("scroll(direction=d"):
-        direction = re.findall(r"scroll\(direction='(.*?)', point='\((\d+),(\d+)\)'\)", result["action"])
+        direction = re.findall(
+            r"scroll\(direction='(.*?)', point='\((\d+),(\d+)\)'\)", result["action"]
+        )
         if direction:
             result["action"] = f"scroll({int(direction[0][1])}, {int(direction[0][2])})"
     # scroll(direction='up', point='(906,509)') -> scroll(dx, dy)
     if result["action"].startswith("scroll(direction=u"):
-        direction = re.findall(r"scroll\(direction='(.*?)', point='\((\d+),(\d+)\)'\)", result["action"])
+        direction = re.findall(
+            r"scroll\(direction='(.*?)', point='\((\d+),(\d+)\)'\)", result["action"]
+        )
         if direction:
-            result["action"] = f"scroll({-int(direction[0][1])}, {-int(direction[0][2])})"
+            result["action"] = (
+                f"scroll({-int(direction[0][1])}, {-int(direction[0][2])})"
+            )
     # right_single(point='(531,256)') -> mouse_click(x, y, button='right')
     if result["action"].startswith("right_single(point="):
-        coords = re.findall(r'\d+', result["action"])
-        if coords:
-            result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])}, button='right')"
+        coords = re.findall(r"\d+", result["action"])
+        if len(coords) < 2:
+            raise ParseError(
+                f"Could not parse two integer coordinates from right_single action: {result['action']!r}. "
+                "Expected format like right_single(point='(x,y)')."
+            )
+        result["action"] = (
+            f"mouse_click(x={int(coords[0])}, y={int(coords[1])}, button='right')"
+        )
     # hotkey(key='ctrl alt e') -> keyboard_press(key=key_comb)
     if result["action"].startswith("hotkey(key="):
         key_comb = re.findall(r"hotkey\(key='(.*?)'\)", result["action"])
