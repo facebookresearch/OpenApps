@@ -37,6 +37,31 @@ class StringSimilarityOperator(BaseOperator):
         return False
 
 
+# Match int entries inside map coords lists, e.g. root['map'][0]['coords'][1].
+# Coordinates are normalized to int(degrees * 10) in _normalize_map_locations.
+MAP_COORDS_REGEX = r"root\['map'\]\[\d+\]\['coords'\]\[\d+\]$"
+
+
+class CoordsApproxEqualOperator(BaseOperator):
+    """Treats map coordinates as equal when within ``tolerance`` of each other.
+
+    Coords are stored as ``int(degrees * 10)`` after ``_normalize_map_locations``,
+    so ``tolerance=2`` accepts a ±0.2° drift (~22 km at the equator, less at higher
+    latitudes). This absorbs the small differences between where the agent clicked
+    on the map and the exact ground-truth coordinates.
+    """
+
+    def __init__(self, tolerance: int = 2):
+        super().__init__(regex_paths=[MAP_COORDS_REGEX])
+        self.tolerance = tolerance
+
+    def give_up_diffing(self, level, diff_instance) -> bool:
+        try:
+            return abs(level.t1 - level.t2) <= self.tolerance
+        except TypeError:
+            return False
+
+
 class AppStateComparison:
     """
     Compare two app states for similarity.
@@ -201,7 +226,10 @@ class AppStateComparison:
         diff = DeepDiff(
             dict1,
             dict2,
-            custom_operators=[StringSimilarityOperator(types=[str])],
+            custom_operators=[
+                StringSimilarityOperator(types=[str]),
+                CoordsApproxEqualOperator(tolerance=2),
+            ],
             ignore_string_type_changes=True,
             ignore_numeric_type_changes=True,
             ignore_nan_inequality=True,
