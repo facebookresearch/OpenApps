@@ -20,6 +20,7 @@ custom_actions:
 - keyboard_press
 - keyboard_type
 - keyboard_insert_text
+
 use_html: false
 use_axtree: false
 use_screenshot: true
@@ -49,7 +50,7 @@ prompt_txt:
     \ y=y)\ntype(content='xxx') # Use escape characters \\\\', \\\
     \\\\\", and \\\\n in content part to ensure we can parse the content in normal\
     \ python string format. If you want to submit your input, use \\\\n at the end\
-    \ of content. \nscroll(direction='down or up', point='(x, y)'\
+    \ of content. \nscroll(direction='down or up', point='(x, y)')\
     \ # Show more information on the `direction` side.\nwait() #Sleep\
     \ for 5s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
     \ in `Thought` part.\n- Write a small plan and finally summarize your next action\

@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 model_name: "gpt-5-5-genai-responses"
-model_pretty_name: "gpt-5.5-text-only"
+model_pretty_name: "gpt-5.5-with-text"
 api_version: null
 client_type: "openai"
 hostname: null
