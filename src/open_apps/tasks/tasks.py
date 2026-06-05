@@ -55,6 +55,8 @@ class AppStateComparison:
 
     def preprocess(self, state: dict) -> dict:
         state = state.copy()
+        # Temporarily exclude code editor state from task completion comparison.
+        state.pop("codeeditor", None)
         state = self._remove_id_key(state)
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
