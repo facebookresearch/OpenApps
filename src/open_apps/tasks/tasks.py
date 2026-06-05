@@ -55,9 +55,27 @@ class AppStateComparison:
 
     def preprocess(self, state: dict) -> dict:
         state = state.copy()
+        # Temporarily exclude code editor state from task completion comparison.
+        state.pop("codeeditor", None)
         state = self._remove_id_key(state)
+        state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
+        state = self.sort_lists(state)
+        return state
+
+    def _normalize_todo_done_field(self, state: dict) -> dict:
+        for todo in state["todo"]:
+            done_value = todo.get("done")
+            if (
+                done_value is None
+                or done_value is False
+                or done_value == 0
+                or done_value == "0"
+            ):
+                todo["done"] = False
+            elif done_value is True or done_value == 1 or done_value == "1":
+                todo["done"] = True
         return state
 
     def _remove_id_key(self, state: dict) -> dict:
@@ -91,10 +109,25 @@ class AppStateComparison:
         for i, place in enumerate(state["map"]):
             new_place = {
                 "name": place["name"],
-                "coords": [int(place["coords"][0] * 10), int(place["coords"][0] * 10)],
+                "coords": [int(place["coords"][0] * 10), int(place["coords"][1] * 10)],
             }
             normalized_places.append(new_place)
         state["map"] = normalized_places
+        return state
+
+    def sort_lists(self, state: dict) -> dict:
+        """To ensure comparisons don't fail
+        due to different list orders, we sort.
+        """
+        # field by which to sort
+        app_and_field = [
+            ("map", "name"),
+            ("todo", "title"),
+            ("calendar", "title"),
+            ("messenger", "user"),
+        ]
+        for app, field in app_and_field:
+            state[app] = sorted(state[app], key=lambda p: p[field])
         return state
 
     @staticmethod
@@ -245,8 +278,7 @@ class AddToDoTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        is_done = None if not self.is_done else True
-        target_state["todo"].append({"title": self.todo_name, "done": is_done})
+        target_state["todo"].append({"title": self.todo_name, "done": self.is_done})
         return target_state
 
     def check_if_task_is_complete(

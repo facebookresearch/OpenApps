@@ -67,7 +67,9 @@ class OpenAppsLauncher:
         self.config = merge_plus_keys(self.config)
         random.seed(self.config.seed)
 
-        self.web_app_port = self.pick_empty_port()
+        self.web_app_port = self.pick_empty_port(
+            start_port=5001 + self._job_port_offset()
+        )
         print(f"Using port {self.web_app_port} for the web app")
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
         print("Web app hostname is: ", self.web_app_url)
@@ -143,6 +145,14 @@ class OpenAppsLauncher:
         with open(self.config_path, mode="w") as fp:
             OmegaConf.save(config=self.config, f=fp)
         print("configs saved to ", self.config_path)
+
+    def _job_port_offset(self) -> int:
+        """Offset port ranges per parallel job so siblings don't collide.
+
+        Each job gets a 100-port window starting at ``5001 + job_id*100``.
+        """
+        job_id = int(self.config.get("job_id", 0) or 0)
+        return job_id * 100
 
     def pick_empty_port(self, start_port=5001) -> int:
         """
@@ -228,12 +238,31 @@ class OpenAppsLauncher:
         return process
 
     def is_app_running(self) -> bool:
-        """Checks if the web app is running by sending a request to its URL."""
+        """Checks the web app is up AND is the one launched by this job.
+
+        Because parallel jobs on the same SLURM node share ``localhost``, a
+        port-bind race can leave a sibling job's web app answering on this
+        job's port. We guard against that by reading ``/environment_variables``
+        (served by ``start_page/main.py``) and confirming the response
+        mentions our ``databases_dir`` — a per-job unique path.
+        """
         try:
-            response = urllib.request.urlopen(self.web_app_url, timeout=10)
-            if response.status == 200:
-                print("Web app main page is running properly...")
-            return response.status == 200
+            response = urllib.request.urlopen(
+                self.web_app_url + "/environment_variables", timeout=10
+            )
+            if response.status != 200:
+                return False
+            body = response.read().decode("utf-8", errors="replace")
+            expected = self.config.databases_dir
+            if expected not in body:
+                print(
+                    f"Web app on {self.web_app_url} is serving a DIFFERENT job's "
+                    f"config (expected databases_dir={expected!r}). "
+                    "Another job's process must own this port."
+                )
+                return False
+            print("Web app main page is running properly...")
+            return True
         except Exception as e:
             print(f"Web app is not running on {self.web_app_url} as expected: {e}")
             return False
@@ -355,7 +384,11 @@ class AgentLauncher(OpenAppsLauncher):
         if is_app_running:
             print("OpenApps is running, proceeding to run the agent.")
         else:
-            print("OpenApps failed to start within the expected time.")
+            raise RuntimeError(
+                f"OpenApps failed to start on {self.web_app_url} within "
+                f"{times_to_wait} attempts. Aborting to avoid scoring against "
+                "a sibling job's web app."
+            )
 
     def launch(self):
         """
