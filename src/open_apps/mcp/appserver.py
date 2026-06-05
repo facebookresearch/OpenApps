@@ -139,6 +139,11 @@ class AppServer:
                 host=self.host,
                 port=self.port,
                 log_level="warning",
+                # Plain asyncio, not uvloop: uvloop installs an event-loop
+                # policy without a child watcher, which breaks the async
+                # Playwright driver subprocess on Python < 3.12 (see
+                # open_apps.mcp.session._ensure_subprocess_capable_policy).
+                loop="asyncio",
             )
         )
         self._thread = threading.Thread(target=self._server.run, daemon=True)

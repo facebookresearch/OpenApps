@@ -20,6 +20,7 @@ parallel envs.
 from __future__ import annotations
 
 import asyncio
+import sys
 from dataclasses import dataclass
 
 from playwright.async_api import async_playwright
@@ -35,6 +36,33 @@ __all__ = ["Observation", "Session"]
 # we wait (bounded) for networkidle then add a small fixed delay.
 _NETWORKIDLE_TIMEOUT_MS = 2000
 _LOAD_TIMEOUT_MS = 5000
+
+
+def _ensure_subprocess_capable_policy() -> None:
+    """Make sure the active asyncio policy can spawn subprocesses.
+
+    Playwright's async API launches its driver via an asyncio subprocess.
+    If a library (notably uvicorn+uvloop) installed an event-loop policy
+    whose child watcher isn't available, that spawn fails with
+    ``NotImplementedError`` on Python < 3.12. Restore the default policy in
+    that case so the browser can launch.
+    """
+    if sys.platform == "win32":
+        return
+    policy = asyncio.get_event_loop_policy()
+    if isinstance(policy, asyncio.DefaultEventLoopPolicy):
+        return
+    get_watcher = getattr(policy, "get_child_watcher", None)
+    if get_watcher is None:
+        return  # Python >= 3.14: child watchers are gone; subprocess works anyway.
+    import warnings
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            get_watcher()
+    except NotImplementedError:
+        asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
 @dataclass
@@ -105,6 +133,7 @@ class Session:
             host=self.host,
             extra_overrides=self.extra_overrides,
         )
+        _ensure_subprocess_capable_policy()
         self._pw = await async_playwright().start()
         self._browser = await self._pw.chromium.launch(
             headless=True,
