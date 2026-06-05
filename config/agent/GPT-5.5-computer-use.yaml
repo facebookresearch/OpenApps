@@ -44,13 +44,14 @@ prompt_txt:
   system_prompt: You are a GUI agent. You are given a task and your action history,
     with screenshots. You need to perform the next action to complete the task.
   output_format: '
-    <action>
-
-    </action>
 
     <think>
 
     </think>
+
+    <action>
+
+    </action>
     '
 
   think_prompt: null

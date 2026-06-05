@@ -69,10 +69,10 @@ use_abstract_example: True #if true, we will include an abstract example in the 
 prompt_txt:
   system_prompt: null # takes default system prompt from dp lib
   output_format: |
-    <action>
-    </action>
     <think>
     </think>
+    <action>
+    </action>
   think_prompt: null # takes default system prompt from dp lib
   think_abstract_example: null # takes default system prompt from dp lib
   think_concrete_example: null # takes default system prompt from dp lib
