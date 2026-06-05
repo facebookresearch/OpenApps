@@ -133,6 +133,10 @@ Our work is licensed under CC-BY-NC, please refer to the [LICENSE](LICENSE) file
 
 Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.com/legal/terms/) and [Privacy Policy](https://opensource.fb.com/legal/privacy/) for this project.
 
+## Acknowledgements
+
+A big thank you to Taj Gillin for implementing an MCP interface for OpenApps and Jiayu Wang for suggestions to improve our harness!
+
 ## Cite
 
 ```
