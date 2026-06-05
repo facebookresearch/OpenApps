@@ -111,7 +111,11 @@ def tid(id):
 def __ft__(self: Todo):
     checkbox = Input(
         type="checkbox",
-        checked=self.done,
+        # fastlite returns ``done`` as int 0/1 from sqlite; fasthtml's
+        # ``Input(checked=0)`` then renders ``checked="0"``, which browsers
+        # treat as checked (the attribute's presence is what matters, not
+        # its value). Coerce to bool so checked=False omits the attribute.
+        checked=bool(self.done),
         hx_put=f"/todo/toggle/{self.id}",
         target_id=tid(self.id),
         hx_swap="outerHTML",

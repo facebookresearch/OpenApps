@@ -55,6 +55,11 @@ class AppStateComparison:
 
     def preprocess(self, state: dict) -> dict:
         state = state.copy()
+        # Drop underscore-prefixed metadata keys (e.g. ``_url`` injected
+        # by the env for URL-based tasks). They would otherwise show up
+        # as a key-set mismatch against the target state.
+        for k in [k for k in state if k.startswith("_")]:
+            del state[k]
         # Temporarily exclude code editor state from task completion comparison.
         state.pop("codeeditor", None)
         state = self._remove_id_key(state)
@@ -386,20 +391,94 @@ class SavePlaceTask(Task):
 
 
 @dataclass
-class NavigateToTask(Task):
-    app_name: str
+class DeleteToDoTask(Task):
+    """Click-only task: delete a todo item via the per-row remove button."""
+
+    todo_name: str
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        idx_to_remove = None
+        for i, item in enumerate(target_state["todo"]):
+            if item["title"] == self.todo_name:
+                idx_to_remove = i
+        if idx_to_remove is not None:
+            target_state["todo"].pop(idx_to_remove)
+        return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict, current_url: str | None = None
+        self, initial_state: dict, current_state: dict
     ) -> bool:
-        if current_url is None:
-            print("current url not available")
-            return False
+        target_state = self.get_target_state(initial_state)
+        app_state_comparison = AppStateComparison(target_state, current_state)
+        return app_state_comparison.compare()
 
-        current_url = current_url.rstrip("/")
-        if current_url.endswith(self.app_name.lower()):
-            return True
-        return False
+
+@dataclass
+class RemoveLandmarkTask(Task):
+    """Click-only task: remove a saved landmark via the per-row delete button."""
+
+    name: str
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        idx_to_remove = None
+        for i, place in enumerate(target_state["map"]):
+            if place["name"] == self.name:
+                idx_to_remove = i
+        if idx_to_remove is not None:
+            target_state["map"].pop(idx_to_remove)
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict
+    ) -> bool:
+        target_state = self.get_target_state(initial_state)
+        app_state_comparison = AppStateComparison(target_state, current_state)
+        return app_state_comparison.compare()
+
+
+# Maps a target-app key to URL-path prefixes that count as "in that app".
+# Mirrors open_apps.mcp.registry.APP_URL_PATHS; inlined here to keep the
+# tasks package import light (avoids pulling in hydra/uvicorn).
+_NAV_APP_URL_PREFIXES: dict[str, tuple[str, ...]] = {
+    "todo": ("/todo",),
+    "calendar": ("/calendar",),
+    "messages": ("/messages",),
+    "codeeditor": ("/codeeditor",),
+    "map": ("/maps",),
+}
+
+
+@dataclass
+class NavigateToAppTask(Task):
+    """Click-only task: starting in ``source_app``, end up in ``target_app``.
+
+    Reward = 1 once the page URL's path lives under the target app's URL
+    prefix. Relies on the env injecting ``current_state['_url']`` before
+    invoking this task's check.
+    """
+
+    source_app: str
+    target_app: str
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict
+    ) -> bool:
+        url = current_state.get("_url", "") if isinstance(current_state, dict) else ""
+        if not url:
+            return False
+        try:
+            from urllib.parse import urlparse
+
+            path = urlparse(url).path or "/"
+        except Exception:
+            return False
+        prefixes = _NAV_APP_URL_PREFIXES.get(self.target_app, (f"/{self.target_app}",))
+        return any(
+            path == p or path.startswith(p + "/") or path.rstrip("/") == p
+            for p in prefixes
+        )
 
 
 if __name__ == "__main__":

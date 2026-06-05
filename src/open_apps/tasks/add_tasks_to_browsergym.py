@@ -7,6 +7,7 @@ from playwright.sync_api import sync_playwright
 import wandb
 from browsergym.core.task import AbstractBrowserTask
 from open_apps.tasks.tasks import Task
+from open_apps.state import get_current_state, safe_get_json  # noqa: F401  re-exported
 import gymnasium as gym
 from browsergym.core.env import BrowserEnv
 from browsergym.core.registration import register_task
@@ -123,33 +124,6 @@ class OpenAppsTask(AbstractBrowserTask):
 
     def cheat(self, page: playwright.sync_api.Page, chat_messages: list[str]) -> None:
         pass
-
-
-def safe_get_json(url: str):
-    """Safely perform a GET request and return JSON, or empty list on failure."""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        # print(f"Error fetching {url}: {e}")
-        return []
-
-
-def get_current_state(url: str) -> dict:
-    """Fetch the current state from the given URL."""
-    state = {}
-    state["todo"] = safe_get_json(url + "/todo_all")
-    # calendar has "id": int column and often other fields that are null too
-    state["calendar"] = safe_get_json(url + "/calendar_all")
-    state["map"] = safe_get_json(url + "/maps/landmarks")
-    state["messenger"] = safe_get_json(url + "/messages_all")
-    state["codeeditor"] = safe_get_json(url + "/codeeditor_all")
-    try:
-        state["online_shop"] = safe_get_json(url + "/onlineshop_all")
-    except:
-        state["online_shop"] = []
-    return state
 
 
 if __name__ == "__main__":

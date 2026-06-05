@@ -115,6 +115,10 @@ You can see the specific variables for each defined in the individual apps. For 
 
 Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
 
+## Exposing OpenApps as an MCP server
+
+If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/mcp/README.md`.
+
 ## Launch Agent
 
 For agents to directly interact with apps, install: `playwright install chromium`.
