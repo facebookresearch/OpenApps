@@ -50,11 +50,11 @@ prompt_txt:
     with screenshots. You need to perform the next action to complete the task.
   output_format: '<action>
 
-    <\action>
+    </action>
 
     <think>
 
-    <\think>
+    </think>
 
     '
   think_prompt: null
@@ -71,9 +71,9 @@ prompt_txt:
     \ for 5s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
     \ in `Thought` part.\n- Write a small plan and finally summarize your next action\
     \ (with its target element) in one sentence in `Thought` part.\n"
-  action_abstract_example: '<action>type(content='''')<\action>
+  action_abstract_example: '<action>type(content='''')</action>
 
     '
-  action_concrete_example: '<action>click(point=''<point>200 300</point>'')<\action>
+  action_concrete_example: '<action>click(point=''<point>200 300</point>'')</action>
 
     '
