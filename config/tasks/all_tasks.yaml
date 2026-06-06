@@ -51,11 +51,6 @@ mark_water_plants_as_done:
   goal: Mark 'Water plants' as done in my todo list.
   todo_name: "Water plants"
 
-mark_visit_grandma_as_done:
-  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
-  goal: Mark 'Visit grandma' as done in my todo list.
-  todo_name: "Visit grandma"
-
 message_bob_to_meet:
   _target_: open_apps.tasks.tasks.SendMessageTask
   goal: Send a message to Bob 'Let's meet'
