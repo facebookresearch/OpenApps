@@ -36,6 +36,16 @@ __all__ = ["Observation", "Session"]
 # we wait (bounded) for networkidle then add a small fixed delay.
 _NETWORKIDLE_TIMEOUT_MS = 2000
 _LOAD_TIMEOUT_MS = 5000
+# execute() does not await a navigation a click triggers, so it can still be in
+# flight when we settle — and wait_for_load_state then returns on the stale
+# (already-idle) page. Spin up to this long for the destination page to commit.
+_NAV_WAIT_MS = 1000
+# The launcher (HTML5-UP "Story" template) hides its app tiles with
+# `body.is-preload ... { opacity: 0 }` and only fades them in on `window.load` +
+# a setTimeout — i.e. *after* networkidle. After a navigation, wait for that
+# reveal (the `is-preload` class to clear) plus the fade, so a screenshot
+# doesn't capture the launcher with blank, unlabeled tiles.
+_REVEAL_SETTLE_MS = 800
 
 
 def _ensure_subprocess_capable_policy() -> None:
@@ -217,6 +227,7 @@ class Session:
     async def act(self, action: str, *, with_reward: bool = True) -> Observation:
         self._require_started()
         self._step_count += 1
+        url_before = self.page.url
         # Mirror BrowserGym: a failed action is recorded (not raised) so the
         # episode continues and the error surfaces in the observation.
         try:
@@ -225,18 +236,47 @@ class Session:
         except Exception as e:
             desc = action
             error = f"{type(e).__name__}: {e}"
-        await self._settle()
+        await self._settle(url_before)
         return await self.observe(
             action_desc=desc, with_reward=with_reward, error=error
         )
 
-    async def _settle(self) -> None:
+    async def _settle(self, url_before: str | None = None) -> None:
+        # execute() doesn't await a navigation a click triggers; while a
+        # cross-document navigation is in flight, evaluating throws ("execution
+        # context was destroyed"). Spin until the context is stable so we settle
+        # on the destination page (otherwise wait_for_load_state returns on the
+        # stale, already-idle page). Same-page actions (HTMX swaps, scrolls)
+        # keep the context alive and fall through on the first probe.
+        navigated = False
+        for _ in range(_NAV_WAIT_MS // 25):
+            try:
+                await self.page.evaluate("0")
+                break
+            except Exception:
+                navigated = True
+                await asyncio.sleep(0.025)
+        if url_before is not None and self.page.url != url_before:
+            navigated = True
         try:
             await self.page.wait_for_load_state(
                 "networkidle", timeout=_NETWORKIDLE_TIMEOUT_MS
             )
         except Exception:
             pass
+        # A full-page navigation can land on the launcher, whose Story-template
+        # tiles fade in only after load, past networkidle — wait for that reveal
+        # so the screenshot isn't captured while the tiles are still blank.
+        if navigated:
+            try:
+                await self.page.wait_for_function(
+                    "() => !(document.body && "
+                    "document.body.classList.contains('is-preload'))",
+                    timeout=_LOAD_TIMEOUT_MS,
+                )
+            except Exception:
+                pass
+            await asyncio.sleep(_REVEAL_SETTLE_MS / 1000)
         if self.settle_ms > 0:
             await asyncio.sleep(self.settle_ms / 1000)
 
