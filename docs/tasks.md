@@ -60,3 +60,38 @@ my_custom_task:
 ```
 
 Finally, ask your agent to solve the task by specifying `task_name=my_custom_task`.
+
+## Goal Variations
+
+Tasks come with **goal variations**: the same task with its goal reworded in a
+different style, so you can study how robust an agent is to phrasing. There are
+three styles — `casual`, `formal`, and `unrelated_context` (the instruction
+embedded in unrelated chit-chat) — with 9 variations per task.
+
+Tasks are split across two files, both composed into `all_tasks.yaml`:
+
+* `config/tasks/original_tasks.yaml` — the base tasks.
+* `config/tasks/user_goal_variations.yaml` — the variations, keyed
+  `<original_task>__<style>_<n>` (e.g. `mark_water_plants_as_done__casual_2`).
+
+Every variation copies its original's fields verbatim — only the `goal` is
+reworded, and an optional `goal_style` field records the style — so the reward
+logic is identical to the base task:
+
+```yaml
+mark_water_plants_as_done__casual_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: can you check off 'Water plants' in my to-do list?
+  todo_name: "Water plants"
+  goal_style: casual
+```
+
+Run a single variation like any other task:
+
+```shell
+uv run launch_agent.py agent=GPT-5-1 task_name=mark_water_plants_as_done__casual_2
+```
+
+To run agents across **all** tasks and their goal variations in parallel, use
+the `config_parallel_tasks_across_goal_variations.yaml` config — see
+[Launch Agent(s) Across Multiple Tasks](index.md#launch-agents-across-multiple-tasks).
