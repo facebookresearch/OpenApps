@@ -2,7 +2,7 @@
 # Layout and styling
 style: 1                # Style number (1, 2, or 3) as per Story template
 size: "small"           # Size of items - "small", "medium", or "big"
-fade_in: true           # Whether to fade in items on scroll
+fade_in: false          # Scroll-reveal fade is cosmetic and leaves the page mid-animation in agent screenshots; keep off for deterministic rendering
 lightbox: false         # Enable lightbox effect for images
 random_tile_reoder: false  # Whether to shuffle the items
 wrapper_style: 1        # Wrapper style number
