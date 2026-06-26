@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from abc import ABC, abstractmethod
 import hashlib
@@ -174,6 +174,10 @@ class AppStateComparison:
 @dataclass
 class Task(ABC):
     goal: str
+    # Optional descriptor for how the goal is phrased (e.g. the user-goal
+    # variation style). Keyword-only so subclasses can keep declaring
+    # required positional fields without tripping dataclass field ordering.
+    goal_style: Optional[str] = field(default=None, kw_only=True)
 
     @abstractmethod
     def check_if_task_is_complete(
