@@ -1,0 +1,182 @@
+add_meeting_with_dennis:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Go to the Calendar app and add my meeting with Dennis on April 1st of
+    2026. The title should be 'Dennis-Bob'
+  title: Dennis-Bob
+  date: 2026-04-01
+  description: null
+  location: null
+  url: null
+  invitees: []
+
+add_christmas_shopping_event:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Make a calendar entry for Christmas shopping on the 14th (2025). The title
+    should read 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: 2025-12-14
+  description: null
+  location: null
+  url: null
+  invitees: []
+
+add_paper_reading_meeting_with_einstein:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Go to the Calendar app and add my meeting with Einstein on April 1st of
+    2027. The title should be 'Einstein-Bob'. Set the description as 'paper
+    reading', omit the URL and set the location to New York City. Make sure to
+    add Einstein as an invitee.
+  title: Einstein-Bob
+  date: 2027-04-01
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+    - Einstein
+
+remove_wacv_abstract_deadline:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove the WACV 2026 Abstract Deadline event from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: 2025-07-11
+
+add_call_mom_to_my_todo:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: Add 'Call Mom' to my todo list.
+  todo_name: "Call Mom"
+  is_done: false
+
+mark_water_plants_as_done:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Water plants' as done in my todo list.
+  todo_name: "Water plants"
+
+message_bob_to_meet:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Send a message to Bob 'Let's meet'
+  to: "Bob"
+  message: "Let's meet"
+  expected_reply: "Yes, let's play on Saturday!"
+
+message_alice_about_badminton:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Send a message to Alice 'Wanna play badminton?'
+  to: "Alice"
+  message: "Wanna play badminton?"
+  expected_reply: "Yes, I want to play badminton!"
+
+save_paris_to_my_favorite_places:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save Paris, France to my favorite places
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.3200
+  
+save_bockelwitz_to_my_favorite_places:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save Bockelwitz, Germany to my favorite places
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+
+# ---- Click-only task set (no text input required) ------------------------
+
+mark_visit_grandma_as_done:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Visit grandma' as done in my todo list.
+  todo_name: "Visit grandma"
+
+mark_buy_groceries_as_done:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Buy groceries' as done in my todo list.
+  todo_name: "Buy groceries"
+
+delete_call_aunt_lisa:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: Delete the 'Call Aunt Lisa' item from my todo list.
+  todo_name: "Call Aunt Lisa"
+
+remove_otto_birthday:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove Otto's Birthday from my calendar.
+  title: Otto's Birthday
+  date: 1990-04-02
+
+remove_eccv_2026_paper_deadline:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove the ECCV 2026 Paper Deadline event from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: 2026-03-06
+
+remove_times_square_from_favorites:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: Remove 'Times Square' from my favorite places.
+  name: Times Square
+
+# ---- Cross-app navigation tasks (click-only) -----------------------------
+# Each variant starts the agent in ``source_app`` and is rewarded once the
+# page URL points at ``target_app``. The natural 2-click solution is:
+#   click "Return to List of Apps" -> click the target app icon on /.
+
+navigate_from_todo_to_calendar:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Calendar app from here.
+  source_app: todo
+  target_app: calendar
+
+navigate_from_todo_to_map:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Maps app from here.
+  source_app: todo
+  target_app: map
+
+navigate_from_calendar_to_todo:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Todo app from here.
+  source_app: calendar
+  target_app: todo
+
+navigate_from_calendar_to_messages:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Messages app from here.
+  source_app: calendar
+  target_app: messages
+
+navigate_from_messages_to_calendar:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Calendar app from here.
+  source_app: messages
+  target_app: calendar
+
+navigate_from_map_to_todo:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Todo app from here.
+  source_app: map
+  target_app: todo
+
+navigate_from_map_to_calendar:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Calendar app from here.
+  source_app: map
+  target_app: calendar
+
+navigate_from_codeeditor_to_todo:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Open the Todo app from here.
+  source_app: codeeditor
+  target_app: todo
+  
+navigate_to_todo:
+  _target_: open_apps.tasks.tasks.NavigateToTask
+  goal: Navigate to the ToDo app.
+  app_name: "todo"
+
+navigate_to_calendar:
+  _target_: open_apps.tasks.tasks.NavigateToTask
+  goal: Navigate to the Calendar app.
+  app_name: "calendar"
+
+navigate_to_messenger:
+  _target_: open_apps.tasks.tasks.NavigateToTask
+  goal: Navigate to the Messenger app.
+  app_name: "messages"

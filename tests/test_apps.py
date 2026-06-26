@@ -10,14 +10,13 @@ Setup tests for apps
 """
 
 import pytest
-from omegaconf import OmegaConf
 from open_apps.tasks.tasks import (
     AddEventTask,
     RemoveEventTask,
     AppStateComparison,
     AddToDoTask,
 )
-from hydra.utils import instantiate
+from open_apps.tasks import load_task
 from starlette.testclient import TestClient
 from hydra import initialize, compose
 from pathlib import Path
@@ -109,18 +108,12 @@ class TestTasks:
         assert "done" in todo_state[0]
 
     def test_task_instantiation(self):
-        tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
-        tasks_config = OmegaConf.load(tasks_file)
-        task_config = tasks_config.add_meeting_with_dennis
-        task = instantiate(task_config)
+        task = load_task("add_meeting_with_dennis")
         assert isinstance(task, AddEventTask)
         assert "Go to the Calendar" in task.goal
 
     def test_remove_event_task_instantiation(self):
-        tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
-        tasks_config = OmegaConf.load(tasks_file)
-        task_config = tasks_config.remove_wacv_abstract_deadline
-        task = instantiate(task_config)
+        task = load_task("remove_wacv_abstract_deadline")
         assert isinstance(task, RemoveEventTask)
         assert "Remove the WACV 2026" in task.goal
 
@@ -130,10 +123,7 @@ class TestTasks:
         assert AppStateComparison.are_dicts_similar(dict1, dict2)
 
     def test_homepage(self, client):
-        tasks_file = Path(__file__).parent.parent / "config/tasks/all_tasks.yaml"
-        tasks_config = OmegaConf.load(tasks_file)
-        task_config = tasks_config.add_meeting_with_dennis
-        task = instantiate(task_config)
+        task = load_task("add_meeting_with_dennis")
 
         initial_state = dict()
         initial_state["calendar"] = client.get("/calendar_all").json()

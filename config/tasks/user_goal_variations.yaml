@@ -1,0 +1,4 @@
+# User goal variations: alternative phrasings / goals for the base tasks.
+#
+# Same flat format as original_tasks.yaml ({task_key: {_target_, goal, ...}}).
+# Keys must not collide with those in original_tasks.yaml.
