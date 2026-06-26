@@ -1,0 +1,1575 @@
+# User goal variations: 9 rewrites per original task (3 casual, 3 formal,
+# 3 unrelated_context). Generated from original_tasks.yaml — all non-goal
+# fields are copied verbatim from the original so reward semantics are
+# preserved; only `goal` is rephrased and `goal_style` is set.
+#
+# Key convention: <original_key>__<style>_<n>.
+# Do not hand-edit individual entries without keeping the goal's intent
+# and details (exact titles, dates, names, target app, message text) intact.
+
+add_meeting_with_dennis__casual_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: hey, can you pop into the Calendar app and throw in my meeting with Dennis on April 1st, 2026? title it 'Dennis-Bob'.
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: casual
+add_meeting_with_dennis__casual_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: need to add my Dennis meeting to the calendar for April 1, 2026 — call it 'Dennis-Bob', thanks!
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: casual
+add_meeting_with_dennis__casual_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: open up Calendar and stick my meeting with Dennis on the 1st of April 2026, titled 'Dennis-Bob'.
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: casual
+add_meeting_with_dennis__formal_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Please open the Calendar application and schedule my meeting with Dennis on 1 April 2026, with the title 'Dennis-Bob'.
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: formal
+add_meeting_with_dennis__formal_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Kindly add an entry to the Calendar for my meeting with Dennis on April 1st, 2026; the title should read 'Dennis-Bob'.
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: formal
+add_meeting_with_dennis__formal_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: In the Calendar app, please create my meeting with Dennis dated April 1, 2026, and set its title to 'Dennis-Bob'.
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: formal
+add_meeting_with_dennis__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: My flight got delayed three hours so I finally have a minute — anyway, could you open the Calendar app and add my meeting with Dennis on April 1st of 2026 with the title 'Dennis-Bob'?
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: unrelated_context
+add_meeting_with_dennis__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: 'I''ve been meaning to repaint the kitchen all week, but first things first: go to the Calendar app and add my meeting with Dennis on April 1st, 2026, titled ''Dennis-Bob''.'
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: unrelated_context
+add_meeting_with_dennis__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: The dog just chewed through another pair of shoes, unbelievable. While I deal with that, please add my meeting with Dennis to the Calendar for April 1st 2026 and title it 'Dennis-Bob'.
+  title: Dennis-Bob
+  date: '2026-04-01'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: unrelated_context
+add_christmas_shopping_event__casual_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: can you add a calendar entry for christmas shopping on december 14th, 2025? title it 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: casual
+add_christmas_shopping_event__casual_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: pop christmas shopping on my calendar for the 14th of december 2025 — call it 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: casual
+add_christmas_shopping_event__casual_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: stick 'Shopping for Christmas gifts' on the calendar for dec 14, 2025, thanks!
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: casual
+add_christmas_shopping_event__formal_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Please create a calendar entry for Christmas shopping on December 14th, 2025, titled 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: formal
+add_christmas_shopping_event__formal_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Kindly add an event to the calendar on the 14th of December, 2025 with the title 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: formal
+add_christmas_shopping_event__formal_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: I would like a calendar entry on December 14, 2025 for Christmas shopping; please set the title to 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: formal
+add_christmas_shopping_event__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: The neighbors are having that loud party again — anyway, make a calendar entry for Christmas shopping on December 14th, 2025 with the title 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: unrelated_context
+add_christmas_shopping_event__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: 'I really need to start going to the gym again, but in the meantime: add a calendar entry for Christmas shopping on the 14th of December 2025, titled ''Shopping for Christmas gifts''.'
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: unrelated_context
+add_christmas_shopping_event__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Just finished a great book and now I'm out of things to read. Separately, please put 'Shopping for Christmas gifts' on the calendar for December 14, 2025.
+  title: Shopping for Christmas gifts
+  date: '2025-12-14'
+  description: null
+  location: null
+  url: null
+  invitees: []
+  goal_style: unrelated_context
+add_paper_reading_meeting_with_einstein__casual_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: open Calendar and add my meeting with Einstein on april 1st, 2027. title it 'Einstein-Bob', set the description to 'paper reading', skip the URL, put the location as New York City, and add Einstein as an invitee.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: casual
+add_paper_reading_meeting_with_einstein__casual_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: need a calendar event for my meeting with Einstein on april 1 2027 — title 'Einstein-Bob', description 'paper reading', no URL, location New York City, and invite Einstein.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: casual
+add_paper_reading_meeting_with_einstein__casual_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: 'throw my Einstein meeting on the calendar for the 1st of april 2027: call it ''Einstein-Bob'', description ''paper reading'', leave the URL blank, location New York City, and add Einstein as an invitee.'
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: casual
+add_paper_reading_meeting_with_einstein__formal_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Please open the Calendar application and add my meeting with Einstein on April 1st, 2027, titled 'Einstein-Bob'. Set the description to 'paper reading', leave the URL blank, set the location to New York City, and add Einstein as an invitee.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: formal
+add_paper_reading_meeting_with_einstein__formal_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Kindly schedule my meeting with Einstein for April 1, 2027 with the title 'Einstein-Bob'; the description should be 'paper reading', the URL omitted, the location New York City, and Einstein added as an invitee.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: formal
+add_paper_reading_meeting_with_einstein__formal_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: In the Calendar app, please create my meeting with Einstein on the first of April, 2027 under the title 'Einstein-Bob', with the description 'paper reading', no URL, the location set to New York City, and Einstein included as an invitee.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: formal
+add_paper_reading_meeting_with_einstein__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: I've been trying to learn the violin and it's going terribly — anyway, go to the Calendar app and add my meeting with Einstein on April 1st of 2027, title 'Einstein-Bob', description 'paper reading', omit the URL, location New York City, and add Einstein as an invitee.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: unrelated_context
+add_paper_reading_meeting_with_einstein__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: My sourdough starter died again, so frustrating. On a different note, please add my meeting with Einstein to the Calendar on April 1st, 2027 with the title 'Einstein-Bob', description 'paper reading', no URL, location New York City, and Einstein as an invitee.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: unrelated_context
+add_paper_reading_meeting_with_einstein__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: It's been raining for a week straight here. Unrelated, but could you add my meeting with Einstein on April 1st 2027 to the calendar? Title it 'Einstein-Bob', set the description to 'paper reading', leave the URL empty, set the location to New York City, and invite Einstein.
+  title: Einstein-Bob
+  date: '2027-04-01'
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+  - Einstein
+  goal_style: unrelated_context
+remove_wacv_abstract_deadline__casual_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: can you get rid of the WACV 2026 Abstract Deadline event on my calendar?
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: casual
+remove_wacv_abstract_deadline__casual_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: delete the WACV 2026 Abstract Deadline thing from my calendar, thanks.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: casual
+remove_wacv_abstract_deadline__casual_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: drop the WACV 2026 Abstract Deadline event off my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: casual
+remove_wacv_abstract_deadline__formal_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Please remove the WACV 2026 Abstract Deadline event from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: formal
+remove_wacv_abstract_deadline__formal_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Kindly delete the event titled 'WACV 2026 Abstract Deadline' from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: formal
+remove_wacv_abstract_deadline__formal_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I would like the WACV 2026 Abstract Deadline event removed from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: formal
+remove_wacv_abstract_deadline__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I finally beat that video game level I was stuck on — anyway, remove the WACV 2026 Abstract Deadline event from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: unrelated_context
+remove_wacv_abstract_deadline__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: My plants are finally blooming after months. Unrelated, please delete the WACV 2026 Abstract Deadline event from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: unrelated_context
+remove_wacv_abstract_deadline__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: The coffee shop down the street changed their menu again. Separately, could you remove the WACV 2026 Abstract Deadline event from my calendar?
+  title: WACV 2026 Abstract Deadline
+  date: '2025-07-11'
+  goal_style: unrelated_context
+add_call_mom_to_my_todo__casual_1:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: add 'Call Mom' to my todo list real quick
+  todo_name: Call Mom
+  is_done: false
+  goal_style: casual
+add_call_mom_to_my_todo__casual_2:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: can you toss 'Call Mom' onto my todo list?
+  todo_name: Call Mom
+  is_done: false
+  goal_style: casual
+add_call_mom_to_my_todo__casual_3:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: stick 'Call Mom' on my to-do list, thanks
+  todo_name: Call Mom
+  is_done: false
+  goal_style: casual
+add_call_mom_to_my_todo__formal_1:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: Please add 'Call Mom' to my todo list.
+  todo_name: Call Mom
+  is_done: false
+  goal_style: formal
+add_call_mom_to_my_todo__formal_2:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: Kindly add the item 'Call Mom' to my to-do list.
+  todo_name: Call Mom
+  is_done: false
+  goal_style: formal
+add_call_mom_to_my_todo__formal_3:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: I would like 'Call Mom' added to my todo list.
+  todo_name: Call Mom
+  is_done: false
+  goal_style: formal
+add_call_mom_to_my_todo__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: I just watched the most ridiculous documentary about penguins — anyway, add 'Call Mom' to my todo list.
+  todo_name: Call Mom
+  is_done: false
+  goal_style: unrelated_context
+add_call_mom_to_my_todo__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: The traffic this morning was unreal. Unrelated, please add 'Call Mom' to my todo list.
+  todo_name: Call Mom
+  is_done: false
+  goal_style: unrelated_context
+add_call_mom_to_my_todo__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: I'm thinking of repainting my bedroom blue. On another note, add 'Call Mom' to my to-do list.
+  todo_name: Call Mom
+  is_done: false
+  goal_style: unrelated_context
+mark_water_plants_as_done__casual_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: mark 'Water plants' as done on my todo list
+  todo_name: Water plants
+  goal_style: casual
+mark_water_plants_as_done__casual_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: can you check off 'Water plants' in my to-do list?
+  todo_name: Water plants
+  goal_style: casual
+mark_water_plants_as_done__casual_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: tick 'Water plants' as done in my todos, thanks
+  todo_name: Water plants
+  goal_style: casual
+mark_water_plants_as_done__formal_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Please mark 'Water plants' as done in my todo list.
+  todo_name: Water plants
+  goal_style: formal
+mark_water_plants_as_done__formal_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Kindly mark the item 'Water plants' as completed in my to-do list.
+  todo_name: Water plants
+  goal_style: formal
+mark_water_plants_as_done__formal_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I would like 'Water plants' marked as done in my todo list.
+  todo_name: Water plants
+  goal_style: formal
+mark_water_plants_as_done__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: My favorite team finally won last night — anyway, mark 'Water plants' as done in my todo list.
+  todo_name: Water plants
+  goal_style: unrelated_context
+mark_water_plants_as_done__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I keep forgetting where I put my keys lately. Unrelated, please mark 'Water plants' as done in my to-do list.
+  todo_name: Water plants
+  goal_style: unrelated_context
+mark_water_plants_as_done__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: The weather's been gorgeous this week. Separately, could you mark 'Water plants' as done in my todo list?
+  todo_name: Water plants
+  goal_style: unrelated_context
+message_bob_to_meet__casual_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: shoot Bob a message saying 'Let's meet'
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: casual
+message_bob_to_meet__casual_2:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: can you text Bob 'Let's meet'?
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: casual
+message_bob_to_meet__casual_3:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: message Bob and tell him 'Let's meet', thanks
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: casual
+message_bob_to_meet__formal_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Please send a message to Bob saying 'Let's meet'.
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: formal
+message_bob_to_meet__formal_2:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: 'Kindly send Bob the following message: ''Let''s meet''.'
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: formal
+message_bob_to_meet__formal_3:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: I would like to send Bob a message that reads 'Let's meet'.
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: formal
+message_bob_to_meet__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: I spilled coffee all over my desk this morning — anyway, send a message to Bob saying 'Let's meet'.
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: unrelated_context
+message_bob_to_meet__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: I've been binge-watching a new show all weekend. Unrelated, please send Bob a message saying 'Let's meet'.
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: unrelated_context
+message_bob_to_meet__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: The elevator in my building is broken again. Separately, could you message Bob 'Let's meet'?
+  to: Bob
+  message: Let's meet
+  expected_reply: Yes, let's play on Saturday!
+  goal_style: unrelated_context
+message_alice_about_badminton__casual_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: text Alice 'Wanna play badminton?'
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: casual
+message_alice_about_badminton__casual_2:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: can you shoot Alice a message saying 'Wanna play badminton?'
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: casual
+message_alice_about_badminton__casual_3:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: ping Alice with 'Wanna play badminton?', thanks
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: casual
+message_alice_about_badminton__formal_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Please send a message to Alice saying 'Wanna play badminton?'.
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: formal
+message_alice_about_badminton__formal_2:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: 'Kindly send Alice the following message: ''Wanna play badminton?''.'
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: formal
+message_alice_about_badminton__formal_3:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: I would like to send Alice a message that reads 'Wanna play badminton?'.
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: formal
+message_alice_about_badminton__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: My phone battery's been draining super fast lately — anyway, send a message to Alice saying 'Wanna play badminton?'.
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: unrelated_context
+message_alice_about_badminton__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: I tried a new recipe last night and it was a disaster. Unrelated, please message Alice 'Wanna play badminton?'.
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: unrelated_context
+message_alice_about_badminton__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: It's been ages since I cleaned out my garage. Separately, could you send Alice a message saying 'Wanna play badminton?'?
+  to: Alice
+  message: Wanna play badminton?
+  expected_reply: Yes, I want to play badminton!
+  goal_style: unrelated_context
+save_paris_to_my_favorite_places__casual_1:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: save Paris, France to my favorite places
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: casual
+save_paris_to_my_favorite_places__casual_2:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: can you add Paris, France to my favorites?
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: casual
+save_paris_to_my_favorite_places__casual_3:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: bookmark Paris, France in my favorite places, thanks
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: casual
+save_paris_to_my_favorite_places__formal_1:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Please save Paris, France to my favorite places.
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: formal
+save_paris_to_my_favorite_places__formal_2:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Kindly add Paris, France to my list of favorite places.
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: formal
+save_paris_to_my_favorite_places__formal_3:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: I would like Paris, France saved to my favorite places.
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: formal
+save_paris_to_my_favorite_places__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: I've been trying to cut back on sugar this month — anyway, save Paris, France to my favorite places.
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: unrelated_context
+save_paris_to_my_favorite_places__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: My upstairs neighbor practices drums every evening. Unrelated, please save Paris, France to my favorite places.
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: unrelated_context
+save_paris_to_my_favorite_places__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: I just reorganized my entire bookshelf by color. Separately, could you add Paris, France to my favorite places?
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.32
+  goal_style: unrelated_context
+save_bockelwitz_to_my_favorite_places__casual_1:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: save Bockelwitz, Germany to my favorite places
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: casual
+save_bockelwitz_to_my_favorite_places__casual_2:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: can you add Bockelwitz, Germany to my favorites?
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: casual
+save_bockelwitz_to_my_favorite_places__casual_3:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: bookmark Bockelwitz, Germany in my favorite places, thanks
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: casual
+save_bockelwitz_to_my_favorite_places__formal_1:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Please save Bockelwitz, Germany to my favorite places.
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: formal
+save_bockelwitz_to_my_favorite_places__formal_2:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Kindly add Bockelwitz, Germany to my list of favorite places.
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: formal
+save_bockelwitz_to_my_favorite_places__formal_3:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: I would like Bockelwitz, Germany saved to my favorite places.
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: formal
+save_bockelwitz_to_my_favorite_places__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: I finally fixed the squeaky door in my hallway — anyway, save Bockelwitz, Germany to my favorite places.
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: unrelated_context
+save_bockelwitz_to_my_favorite_places__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: I've got a dentist appointment I keep dreading. Unrelated, please save Bockelwitz, Germany to my favorite places.
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: unrelated_context
+save_bockelwitz_to_my_favorite_places__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: The farmers market had the best peaches today. Separately, could you add Bockelwitz, Germany to my favorite places?
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  goal_style: unrelated_context
+mark_visit_grandma_as_done__casual_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: mark 'Visit grandma' as done in my todos
+  todo_name: Visit grandma
+  goal_style: casual
+mark_visit_grandma_as_done__casual_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: can you check off 'Visit grandma' in my to-do list?
+  todo_name: Visit grandma
+  goal_style: casual
+mark_visit_grandma_as_done__casual_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: tick 'Visit grandma' as done on my todo list, thanks
+  todo_name: Visit grandma
+  goal_style: casual
+mark_visit_grandma_as_done__formal_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Please mark 'Visit grandma' as done in my todo list.
+  todo_name: Visit grandma
+  goal_style: formal
+mark_visit_grandma_as_done__formal_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Kindly mark the item 'Visit grandma' as completed in my to-do list.
+  todo_name: Visit grandma
+  goal_style: formal
+mark_visit_grandma_as_done__formal_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I would like 'Visit grandma' marked as done in my todo list.
+  todo_name: Visit grandma
+  goal_style: formal
+mark_visit_grandma_as_done__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I just got the best night's sleep in weeks — anyway, mark 'Visit grandma' as done in my todo list.
+  todo_name: Visit grandma
+  goal_style: unrelated_context
+mark_visit_grandma_as_done__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: My car needs an oil change soon. Unrelated, please mark 'Visit grandma' as done in my to-do list.
+  todo_name: Visit grandma
+  goal_style: unrelated_context
+mark_visit_grandma_as_done__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I've been learning to cook Thai food lately. Separately, could you mark 'Visit grandma' as done in my todo list?
+  todo_name: Visit grandma
+  goal_style: unrelated_context
+mark_buy_groceries_as_done__casual_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: mark 'Buy groceries' as done in my todos
+  todo_name: Buy groceries
+  goal_style: casual
+mark_buy_groceries_as_done__casual_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: can you check off 'Buy groceries' in my to-do list?
+  todo_name: Buy groceries
+  goal_style: casual
+mark_buy_groceries_as_done__casual_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: tick 'Buy groceries' as done on my todo list, thanks
+  todo_name: Buy groceries
+  goal_style: casual
+mark_buy_groceries_as_done__formal_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Please mark 'Buy groceries' as done in my todo list.
+  todo_name: Buy groceries
+  goal_style: formal
+mark_buy_groceries_as_done__formal_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Kindly mark the item 'Buy groceries' as completed in my to-do list.
+  todo_name: Buy groceries
+  goal_style: formal
+mark_buy_groceries_as_done__formal_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I would like 'Buy groceries' marked as done in my todo list.
+  todo_name: Buy groceries
+  goal_style: formal
+mark_buy_groceries_as_done__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: I finally finished that 1000-piece puzzle — anyway, mark 'Buy groceries' as done in my todo list.
+  todo_name: Buy groceries
+  goal_style: unrelated_context
+mark_buy_groceries_as_done__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: There's a new bakery opening near me next week. Unrelated, please mark 'Buy groceries' as done in my to-do list.
+  todo_name: Buy groceries
+  goal_style: unrelated_context
+mark_buy_groceries_as_done__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: My succulents are thriving for once. Separately, could you mark 'Buy groceries' as done in my todo list?
+  todo_name: Buy groceries
+  goal_style: unrelated_context
+delete_call_aunt_lisa__casual_1:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: delete the 'Call Aunt Lisa' item off my todo list
+  todo_name: Call Aunt Lisa
+  goal_style: casual
+delete_call_aunt_lisa__casual_2:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: can you remove 'Call Aunt Lisa' from my to-do list?
+  todo_name: Call Aunt Lisa
+  goal_style: casual
+delete_call_aunt_lisa__casual_3:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: get rid of 'Call Aunt Lisa' on my todos, thanks
+  todo_name: Call Aunt Lisa
+  goal_style: casual
+delete_call_aunt_lisa__formal_1:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: Please delete the 'Call Aunt Lisa' item from my todo list.
+  todo_name: Call Aunt Lisa
+  goal_style: formal
+delete_call_aunt_lisa__formal_2:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: Kindly remove the item 'Call Aunt Lisa' from my to-do list.
+  todo_name: Call Aunt Lisa
+  goal_style: formal
+delete_call_aunt_lisa__formal_3:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: I would like the 'Call Aunt Lisa' item deleted from my todo list.
+  todo_name: Call Aunt Lisa
+  goal_style: formal
+delete_call_aunt_lisa__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: I just discovered a great new podcast — anyway, delete the 'Call Aunt Lisa' item from my todo list.
+  todo_name: Call Aunt Lisa
+  goal_style: unrelated_context
+delete_call_aunt_lisa__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: The wifi's been spotty all day. Unrelated, please delete the 'Call Aunt Lisa' item from my to-do list.
+  todo_name: Call Aunt Lisa
+  goal_style: unrelated_context
+delete_call_aunt_lisa__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: I'm thinking about adopting a cat soon. Separately, could you delete the 'Call Aunt Lisa' item from my todo list?
+  todo_name: Call Aunt Lisa
+  goal_style: unrelated_context
+remove_otto_birthday__casual_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: remove Otto's Birthday from my calendar
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: casual
+remove_otto_birthday__casual_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: can you get rid of Otto's Birthday on my calendar?
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: casual
+remove_otto_birthday__casual_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: drop Otto's Birthday off my calendar, thanks
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: casual
+remove_otto_birthday__formal_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Please remove Otto's Birthday from my calendar.
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: formal
+remove_otto_birthday__formal_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Kindly delete Otto's Birthday from my calendar.
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: formal
+remove_otto_birthday__formal_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I would like Otto's Birthday removed from my calendar.
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: formal
+remove_otto_birthday__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I just repotted all my houseplants — anyway, remove Otto's Birthday from my calendar.
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: unrelated_context
+remove_otto_birthday__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: My favorite mug finally broke today. Unrelated, please remove Otto's Birthday from my calendar.
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: unrelated_context
+remove_otto_birthday__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I've been getting into birdwatching lately. Separately, could you remove Otto's Birthday from my calendar?
+  title: Otto's Birthday
+  date: '1990-04-02'
+  goal_style: unrelated_context
+remove_eccv_2026_paper_deadline__casual_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: remove the ECCV 2026 Paper Deadline event from my calendar
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: casual
+remove_eccv_2026_paper_deadline__casual_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: can you delete the ECCV 2026 Paper Deadline off my calendar?
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: casual
+remove_eccv_2026_paper_deadline__casual_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: get rid of the ECCV 2026 Paper Deadline event on my calendar, thanks
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: casual
+remove_eccv_2026_paper_deadline__formal_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Please remove the ECCV 2026 Paper Deadline event from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: formal
+remove_eccv_2026_paper_deadline__formal_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Kindly delete the event titled 'ECCV 2026 Paper Deadline' from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: formal
+remove_eccv_2026_paper_deadline__formal_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I would like the ECCV 2026 Paper Deadline event removed from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: formal
+remove_eccv_2026_paper_deadline__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I just signed up for a pottery class — anyway, remove the ECCV 2026 Paper Deadline event from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: unrelated_context
+remove_eccv_2026_paper_deadline__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: The leaves are finally changing color outside. Unrelated, please remove the ECCV 2026 Paper Deadline event from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: unrelated_context
+remove_eccv_2026_paper_deadline__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: I reorganized my spice rack this morning. Separately, could you delete the ECCV 2026 Paper Deadline event from my calendar?
+  title: ECCV 2026 Paper Deadline
+  date: '2026-03-06'
+  goal_style: unrelated_context
+remove_times_square_from_favorites__casual_1:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: remove 'Times Square' from my favorite places
+  name: Times Square
+  goal_style: casual
+remove_times_square_from_favorites__casual_2:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: can you take 'Times Square' off my favorites?
+  name: Times Square
+  goal_style: casual
+remove_times_square_from_favorites__casual_3:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: drop 'Times Square' from my favorite places, thanks
+  name: Times Square
+  goal_style: casual
+remove_times_square_from_favorites__formal_1:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: Please remove 'Times Square' from my favorite places.
+  name: Times Square
+  goal_style: formal
+remove_times_square_from_favorites__formal_2:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: Kindly delete 'Times Square' from my list of favorite places.
+  name: Times Square
+  goal_style: formal
+remove_times_square_from_favorites__formal_3:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: I would like 'Times Square' removed from my favorite places.
+  name: Times Square
+  goal_style: formal
+remove_times_square_from_favorites__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: I just tried oat milk for the first time — anyway, remove 'Times Square' from my favorite places.
+  name: Times Square
+  goal_style: unrelated_context
+remove_times_square_from_favorites__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: My phone screen has a tiny crack now, annoying. Unrelated, please remove 'Times Square' from my favorite places.
+  name: Times Square
+  goal_style: unrelated_context
+remove_times_square_from_favorites__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: I've been meaning to frame some old photos. Separately, could you remove 'Times Square' from my favorite places?
+  name: Times Square
+  goal_style: unrelated_context
+navigate_from_todo_to_calendar__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: just hop over to the Calendar app from here
+  source_app: todo
+  target_app: calendar
+  goal_style: casual
+navigate_from_todo_to_calendar__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you jump to the Calendar app from here?
+  source_app: todo
+  target_app: calendar
+  goal_style: casual
+navigate_from_todo_to_calendar__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: pop into the Calendar app from here, thanks
+  source_app: todo
+  target_app: calendar
+  goal_style: casual
+navigate_from_todo_to_calendar__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Calendar application from here.
+  source_app: todo
+  target_app: calendar
+  goal_style: formal
+navigate_from_todo_to_calendar__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly navigate to the Calendar app from the current screen.
+  source_app: todo
+  target_app: calendar
+  goal_style: formal
+navigate_from_todo_to_calendar__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like you to open the Calendar app from here.
+  source_app: todo
+  target_app: calendar
+  goal_style: formal
+navigate_from_todo_to_calendar__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I really need a vacation soon — anyway, open the Calendar app from here.
+  source_app: todo
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_todo_to_calendar__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: My headphones keep disconnecting today. Unrelated, please open the Calendar app from here.
+  source_app: todo
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_todo_to_calendar__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I just learned how to fold a fitted sheet properly. Separately, could you open the Calendar app from here?
+  source_app: todo
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_todo_to_map__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: hop over to the Maps app from here
+  source_app: todo
+  target_app: map
+  goal_style: casual
+navigate_from_todo_to_map__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you jump to the Maps app from here?
+  source_app: todo
+  target_app: map
+  goal_style: casual
+navigate_from_todo_to_map__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: pop into the Maps app from here, thanks
+  source_app: todo
+  target_app: map
+  goal_style: casual
+navigate_from_todo_to_map__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Maps application from here.
+  source_app: todo
+  target_app: map
+  goal_style: formal
+navigate_from_todo_to_map__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly navigate to the Maps app from the current screen.
+  source_app: todo
+  target_app: map
+  goal_style: formal
+navigate_from_todo_to_map__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like you to open the Maps app from here.
+  source_app: todo
+  target_app: map
+  goal_style: formal
+navigate_from_todo_to_map__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: The bakery ran out of croissants again — anyway, open the Maps app from here.
+  source_app: todo
+  target_app: map
+  goal_style: unrelated_context
+navigate_from_todo_to_map__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I've been trying to drink more water lately. Unrelated, please open the Maps app from here.
+  source_app: todo
+  target_app: map
+  goal_style: unrelated_context
+navigate_from_todo_to_map__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: My neighbor got a new puppy and it's adorable. Separately, could you open the Maps app from here?
+  source_app: todo
+  target_app: map
+  goal_style: unrelated_context
+navigate_from_calendar_to_todo__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: hop over to the Todo app from here
+  source_app: calendar
+  target_app: todo
+  goal_style: casual
+navigate_from_calendar_to_todo__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you jump to the Todo app from here?
+  source_app: calendar
+  target_app: todo
+  goal_style: casual
+navigate_from_calendar_to_todo__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: pop into the Todo app from here, thanks
+  source_app: calendar
+  target_app: todo
+  goal_style: casual
+navigate_from_calendar_to_todo__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Todo application from here.
+  source_app: calendar
+  target_app: todo
+  goal_style: formal
+navigate_from_calendar_to_todo__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly navigate to the Todo app from the current screen.
+  source_app: calendar
+  target_app: todo
+  goal_style: formal
+navigate_from_calendar_to_todo__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like you to open the Todo app from here.
+  source_app: calendar
+  target_app: todo
+  goal_style: formal
+navigate_from_calendar_to_todo__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I finally organized my email inbox — anyway, open the Todo app from here.
+  source_app: calendar
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_calendar_to_todo__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: It's way too hot out today. Unrelated, please open the Todo app from here.
+  source_app: calendar
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_calendar_to_todo__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I started a new jigsaw puzzle last night. Separately, could you open the Todo app from here?
+  source_app: calendar
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_calendar_to_messages__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: hop over to the Messages app from here
+  source_app: calendar
+  target_app: messages
+  goal_style: casual
+navigate_from_calendar_to_messages__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you jump to the Messages app from here?
+  source_app: calendar
+  target_app: messages
+  goal_style: casual
+navigate_from_calendar_to_messages__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: pop into the Messages app from here, thanks
+  source_app: calendar
+  target_app: messages
+  goal_style: casual
+navigate_from_calendar_to_messages__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Messages application from here.
+  source_app: calendar
+  target_app: messages
+  goal_style: formal
+navigate_from_calendar_to_messages__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly navigate to the Messages app from the current screen.
+  source_app: calendar
+  target_app: messages
+  goal_style: formal
+navigate_from_calendar_to_messages__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like you to open the Messages app from here.
+  source_app: calendar
+  target_app: messages
+  goal_style: formal
+navigate_from_calendar_to_messages__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: My favorite show got renewed for another season — anyway, open the Messages app from here.
+  source_app: calendar
+  target_app: messages
+  goal_style: unrelated_context
+navigate_from_calendar_to_messages__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: The printer's out of ink again. Unrelated, please open the Messages app from here.
+  source_app: calendar
+  target_app: messages
+  goal_style: unrelated_context
+navigate_from_calendar_to_messages__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I planted some tomatoes on my balcony. Separately, could you open the Messages app from here?
+  source_app: calendar
+  target_app: messages
+  goal_style: unrelated_context
+navigate_from_messages_to_calendar__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: hop over to the Calendar app from here
+  source_app: messages
+  target_app: calendar
+  goal_style: casual
+navigate_from_messages_to_calendar__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you jump to the Calendar app from here?
+  source_app: messages
+  target_app: calendar
+  goal_style: casual
+navigate_from_messages_to_calendar__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: swing into the Calendar app from here, thanks
+  source_app: messages
+  target_app: calendar
+  goal_style: casual
+navigate_from_messages_to_calendar__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Calendar application from here.
+  source_app: messages
+  target_app: calendar
+  goal_style: formal
+navigate_from_messages_to_calendar__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly navigate to the Calendar app from the current screen.
+  source_app: messages
+  target_app: calendar
+  goal_style: formal
+navigate_from_messages_to_calendar__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like you to open the Calendar app from here, please.
+  source_app: messages
+  target_app: calendar
+  goal_style: formal
+navigate_from_messages_to_calendar__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I just found twenty bucks in an old jacket — anyway, open the Calendar app from here.
+  source_app: messages
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_messages_to_calendar__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: My alarm didn't go off this morning, total chaos. Unrelated, please open the Calendar app from here.
+  source_app: messages
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_messages_to_calendar__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I've been getting into jazz records lately. Separately, could you open the Calendar app from here?
+  source_app: messages
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_map_to_todo__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: jump over to the Todo app from here
+  source_app: map
+  target_app: todo
+  goal_style: casual
+navigate_from_map_to_todo__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you pop into the Todo app from here?
+  source_app: map
+  target_app: todo
+  goal_style: casual
+navigate_from_map_to_todo__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: swing into the Todo app from here, thanks
+  source_app: map
+  target_app: todo
+  goal_style: casual
+navigate_from_map_to_todo__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Todo application from here.
+  source_app: map
+  target_app: todo
+  goal_style: formal
+navigate_from_map_to_todo__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly navigate to the Todo app from the current screen, please.
+  source_app: map
+  target_app: todo
+  goal_style: formal
+navigate_from_map_to_todo__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like the Todo app opened from here.
+  source_app: map
+  target_app: todo
+  goal_style: formal
+navigate_from_map_to_todo__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I just beat my running personal best — anyway, open the Todo app from here.
+  source_app: map
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_map_to_todo__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: The grocery store rearranged everything again. Unrelated, please open the Todo app from here.
+  source_app: map
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_map_to_todo__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I'm trying to learn a few chords on guitar. Separately, could you open the Todo app from here?
+  source_app: map
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_map_to_calendar__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: jump over to the Calendar app from here
+  source_app: map
+  target_app: calendar
+  goal_style: casual
+navigate_from_map_to_calendar__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you pop into the Calendar app from here?
+  source_app: map
+  target_app: calendar
+  goal_style: casual
+navigate_from_map_to_calendar__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: swing into the Calendar app from here, thanks
+  source_app: map
+  target_app: calendar
+  goal_style: casual
+navigate_from_map_to_calendar__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Calendar application from here, if you would.
+  source_app: map
+  target_app: calendar
+  goal_style: formal
+navigate_from_map_to_calendar__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly proceed to the Calendar app from the current screen.
+  source_app: map
+  target_app: calendar
+  goal_style: formal
+navigate_from_map_to_calendar__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like the Calendar app opened from here.
+  source_app: map
+  target_app: calendar
+  goal_style: formal
+navigate_from_map_to_calendar__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I finally cleaned out my fridge today — anyway, open the Calendar app from here.
+  source_app: map
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_map_to_calendar__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: There's construction noise outside all morning. Unrelated, please open the Calendar app from here.
+  source_app: map
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_map_to_calendar__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I picked up a new pair of running shoes. Separately, could you open the Calendar app from here?
+  source_app: map
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_from_codeeditor_to_todo__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: jump over to the Todo app from here
+  source_app: codeeditor
+  target_app: todo
+  goal_style: casual
+navigate_from_codeeditor_to_todo__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you hop into the Todo app from here?
+  source_app: codeeditor
+  target_app: todo
+  goal_style: casual
+navigate_from_codeeditor_to_todo__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: pop over to the Todo app from here, thanks
+  source_app: codeeditor
+  target_app: todo
+  goal_style: casual
+navigate_from_codeeditor_to_todo__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please open the Todo application from here, if you would.
+  source_app: codeeditor
+  target_app: todo
+  goal_style: formal
+navigate_from_codeeditor_to_todo__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly proceed to the Todo app from the current screen.
+  source_app: codeeditor
+  target_app: todo
+  goal_style: formal
+navigate_from_codeeditor_to_todo__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like you to navigate to the Todo app from here.
+  source_app: codeeditor
+  target_app: todo
+  goal_style: formal
+navigate_from_codeeditor_to_todo__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I just upgraded my keyboard and it feels great — anyway, open the Todo app from here.
+  source_app: codeeditor
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_codeeditor_to_todo__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: My coffee order took forever this morning. Unrelated, please open the Todo app from here.
+  source_app: codeeditor
+  target_app: todo
+  goal_style: unrelated_context
+navigate_from_codeeditor_to_todo__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I've been meaning to back up my photos. Separately, could you open the Todo app from here?
+  source_app: codeeditor
+  target_app: todo
+  goal_style: unrelated_context
+navigate_to_todo__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: head over to the ToDo app
+  source_app: start_page
+  target_app: todo
+  goal_style: casual
+navigate_to_todo__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you go to the ToDo app?
+  source_app: start_page
+  target_app: todo
+  goal_style: casual
+navigate_to_todo__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: take me to the ToDo app, thanks
+  source_app: start_page
+  target_app: todo
+  goal_style: casual
+navigate_to_todo__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please navigate to the ToDo app.
+  source_app: start_page
+  target_app: todo
+  goal_style: formal
+navigate_to_todo__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly proceed to the ToDo application.
+  source_app: start_page
+  target_app: todo
+  goal_style: formal
+navigate_to_todo__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like to navigate to the ToDo app.
+  source_app: start_page
+  target_app: todo
+  goal_style: formal
+navigate_to_todo__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I just finished reorganizing my closet — anyway, navigate to the ToDo app.
+  source_app: start_page
+  target_app: todo
+  goal_style: unrelated_context
+navigate_to_todo__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: The weather forecast says rain all week. Unrelated, please navigate to the ToDo app.
+  source_app: start_page
+  target_app: todo
+  goal_style: unrelated_context
+navigate_to_todo__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I've started journaling every morning. Separately, could you navigate to the ToDo app?
+  source_app: start_page
+  target_app: todo
+  goal_style: unrelated_context
+navigate_to_calendar__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: head over to the Calendar app
+  source_app: start_page
+  target_app: calendar
+  goal_style: casual
+navigate_to_calendar__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you go to the Calendar app?
+  source_app: start_page
+  target_app: calendar
+  goal_style: casual
+navigate_to_calendar__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: take me to the Calendar app, thanks
+  source_app: start_page
+  target_app: calendar
+  goal_style: casual
+navigate_to_calendar__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please navigate to the Calendar app.
+  source_app: start_page
+  target_app: calendar
+  goal_style: formal
+navigate_to_calendar__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly proceed to the Calendar application.
+  source_app: start_page
+  target_app: calendar
+  goal_style: formal
+navigate_to_calendar__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like to navigate to the Calendar app.
+  source_app: start_page
+  target_app: calendar
+  goal_style: formal
+navigate_to_calendar__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I just tried a new coffee blend this morning — anyway, navigate to the Calendar app.
+  source_app: start_page
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_to_calendar__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: My phone updated overnight and moved all my icons. Unrelated, please navigate to the Calendar app.
+  source_app: start_page
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_to_calendar__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I've been doing a daily crossword lately. Separately, could you navigate to the Calendar app?
+  source_app: start_page
+  target_app: calendar
+  goal_style: unrelated_context
+navigate_to_messenger__casual_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: head over to the Messenger app
+  source_app: start_page
+  target_app: messages
+  goal_style: casual
+navigate_to_messenger__casual_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: can you go to the Messenger app?
+  source_app: start_page
+  target_app: messages
+  goal_style: casual
+navigate_to_messenger__casual_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: take me to the Messenger app, thanks
+  source_app: start_page
+  target_app: messages
+  goal_style: casual
+navigate_to_messenger__formal_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Please navigate to the Messenger app.
+  source_app: start_page
+  target_app: messages
+  goal_style: formal
+navigate_to_messenger__formal_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Kindly proceed to the Messenger application.
+  source_app: start_page
+  target_app: messages
+  goal_style: formal
+navigate_to_messenger__formal_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I would like to navigate to the Messenger app.
+  source_app: start_page
+  target_app: messages
+  goal_style: formal
+navigate_to_messenger__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I finally watered all my plants this morning — anyway, navigate to the Messenger app.
+  source_app: start_page
+  target_app: messages
+  goal_style: unrelated_context
+navigate_to_messenger__unrelated_context_2:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: The bus was ten minutes late today. Unrelated, please navigate to the Messenger app.
+  source_app: start_page
+  target_app: messages
+  goal_style: unrelated_context
+navigate_to_messenger__unrelated_context_3:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: I've been collecting vinyl records lately. Separately, could you navigate to the Messenger app?
+  source_app: start_page
+  target_app: messages
+  goal_style: unrelated_context

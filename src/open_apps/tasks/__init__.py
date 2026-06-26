@@ -63,6 +63,32 @@ def _tasks_yaml_path():
     return config_dir() / "tasks" / "all_tasks.yaml"
 
 
+def _load_tasks_cfg():
+    """Load the task set as a single flat ``{task_key: config}`` map.
+
+    ``all_tasks.yaml`` uses a Hydra-style ``defaults`` list to compose
+    sibling files (e.g. ``original_tasks`` + ``user_goal_variations``).
+    Plain ``OmegaConf.load`` does not resolve that list, so we replicate
+    Hydra's merge here. A plain flat file (no ``defaults`` key) is still
+    loaded as-is for backward compatibility.
+    """
+    path = _tasks_yaml_path()
+    if not path.is_file():
+        return OmegaConf.create({})
+    cfg = OmegaConf.load(path)
+    includes = cfg.pop("defaults", None)
+    if includes is None:
+        return cfg
+    merged = OmegaConf.create({})
+    for name in includes:
+        if name == "_self_":
+            merged = OmegaConf.merge(merged, cfg)
+            continue
+        sub = path.parent / f"{name}.yaml"
+        merged = OmegaConf.merge(merged, OmegaConf.load(sub) or {})
+    return merged
+
+
 def list_task_keys(app: str | None = None) -> list[str]:
     """List task keys from ``all_tasks.yaml``, optionally filtered by env app.
 
@@ -74,7 +100,7 @@ def list_task_keys(app: str | None = None) -> list[str]:
     path = _tasks_yaml_path()
     if not path.is_file():
         return []
-    cfg = OmegaConf.load(path)
+    cfg = _load_tasks_cfg()
     keys: list[str] = []
     for k, v in cfg.items():
         if app is None:
@@ -102,7 +128,7 @@ def load_task(key: str, app: str | None = None) -> Task:
     if not path.is_file():
         raise FileNotFoundError(f"Tasks yaml not found at {path}")
 
-    cfg = OmegaConf.load(path)
+    cfg = _load_tasks_cfg()
     if key not in cfg:
         raise ValueError(
             f"Unknown task key {key!r}. Available: {list(cfg.keys())}"

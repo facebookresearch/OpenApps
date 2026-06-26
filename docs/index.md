@@ -208,6 +208,28 @@ You can modify the set of tasks or app variation by updating the `config_paralle
 * Each deployment of OpenApps can have different appearance and content per app.
 * Each task is launched in an isolated environment for reproducible results.
 
+### Running across goal variations
+
+Every task ships with **goal variations** — the same task with the goal reworded
+in a different style. Styles are `casual`, `formal`, and `unrelated_context`
+(the instruction wrapped in unrelated chit-chat), with 9 variations per task.
+They live in `config/tasks/user_goal_variations.yaml`, keyed
+`<original_task>__<style>_<n>` (e.g. `add_meeting_with_dennis__formal_1`), and
+each one preserves the original task's reward — only the `goal` wording differs
+and a `goal_style` field records the style.
+
+To run agents across **all** tasks and their goal variations in parallel, use
+the dedicated config, which lists every task name swept over a single default
+app variation:
+
+```
+uv run launch_parallel_agents.py \
+  --config-name=config_parallel_tasks_across_goal_variations mode=slurm_cluster
+```
+
+Use `mode=local` to run the jobs sequentially in the current process instead of
+on SLURM. This expands to one isolated job per goal phrasing, letting you
+measure how robust an agent is to how the same task is worded.
 
 ## Testing
 
