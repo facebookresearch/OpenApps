@@ -11,7 +11,7 @@ add_meeting_with_dennis:
 
 add_christmas_shopping_event:
   _target_: open_apps.tasks.tasks.AddEventTask
-  goal: Make a calendar entry for Christmas shopping on the 14th (2025). The title
+  goal: Make a calendar entry for Christmas shopping on December 14th (2025). The title
     should read 'Shopping for Christmas gifts'.
   title: Shopping for Christmas gifts
   date: 2025-12-14
@@ -167,16 +167,19 @@ navigate_from_codeeditor_to_todo:
   target_app: todo
   
 navigate_to_todo:
-  _target_: open_apps.tasks.tasks.NavigateToTask
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
   goal: Navigate to the ToDo app.
-  app_name: "todo"
+  source_app: start_page
+  target_app: todo
 
 navigate_to_calendar:
-  _target_: open_apps.tasks.tasks.NavigateToTask
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
   goal: Navigate to the Calendar app.
-  app_name: "calendar"
+  source_app: start_page
+  target_app: calendar
 
 navigate_to_messenger:
-  _target_: open_apps.tasks.tasks.NavigateToTask
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
   goal: Navigate to the Messenger app.
-  app_name: "messages"
+  source_app: start_page
+  target_app: messages
