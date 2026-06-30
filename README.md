@@ -3,7 +3,9 @@
 
  #  <img width="45" height="45" alt="image" src="https://github.com/user-attachments/assets/6c409d42-6f3a-4a62-be7f-57793d9dad9d" /> OpenApps
  
-*Building Blocks for Digital Agents Research*
+*Building Blocks for Computer-Use Agents Research*
+
+*🏆 ICLR Oral, Top 1%*
 
 [📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766) | [🎬 Video Tutorial](https://www.youtube.com/watch?v=gzNW_LXE7OE)
 </div>
@@ -136,6 +138,12 @@ Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.c
 ## Acknowledgements
 
 A big thank you to Taj Gillin for implementing an MCP interface for OpenApps and Jiayu Wang for suggestions to improve our harness!
+
+## Featured In
+
+* BrowserGym: https://github.com/servicenow/browsergym
+* NE Agents Day (🏆Oral Award) : https://ne-agents-day.github.io/
+* OpenEnv (HugginFace and PyTorch RL environment):  https://huggingface.co/docs/openenv/environments/openapp
 
 ## Cite
 
