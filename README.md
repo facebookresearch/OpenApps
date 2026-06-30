@@ -5,7 +5,7 @@
  
 *Building Blocks for Computer-Use Agents Research*
 
-*🏆 ICLR Oral, Top 1%*
+🏆 ICLR Oral, Top 1%
 
 [📒 docs](https://facebookresearch.github.io/OpenApps/)  | [📑 ArXiV](https://arxiv.org/abs/2511.20766) | [🎬 Video Tutorial](https://www.youtube.com/watch?v=gzNW_LXE7OE)
 </div>
