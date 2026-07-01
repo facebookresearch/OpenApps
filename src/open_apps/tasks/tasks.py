@@ -411,7 +411,7 @@ class DeleteToDoTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -435,7 +435,7 @@ class RemoveLandmarkTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -467,9 +467,14 @@ class NavigateToAppTask(Task):
     target_app: str
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
-        url = current_state.get("_url", "") if isinstance(current_state, dict) else ""
+        # The env passes the live page URL via ``current_url`` (see
+        # add_tasks_to_browsergym.reward). Older callers injected it as
+        # ``current_state['_url']`` -- fall back to that for compatibility.
+        url = current_url or (
+            current_state.get("_url", "") if isinstance(current_state, dict) else ""
+        )
         if not url:
             return False
         try:
