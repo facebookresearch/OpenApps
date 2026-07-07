@@ -92,14 +92,11 @@ class AppStateComparison:
             if "invitees" not in event:
                 continue
             value = event["invitees"]
-            # Hydra/OmegaConf passes list fields as ListConfig, which is NOT a
-            # `list` subclass. Unwrap to plain Python first, else we fall through
-            # and stringify the container into garbage (``[]`` -> ``"[]"``).
-            if OmegaConf.is_config(value):
+            if OmegaConf.is_config(value):  # convert hydra config to python format
                 value = OmegaConf.to_container(value, resolve=True)
-            if isinstance(value, str):
+            if isinstance(value, str):  # convert comma separted strings into a list
                 names = [part.strip() for part in value.split(",") if part.strip()]
-            elif isinstance(value, (list, tuple)):
+            elif isinstance(value, (list, tuple)):  # normalize list/tuple of strings
                 names = [str(part).strip() for part in value if str(part).strip()]
             elif value is None:
                 names = []

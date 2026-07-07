@@ -109,8 +109,6 @@ class OpenAppsTask(AbstractBrowserTask):
     def reward(self) -> float:
         """Return 1.0 if the item was marked as done, else 0.0."""
         current_state = get_current_state(self.url)
-        # Deliver the current page URL to URL-based tasks (NavigateToAppTask)
-        # via a state key rather than a kwarg
         current_state["_url"] = self.page.url.rstrip("/")
 
         return (
