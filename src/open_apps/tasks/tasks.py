@@ -62,6 +62,7 @@ class AppStateComparison:
             del state[k]
         # Temporarily exclude code editor state from task completion comparison.
         state.pop("codeeditor", None)
+        state = self._normalize_calendar_invitees(state)
         state = self._remove_id_key(state)
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
@@ -81,6 +82,27 @@ class AppStateComparison:
                 todo["done"] = False
             elif done_value is True or done_value == 1 or done_value == "1":
                 todo["done"] = True
+        return state
+
+    def _normalize_calendar_invitees(self, state: dict) -> dict:
+        """
+        Canonicalize each calendar event's ``invitees`` to a sorted list.
+        """
+        for event in state["calendar"]:
+            if "invitees" not in event:
+                continue
+            value = event["invitees"]
+            if OmegaConf.is_config(value):  # convert hydra config to python format
+                value = OmegaConf.to_container(value, resolve=True)
+            if isinstance(value, str):  # convert comma separted strings into a list
+                names = [part.strip() for part in value.split(",") if part.strip()]
+            elif isinstance(value, (list, tuple)):  # normalize list/tuple of strings
+                names = [str(part).strip() for part in value if str(part).strip()]
+            elif value is None:
+                names = []
+            else:  # unexpected scalar
+                names = [str(value).strip()] if str(value).strip() else []
+            event["invitees"] = sorted(names)
         return state
 
     def _remove_id_key(self, state: dict) -> dict:
