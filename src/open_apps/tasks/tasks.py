@@ -102,7 +102,7 @@ class AppStateComparison:
                 names = []
             else:  # unexpected scalar
                 names = [str(value).strip()] if str(value).strip() else []
-            event["invitees"] = sorted(names)
+            event["invitees"] = sorted(names, key=StringSimilarityOperator.normalize_string)
         return state
 
     def _remove_id_key(self, state: dict) -> dict:
@@ -114,10 +114,10 @@ class AppStateComparison:
                 del todo["id"]
 
         for event in state["calendar"]:
-            # remove empty values and id key
+            # remove empty values, id, and fields no task compares on
             keys_to_delete = []
             for k, v in event.items():
-                if k == "id" or v is None or v == "" or v == []:
+                if k in ("id", "recurring") or v is None or v == "" or v == []:
                     keys_to_delete.append(k)
             for k in keys_to_delete:
                 del event[k]
@@ -154,7 +154,10 @@ class AppStateComparison:
             ("messenger", "user"),
         ]
         for app, field in app_and_field:
-            state[app] = sorted(state[app], key=lambda p: p[field])
+            state[app] = sorted(
+                state[app],
+                key=lambda p, f=field: StringSimilarityOperator.normalize_string(p[f]),
+            )
         return state
 
     @staticmethod
@@ -246,6 +249,7 @@ class AddEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
+        assert target_state["calendar"], "calendar must be populated"
         if target_state["calendar"][-1] != self.event:
             target_state["calendar"].append(self.event)
         return target_state
@@ -348,7 +352,10 @@ class MarkToDoDoneTask(Task):
     def check_if_task_is_complete(
         self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
-        target_state = self.get_target_state(initial_state)
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
         app_state_comparison = AppStateComparison(target_state, current_state)
         return app_state_comparison.compare()
 
@@ -403,6 +410,7 @@ class SavePlaceTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
+        assert target_state["map"], "map must be populated"
         new_place = {"name": self.name, "coords": [self.latitude, self.longitude]}
         if target_state["map"][-1] != new_place:
             target_state["map"].append(new_place)
@@ -433,7 +441,7 @@ class DeleteToDoTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -457,7 +465,7 @@ class RemoveLandmarkTask(Task):
         return target_state
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
@@ -489,7 +497,7 @@ class NavigateToAppTask(Task):
     target_app: str
 
     def check_if_task_is_complete(
-        self, initial_state: dict, current_state: dict
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         url = current_state.get("_url", "") if isinstance(current_state, dict) else ""
         if not url:
