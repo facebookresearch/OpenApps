@@ -131,11 +131,15 @@ class AppStateComparison:
         return state
 
     def _normalize_map_locations(self, state: dict) -> dict:
-        # sort map locations by name to avoid ordering issues
+        # Reduce each stored name to its primary (first comma-separated)
+        # component, since the map app persists the full OSM address string
+        # (e.g. "Bockelwitz, Leisnig, ..., Deutschland") while tasks may target
+        # just the primary place name (e.g. "Bockelwitz").
         normalized_places = []
-        for i, place in enumerate(state["map"]):
+        for place in state["map"]:
+            name = place["name"].split(",", 1)[0].strip()
             new_place = {
-                "name": place["name"],
+                "name": name,
                 "coords": [int(place["coords"][0] * 10), int(place["coords"][1] * 10)],
             }
             normalized_places.append(new_place)
