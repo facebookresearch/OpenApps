@@ -34,7 +34,7 @@ dependencies = [
     "boto3>=1.40.18",
     "blobfile>=3.1.0",
     "deepdiff>=8.6.1",
-    "mcp>=1.9.0",
+    "mcp>=1.28.1",
     "playwright>=1.44",
     "pillow>=11",
 ]
