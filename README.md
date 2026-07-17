@@ -137,7 +137,8 @@ Copyright © Meta Platforms, Inc. See the [Terms of Use](https://opensource.fb.c
 
 ## Acknowledgements
 
-A big thank you to Taj Gillin for implementing an MCP interface for OpenApps and Jiayu Wang for suggestions to improve our harness!
+* A big thank you to Taj Gillin for implementing an MCP interface for OpenApps and Jiayu Wang for suggestions to improve our harness!
+* Another thank you to Yuval Kansal for fixing inconsistencies in task phrasings!
 
 ## Featured In
 
