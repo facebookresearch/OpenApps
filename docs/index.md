@@ -208,6 +208,21 @@ You can modify the set of tasks or app variation by updating the `config_paralle
 * Each deployment of OpenApps can have different appearance and content per app.
 * Each task is launched in an isolated environment for reproducible results.
 
+To run **every** task in the loaded tasks config (rather than listing a subset by
+hand), set `task_names` to `all`. This expands to all task names defined in the
+selected `tasks=` group, so it composes with any tasks file:
+
+```
+uv run launch_parallel_agents.py \
+  mode=slurm_cluster agent=dummy tasks=longer_horizon \
+  parallel_tasks.task_names=all use_wandb=True
+```
+
+Passing an explicit list (e.g. `parallel_tasks.task_names=[task_a,task_b]`) still
+runs only that subset.
+
+You can also select a task group to run via `tasks=longer_horizon parallel_tasks.task_names=all`.
+
 ### Running across goal variations
 
 Every task ships with **goal variations** — the same task with the goal reworded
