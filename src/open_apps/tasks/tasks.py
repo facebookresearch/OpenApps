@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from abc import ABC, abstractmethod
 import hashlib
+import math
 import re
 from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
@@ -37,6 +38,59 @@ class StringSimilarityOperator(BaseOperator):
         return False
 
 
+# Match the whole coords list (not individual axis entries), so we can compute
+# a joint (lat, lon) distance instead of diffing each axis independently.
+# Path shape: root['map'][0]['coords'].
+MAP_COORDS_REGEX = r"root\['map'\]\[\d+\]\['coords'\]$"
+
+# Latitude/longitude → distance conversion.
+#   1° latitude  ≈ 111 km (≈ 69 mi) everywhere — Earth's meridian / 360.
+#   1° longitude ≈ 111 km × cos(latitude), shrinking toward the poles:
+#       equator (0°) → ~111 km / 69 mi
+#       40°N (NYC)   →  ~85 km / 53 mi
+#       60°N (Oslo)  →  ~55 km / 34 mi
+#   So a 10 km (≈ 6.2 mi) tolerance ≈ 0.09° of latitude, or ~0.11° of
+#   longitude at 40°N. Coords arrive here as int(degrees * 10) from
+#   _normalize_map_locations, so we divide by 10 to recover degrees before
+#   computing the distance.
+_KM_PER_DEGREE_LAT = 111.0
+
+
+class CoordsApproxEqualOperator(BaseOperator):
+    """Treats two map coordinates as equal when their euclidean distance
+    on the ground is within ``tolerance_km``.
+
+    Uses the equirectangular (flat-earth) approximation, which is accurate
+    to well under a percent at the ~10 km scale we care about:
+
+        dlat_km = (lat1 - lat2) * 111
+        dlon_km = (lon1 - lon2) * 111 * cos(mean_lat)
+        distance_km = sqrt(dlat_km² + dlon_km²)
+
+    This absorbs the small drift between where the agent clicked on the
+    map and the exact ground-truth pin, without letting per-axis slack
+    stack into a much larger diagonal error.
+
+    Note that this is unprecise due to long not being lienarly proportional to distance.
+    """
+
+    def __init__(self, tolerance_km: float = 10.0):
+        super().__init__(regex_paths=[MAP_COORDS_REGEX])
+        self.tolerance_km = tolerance_km
+    
+    def give_up_diffing(self, level, diff_instance) -> bool:
+        try:
+            lat1, lon1 = level.t1[0] / 10.0, level.t1[1] / 10.0
+            lat2, lon2 = level.t2[0] / 10.0, level.t2[1] / 10.0
+        except (TypeError, IndexError, ValueError):
+            return False
+        mean_lat_rad = math.radians((lat1 + lat2) / 2)
+        dlat_km = (lat1 - lat2) * _KM_PER_DEGREE_LAT
+        dlon_km = (lon1 - lon2) * _KM_PER_DEGREE_LAT * math.cos(mean_lat_rad)
+        distance_km = math.sqrt(dlat_km ** 2 + dlon_km ** 2)
+        return distance_km <= self.tolerance_km
+
+
 class AppStateComparison:
     """
     Compare two app states for similarity.
@@ -51,6 +105,7 @@ class AppStateComparison:
         state1: dict,
         state2: dict,
         reply_contacts: dict[str, int] | None = None,
+        coords_tolerance_km: float = 10.0,
     ):
         self.raw_state1 = state1
         self.raw_state2 = state2
@@ -65,6 +120,7 @@ class AppStateComparison:
         # targeted contact) still fails the comparison. Empty/None => compare
         # every conversation exactly.
         self.reply_contacts = dict(reply_contacts or {})
+        self.coords_tolerance_km = coords_tolerance_km
 
         self.state1 = self.preprocess(self.raw_state1)
         self.state2 = self.preprocess(self.raw_state2)
@@ -190,6 +246,7 @@ class AppStateComparison:
     def are_dicts_similar(
         dict1: dict,
         dict2: dict,
+        coords_tolerance_km: float = 10.0,
     ) -> bool:
         """
         Compare two dictionaries for similarity, using a custom string comparison function.
@@ -197,11 +254,18 @@ class AppStateComparison:
         Args:
             dict1: First dictionary to compare
             dict2: Second dictionary to compare
+            coords_tolerance_km: Distance (km) within which map coordinates
+                are treated as equal. Default 10 km. Tasks pin a specific
+                city block might want 1–2 km; tasks pinning a country might
+                want 50–100 km.
         """
         diff = DeepDiff(
             dict1,
             dict2,
-            custom_operators=[StringSimilarityOperator(types=[str])],
+            custom_operators=[
+                StringSimilarityOperator(types=[str]),
+                CoordsApproxEqualOperator(tolerance_km=coords_tolerance_km),
+            ],
             ignore_string_type_changes=True,
             ignore_numeric_type_changes=True,
             ignore_nan_inequality=True,
@@ -252,7 +316,9 @@ class AppStateComparison:
         if self.reply_contacts:
             self._truncate_message_replies()
 
-        return self.are_dicts_similar(self.state1, self.state2)
+        return self.are_dicts_similar(
+            self.state1, self.state2, self.coords_tolerance_km
+        )
 
 
 @dataclass
@@ -466,9 +532,28 @@ class SendMessageTask(Task):
 
 @dataclass
 class SavePlaceTask(Task):
+    """Save a place to the map at ``(latitude, longitude)``.
+
+    ``tolerance_km`` optionally overrides the coordinate match radius used
+    for reward scoring. Omit for the 10 km default. Example YAML:
+
+        save_eiffel_tower_to_my_favorite_places:
+          _target_: open_apps.tasks.tasks.SavePlaceTask
+          goal: Save the Eiffel Tower to my favorite places
+          name: Eiffel Tower
+          latitude: 48.8584
+          longitude: 2.2945
+          tolerance_km: 1.0  # city-landmark precision
+
+        save_france_to_my_favorite_places:
+          ...
+          tolerance_km: 100.0  # country-level pin
+    """
+
     name: str
     latitude: float
     longitude: float
+    tolerance_km: float | None = None
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
@@ -487,7 +572,12 @@ class SavePlaceTask(Task):
         self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
-        app_state_comparison = AppStateComparison(target_state, current_state)
+        kwargs = (
+            {"coords_tolerance_km": self.tolerance_km}
+            if self.tolerance_km is not None
+            else {}
+        )
+        app_state_comparison = AppStateComparison(target_state, current_state, **kwargs)
         return app_state_comparison.compare()
 
 
