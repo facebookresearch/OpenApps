@@ -36,7 +36,7 @@ dependencies = [
     "deepdiff>=8.6.1",
     "mcp>=1.9.0",
     "playwright>=1.44",
-    "pillow>=11",
+    "pillow>=12.3.0",
 ]
 
 [project.scripts]
