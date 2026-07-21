@@ -105,6 +105,7 @@ class AppStateComparison:
         state1: dict,
         state2: dict,
         reply_contacts: dict[str, int] | None = None,
+        coords_tolerance_km: float = 10.0,
     ):
         self.raw_state1 = state1
         self.raw_state2 = state2
@@ -119,6 +120,7 @@ class AppStateComparison:
         # targeted contact) still fails the comparison. Empty/None => compare
         # every conversation exactly.
         self.reply_contacts = dict(reply_contacts or {})
+        self.coords_tolerance_km = coords_tolerance_km
 
         self.state1 = self.preprocess(self.raw_state1)
         self.state2 = self.preprocess(self.raw_state2)
@@ -244,6 +246,7 @@ class AppStateComparison:
     def are_dicts_similar(
         dict1: dict,
         dict2: dict,
+        coords_tolerance_km: float = 10.0,
     ) -> bool:
         """
         Compare two dictionaries for similarity, using a custom string comparison function.
@@ -251,13 +254,17 @@ class AppStateComparison:
         Args:
             dict1: First dictionary to compare
             dict2: Second dictionary to compare
+            coords_tolerance_km: Distance (km) within which map coordinates
+                are treated as equal. Default 10 km. Tasks pin a specific
+                city block might want 1–2 km; tasks pinning a country might
+                want 50–100 km.
         """
         diff = DeepDiff(
             dict1,
             dict2,
             custom_operators=[
                 StringSimilarityOperator(types=[str]),
-                CoordsApproxEqualOperator(tolerance_km=10.0),
+                CoordsApproxEqualOperator(tolerance_km=coords_tolerance_km),
             ],
             ignore_string_type_changes=True,
             ignore_numeric_type_changes=True,
@@ -309,7 +316,9 @@ class AppStateComparison:
         if self.reply_contacts:
             self._truncate_message_replies()
 
-        return self.are_dicts_similar(self.state1, self.state2)
+        return self.are_dicts_similar(
+            self.state1, self.state2, self.coords_tolerance_km
+        )
 
 
 @dataclass
@@ -523,9 +532,28 @@ class SendMessageTask(Task):
 
 @dataclass
 class SavePlaceTask(Task):
+    """Save a place to the map at ``(latitude, longitude)``.
+
+    ``tolerance_km`` optionally overrides the coordinate match radius used
+    for reward scoring. Omit for the 10 km default. Example YAML:
+
+        save_eiffel_tower_to_my_favorite_places:
+          _target_: open_apps.tasks.tasks.SavePlaceTask
+          goal: Save the Eiffel Tower to my favorite places
+          name: Eiffel Tower
+          latitude: 48.8584
+          longitude: 2.2945
+          tolerance_km: 1.0  # city-landmark precision
+
+        save_france_to_my_favorite_places:
+          ...
+          tolerance_km: 100.0  # country-level pin
+    """
+
     name: str
     latitude: float
     longitude: float
+    tolerance_km: float | None = None
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
@@ -544,7 +572,12 @@ class SavePlaceTask(Task):
         self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
-        app_state_comparison = AppStateComparison(target_state, current_state)
+        kwargs = (
+            {"coords_tolerance_km": self.tolerance_km}
+            if self.tolerance_km is not None
+            else {}
+        )
+        app_state_comparison = AppStateComparison(target_state, current_state, **kwargs)
         return app_state_comparison.compare()
 
 

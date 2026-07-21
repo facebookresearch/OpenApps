@@ -79,6 +79,16 @@ save_bockelwitz_to_my_favorite_places:
   latitude: 51.1991
   longitude: 12.9568
 
+save_eiffel_tower_to_my_favorite_places:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save the Eiffel Tower to my favorite places
+  name: Eiffel Tower
+  latitude: 48.8584
+  longitude: 2.2945
+  # Landmark-level task: require the pin to be within 500 m of the tower,
+  # not the 10 km default (which would count anywhere in central Paris).
+  tolerance_km: 0.5
+
 # ---- Click-only task set (no text input required) ------------------------
 
 mark_visit_grandma_as_done:
