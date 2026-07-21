@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from abc import ABC, abstractmethod
 import hashlib
+import math
 import re
 from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
@@ -37,29 +38,57 @@ class StringSimilarityOperator(BaseOperator):
         return False
 
 
-# Match int entries inside map coords lists, e.g. root['map'][0]['coords'][1].
-# Coordinates are normalized to int(degrees * 10) in _normalize_map_locations.
-MAP_COORDS_REGEX = r"root\['map'\]\[\d+\]\['coords'\]\[\d+\]$"
+# Match the whole coords list (not individual axis entries), so we can compute
+# a joint (lat, lon) distance instead of diffing each axis independently.
+# Path shape: root['map'][0]['coords'].
+MAP_COORDS_REGEX = r"root\['map'\]\[\d+\]\['coords'\]$"
+
+# Latitude/longitude → distance conversion.
+#   1° latitude  ≈ 111 km (≈ 69 mi) everywhere — Earth's meridian / 360.
+#   1° longitude ≈ 111 km × cos(latitude), shrinking toward the poles:
+#       equator (0°) → ~111 km / 69 mi
+#       40°N (NYC)   →  ~85 km / 53 mi
+#       60°N (Oslo)  →  ~55 km / 34 mi
+#   So a 10 km (≈ 6.2 mi) tolerance ≈ 0.09° of latitude, or ~0.11° of
+#   longitude at 40°N. Coords arrive here as int(degrees * 10) from
+#   _normalize_map_locations, so we divide by 10 to recover degrees before
+#   computing the distance.
+_KM_PER_DEGREE_LAT = 111.0
 
 
 class CoordsApproxEqualOperator(BaseOperator):
-    """Treats map coordinates as equal when within ``tolerance`` of each other.
+    """Treats two map coordinates as equal when their euclidean distance
+    on the ground is within ``tolerance_km``.
 
-    Coords are stored as ``int(degrees * 10)`` after ``_normalize_map_locations``,
-    so ``tolerance=2`` accepts a ±0.2° drift (~22 km at the equator, less at higher
-    latitudes). This absorbs the small differences between where the agent clicked
-    on the map and the exact ground-truth coordinates.
+    Uses the equirectangular (flat-earth) approximation, which is accurate
+    to well under a percent at the ~10 km scale we care about:
+
+        dlat_km = (lat1 - lat2) * 111
+        dlon_km = (lon1 - lon2) * 111 * cos(mean_lat)
+        distance_km = sqrt(dlat_km² + dlon_km²)
+
+    This absorbs the small drift between where the agent clicked on the
+    map and the exact ground-truth pin, without letting per-axis slack
+    stack into a much larger diagonal error.
+
+    Note that this is unprecise due to long not being lienarly proportional to distance.
     """
 
-    def __init__(self, tolerance: int = 2):
+    def __init__(self, tolerance_km: float = 10.0):
         super().__init__(regex_paths=[MAP_COORDS_REGEX])
-        self.tolerance = tolerance
-
+        self.tolerance_km = tolerance_km
+    
     def give_up_diffing(self, level, diff_instance) -> bool:
         try:
-            return abs(level.t1 - level.t2) <= self.tolerance
-        except TypeError:
+            lat1, lon1 = level.t1[0] / 10.0, level.t1[1] / 10.0
+            lat2, lon2 = level.t2[0] / 10.0, level.t2[1] / 10.0
+        except (TypeError, IndexError, ValueError):
             return False
+        mean_lat_rad = math.radians((lat1 + lat2) / 2)
+        dlat_km = (lat1 - lat2) * _KM_PER_DEGREE_LAT
+        dlon_km = (lon1 - lon2) * _KM_PER_DEGREE_LAT * math.cos(mean_lat_rad)
+        distance_km = math.sqrt(dlat_km ** 2 + dlon_km ** 2)
+        return distance_km <= self.tolerance_km
 
 
 class AppStateComparison:
@@ -228,7 +257,7 @@ class AppStateComparison:
             dict2,
             custom_operators=[
                 StringSimilarityOperator(types=[str]),
-                CoordsApproxEqualOperator(tolerance=2),
+                CoordsApproxEqualOperator(tolerance_km=10.0),
             ],
             ignore_string_type_changes=True,
             ignore_numeric_type_changes=True,
