@@ -174,11 +174,9 @@ def delete(id: int):
 
 @rt("/todo")
 def post(title: str):
-    # 计算新待办ID：取现有最大id，无数据则从0开始自增
+    # server assigns unique id
     new_id = max([t.id for t in todos()], default=-1) + 1
-    # 插入新Todo对象，done默认未完成
     todos.upsert(Todo(id=new_id, title=title, done=False))
-    # 返回最新插入的一条数据 + 前端刷新标记
     return todos[-1], mk_input(hx_swap_oob="true")
 
 
