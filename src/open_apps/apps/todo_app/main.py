@@ -173,8 +173,11 @@ def delete(id: int):
 
 
 @rt("/todo")
-def post(todo: Todo):
-    return todos.insert(todo), mk_input(hx_swap_oob="true")
+def post(title: str):
+    # server assigns unique id
+    new_id = max([t.id for t in todos()], default=-1) + 1
+    todos.upsert(Todo(id=new_id, title=title, done=False))
+    return todos[-1], mk_input(hx_swap_oob="true")
 
 
 @rt("/todo/edit/{id}")
