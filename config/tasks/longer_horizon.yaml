@@ -1,0 +1,2288 @@
+# Longer-horizon composite tasks for OpenApps.
+#
+# Each entry is a CompositeTask: several ordinary sub-tasks (add/remove
+# calendar events, add/mark/delete todos, send messages, remove saved
+# landmarks) that must ALL be satisfied. Completion reuses each sub-task's
+# get_target_state threaded together, then the shared AppStateComparison.
+#
+# Standalone file: run with `tasks=longer_horizon` (Hydra) or load directly.
+# `_convert_: all` makes Hydra recursively instantiate the nested sub-tasks.
+# Messenger auto-replies are ignored when checking (the reply is random for
+# anyone but Alice/Bob), bounded by the number of messages the task sends.
+#
+# Every value the agent must produce (event/todo titles, message text) is
+# quoted verbatim in the goal; items the agent selects (events/todos to
+# remove, landmarks) reference existing seed data by name.
+#
+# Difficulty rises with the number of apps/sub-goals and field richness.
+
+
+# ==========================================================================
+# EASY (2 apps / 2 sub-goals)
+# ==========================================================================
+
+plan_elena_birthday_todo_message:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Elena's Birthday' to my calendar for November 20th, 2026. Also add 'Elena's
+    Birthday' to my todo list.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Elena's Birthday' to the calendar on 2026-11-20.
+    title: Elena's Birthday
+    date: '2026-11-20'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Elena's Birthday' to the todo list.
+    todo_name: Elena's Birthday
+    is_done: false
+
+dentist_appt_and_reminder:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Dentist appointment' event to my calendar on 2026-03-12, and add 'Confirm
+    dentist appointment' to my todo list.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Dentist appointment' to the calendar on 2026-03-12.
+    title: Dentist appointment
+    date: '2026-03-12'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Confirm dentist appointment' to the todo list.
+    todo_name: Confirm dentist appointment
+    is_done: false
+
+book_club_event_and_message_alice:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Create a ''Book club'' event on my calendar for 2026-02-05, then message
+    Alice: ''Book club is on for February 5th, hope you can make it!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Book club' to the calendar on 2026-02-05.
+    title: Book club
+    date: '2026-02-05'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Book club is on for February 5th, hope you can make it!
+    expected_reply: null
+
+gym_todo_and_message_bob:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Renew gym membership'' to my todo list, and message Bob: ''Thinking
+    of renewing my gym membership, want to train together?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Renew gym membership' to the todo list.
+    todo_name: Renew gym membership
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Thinking of renewing my gym membership, want to train together?
+    expected_reply: null
+
+mark_meditate_and_garden_event:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Mark 'Meditate for 30' as done on my todo list, and add a 'Garden day' event
+    to my calendar on 2026-04-11.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Meditate for 30' as done.
+    todo_name: Meditate for 30
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Garden day' to the calendar on 2026-04-11.
+    title: Garden day
+    date: '2026-04-11'
+    description: null
+    location: null
+    url: null
+    invitees: []
+
+flight_event_and_packing_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Flight to Lisbon' to my calendar on 2026-06-14, and add 'Pack suitcase'
+    to my todo list.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Flight to Lisbon' to the calendar on 2026-06-14.
+    title: Flight to Lisbon
+    date: '2026-06-14'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Pack suitcase' to the todo list.
+    todo_name: Pack suitcase
+    is_done: false
+
+message_charlie_and_reading_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Message Charlie: ''You should read the original transformer paper, it''s
+    a classic!'' and add ''Read the transformer paper'' to my todo list.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: You should read the original transformer paper, it's a classic!
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Read the transformer paper' to the todo list.
+    todo_name: Read the transformer paper
+    is_done: false
+
+standup_event_and_prep_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Put a 'Team standup' event on my calendar for 2026-01-19 and add 'Prepare
+    standup notes' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Team standup' to the calendar on 2026-01-19.
+    title: Team standup
+    date: '2026-01-19'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Prepare standup notes' to the todo list.
+    todo_name: Prepare standup notes
+    is_done: false
+
+remove_cpal_and_message_alice:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'The CPAL 2025 Deadline was cancelled — remove it from my calendar, and message
+    Alice: ''Heads up: the CPAL 2025 deadline was cancelled.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'CPAL 2025 Deadline' from the calendar.
+    title: CPAL 2025 Deadline
+    date: '2025-11-25'
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: 'Heads up: the CPAL 2025 deadline was cancelled.'
+    expected_reply: null
+
+mark_buy_groceries_and_message_bob:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Mark ''Buy groceries'' as done, then message Bob: ''Got the groceries, dinner
+    is sorted for tonight!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Buy groceries' as done.
+    todo_name: Buy groceries
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Got the groceries, dinner is sorted for tonight!
+    expected_reply: null
+
+anniversary_event_and_flowers_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Wedding anniversary' to my calendar on 2026-09-09, and add 'Order flowers'
+    to my todo list.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Wedding anniversary' to the calendar on 2026-09-09.
+    title: Wedding anniversary
+    date: '2026-09-09'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Order flowers' to the todo list.
+    todo_name: Order flowers
+    is_done: false
+
+remove_times_square_and_add_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Remove 'Times Square' from my favorite places, and add 'Plan NYC itinerary'
+    to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Times Square' from favorite places.
+    name: Times Square
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Plan NYC itinerary' to the todo list.
+    todo_name: Plan NYC itinerary
+    is_done: false
+
+payday_event_and_budget_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Payday' to my calendar for 2026-01-31, and add 'Review monthly budget'
+    to my todo list.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Payday' to the calendar on 2026-01-31.
+    title: Payday
+    date: '2026-01-31'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Review monthly budget' to the todo list.
+    todo_name: Review monthly budget
+    is_done: false
+
+message_alice_and_mark_answer_emails:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Message Alice: ''Just replied to your email, take a look when you can!''
+    and mark ''Answer emails'' as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Just replied to your email, take a look when you can!
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Answer emails' as done.
+    todo_name: Answer emails
+
+vaccination_event_and_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Flu shot' appointment on 2026-10-05 to my calendar, and add 'Bring
+    insurance card' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Flu shot' to the calendar on 2026-10-05.
+    title: Flu shot
+    date: '2026-10-05'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Bring insurance card' to the todo list.
+    todo_name: Bring insurance card
+    is_done: false
+
+delete_answer_emails_and_message_alice:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Delete ''Answer emails'' from my todo list, and message Alice: ''Declaring
+    inbox bankruptcy — starting fresh!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DeleteToDoTask
+    goal: Delete 'Answer emails' from the todo list.
+    todo_name: Answer emails
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Declaring inbox bankruptcy — starting fresh!
+    expected_reply: null
+
+concert_event_and_message_charlie:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Jazz concert'' event to my calendar on 2026-04-18, and message Charlie:
+    ''There''s a jazz concert on April 18th, want to come?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Jazz concert' to the calendar on 2026-04-18.
+    title: Jazz concert
+    date: '2026-04-18'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: There's a jazz concert on April 18th, want to come?
+    expected_reply: null
+
+mark_check_budget_and_add_event:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Mark 'Check budget' as done, then add a 'Quarterly review' event on 2026-03-31.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Quarterly review' to the calendar on 2026-03-31.
+    title: Quarterly review
+    date: '2026-03-31'
+    description: null
+    location: null
+    url: null
+    invitees: []
+
+remove_central_park_and_message_bob:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove ''Central Park'' from my favorite places, and message Bob: ''I took
+    Central Park off my saved places, we can pick a new spot.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Central Park' from favorite places.
+    name: Central Park
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: I took Central Park off my saved places, we can pick a new spot.
+    expected_reply: null
+
+oil_change_event_and_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Car service' event to my calendar on 2026-05-02 and add 'Find receipts
+    for warranty' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Car service' to the calendar on 2026-05-02.
+    title: Car service
+    date: '2026-05-02'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Find receipts for warranty' to the todo list.
+    todo_name: Find receipts for warranty
+    is_done: false
+
+message_charlie_and_mark_walk:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Message Charlie: ''Started walking every day, feeling great!'' and mark ''Walk
+    for 20 minutes'' as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Started walking every day, feeling great!
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Walk for 20 minutes' as done.
+    todo_name: Walk for 20 minutes
+
+housewarming_event_and_gift_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Housewarming party' event on 2026-07-11, and add 'Buy a housewarming
+    gift' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Housewarming party' to the calendar on 2026-07-11.
+    title: Housewarming party
+    date: '2026-07-11'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy a housewarming gift' to the todo list.
+    todo_name: Buy a housewarming gift
+    is_done: false
+
+remove_zack_birthday_and_add_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Remove 'Zack's Birthday' from my calendar and add 'Message Zack directly'
+    to my todo list.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'Zack's Birthday' from the calendar.
+    title: Zack's Birthday
+    date: '1995-07-30'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Message Zack directly' to the todo list.
+    todo_name: Message Zack directly
+    is_done: false
+
+interview_event_and_message_alice:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Job interview'' event to my calendar on 2026-02-24, and message Alice:
+    ''Got an interview on the 24th — any tips?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Job interview' to the calendar on 2026-02-24.
+    title: Job interview
+    date: '2026-02-24'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Got an interview on the 24th — any tips?
+    expected_reply: null
+
+mark_visit_grandma_and_add_event:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Mark 'Visit grandma' as done, and schedule a 'Family lunch' event on my calendar
+    for 2026-03-15.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Visit grandma' as done.
+    todo_name: Visit grandma
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Family lunch' to the calendar on 2026-03-15.
+    title: Family lunch
+    date: '2026-03-15'
+    description: null
+    location: null
+    url: null
+    invitees: []
+
+recycling_todo_and_message_bob:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Take out recycling'' to my todo list, and message Bob: ''Don''t forget
+    it''s recycling day tomorrow!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Take out recycling' to the todo list.
+    todo_name: Take out recycling
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Don't forget it's recycling day tomorrow!
+    expected_reply: null
+
+workshop_event_and_slides_todo:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Design workshop' event on 2026-06-03, and add 'Finish workshop slides'
+    to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Design workshop' to the calendar on 2026-06-03.
+    title: Design workshop
+    date: '2026-06-03'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Finish workshop slides' to the todo list.
+    todo_name: Finish workshop slides
+    is_done: false
+
+delete_update_calendar_and_message_charlie:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Delete ''Update calendar'' from my todo list, and message Charlie: ''Calendar
+    is finally all caught up!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DeleteToDoTask
+    goal: Delete 'Update calendar' from the todo list.
+    todo_name: Update calendar
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Calendar is finally all caught up!
+    expected_reply: null
+
+
+# ==========================================================================
+# MEDIUM (3 apps / 3 sub-goals)
+# ==========================================================================
+
+elena_birthday_full:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Elena''s Birthday'' to my calendar for November 20th, 2026. Also add
+    ''Elena''s Birthday'' to my todo list, and message Charlie: ''Don''t forget Elena''s
+    birthday on November 20th!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Elena's Birthday' to the calendar on 2026-11-20.
+    title: Elena's Birthday
+    date: '2026-11-20'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Elena's Birthday' to the todo list.
+    todo_name: Elena's Birthday
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Don't forget Elena's birthday on November 20th!
+    expected_reply: null
+
+mom_birthday_plan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Mom''s Birthday'' to my calendar on 2026-05-10, add ''Bake a cake''
+    to my todo list, and message Alice: ''Planning a surprise for Mom''s birthday
+    on May 10th, can you help?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Mom's Birthday' to the calendar on 2026-05-10.
+    title: Mom's Birthday
+    date: '2026-05-10'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Bake a cake' to the todo list.
+    todo_name: Bake a cake
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Planning a surprise for Mom's birthday on May 10th, can you help?
+    expected_reply: null
+
+conference_trip_setup:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Put ''ICML travel'' on my calendar for 2026-07-20, add ''Book conference
+    hotel'' to my todos, and message Bob: ''Booking ICML travel for July 20th — want
+    to coordinate flights?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'ICML travel' to the calendar on 2026-07-20.
+    title: ICML travel
+    date: '2026-07-20'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Book conference hotel' to the todo list.
+    todo_name: Book conference hotel
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Booking ICML travel for July 20th — want to coordinate flights?
+    expected_reply: null
+
+move_apartment:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Moving day'' to my calendar on 2026-08-01, add ''Reserve moving truck''
+    to my todos, and message Charlie: ''Moving on August 1st — could you lend a hand?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Moving day' to the calendar on 2026-08-01.
+    title: Moving day
+    date: '2026-08-01'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Reserve moving truck' to the todo list.
+    todo_name: Reserve moving truck
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Moving on August 1st — could you lend a hand?
+    expected_reply: null
+
+weekend_hike:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Schedule a ''Weekend hike'' on 2026-04-25, add ''Charge headlamp'' to my
+    todos, and message Bob: ''Weekend hike on the 25th — you in?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Weekend hike' to the calendar on 2026-04-25.
+    title: Weekend hike
+    date: '2026-04-25'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Charge headlamp' to the todo list.
+    todo_name: Charge headlamp
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Weekend hike on the 25th — you in?
+    expected_reply: null
+
+dinner_party_prep:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Dinner party' event on 2026-02-14, add 'Plan the menu' to my todo list,
+    and mark 'Buy groceries' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Dinner party' to the calendar on 2026-02-14.
+    title: Dinner party
+    date: '2026-02-14'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Plan the menu' to the todo list.
+    todo_name: Plan the menu
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Buy groceries' as done.
+    todo_name: Buy groceries
+
+cleanup_and_new_plan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Delete ''Answer emails'' from my todos, add ''Inbox zero Friday'' to my calendar
+    on 2026-01-23, and message Alice: ''Trying a new inbox zero Friday routine, starting
+    Jan 23rd.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DeleteToDoTask
+    goal: Delete 'Answer emails' from the todo list.
+    todo_name: Answer emails
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Inbox zero Friday' to the calendar on 2026-01-23.
+    title: Inbox zero Friday
+    date: '2026-01-23'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Trying a new inbox zero Friday routine, starting Jan 23rd.
+    expected_reply: null
+
+doctor_followup:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Doctor follow-up' event on 2026-03-19, mark 'Sort medical papers' as
+    done, and add 'Pick up prescription' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Doctor follow-up' to the calendar on 2026-03-19.
+    title: Doctor follow-up
+    date: '2026-03-19'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Sort medical papers' as done.
+    todo_name: Sort medical papers
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Pick up prescription' to the todo list.
+    todo_name: Pick up prescription
+    is_done: false
+
+cancel_and_reschedule_iclr:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''ICLR 2026 Paper Deadline'' from my calendar, add ''Email co-author
+    about extension'' to my todos, and message Charlie: ''The ICLR paper deadline
+    got pulled from my calendar — let''s regroup.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'ICLR 2026 Paper Deadline' from the calendar.
+    title: ICLR 2026 Paper Deadline
+    date: '2025-09-25'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Email co-author about extension' to the todo list.
+    todo_name: Email co-author about extension
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: The ICLR paper deadline got pulled from my calendar — let's regroup.
+    expected_reply: null
+
+birthday_dad_plan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Dad''s dinner'' to my calendar on 2026-02-28, add ''Reserve restaurant''
+    to my todos, and message Bob: ''Dinner for Dad on Feb 28th — hope you can join!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Dad's dinner' to the calendar on 2026-02-28.
+    title: Dad's dinner
+    date: '2026-02-28'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Reserve restaurant' to the todo list.
+    todo_name: Reserve restaurant
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Dinner for Dad on Feb 28th — hope you can join!
+    expected_reply: null
+
+study_group:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Schedule a ''Study group'' on 2026-05-16, add ''Print practice exams'' to
+    my todos, and message Alice: ''Study group on May 16th — can you book the room?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Study group' to the calendar on 2026-05-16.
+    title: Study group
+    date: '2026-05-16'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Print practice exams' to the todo list.
+    todo_name: Print practice exams
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Study group on May 16th — can you book the room?
+    expected_reply: null
+
+volunteer_day:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Volunteer day' event on 2026-06-27, add 'Sign the waiver' to my todos,
+    and mark 'Answer emails' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Volunteer day' to the calendar on 2026-06-27.
+    title: Volunteer day
+    date: '2026-06-27'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Sign the waiver' to the todo list.
+    todo_name: Sign the waiver
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Answer emails' as done.
+    todo_name: Answer emails
+
+garden_project:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Start the garden'' to my calendar on 2026-04-04, add ''Buy seeds''
+    to my todo list, and message Charlie: ''Starting a garden on April 4th — any beginner
+    tips?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Start the garden' to the calendar on 2026-04-04.
+    title: Start the garden
+    date: '2026-04-04'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy seeds' to the todo list.
+    todo_name: Buy seeds
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Starting a garden on April 4th — any beginner tips?
+    expected_reply: null
+
+remove_deadline_and_replan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''3DV 2026 Deadline'' from my calendar, add ''Draft new timeline''
+    to my todos, and message Bob: ''3DV deadline is off — I''ll draft a new timeline
+    for us.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove '3DV 2026 Deadline' from the calendar.
+    title: 3DV 2026 Deadline
+    date: '2025-08-18'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Draft new timeline' to the todo list.
+    todo_name: Draft new timeline
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: 3DV deadline is off — I'll draft a new timeline for us.
+    expected_reply: null
+
+recital_plan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Piano recital'' to my calendar on 2026-05-30, add ''Practice the sonata''
+    to my todos, and message Alice: ''My piano recital is May 30th — would love for
+    you to come!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Piano recital' to the calendar on 2026-05-30.
+    title: Piano recital
+    date: '2026-05-30'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Practice the sonata' to the todo list.
+    todo_name: Practice the sonata
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: My piano recital is May 30th — would love for you to come!
+    expected_reply: null
+
+marathon_training:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Marathon' event on 2026-10-11, add 'Buy running shoes' to my todos,
+    and mark 'Walk for 20 minutes' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Marathon' to the calendar on 2026-10-11.
+    title: Marathon
+    date: '2026-10-11'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy running shoes' to the todo list.
+    todo_name: Buy running shoes
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Walk for 20 minutes' as done.
+    todo_name: Walk for 20 minutes
+
+tax_season:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'File taxes' to my calendar on 2026-04-15, add 'Gather receipts' to my
+    todos, and mark 'Check budget' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'File taxes' to the calendar on 2026-04-15.
+    title: File taxes
+    date: '2026-04-15'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Gather receipts' to the todo list.
+    todo_name: Gather receipts
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+
+cabin_weekend:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Schedule a ''Cabin weekend'' on 2026-09-18, add ''Buy firewood'' to my todos,
+    and message Charlie: ''Cabin weekend Sept 18th — want to split the drive?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Cabin weekend' to the calendar on 2026-09-18.
+    title: Cabin weekend
+    date: '2026-09-18'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy firewood' to the todo list.
+    todo_name: Buy firewood
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Cabin weekend Sept 18th — want to split the drive?
+    expected_reply: null
+
+remove_landmark_trip_replan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Remove 'Brooklyn Bridge' from my favorite places, add 'Research new landmarks'
+    to my todos, and add a 'Trip planning' event on 2026-05-05.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Brooklyn Bridge' from favorite places.
+    name: Brooklyn Bridge
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Research new landmarks' to the todo list.
+    todo_name: Research new landmarks
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Trip planning' to the calendar on 2026-05-05.
+    title: Trip planning
+    date: '2026-05-05'
+    description: null
+    location: null
+    url: null
+    invitees: []
+
+photo_shoot:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Family photo shoot' on 2026-11-07, add 'Pick out outfits' to my todos,
+    and mark 'Answer emails' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Family photo shoot' to the calendar on 2026-11-07.
+    title: Family photo shoot
+    date: '2026-11-07'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Pick out outfits' to the todo list.
+    todo_name: Pick out outfits
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Answer emails' as done.
+    todo_name: Answer emails
+
+charlie_birthday_surprise:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Charlie''s surprise party'' to my calendar on 2026-09-08, add ''Order
+    the cake'' to my todos, and message Alice: ''Charlie''s surprise party is Sept
+    8th — keep it quiet!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Charlie's surprise party' to the calendar on 2026-09-08.
+    title: Charlie's surprise party
+    date: '2026-09-08'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Order the cake' to the todo list.
+    todo_name: Order the cake
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Charlie's surprise party is Sept 8th — keep it quiet!
+    expected_reply: null
+
+spring_cleaning:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Spring cleaning' to my calendar on 2026-03-21, mark 'Sort medical papers'
+    as done, and add 'Donate old clothes' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Spring cleaning' to the calendar on 2026-03-21.
+    title: Spring cleaning
+    date: '2026-03-21'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Sort medical papers' as done.
+    todo_name: Sort medical papers
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Donate old clothes' to the todo list.
+    todo_name: Donate old clothes
+    is_done: false
+
+remove_chi_and_notify:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''CHI 2026 Paper Deadline'' from my calendar, add ''Notify the
+    team'' to my todos, and message Bob: ''CHI paper deadline removed — I''ll notify
+    the rest of the team.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'CHI 2026 Paper Deadline' from the calendar.
+    title: CHI 2026 Paper Deadline
+    date: '2025-09-11'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Notify the team' to the todo list.
+    todo_name: Notify the team
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: CHI paper deadline removed — I'll notify the rest of the team.
+    expected_reply: null
+
+cooking_class:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Cooking class'' on 2026-02-11, add ''Buy an apron'' to my todos,
+    and message Charlie: ''Cooking class Feb 11th — want to sign up with me?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Cooking class' to the calendar on 2026-02-11.
+    title: Cooking class
+    date: '2026-02-11'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy an apron' to the todo list.
+    todo_name: Buy an apron
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Cooking class Feb 11th — want to sign up with me?
+    expected_reply: null
+
+quarterly_planning:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Q2 planning' to my calendar on 2026-04-01, mark 'Update calendar' as
+    done, and add 'Draft OKRs' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Q2 planning' to the calendar on 2026-04-01.
+    title: Q2 planning
+    date: '2026-04-01'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Update calendar' as done.
+    todo_name: Update calendar
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Draft OKRs' to the todo list.
+    todo_name: Draft OKRs
+    is_done: false
+
+road_trip:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Schedule a ''Coastal road trip'' on 2026-07-04, add ''Service the car'' to
+    my todos, and message Bob: ''Coastal road trip July 4th — you''re on playlist
+    duty!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Coastal road trip' to the calendar on 2026-07-04.
+    title: Coastal road trip
+    date: '2026-07-04'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Service the car' to the todo list.
+    todo_name: Service the car
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Coastal road trip July 4th — you're on playlist duty!
+    expected_reply: null
+
+meal_prep_week:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Meal prep Sunday' to my calendar on 2026-01-11, mark 'Plan weekly meals'
+    as done, and add 'Buy containers' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Meal prep Sunday' to the calendar on 2026-01-11.
+    title: Meal prep Sunday
+    date: '2026-01-11'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Plan weekly meals' as done.
+    todo_name: Plan weekly meals
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy containers' to the todo list.
+    todo_name: Buy containers
+    is_done: false
+
+remove_landmark_and_add_two:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Remove 'Statue of Liberty' from my favorites, add 'Plan museum day' to my
+    todos, and add a 'Museum visit' event on 2026-05-23.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Statue of Liberty' from favorite places.
+    name: Statue of Liberty
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Plan museum day' to the todo list.
+    todo_name: Plan museum day
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Museum visit' to the calendar on 2026-05-23.
+    title: Museum visit
+    date: '2026-05-23'
+    description: null
+    location: null
+    url: null
+    invitees: []
+
+baby_shower:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Baby shower'' event on 2026-06-20, add ''Wrap the gift'' to my todos,
+    and message Alice: ''Baby shower June 20th — want to carpool?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Baby shower' to the calendar on 2026-06-20.
+    title: Baby shower
+    date: '2026-06-20'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Wrap the gift' to the todo list.
+    todo_name: Wrap the gift
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Baby shower June 20th — want to carpool?
+    expected_reply: null
+
+remove_satml_and_replan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''SATML 2026 Deadline'' from my calendar, add ''Repurpose the
+    draft'' to my todos, and message Charlie: ''SATML deadline is gone — thinking
+    of repurposing the draft.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'SATML 2026 Deadline' from the calendar.
+    title: SATML 2026 Deadline
+    date: '2025-09-24'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Repurpose the draft' to the todo list.
+    todo_name: Repurpose the draft
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: SATML deadline is gone — thinking of repurposing the draft.
+    expected_reply: null
+
+language_lessons:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Spanish lesson' to my calendar on 2026-02-03, add 'Download flashcards'
+    to my todos, and mark 'Read before bed' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Spanish lesson' to the calendar on 2026-02-03.
+    title: Spanish lesson
+    date: '2026-02-03'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Download flashcards' to the todo list.
+    todo_name: Download flashcards
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Read before bed' as done.
+    todo_name: Read before bed
+
+charity_run:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Charity 5K'' event on 2026-05-09, add ''Collect pledges'' to my todos,
+    and message Bob: ''Running a charity 5K on May 9th — join my team?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Charity 5K' to the calendar on 2026-05-09.
+    title: Charity 5K
+    date: '2026-05-09'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Collect pledges' to the todo list.
+    todo_name: Collect pledges
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Running a charity 5K on May 9th — join my team?
+    expected_reply: null
+
+home_repair:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Plumber visit' to my calendar on 2026-03-06, add 'Clear under the sink'
+    to my todos, and mark 'Check budget' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Plumber visit' to the calendar on 2026-03-06.
+    title: Plumber visit
+    date: '2026-03-06'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Clear under the sink' to the todo list.
+    todo_name: Clear under the sink
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+
+reunion_plan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Schedule a ''Class reunion'' on 2026-08-22, add ''Find the old yearbook''
+    to my todos, and message Charlie: ''Class reunion Aug 22nd — help me spread the
+    word?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Class reunion' to the calendar on 2026-08-22.
+    title: Class reunion
+    date: '2026-08-22'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Find the old yearbook' to the todo list.
+    todo_name: Find the old yearbook
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Class reunion Aug 22nd — help me spread the word?
+    expected_reply: null
+
+delete_and_add_and_message:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Delete ''Tidy living room'' from my todos, add ''Deep clean the kitchen''
+    to my todos, and message Alice: ''On a cleaning spree today — kitchen is next!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DeleteToDoTask
+    goal: Delete 'Tidy living room' from the todo list.
+    todo_name: Tidy living room
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Deep clean the kitchen' to the todo list.
+    todo_name: Deep clean the kitchen
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: On a cleaning spree today — kitchen is next!
+    expected_reply: null
+
+startup_pitch:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Investor pitch'' event on 2026-04-09, add ''Rehearse the deck'' to
+    my todos, and message Bob: ''Investor pitch April 9th — mind reviewing my deck?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Investor pitch' to the calendar on 2026-04-09.
+    title: Investor pitch
+    date: '2026-04-09'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Rehearse the deck' to the todo list.
+    todo_name: Rehearse the deck
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Investor pitch April 9th — mind reviewing my deck?
+    expected_reply: null
+
+wine_tasting:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Wine tasting'' to my calendar on 2026-10-24, add ''Arrange a ride home''
+    to my todos, and message Charlie: ''Wine tasting Oct 24th — want to come?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Wine tasting' to the calendar on 2026-10-24.
+    title: Wine tasting
+    date: '2026-10-24'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Arrange a ride home' to the todo list.
+    todo_name: Arrange a ride home
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Wine tasting Oct 24th — want to come?
+    expected_reply: null
+
+remove_lrec_and_notify:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''LREC 2026 Deadline'' from my calendar, mark ''Answer emails''
+    as done, and message Alice: ''LREC deadline was removed from my calendar — plans
+    changed.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'LREC 2026 Deadline' from the calendar.
+    title: LREC 2026 Deadline
+    date: '2025-10-17'
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Answer emails' as done.
+    todo_name: Answer emails
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: LREC deadline was removed from my calendar — plans changed.
+    expected_reply: null
+
+art_exhibit:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add an ''Art exhibit opening'' event on 2026-06-06, add ''RSVP to the gallery''
+    to my todos, and message Bob: ''Art exhibit opens June 6th — meet me there?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Art exhibit opening' to the calendar on 2026-06-06.
+    title: Art exhibit opening
+    date: '2026-06-06'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'RSVP to the gallery' to the todo list.
+    todo_name: RSVP to the gallery
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Art exhibit opens June 6th — meet me there?
+    expected_reply: null
+
+bike_maintenance:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Bike tune-up' to my calendar on 2026-03-28, add 'Buy a new chain' to
+    my todos, and mark 'Walk for 20 minutes' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Bike tune-up' to the calendar on 2026-03-28.
+    title: Bike tune-up
+    date: '2026-03-28'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy a new chain' to the todo list.
+    todo_name: Buy a new chain
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Walk for 20 minutes' as done.
+    todo_name: Walk for 20 minutes
+
+thanksgiving_prep:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Thanksgiving dinner'' to my calendar on 2026-11-26, add ''Brine the
+    turkey'' to my todos, and message Charlie: ''Thanksgiving is Nov 26th — could
+    you bring dessert?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Thanksgiving dinner' to the calendar on 2026-11-26.
+    title: Thanksgiving dinner
+    date: '2026-11-26'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Brine the turkey' to the todo list.
+    todo_name: Brine the turkey
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Thanksgiving is Nov 26th — could you bring dessert?
+    expected_reply: null
+
+remove_otto_and_reach_out:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove ''Otto''s Birthday'' from my calendar, add ''Call Otto instead'' to
+    my todos, and message Alice: ''Took Otto''s birthday off my calendar — I''ll just
+    call him.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'Otto's Birthday' from the calendar.
+    title: Otto's Birthday
+    date: '1990-04-02'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Call Otto instead' to the todo list.
+    todo_name: Call Otto instead
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Took Otto's birthday off my calendar — I'll just call him.
+    expected_reply: null
+
+new_year_setup:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'New Year resolutions' to my calendar on 2026-01-01, add 'Buy a planner'
+    to my todos, and mark 'Meditate for 30' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'New Year resolutions' to the calendar on 2026-01-01.
+    title: New Year resolutions
+    date: '2026-01-01'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy a planner' to the todo list.
+    todo_name: Buy a planner
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Meditate for 30' as done.
+    todo_name: Meditate for 30
+
+remove_empire_state_replan:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove ''Empire State Building'' from my favorites, add ''Book observation
+    deck tickets'' to my todos, and message Bob: ''Dropped the Empire State from favorites
+    — booking deck tickets instead.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Empire State Building' from favorite places.
+    name: Empire State Building
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Book observation deck tickets' to the todo list.
+    todo_name: Book observation deck tickets
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Dropped the Empire State from favorites — booking deck tickets instead.
+    expected_reply: null
+
+puppy_adoption:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Adopt the puppy'' to my calendar on 2026-07-18, add ''Buy dog food''
+    to my todos, and message Charlie: ''We''re adopting a puppy on July 18th!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Adopt the puppy' to the calendar on 2026-07-18.
+    title: Adopt the puppy
+    date: '2026-07-18'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy dog food' to the todo list.
+    todo_name: Buy dog food
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: We're adopting a puppy on July 18th!
+    expected_reply: null
+
+board_meeting:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Board meeting' on 2026-02-17, mark 'Check budget' as done, and add
+    'Print the agenda' to my todos.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Board meeting' to the calendar on 2026-02-17.
+    title: Board meeting
+    date: '2026-02-17'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Print the agenda' to the todo list.
+    todo_name: Print the agenda
+    is_done: false
+
+summer_camp:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Summer camp drop-off'' to my calendar on 2026-06-29, add ''Label the
+    gear'' to my todos, and message Alice: ''Camp drop-off is June 29th — can you
+    handle pickup?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Summer camp drop-off' to the calendar on 2026-06-29.
+    title: Summer camp drop-off
+    date: '2026-06-29'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Label the gear' to the todo list.
+    todo_name: Label the gear
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Camp drop-off is June 29th — can you handle pickup?
+    expected_reply: null
+
+delete_two_context:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Delete ''Read before bed'' from my todos, add ''Start an audiobook'' to my
+    todos, and message Charlie: ''Switching to audiobooks — got a recommendation?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DeleteToDoTask
+    goal: Delete 'Read before bed' from the todo list.
+    todo_name: Read before bed
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Start an audiobook' to the todo list.
+    todo_name: Start an audiobook
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Switching to audiobooks — got a recommendation?
+    expected_reply: null
+
+
+# ==========================================================================
+# HARD (4 apps, or rich multi-field sub-goals)
+# ==========================================================================
+
+full_birthday_and_cleanup:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Elena''s Birthday'' to my calendar for 2026-11-20 with Charlie and
+    Alice invited, add ''Buy Elena a gift'' to my todos, message Charlie: ''Elena''s
+    birthday is Nov 20th — you and Alice are invited!'', and remove ''Times Square''
+    from my favorite places.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Elena's Birthday' to the calendar on 2026-11-20.
+    title: Elena's Birthday
+    date: '2026-11-20'
+    description: null
+    location: null
+    url: null
+    invitees:
+    - Charlie
+    - Alice
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy Elena a gift' to the todo list.
+    todo_name: Buy Elena a gift
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Elena's birthday is Nov 20th — you and Alice are invited!
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Times Square' from favorite places.
+    name: Times Square
+
+conference_full_setup:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''NeurIPS trip'' to my calendar on 2026-12-08 with location San Diego
+    and the description ''Poster session Tuesday'', add ''Print the poster'' to my
+    todos, message Bob: ''NeurIPS trip is Dec 8th — want to split a hotel?'', and
+    mark ''Check budget'' as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'NeurIPS trip' to the calendar on 2026-12-08.
+    title: NeurIPS trip
+    date: '2026-12-08'
+    description: Poster session Tuesday
+    location: San Diego
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Print the poster' to the todo list.
+    todo_name: Print the poster
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: NeurIPS trip is Dec 8th — want to split a hotel?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+
+relocation_project:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Moving day'' to my calendar on 2026-08-01, add ''Cancel the old lease''
+    to my todos, message Charlie: ''Moving August 1st — can you help pack?'', and
+    remove ''Central Park'' from my favorite places.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Moving day' to the calendar on 2026-08-01.
+    title: Moving day
+    date: '2026-08-01'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Cancel the old lease' to the todo list.
+    todo_name: Cancel the old lease
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Moving August 1st — can you help pack?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Central Park' from favorite places.
+    name: Central Park
+
+wedding_planning:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Wedding tasting'' to my calendar on 2026-05-16 at ''The Grand Hall'',
+    add ''Confirm the guest list'' to my todos, message Alice: ''Wedding tasting May
+    16th — and will you be my maid of honor?'', and mark ''Answer emails'' as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Wedding tasting' to the calendar on 2026-05-16.
+    title: Wedding tasting
+    date: '2026-05-16'
+    description: null
+    location: The Grand Hall
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Confirm the guest list' to the todo list.
+    todo_name: Confirm the guest list
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Wedding tasting May 16th — and will you be my maid of honor?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Answer emails' as done.
+    todo_name: Answer emails
+
+deadline_swap:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''ECCV 2026 Paper Deadline'' from my calendar, add a new ''ECCV
+    rebuttal'' event on 2026-03-20, add ''Draft the rebuttal'' to my todos, and message
+    Bob: ''ECCV deadline moved — rebuttal work starts March 20th.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'ECCV 2026 Paper Deadline' from the calendar.
+    title: ECCV 2026 Paper Deadline
+    date: '2026-03-06'
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'ECCV rebuttal' to the calendar on 2026-03-20.
+    title: ECCV rebuttal
+    date: '2026-03-20'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Draft the rebuttal' to the todo list.
+    todo_name: Draft the rebuttal
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: ECCV deadline moved — rebuttal work starts March 20th.
+    expected_reply: null
+
+holiday_hosting:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Holiday dinner'' to my calendar on 2026-12-24 with description ''Guests
+    arrive at 6pm'', add ''Set the table'' and ''Chill the wine'' to my todos, and
+    message Charlie: ''Holiday dinner Dec 24th — could you bring a side dish?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Holiday dinner' to the calendar on 2026-12-24.
+    title: Holiday dinner
+    date: '2026-12-24'
+    description: Guests arrive at 6pm
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Set the table' to the todo list.
+    todo_name: Set the table
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Chill the wine' to the todo list.
+    todo_name: Chill the wine
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Holiday dinner Dec 24th — could you bring a side dish?
+    expected_reply: null
+
+travel_reset:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove ''Brooklyn Bridge'' from my favorite places, add ''Redo the NYC plan''
+    to my todos, add a ''NYC replanning'' event on 2026-04-30, and message Alice:
+    ''Redoing the whole NYC plan — send me your must-see spots!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Brooklyn Bridge' from favorite places.
+    name: Brooklyn Bridge
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Redo the NYC plan' to the todo list.
+    todo_name: Redo the NYC plan
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'NYC replanning' to the calendar on 2026-04-30.
+    title: NYC replanning
+    date: '2026-04-30'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Redoing the whole NYC plan — send me your must-see spots!
+    expected_reply: null
+
+product_launch:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Product launch'' to my calendar on 2026-09-15 with the URL ''https://launch.example.com'',
+    add ''Finalize press release'' to my todos, message Alice: ''Product launch is
+    Sept 15th — can you review the press release?'', and mark ''Update calendar''
+    as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Product launch' to the calendar on 2026-09-15.
+    title: Product launch
+    date: '2026-09-15'
+    description: null
+    location: null
+    url: https://launch.example.com
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Finalize press release' to the todo list.
+    todo_name: Finalize press release
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Product launch is Sept 15th — can you review the press release?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Update calendar' as done.
+    todo_name: Update calendar
+
+semester_kickoff:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''First lecture'' to my calendar on 2026-01-12 at ''Room 204'', add ''Upload
+    the syllabus'' and ''Set up the gradebook'' to my todos, and message Bob: ''First
+    lecture is Jan 12th in Room 204 — still up for co-teaching?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'First lecture' to the calendar on 2026-01-12.
+    title: First lecture
+    date: '2026-01-12'
+    description: null
+    location: Room 204
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Upload the syllabus' to the todo list.
+    todo_name: Upload the syllabus
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Set up the gradebook' to the todo list.
+    todo_name: Set up the gradebook
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: First lecture is Jan 12th in Room 204 — still up for co-teaching?
+    expected_reply: null
+
+estate_paperwork:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Mark ''Sort medical papers'' as done, add ''Scan the documents'' to my todos,
+    add a ''Notary appointment'' event on 2026-02-19, and message Charlie: ''Need
+    a notary for Feb 19th — can you send me a contact?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Sort medical papers' as done.
+    todo_name: Sort medical papers
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Scan the documents' to the todo list.
+    todo_name: Scan the documents
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Notary appointment' to the calendar on 2026-02-19.
+    title: Notary appointment
+    date: '2026-02-19'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Need a notary for Feb 19th — can you send me a contact?
+    expected_reply: null
+
+fitness_overhaul:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Personal training'' to my calendar on 2026-03-02, add ''Buy a foam
+    roller'' to my todos, mark ''Walk for 20 minutes'' as done, and message Bob: ''Starting
+    personal training March 2nd — want to be workout buddies?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Personal training' to the calendar on 2026-03-02.
+    title: Personal training
+    date: '2026-03-02'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy a foam roller' to the todo list.
+    todo_name: Buy a foam roller
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Walk for 20 minutes' as done.
+    todo_name: Walk for 20 minutes
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Starting personal training March 2nd — want to be workout buddies?
+    expected_reply: null
+
+charity_gala:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Charity gala'' event on 2026-10-17 at ''City Ballroom'' with description
+    ''Black tie'', add ''Rent a tux'' to my todos, message Alice: ''Charity gala Oct
+    17th, black tie — be my plus one?'', and mark ''Check budget'' as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Charity gala' to the calendar on 2026-10-17.
+    title: Charity gala
+    date: '2026-10-17'
+    description: Black tie
+    location: City Ballroom
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Rent a tux' to the todo list.
+    todo_name: Rent a tux
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Charity gala Oct 17th, black tie — be my plus one?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+
+research_pivot:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Remove the ''IJCNN 2026 Deadline'' and ''InterSpeech 2026 Deadline'' from
+    my calendar, add ''Rescope the project'' to my todos, and message Charlie: ''Dropped
+    IJCNN and InterSpeech — let''s talk about the new direction.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'IJCNN 2026 Deadline' from the calendar.
+    title: IJCNN 2026 Deadline
+    date: '2026-01-31'
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'InterSpeech 2026 Deadline' from the calendar.
+    title: InterSpeech 2026 Deadline
+    date: '2026-03-02'
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Rescope the project' to the todo list.
+    todo_name: Rescope the project
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Dropped IJCNN and InterSpeech — let's talk about the new direction.
+    expected_reply: null
+
+family_vacation:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Beach vacation'' to my calendar on 2026-07-25 with location ''Outer
+    Banks'', add ''Buy sunscreen'' to my todos, message Alice: ''Beach vacation July
+    25th in the Outer Banks — come with us!'', and remove ''Statue of Liberty'' from
+    my favorites since we''re doing beaches this year.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Beach vacation' to the calendar on 2026-07-25.
+    title: Beach vacation
+    date: '2026-07-25'
+    description: null
+    location: Outer Banks
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy sunscreen' to the todo list.
+    todo_name: Buy sunscreen
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Beach vacation July 25th in the Outer Banks — come with us!
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Statue of Liberty' from favorite places.
+    name: Statue of Liberty
+
+thesis_defense:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Thesis defense'' to my calendar on 2026-05-28 with description ''Bring
+    printed copies'', add ''Rehearse the talk'' to my todos, message Bob: ''Thesis
+    defense is May 28th — hope you can attend!'', and mark ''Read before bed'' as
+    done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Thesis defense' to the calendar on 2026-05-28.
+    title: Thesis defense
+    date: '2026-05-28'
+    description: Bring printed copies
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Rehearse the talk' to the todo list.
+    todo_name: Rehearse the talk
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Thesis defense is May 28th — hope you can attend!
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Read before bed' as done.
+    todo_name: Read before bed
+
+garage_sale:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add a 'Garage sale' event on 2026-06-13, add 'Price the items' and 'Get small
+    bills' to my todos, and mark 'Check budget' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Garage sale' to the calendar on 2026-06-13.
+    title: Garage sale
+    date: '2026-06-13'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Price the items' to the todo list.
+    todo_name: Price the items
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Get small bills' to the todo list.
+    todo_name: Get small bills
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Check budget' as done.
+    todo_name: Check budget
+
+startup_offsite:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Team offsite'' to my calendar on 2026-09-24 at ''Lake Lodge'', add
+    ''Book the vans'' to my todos, message Alice: ''Team offsite Sept 24th at Lake
+    Lodge — plan some activities?'', and remove ''Empire State Building'' from my
+    favorite places.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Team offsite' to the calendar on 2026-09-24.
+    title: Team offsite
+    date: '2026-09-24'
+    description: null
+    location: Lake Lodge
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Book the vans' to the todo list.
+    todo_name: Book the vans
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Team offsite Sept 24th at Lake Lodge — plan some activities?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Empire State Building' from favorite places.
+    name: Empire State Building
+
+baby_arrival:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Due date'' to my calendar on 2026-08-30, add ''Pack the hospital bag''
+    and ''Install the car seat'' to my todos, and message Charlie: ''Our due date
+    is August 30th — we''re so excited!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Due date' to the calendar on 2026-08-30.
+    title: Due date
+    date: '2026-08-30'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Pack the hospital bag' to the todo list.
+    todo_name: Pack the hospital bag
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Install the car seat' to the todo list.
+    todo_name: Install the car seat
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Our due date is August 30th — we're so excited!
+    expected_reply: null
+
+home_renovation:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Kitchen remodel starts'' to my calendar on 2026-04-06, add ''Empty
+    the cabinets'' to my todos, mark ''Sort medical papers'' as done, and message
+    Bob: ''Kitchen remodel starts April 6th — know a good contractor?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Kitchen remodel starts' to the calendar on 2026-04-06.
+    title: Kitchen remodel starts
+    date: '2026-04-06'
+    description: null
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Empty the cabinets' to the todo list.
+    todo_name: Empty the cabinets
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Sort medical papers' as done.
+    todo_name: Sort medical papers
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Kitchen remodel starts April 6th — know a good contractor?
+    expected_reply: null
+
+exam_week:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Add 'Final exam' to my calendar on 2026-05-19 at 'Hall B', add 'Make a cheat
+    sheet' and 'Sleep 8 hours' to my todos, and mark 'Meditate for 30' as done.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Final exam' to the calendar on 2026-05-19.
+    title: Final exam
+    date: '2026-05-19'
+    description: null
+    location: Hall B
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Make a cheat sheet' to the todo list.
+    todo_name: Make a cheat sheet
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Sleep 8 hours' to the todo list.
+    todo_name: Sleep 8 hours
+    is_done: false
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Meditate for 30' as done.
+    todo_name: Meditate for 30
+
+client_dinner:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add a ''Client dinner'' event on 2026-03-11 with description ''Discuss renewal'',
+    add ''Choose the restaurant'' to my todos, message Alice: ''Client dinner March
+    11th about the renewal — can you join?'', and mark ''Answer emails'' as done.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Client dinner' to the calendar on 2026-03-11.
+    title: Client dinner
+    date: '2026-03-11'
+    description: Discuss renewal
+    location: null
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Choose the restaurant' to the todo list.
+    todo_name: Choose the restaurant
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Client dinner March 11th about the renewal — can you join?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Answer emails' as done.
+    todo_name: Answer emails
+
+music_festival:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Music festival'' to my calendar on 2026-08-15 with the URL ''https://fest.example.com'',
+    add ''Buy the wristbands'' to my todos, message Bob: ''Music festival Aug 15th
+    — want to carpool?'', and remove ''Central Park'' from my favorites.'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Music festival' to the calendar on 2026-08-15.
+    title: Music festival
+    date: '2026-08-15'
+    description: null
+    location: null
+    url: https://fest.example.com
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Buy the wristbands' to the todo list.
+    todo_name: Buy the wristbands
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Bob.
+    to: Bob
+    message: Music festival Aug 15th — want to carpool?
+    expected_reply: null
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Central Park' from favorite places.
+    name: Central Park
+
+retirement_party:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Add ''Retirement party'' to my calendar on 2026-06-19 at ''The Terrace'',
+    add ''Order the plaque'' and ''Book the caterer'' to my todos, and message Charlie:
+    ''Retirement party June 19th — would you give a speech?'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddEventTask
+    goal: Add 'Retirement party' to the calendar on 2026-06-19.
+    title: Retirement party
+    date: '2026-06-19'
+    description: null
+    location: The Terrace
+    url: null
+    invitees: []
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Order the plaque' to the todo list.
+    todo_name: Order the plaque
+    is_done: false
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    goal: Add 'Book the caterer' to the todo list.
+    todo_name: Book the caterer
+    is_done: false
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Charlie.
+    to: Charlie
+    message: Retirement party June 19th — would you give a speech?
+    expected_reply: null
+
+declutter_deadlines:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Do a general declutter: remove the ''Franz''s Birthday'' event, mark ''Plan
+    weekly meals'' as done, remove ''Times Square'' from my favorite places, and message
+    Alice: ''Big declutter today — cleaned up the calendar, todos, and saved places.'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.RemoveEventTask
+    goal: Remove 'Franz's Birthday' from the calendar.
+    title: Franz's Birthday
+    date: '1970-01-25'
+  - _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+    goal: Mark 'Plan weekly meals' as done.
+    todo_name: Plan weekly meals
+  - _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+    goal: Remove 'Times Square' from favorite places.
+    name: Times Square
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Alice.
+    to: Alice
+    message: Big declutter today — cleaned up the calendar, todos, and saved places.
+    expected_reply: null

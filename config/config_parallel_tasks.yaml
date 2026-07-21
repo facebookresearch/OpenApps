@@ -18,6 +18,8 @@ defaults:
 # runs multiple tasks for each app variation in parallel
 parallel_tasks:
   _target_: open_apps.tasks.parallel_tasks.AppVariationParallelTasksConfig
+  # Set to `all` to run every task in the loaded `tasks=` group, or list a
+  # subset of task names to run only those (e.g. task_names=[task_a,task_b]).
   task_names:
     - add_meeting_with_dennis
     - navigate_to_todo

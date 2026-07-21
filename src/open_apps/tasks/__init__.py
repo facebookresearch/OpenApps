@@ -16,6 +16,7 @@ from open_apps import config_dir
 from open_apps.tasks.tasks import (
     AddEventTask,
     AddToDoTask,
+    CompositeTask,
     DeleteToDoTask,
     MarkToDoDoneTask,
     NavigateToAppTask,
@@ -30,6 +31,7 @@ from open_apps.tasks.tasks import (
 __all__ = [
     "AddEventTask",
     "AddToDoTask",
+    "CompositeTask",
     "DeleteToDoTask",
     "MarkToDoDoneTask",
     "NavigateToAppTask",

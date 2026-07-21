@@ -46,22 +46,44 @@ class AppStateComparison:
         state2: Second app state to compare
     """
 
-    def __init__(self, state1: dict, state2: dict):
+    def __init__(
+        self,
+        state1: dict,
+        state2: dict,
+        reply_contacts: dict[str, int] | None = None,
+    ):
         self.raw_state1 = state1
         self.raw_state2 = state2
+        # Messenger contacts whose auto-reply should be ignored, mapped to the
+        # number of messages the task sent them (i.e. how many trailing
+        # auto-replies to tolerate). ``state1`` is the target (ground truth)
+        # and ``state2`` the observed/current state. The app appends one reply
+        # after each sent message (random text for anyone but Alice/Bob), so a
+        # message task couldn't be checked deterministically otherwise. Only
+        # the named contacts are relaxed, and only by the exact number of
+        # sends — so a spurious message (to any contact, or an extra one to a
+        # targeted contact) still fails the comparison. Empty/None => compare
+        # every conversation exactly.
+        self.reply_contacts = dict(reply_contacts or {})
 
         self.state1 = self.preprocess(self.raw_state1)
         self.state2 = self.preprocess(self.raw_state2)
 
     def preprocess(self, state: dict) -> dict:
-        state = state.copy()
-        # Drop underscore-prefixed metadata keys (e.g. ``_url`` injected
-        # by the env for URL-based tasks). They would otherwise show up
-        # as a key-set mismatch against the target state.
-        for k in [k for k in state if k.startswith("_")]:
-            del state[k]
-        # Temporarily exclude code editor state from task completion comparison.
-        state.pop("codeeditor", None)
+        # Drop keys we never compare *before* deep-copying: underscore-prefixed
+        # env metadata (e.g. ``_url``) and the (potentially large) code-editor
+        # tree. Shallow-slicing first avoids deep-copying data we're about to
+        # discard.
+        state = {
+            k: v
+            for k, v in state.items()
+            if not k.startswith("_") and k != "codeeditor"
+        }
+        # Deep copy so normalization never mutates the caller's state. The
+        # helpers below rewrite nested lists/dicts (dropping ids, flattening
+        # messenger tuples, truncating replies), which a shallow copy would
+        # leak back into the observed/target dicts passed in.
+        state = copy.deepcopy(state)
         state = self._normalize_calendar_invitees(state)
         state = self._remove_id_key(state)
         state = self._normalize_todo_done_field(state)
@@ -191,11 +213,44 @@ class AppStateComparison:
         print(f"===Differences found: {diff}")
         return False
 
+    def _truncate_message_replies(self) -> None:
+        """Drop each targeted contact's trailing auto-replies before diffing.
+
+        Runs after ``preprocess`` (so each contact's ``messages`` is already a
+        flat list of message texts). For every contact named in
+        ``reply_contacts`` (mapped to the number of messages the task sent
+        them), if the observed conversation is longer than the target by no
+        more than that many messages, truncate the observed conversation to
+        the target's length. Content matching of the remaining prefix is left
+        to the fuzzy diff.
+
+        This ignores the one auto-reply the app appends per sent message,
+        while still failing on:
+          * a spurious message to a contact the task never targeted (that
+            contact isn't in ``reply_contacts``, so it's compared exactly);
+          * an extra message to a targeted contact (observed exceeds the
+            tolerated count, so no truncation happens and the diff fails);
+          * a missing send (observed is shorter than target).
+        """
+        target_by_user = {c["user"]: c for c in self.state1["messenger"]}
+        for contact in self.state2["messenger"]:
+            user = contact["user"]
+            allowed = self.reply_contacts.get(user)
+            if allowed is None or user not in target_by_user:
+                continue
+            n_target = len(target_by_user[user]["messages"])
+            extra = len(contact["messages"]) - n_target
+            if 0 <= extra <= allowed:
+                contact["messages"] = contact["messages"][:n_target]
+
     def compare(self) -> bool:
         # check that both states have the same apps
         if set(self.state1.keys()) != set(self.state2.keys()):
             print("States have different apps")
             return False
+
+        if self.reply_contacts:
+            self._truncate_message_replies()
 
         return self.are_dicts_similar(self.state1, self.state2)
 
@@ -368,7 +423,12 @@ class MarkToDoDoneTask(Task):
 class SendMessageTask(Task):
     to: str
     message: str
-    expected_reply: str | None
+    # Retained for backwards compatibility and goal phrasing. Replies are
+    # ignored by default when checking completion (the app's auto-reply is
+    # random for anyone other than Alice/Bob), so this is not part of the
+    # target state. Pass ``ignore_message_replies=False`` to
+    # ``AppStateComparison`` to compare replies.
+    expected_reply: str | None = None
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
@@ -387,9 +447,9 @@ class SendMessageTask(Task):
         if contact_idx is None:
             raise ValueError(f"Contact {self.to} not found in messenger app")
         messages = target_state["messenger"][contact_idx]["messages"]
+        # Only the sent message is part of the target; the app's reply is
+        # ignored by AppStateComparison (see ``ignore_message_replies``).
         messages.append([self.message, False, self.to, formatted_time_string])
-        if self.expected_reply:
-            messages.append([self.expected_reply, True, self.to, formatted_time_string])
         target_state["messenger"][contact_idx]["messages"] = messages
         return target_state
 
@@ -397,7 +457,10 @@ class SendMessageTask(Task):
         self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
-        app_state_comparison = AppStateComparison(target_state, current_state)
+        # Ignore the single auto-reply this contact appends to our one message.
+        app_state_comparison = AppStateComparison(
+            target_state, current_state, reply_contacts={self.to: 1}
+        )
         return app_state_comparison.compare()
 
 
@@ -517,6 +580,87 @@ class NavigateToAppTask(Task):
             path == p or path.startswith(p + "/") or path.rstrip("/") == p
             for p in prefixes
         )
+
+
+@dataclass
+class CompositeTask(Task):
+    """A meta-task made of several sub-tasks that must *all* be satisfied.
+
+    Longer-horizon goals ("add X to my calendar, also add it to my todo list,
+    and message a friend about it") are expressed as an ordered list of
+    ordinary :class:`Task` instances. Completion checking reuses the existing
+    per-task logic: the combined target state is produced by threading each
+    sub-task's ``get_target_state`` (``initial -> sub1 -> sub2 -> ...``), and
+    the result is diffed against the observed state with the shared
+    :class:`AppStateComparison`.
+
+    Sub-tasks are instantiated by Hydra's recursive ``instantiate`` from the
+    ``subtasks`` list in the task config, so no bespoke wiring is needed.
+
+    Note: the naive alternative — calling each sub-task's
+    ``check_if_task_is_complete`` and AND-ing the results — does *not* work,
+    because each sub-task expects a state carrying only its own change and
+    would flag the sibling sub-tasks' changes as spurious differences.
+    """
+
+    subtasks: list[Task]
+
+    def __post_init__(self) -> None:
+        """Instantiate any sub-tasks still in raw-config form.
+
+        The task configs use ``_convert_: all`` so Hydra recursively
+        instantiates the nested ``_target_`` sub-tasks into :class:`Task`
+        objects. This is a safety net for the direct-construction path (e.g.
+        building a ``CompositeTask`` from raw ``DictConfig``/``dict`` sub-task
+        configs in a test or script): any sub-task that isn't already a
+        ``Task`` is instantiated here. ``hydra`` is imported lazily to keep
+        the ``tasks`` package import light (see ``add_tasks_to_browsergym``).
+        """
+        resolved: list[Task] = []
+        for subtask in self.subtasks:
+            if isinstance(subtask, Task):
+                resolved.append(subtask)
+                continue
+            from hydra.utils import instantiate as _instantiate
+
+            resolved.append(_instantiate(subtask))
+        self.subtasks = resolved
+
+    def _reply_contacts(self) -> dict[str, int]:
+        """Count sent messages per contact, to tolerate their auto-replies."""
+        counts: dict[str, int] = {}
+        for subtask in self.subtasks:
+            if isinstance(subtask, SendMessageTask):
+                counts[subtask.to] = counts.get(subtask.to, 0) + 1
+        return counts
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        """Apply every sub-task's change in order to build the combined target.
+
+        Each sub-task's ``get_target_state`` deep-copies the state it receives,
+        so ``initial_state`` is never mutated.
+        """
+        state = initial_state
+        for subtask in self.subtasks:
+            state = subtask.get_target_state(state)
+        return state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            # A sub-task referenced an item absent from the initial state
+            # (e.g. marking a todo done that was never there). The composite
+            # task cannot be satisfied against this state.
+            return False
+        app_state_comparison = AppStateComparison(
+            target_state, current_state, reply_contacts=self._reply_contacts()
+        )
+        return app_state_comparison.compare()
 
 
 if __name__ == "__main__":
