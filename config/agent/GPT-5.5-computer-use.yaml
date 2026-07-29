@@ -17,6 +17,9 @@ aws_session_token: null
 aws_region: us-west-2
 
 custom_actions:
+- go_back
+- go_forward
+- noop
 - mouse_click
 - mouse_dblclick
 - scroll
@@ -57,18 +60,24 @@ prompt_txt:
   think_prompt: null
   think_abstract_example: null
   think_concrete_example: null
-  action_prompt: "## Action Space\n\nmouse_click(x=x, y=y)\nmouse_dblclick(x=x,\
-    \ y=y)\ntype(content='xxx') # Use escape characters \\\\', \\\
-    \\\\\", and \\\\n in content part to ensure we can parse the content in normal\
-    \ python string format. If you want to submit your input, use \\\\n at the end\
-    \ of content. \nscroll(direction='down or up', point='(x, y)')\
-    \ # Show more information on the `direction` side.\nwait() #Sleep\
-    \ for 5s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
-    \ in `Thought` part.\n- Write a small plan and finally summarize your next action\
-    \ (with its target element) in one sentence in `Thought` part.\n"
-  action_abstract_example: '<action>type(content='''')</action>
+  action_prompt: |
+    ## Action Space
+
+    Use exactly one OpenAI computer-use action:
+    click(x=..., y=..., button='left')
+    double_click(x=..., y=..., button='left')
+    drag(path=[{'x': ..., 'y': ...}, {'x': ..., 'y': ...}])
+    keypress(keys=['CTRL', 'L'])
+    move(x=..., y=...)
+    screenshot()
+    scroll(x=..., y=..., scroll_x=..., scroll_y=...)
+    type(text='...')
+    wait()
+
+    Use English in the thought and briefly explain the next action and target.
+  action_abstract_example: '<action>type(text='''')</action>
 
     '
-  action_concrete_example: '<action>mouse_click(x=x, y=y)</action>
+  action_concrete_example: '<action>click(x=x, y=y)</action>
 
     '

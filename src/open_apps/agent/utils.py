@@ -1,3 +1,4 @@
+import ast
 import base64
 import io
 import dataclasses
@@ -50,7 +51,7 @@ from browsergym.core.action.functions import (
 )
 
 from agentlab.llm.chat_api import ChatModel
-from agentlab.llm.llm_utils import Discussion, ParseError, extract_code_blocks
+from agentlab.llm.llm_utils import Discussion
 
 action_map = {
     "clear": clear,
@@ -287,6 +288,8 @@ def uitars_parser(result):
 
     # UITARS API -> BrowserGym API
 
+    result["action"] = translate_openai_computer_action(result["action"])
+
     # click(point='(375,292)') or click(point='<point>200 300</point>') ->  mouse_click(x=375.0, y=292.0)
     if (
         result["action"].startswith("click(point=")
@@ -341,6 +344,135 @@ def uitars_parser(result):
             result["action"] = f"keyboard_press(key='{key_comb[0]}')"
 
     return result
+
+
+def translate_openai_computer_action(action: str) -> str:
+    """Translate OpenAI computer-use calls to BrowserGym action calls."""
+    try:
+        expression = ast.parse(action.strip(), mode="eval").body
+    except SyntaxError:
+        return action
+    if not isinstance(expression, ast.Call) or not isinstance(
+        expression.func, ast.Name
+    ):
+        return action
+
+    name = expression.func.id
+    if name not in {
+        "click",
+        "double_click",
+        "drag",
+        "keypress",
+        "move",
+        "scroll",
+        "screenshot",
+        "type",
+        "wait",
+    }:
+        return action
+
+    try:
+        arguments = {
+            keyword.arg: ast.literal_eval(keyword.value)
+            for keyword in expression.keywords
+            if keyword.arg is not None
+        }
+    except (ValueError, TypeError):
+        return action
+
+    required_arguments = {
+        "click": {"x", "y"},
+        "double_click": {"x", "y"},
+        "drag": {"path"},
+        "keypress": {"keys"},
+        "move": {"x", "y"},
+        "scroll": {"scroll_x", "scroll_y"},
+        "type": {"text"},
+        "screenshot": set(),
+        "wait": set(),
+    }
+    if not required_arguments[name].issubset(arguments):
+        return action
+
+    if name == "click":
+        button = arguments.get("button", "left")
+        if button == "back":
+            return "go_back()"
+        if button == "forward":
+            return "go_forward()"
+        button = "middle" if button == "wheel" else button
+        if button not in {"left", "middle", "right"}:
+            raise ParseError(f"Unsupported OpenAI click button: {button!r}.")
+        return "mouse_click(x={x}, y={y}, button={button!r})".format(
+            x=arguments["x"], y=arguments["y"], button=button
+        )
+    if name == "double_click":
+        button = arguments.get("button", "left")
+        button = "middle" if button == "wheel" else button
+        if button not in {"left", "middle", "right"}:
+            raise ParseError(f"Unsupported OpenAI double-click button: {button!r}.")
+        return "mouse_dblclick(x={x}, y={y}, button={button!r})".format(
+            x=arguments["x"], y=arguments["y"], button=button
+        )
+    if name == "move":
+        return f"mouse_move(x={arguments['x']}, y={arguments['y']})"
+    if name == "drag":
+        path = arguments["path"]
+        if (
+            not isinstance(path, list)
+            or len(path) < 2
+            or any(
+                not isinstance(point, dict) or not {"x", "y"} <= point.keys()
+                for point in path
+            )
+        ):
+            raise ParseError("OpenAI drag actions require at least two path points.")
+        return (
+            f"mouse_drag_and_drop(from_x={path[0]['x']}, from_y={path[0]['y']}, "
+            f"to_x={path[-1]['x']}, to_y={path[-1]['y']})"
+        )
+    if name == "keypress":
+        keys = arguments["keys"]
+        if (
+            not isinstance(keys, list)
+            or not keys
+            or not all(isinstance(key, str) for key in keys)
+        ):
+            raise ParseError(
+                "OpenAI keypress actions require a non-empty list of keys."
+            )
+        key_aliases = {
+            "ALT": "Alt",
+            "BACKSPACE": "Backspace",
+            "CMD": "Meta",
+            "CTRL": "Control",
+            "DELETE": "Delete",
+            "DOWN": "ArrowDown",
+            "END": "End",
+            "ENTER": "Enter",
+            "ESC": "Escape",
+            "HOME": "Home",
+            "LEFT": "ArrowLeft",
+            "META": "Meta",
+            "PAGEDOWN": "PageDown",
+            "PAGEUP": "PageUp",
+            "RIGHT": "ArrowRight",
+            "SHIFT": "Shift",
+            "SPACE": " ",
+            "TAB": "Tab",
+            "UP": "ArrowUp",
+        }
+        key = "+".join(
+            key_aliases.get(str(value).upper(), str(value)) for value in keys
+        )
+        return f"keyboard_press(key={key!r})"
+    if name == "scroll":
+        return (
+            f"scroll(delta_x={arguments['scroll_x']}, delta_y={arguments['scroll_y']})"
+        )
+    if name == "type":
+        return f"keyboard_type(text={arguments['text']!r})"
+    return "noop()"
 
 
 def save_som_coordinates(obs: dict, step: int, save_dir: Path):
