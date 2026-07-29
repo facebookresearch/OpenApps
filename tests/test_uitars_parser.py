@@ -1,11 +1,41 @@
 import pytest
 
 from agentlab.llm.llm_utils import ParseError
-from open_apps.agent.utils import flexible_parser
+from open_apps.agent.parse_actions import (
+    flexible_parser,
+    translate_openai_computer_action,
+    translate_uitars_action,
+)
 
 
 def _action(native: str) -> str:
     return flexible_parser(f"<think>t</think><action>{native}</action>")["action"]
+
+
+@pytest.mark.parametrize(
+    ("response", "think", "action"),
+    [
+        (
+            "<think>inspect</think><action>wait()</action>",
+            "inspect",
+            "noop()",
+        ),
+        ("Thought: inspect\nAction: wait()", "inspect", "noop()"),
+        ("THINK: inspect\nACTION: wait()", "inspect", "noop()"),
+        ("<think>inspect</think><action>wait()", "inspect", "noop()"),
+    ],
+)
+def test_response_formats(response, think, action):
+    parsed = flexible_parser(response)
+    assert parsed["think"] == think
+    assert parsed["displayed_action"] == "wait()"
+    assert parsed["action"] == action
+
+
+@pytest.mark.parametrize("response", ["", "<think>nothing</think>", "plain text"])
+def test_response_without_action_raises(response):
+    with pytest.raises(ParseError):
+        flexible_parser(response)
 
 
 def test_scroll_down_translates_to_positive_dy():
@@ -31,6 +61,21 @@ def test_click_point_regression():
 
 def test_type_regression():
     assert _action("type(content='hello\\n')") == "keyboard_type(text='hello\\n')"
+
+
+def test_uitars_coordinates_support_decimals_and_negatives():
+    assert translate_uitars_action("click(point='(-10.5,20.25)')") == (
+        "mouse_click(x=-10.5, y=20.25)"
+    )
+
+
+def test_uitars_right_click_and_hotkey():
+    assert translate_uitars_action("right_single(point='(10,20)')") == (
+        "mouse_click(x=10, y=20, button='right')"
+    )
+    assert translate_uitars_action("hotkey(key='ctrl alt e')") == (
+        "keyboard_press(key='ctrl alt e')"
+    )
 
 
 def test_openai_pointer_actions_translate_to_browsergym():
@@ -82,14 +127,30 @@ def test_openai_drag_and_wait_actions_translate_to_browsergym():
     assert _action("screenshot()") == "noop()"
 
 
+def test_unknown_browsergym_action_passes_through():
+    assert translate_openai_computer_action("mouse_click(x=1, y=2)") == (
+        "mouse_click(x=1, y=2)"
+    )
+
+
 @pytest.mark.parametrize(
     "action",
     [
         "drag(path=[{'x': 1, 'y': 2}])",
         "keypress(keys='CTRL')",
         "double_click(x=1, y=2, button='back')",
+        "type(text=123)",
+        "click(1, 2)",
+        "scroll(scroll_y=10)",
+        "type(text=value)",
     ],
 )
 def test_invalid_openai_action_shapes_raise_parse_error(action):
     with pytest.raises(ParseError):
         _action(action)
+
+
+def test_utils_retains_flexible_parser_compatibility_import():
+    from open_apps.agent.utils import flexible_parser as compatibility_parser
+
+    assert compatibility_parser is flexible_parser
