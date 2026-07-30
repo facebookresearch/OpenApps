@@ -328,6 +328,11 @@ class Task(ABC):
     # variation style). Keyword-only so subclasses can keep declaring
     # required positional fields without tripping dataclass field ordering.
     goal_style: Optional[str] = field(default=None, kw_only=True)
+    # Optional conversation that precedes and motivates the goal (e.g. a
+    # multi-turn user/assistant exchange). Surfaced to the agent before the
+    # goal (see OpenAppsTask._get_goal); it never affects reward logic.
+    # Keyword-only for the same field-ordering reason as goal_style.
+    context: Optional[str] = field(default=None, kw_only=True)
 
     @abstractmethod
     def check_if_task_is_complete(
@@ -339,7 +344,11 @@ class Task(ABC):
 
     @property
     def task_id(self) -> str:
-        goal_string = self.goal.encode("utf-8")
+        # Fold context into the hash so two tasks sharing a goal but differing
+        # in preceding context register as distinct with BrowserGym. When
+        # context is None this appends "", preserving the original goal-only
+        # ids for every existing (context-free) task.
+        goal_string = (self.goal + (self.context or "")).encode("utf-8")
         return hashlib.sha256(goal_string).hexdigest()
 
 

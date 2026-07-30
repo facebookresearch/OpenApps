@@ -41,6 +41,14 @@ parallel_tasks:
         "apps/maps/appearance=dark_theme",
         "apps/code_editor/appearance=dark_theme",
       ]
+    - [
+        "apps/start_page/appearance=challenging_font",
+        "apps/calendar/appearance=challenging_font",
+        "apps/todo/appearance=challenging_font",
+        "apps/messenger/appearance=challenging_font",
+        "apps/maps/appearance=challenging_font",
+        "apps/code_editor/appearance=challenging_font",
+      ]
 
 # auto-populated by launch_parallel_agents.py
 task_name: null

@@ -9,4 +9,6 @@
 defaults:
   - original_tasks
   - user_goal_variations
+  - task_contexts
+  - user_goal_variations_with_context
   - _self_

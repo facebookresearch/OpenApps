@@ -79,6 +79,31 @@ You can specify the agent of your choice with the `agent=` argument. For example
 
 Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our [docs](https://facebookresearch.github.io/OpenApps/).
 
+### Run a task with context
+
+Tasks can carry a **context**: a short user/assistant conversation that comes
+*before* the goal, mimicking how a real request is grounded in prior dialog. Every
+high-level task has a `__with_context` variant defined in
+`config/tasks/task_contexts.yaml`; run one just like any other task:
+
+```
+uv run launch_agent.py agent=GPT-5-1 task_name=remove_wacv_abstract_deadline__with_context
+```
+
+The agent sees the conversation followed by a `User goal:` line — for example:
+
+```
+User: I was planning to submit our tracking paper to WACV 2026, but the experiments are taking longer than expected.
+Assistant: Are you thinking of moving the paper to a later venue instead?
+User: Yes. We still need to finish the ablations and rewrite most of the methods section, so that deadline is no longer useful.
+Assistant: Understood. Do you want help cleaning up anything related to the old submission plan?
+
+User goal: Remove the WACV 2026 Abstract Deadline event from my calendar.
+```
+
+The context only changes what the agent reads; the reward logic is identical to the
+base task. See the [docs](https://facebookresearch.github.io/OpenApps/) for details.
+
 ## OpenApps in action
 
 

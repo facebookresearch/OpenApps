@@ -39,7 +39,12 @@ class OpenAppsTask(AbstractBrowserTask):
         return task_id
 
     def _get_goal(self):
-        return f"{self.goal}"
+        # When a task carries preceding conversation, show it first and mark
+        # the actual instruction with a "User goal:" line; otherwise the goal
+        # stands alone (unchanged from before contexts existed).
+        if self.context:
+            return f"{self.context}\n\nUser goal: {self.goal}"
+        return self.goal
 
     def __init__(
         self,
@@ -63,6 +68,8 @@ class OpenAppsTask(AbstractBrowserTask):
         super().__init__(seed)
 
         self.goal = task_config.goal
+        # Optional conversation preceding the goal; prepended in _get_goal.
+        self.context = task_config.context
         self.task = task_config
         self.task_id = task_config.task_id
 

@@ -16,7 +16,8 @@ from open_apps.tasks.tasks import (
     AppStateComparison,
     AddToDoTask,
 )
-from open_apps.tasks import load_task
+from open_apps.tasks import load_task, _load_tasks_cfg
+from dataclasses import fields
 from starlette.testclient import TestClient
 from hydra import initialize, compose
 from pathlib import Path
@@ -179,3 +180,94 @@ class TestTasks:
         assert add_event_task.check_if_task_is_complete(
             initial_state, add_christmas_shopping_state
         )
+
+
+# ``__with_context`` keys and their base tasks, discovered once so the
+# coverage/parity test below is parametrized over the real config.
+_CONTEXT_KEYS = [
+    k for k in _load_tasks_cfg().keys() if k.endswith("__with_context")
+]
+
+# Reward-irrelevant fields: everything a context variant is allowed to differ
+# on from its base task.
+_NON_REWARD_FIELDS = {"goal", "context", "goal_style"}
+
+
+class TestTaskContext:
+    """The optional ``context`` field: loading, prompt composition, task ids,
+    reward invariance, and config coverage."""
+
+    def test_base_task_has_no_context(self):
+        # Existing (context-free) tasks are unaffected.
+        assert load_task("add_meeting_with_dennis").context is None
+
+    def test_context_task_loads_with_reward_fields_intact(self):
+        base = load_task("remove_wacv_abstract_deadline")
+        ctx = load_task("remove_wacv_abstract_deadline__with_context")
+        assert isinstance(ctx, RemoveEventTask)
+        assert "WACV 2026" in ctx.context and "later venue" in ctx.context
+        # Reward fields are copied verbatim from the base task.
+        assert ctx.goal == base.goal
+        assert ctx.title == base.title
+        assert ctx.date == base.date
+
+    def test_get_goal_prepends_context(self):
+        from open_apps.tasks.add_tasks_to_browsergym import OpenAppsTask
+
+        ctx = load_task("remove_wacv_abstract_deadline__with_context")
+        env_task = OpenAppsTask(task_config=ctx, base_url="http://localhost:5001")
+        goal_text = env_task._get_goal()
+        assert goal_text.startswith(ctx.context.rstrip())
+        assert goal_text.endswith(f"User goal: {ctx.goal}")
+
+        base = load_task("remove_wacv_abstract_deadline")
+        base_task = OpenAppsTask(task_config=base, base_url="http://localhost:5001")
+        # No context -> the goal stands alone, exactly as before.
+        assert base_task._get_goal() == base.goal
+
+    def test_task_id_stability_and_uniqueness(self):
+        base = load_task("remove_wacv_abstract_deadline")
+        ctx = load_task("remove_wacv_abstract_deadline__with_context")
+        # context=None hashes to the goal-only id (backward compatible)...
+        assert base.task_id == RemoveEventTask(
+            goal=base.goal, title=base.title, date=base.date
+        ).task_id
+        # ...and adding context yields a distinct id despite the same goal.
+        assert ctx.goal == base.goal
+        assert ctx.task_id != base.task_id
+
+    def test_context_does_not_change_reward(self):
+        # The context variant rewards identically to the base task.
+        initial_state = {
+            "calendar": [{"title": "WACV 2026 Abstract Deadline", "date": "2025-07-11"}],
+            "todo": [],
+            "messenger": [],
+            "map": [],
+        }
+        current_state = {"calendar": [], "todo": [], "messenger": [], "map": []}
+        base = load_task("remove_wacv_abstract_deadline")
+        ctx = load_task("remove_wacv_abstract_deadline__with_context")
+        assert base.check_if_task_is_complete(initial_state, current_state)
+        assert ctx.check_if_task_is_complete(initial_state, current_state)
+
+    def test_context_variants_exist(self):
+        assert _CONTEXT_KEYS, "expected at least one __with_context task"
+
+    @pytest.mark.parametrize("key", _CONTEXT_KEYS)
+    def test_context_variant_matches_base(self, key):
+        cfg = _load_tasks_cfg()
+        base_key = key[: -len("__with_context")]
+        assert base_key in cfg, f"base task {base_key!r} missing for {key!r}"
+
+        ctx = load_task(key)
+        base = load_task(base_key)
+
+        # (a) context is a non-empty string.
+        assert isinstance(ctx.context, str) and ctx.context.strip()
+        # (b) every reward-relevant field matches the base task verbatim.
+        for f in fields(base):
+            if f.name in _NON_REWARD_FIELDS:
+                continue
+            assert getattr(ctx, f.name) == getattr(base, f.name), (
+                f"{key}: field {f.name!r} drifted from base task"
+            )

@@ -1,0 +1,246 @@
+# Task contexts: one variant per high-level task in original_tasks.yaml, each
+# adding a `context` field — a short, realistic multi-turn user/assistant
+# conversation that precedes and motivates the goal.
+#
+# Composed into all_tasks.yaml (see its `defaults` list), exactly like
+# user_goal_variations.yaml. Consumed by both the Hydra path and
+# open_apps.tasks._load_tasks_cfg() (the direct/MCP path).
+#
+# Key convention: <original_key>__with_context.
+#
+# Contract (keep these invariants when editing):
+#   * Every non-`context` field is copied VERBATIM from the original task, so
+#     the reward logic is byte-for-byte identical to the base task. The
+#     conversation must never contradict the goal's concrete details (exact
+#     titles, dates, names, message text, places) — otherwise the goal stops
+#     being solvable.
+#   * `context` holds only the turns that come BEFORE the goal. The trailing
+#     "User goal: <goal>" line is added at prompt-assembly time by
+#     OpenAppsTask._get_goal — do not bake it into `context`.
+#
+# The low-level navigate_* tasks are intentionally omitted: a preceding
+# conversation adds nothing to a pure "open app X" UI action.
+
+# ==========================================================================
+# Calendar
+# ==========================================================================
+
+add_meeting_with_dennis__with_context:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Go to the Calendar app and add my meeting with Dennis on April 1st of
+    2026. The title should be 'Dennis-Bob'
+  title: Dennis-Bob
+  date: 2026-04-01
+  description: null
+  location: null
+  url: null
+  invitees: []
+  context: |
+    User: Dennis and I finally agreed on a time to sync about the joint project.
+    Assistant: Nice — when are the two of you meeting?
+    User: April 1st, 2026. I keep forgetting things that aren't on my calendar.
+    Assistant: Want me to put it on your calendar so it doesn't slip? What should I call it?
+
+add_christmas_shopping_event__with_context:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Make a calendar entry for Christmas shopping on December 14th (2025). The title
+    should read 'Shopping for Christmas gifts'.
+  title: Shopping for Christmas gifts
+  date: 2025-12-14
+  description: null
+  location: null
+  url: null
+  invitees: []
+  context: |
+    User: The holidays are sneaking up on me and I haven't bought a single gift.
+    Assistant: It helps to block out a dedicated day for it. Do you have one in mind?
+    User: Sunday the 14th of December looks open. Let me reserve it before it fills up.
+    Assistant: Good idea — should I add a calendar entry so the day stays protected?
+
+add_paper_reading_meeting_with_einstein__with_context:
+  _target_: open_apps.tasks.tasks.AddEventTask
+  goal: Go to the Calendar app and add my meeting with Einstein on April 1st of
+    2027. The title should be 'Einstein-Bob'. Set the description as 'paper
+    reading', omit the URL and set the location to New York City. Make sure to
+    add Einstein as an invitee.
+  title: Einstein-Bob
+  date: 2027-04-01
+  description: paper reading
+  location: New York City
+  url: null
+  invitees:
+    - Einstein
+  context: |
+    User: Einstein and I want to restart our paper reading group next spring.
+    Assistant: That sounds great. Have you settled on a first session yet?
+    User: April 1st, 2027, in New York City. It'll just be the two of us going through a paper.
+    Assistant: Want me to schedule it and loop Einstein in as an invitee?
+
+remove_wacv_abstract_deadline__with_context:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove the WACV 2026 Abstract Deadline event from my calendar.
+  title: WACV 2026 Abstract Deadline
+  date: 2025-07-11
+  context: |
+    User: I was planning to submit our tracking paper to WACV 2026, but the experiments are taking longer than expected.
+    Assistant: Are you thinking of moving the paper to a later venue instead?
+    User: Yes. We still need to finish the ablations and rewrite most of the methods section, so that deadline is no longer useful.
+    Assistant: Understood. Do you want help cleaning up anything related to the old submission plan?
+
+remove_otto_birthday__with_context:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove Otto's Birthday from my calendar.
+  title: Otto's Birthday
+  date: 1990-04-02
+  context: |
+    User: I'm cleaning up my calendar — there are some old recurring events I don't need anymore.
+    Assistant: Sure, which ones are you looking to clear out?
+    User: There's an Otto's Birthday entry that's been floating around for ages. We fell out of touch and I'd rather not be reminded.
+    Assistant: Got it. Want me to take that one off your calendar?
+
+remove_eccv_2026_paper_deadline__with_context:
+  _target_: open_apps.tasks.tasks.RemoveEventTask
+  goal: Remove the ECCV 2026 Paper Deadline event from my calendar.
+  title: ECCV 2026 Paper Deadline
+  date: 2026-03-06
+  context: |
+    User: We decided as a group not to target ECCV 2026 this cycle after all.
+    Assistant: Makes sense to focus your energy. Is the deadline still on your calendar?
+    User: Yeah, the ECCV 2026 Paper Deadline reminder is still there and it's just adding pressure.
+    Assistant: Understood — want me to clear that reminder for you?
+
+# ==========================================================================
+# Todo
+# ==========================================================================
+
+add_call_mom_to_my_todo__with_context:
+  _target_: open_apps.tasks.tasks.AddToDoTask
+  goal: Add 'Call Mom' to my todo list.
+  todo_name: "Call Mom"
+  is_done: false
+  context: |
+    User: I realized I haven't spoken to my mom in almost two weeks.
+    Assistant: It's easy to lose track when things get busy. Do you want to set a reminder?
+    User: Yes, otherwise I'll just keep putting it off.
+    Assistant: I can drop it onto your todo list so it's the next thing you see. Sound good?
+
+mark_water_plants_as_done__with_context:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Water plants' as done in my todo list.
+  todo_name: "Water plants"
+  context: |
+    User: Just got back inside — finally gave all the houseplants a good soak.
+    Assistant: Nice, the ferns will be happy. Was that one of the things on your list today?
+    User: It was, 'Water plants' has been sitting there all week.
+    Assistant: Want me to tidy up your list now that it's actually finished?
+
+mark_visit_grandma_as_done__with_context:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Visit grandma' as done in my todo list.
+  todo_name: "Visit grandma"
+  context: |
+    User: I spent the whole afternoon at my grandmother's place — we had tea and looked through old photos.
+    Assistant: That sounds lovely. Had you been meaning to see her for a while?
+    User: Yes, 'Visit grandma' has been on my todo list forever and I finally did it.
+    Assistant: Wonderful. Should I update your list to reflect that it's taken care of?
+
+mark_buy_groceries_as_done__with_context:
+  _target_: open_apps.tasks.tasks.MarkToDoDoneTask
+  goal: Mark 'Buy groceries' as done in my todo list.
+  todo_name: "Buy groceries"
+  context: |
+    User: Fridge is fully stocked again — just unpacked everything from the store.
+    Assistant: Great, sounds like a productive trip. Was that a to-do you'd noted down?
+    User: Yep, 'Buy groceries' was on my list and it's handled now.
+    Assistant: Want me to check it off so your list stays accurate?
+
+delete_call_aunt_lisa__with_context:
+  _target_: open_apps.tasks.tasks.DeleteToDoTask
+  goal: Delete the 'Call Aunt Lisa' item from my todo list.
+  todo_name: "Call Aunt Lisa"
+  context: |
+    User: Aunt Lisa actually called me first this morning, so we already caught up.
+    Assistant: That's convenient — so the reminder to call her is no longer needed?
+    User: Right, 'Call Aunt Lisa' is still on my todo list but it's pointless now.
+    Assistant: Want me to remove that item entirely rather than leave it hanging?
+
+# ==========================================================================
+# Messenger
+# ==========================================================================
+
+message_bob_to_meet__with_context:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Send a message to Bob 'Let's meet'
+  to: "Bob"
+  message: "Let's meet"
+  expected_reply: "Yes, let's play on Saturday!"
+  context: |
+    User: Bob and I have been trying to get together for weeks but keep missing each other.
+    Assistant: Sometimes a short nudge is all it takes. Do you want to reach out to him?
+    User: Yeah, I'll keep it simple and just see if he's up for meeting.
+    Assistant: I can send him a quick message for you — what would you like it to say?
+
+message_alice_about_badminton__with_context:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Send a message to Alice 'Wanna play badminton?'
+  to: "Alice"
+  message: "Wanna play badminton?"
+  expected_reply: "Yes, I want to play badminton!"
+  context: |
+    User: I booked a court for this weekend and need someone to play with.
+    Assistant: Do you have a partner in mind?
+    User: Alice mentioned she wanted to get back into badminton, so she'd be perfect.
+    Assistant: Want me to message her and ask if she's interested?
+
+# ==========================================================================
+# Map
+# ==========================================================================
+
+save_paris_to_my_favorite_places__with_context:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save Paris, France to my favorite places
+  name: Paris, Île-de-France, France métropolitaine, France
+  latitude: 48.8589
+  longitude: 2.3200
+  context: |
+    User: I'm starting to map out a big European trip for next year.
+    Assistant: Exciting! Is there one city you already know has to be on the itinerary?
+    User: Paris — that's the only one I'm certain about right now.
+    Assistant: Want me to pin Paris in your favorite places so it's easy to come back to?
+
+save_bockelwitz_to_my_favorite_places__with_context:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save Bockelwitz, Germany to my favorite places
+  name: Bockelwitz
+  latitude: 51.1991
+  longitude: 12.9568
+  context: |
+    User: My family traced our roots to a tiny village in Germany called Bockelwitz.
+    Assistant: That's a special find. Are you planning to visit it someday?
+    User: I'd love to, and I want to keep the location handy so I don't lose track of it.
+    Assistant: I can add it to your favorite places on the map — should I?
+
+save_eiffel_tower_to_my_favorite_places__with_context:
+  _target_: open_apps.tasks.tasks.SavePlaceTask
+  goal: Save the Eiffel Tower to my favorite places
+  name: Eiffel Tower
+  latitude: 48.8584
+  longitude: 2.2945
+  # Landmark-level task: require the pin to be within 500 m of the tower,
+  # not the 10 km default (which would count anywhere in central Paris).
+  tolerance_km: 0.5
+  context: |
+    User: For the Paris leg of my trip there's one landmark I want to lock in before anything else.
+    Assistant: Which one is at the top?
+    User: The Eiffel Tower — that's the single spot I refuse to miss.
+    Assistant: Want me to bookmark the Eiffel Tower in your favorite places?
+
+remove_times_square_from_favorites__with_context:
+  _target_: open_apps.tasks.tasks.RemoveLandmarkTask
+  goal: Remove 'Times Square' from my favorite places.
+  name: Times Square
+  context: |
+    User: I'm trimming my saved places down to spots I'd genuinely go back to.
+    Assistant: Sounds sensible. Any that no longer make the cut?
+    User: Times Square, honestly — I found it overcrowded and wouldn't return.
+    Assistant: Got it. Want me to take Times Square out of your favorites?
