@@ -1,10 +1,10 @@
-# Qwen3.6-27B (dense) via the Qwen3.6-VL tool_call action_parser.
+# Qwen3.6-35B-A3B (MoE) via the Qwen3.6-VL tool_call action_parser.
 # Set hostname/port to your served model before running.
 defaults:
 - Qwen3.6-VL-computer-use
 - _self_
-model_name: Qwen/Qwen3.6-27B
-model_pretty_name: Qwen3.6-27B
+model_name: Qwen/Qwen3.6-35B-A3B
+model_pretty_name: Qwen3.6-35B-A3B
 hostname: null
 host_name_updated_on: null
 client_type: vllm

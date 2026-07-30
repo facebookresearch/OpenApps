@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(squeue)",
+      "Bash(squeue *)",
+      "Bash(sinfo)",
+      "Bash(sinfo *)",
+      "Bash(sacct)",
+      "Bash(sacct *)",
+      "Bash(sacctmgr show *)",
+      "Bash(nvidia-smi)",
+      "Bash(nvidia-smi --query-gpu *)"
+    ]
+  }
+}

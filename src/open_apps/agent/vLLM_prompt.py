@@ -21,14 +21,14 @@ from agentlab.llm.llm_utils import (
 from open_apps.agent.utils import flexible_parser
 
 def image_to_jpg_base64_url(image: np.ndarray | Image.Image):
-    """Convert a numpy array to a base64 encoded image url."""
-
+    # PNG, not JPEG: some sglang multimodal processors (e.g. deepseek-vl2)
+    # crash on JPEG input.
     if isinstance(image, np.ndarray):
         image = Image.fromarray(image)
     if image.mode in ("RGBA", "LA"):
         image = image.convert("RGB")
     buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
+    image.save(buffered, format="PNG")
     return base64.standard_b64encode(buffered.getvalue()).decode("utf-8")
 
 class HumanMessage(_HumanMessage):
@@ -37,16 +37,15 @@ class HumanMessage(_HumanMessage):
         self.client_type = client_type
 
     def add_image(self, image: np.ndarray | Image.Image | str, detail: str = None):
-        
+
         if not isinstance(image, str):
             image = image_to_jpg_base64_url(image)
-            
 
         if self.client_type == "aws":
-            self["content"].append({"type": "image", "source": {"type": 'base64', "media_type": "image/jpeg", "data": image}})
+            self["content"].append({"type": "image", "source": {"type": 'base64', "media_type": "image/png", "data": image}})
             return
 
-        image = f"data:image/jpeg;base64,{image}"
+        image = f"data:image/png;base64,{image}"
         if detail:
             self.add_content("image_url", {"url": image, "detail": detail})
         else:
@@ -244,18 +243,29 @@ class VllmMainPrompt(dp.PromptElement):
         thoughts: list[str],
         flags: PromptFlags,
         prompt_txt: dict,
-        client_type: str = "vllm"
+        client_type: str = "vllm",
+        action_parser=None,
+        prompt_sections: list[str] | None = None,
     ) -> None:
         super().__init__()
         self.flags = flags
         self.history = History(actions, thoughts)
         obs = obs_history[-1]
-        
+
         self.goal = obs["goal_object"]
-        
+
         self.obs = Observation(obs_history[-1], self.flags.obs)
-        
+
         self.prompt_txt = prompt_txt
+        self.action_parser = action_parser
+        self.prompt_sections = prompt_sections
+
+        # Viewport (width, height) for coord rescaling; screenshot is (H, W, 3).
+        screenshot = obs.get("screenshot")
+        if screenshot is not None and hasattr(screenshot, "shape"):
+            self.viewport = (int(screenshot.shape[1]), int(screenshot.shape[0]))
+        else:
+            self.viewport = (1920, 1080)
 
         self.action_prompt = ActionPrompt(action_set, action_flags=flags.action,
                                            concrete_ex_txt=prompt_txt.get("action_concrete_example"), 
@@ -269,16 +279,16 @@ class VllmMainPrompt(dp.PromptElement):
 
         self.client_type = client_type
 
-    @property
-    def _prompt(self) -> HumanMessage:
-        # todo: maybe surface out the ordering of the elements in the prompt
-        
-        prompt = HumanMessage(f"""
+    # Section renderers: each returns the text for one user-message section
+    # ("" = render nothing). ``_prompt`` composes them per prompt_sections.
+
+    def _render_task(self) -> str:
+        return f"""
 # User Instructions
-{self.goal[0]['text']}""", self.client_type)
-        
-        prompt.add_text(
-            f"""
+{self.goal[0]['text']}"""
+
+    def _render_header_block(self) -> str:
+        return f"""
 ## Output Format
 {self.prompt_txt.output_format} \
 {self.obs.prompt}\
@@ -288,11 +298,15 @@ class VllmMainPrompt(dp.PromptElement):
 
 
 """
-        )
 
-        if self.flags.use_abstract_example:
-            prompt.add_text(
-                f"""
+    def _render_history_only(self) -> str:
+        # History alone, for action_parsers that suppress header_block (e.g. qwen3vl).
+        return self.history._prompt
+
+    def _render_abstract_example(self) -> str:
+        if not self.flags.use_abstract_example:
+            return ""
+        return f"""
 # Abstract Example
 
 Here is an abstract version of the answer with description of the content of
@@ -302,13 +316,13 @@ answer:
 
 {self.action_prompt.abstract_ex}\
 
-Do not output anything except the thought and action. 
+Do not output anything except the thought and action.
 """
-            )
 
-        if self.flags.use_concrete_example:
-            prompt.add_text(
-                f"""
+    def _render_concrete_example(self) -> str:
+        if not self.flags.use_concrete_example:
+            return ""
+        return f"""
 # Concrete Example
 
 Here is a concrete example of how to format your answer.
@@ -317,9 +331,50 @@ Make sure to the format:
 {self.action_prompt.concrete_ex}\
 It is very important that you follow the format above.
 """
-            )
+
+    _SECTION_RENDERERS = {
+        "task": "_render_task",
+        "header_block": "_render_header_block",
+        "history": "_render_history_only",
+        "abstract_example": "_render_abstract_example",
+        "concrete_example": "_render_concrete_example",
+    }
+
+    # Legacy order, used when prompt_sections is unset.
+    _DEFAULT_SECTIONS = (
+        "task",
+        "header_block",
+        "abstract_example",
+        "concrete_example",
+    )
+
+    @property
+    def _prompt(self) -> HumanMessage:
+        sections = self.prompt_sections or self._DEFAULT_SECTIONS
+        rendered = []
+        for name in sections:
+            renderer_name = self._SECTION_RENDERERS.get(name)
+            if renderer_name is None:
+                raise ValueError(
+                    f"Unknown prompt section {name!r}. "
+                    f"Known: {sorted(self._SECTION_RENDERERS)}"
+                )
+            text = getattr(self, renderer_name)()
+            if text:
+                rendered.append(text)
+
+        # HumanMessage requires an initial text; keep one so the screenshot
+        # can attach even if every section was suppressed.
+        if not rendered:
+            rendered = [""]
+
+        prompt = HumanMessage(rendered[0], self.client_type)
+        for text in rendered[1:]:
+            prompt.add_text(text)
 
         return self.obs.add_screenshot(prompt)
-    
+
     def _parse_answer(self, text_answer):
+        if self.action_parser is not None:
+            return self.action_parser.parse(text_answer, viewport=self.viewport)
         return flexible_parser(text_answer)
