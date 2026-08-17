@@ -86,6 +86,19 @@ per model in the agent yaml with `coord_scale: N`. Note this is one scalar appli
 against each viewport axis, which is what a *square* normalized grid means — it
 cannot express a model predicting in its own non-square resized image space.
 
+The most reliable setup is to *declare* the grid in the prompt and set
+`coord_scale` to match, rather than reverse-engineering a checkpoint's native
+convention — then the conversion is correct by construction as long as the model
+complies. `config/agent/Qwen3.6-VL-computer-use.yaml` does this with a 1000x1000
+grid.
+
+Under the `uitars` grammar, rescaling applies to UI-TARS-native forms
+(`click(point=)`, `click(start_box=)`, `click(x=)`, `right_single(point=)`, and
+the `scroll(direction=, point=)` magnitude) *and* to models prompted directly in
+browsergym syntax (`mouse_click(x=, y=)` and friends). Bare `scroll(dx, dy)` is
+left alone — say so in the prompt, since a model on a normalized grid will
+otherwise not know what units to scroll in.
+
 ### Calibrating a new model
 
 Don't guess the scale, measure it:
