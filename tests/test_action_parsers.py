@@ -275,3 +275,42 @@ def test_default_uitars_parser_still_passes_raw_pixels_through():
     a = get_action_parser("uitars")
     response = "<think>t</think><action>click(point='(500,500)')</action>"
     assert a.parse(response, viewport=(1280, 800))["action"] == "mouse_click(x=500, y=500)"
+
+
+# ---------------------------------------------------------------------------
+# Models prompted directly in browsergym syntax (mouse_click(x=, y=))
+# ---------------------------------------------------------------------------
+
+def test_browsergym_form_mouse_click_is_rescaled():
+    """These never hit the UI-TARS remaps, so they need their own conversion."""
+    a = get_action_parser("uitars", coord_scale=1000)
+    response = "<think>t</think><action>mouse_click(x=500, y=500)</action>"
+    assert a.parse(response, viewport=(1280, 800))["action"] == "mouse_click(x=640, y=400)"
+
+
+def test_browsergym_form_rescale_preserves_trailing_kwargs():
+    a = get_action_parser("uitars", coord_scale=1000)
+    response = "<think>t</think><action>mouse_click(x=500, y=500, button='right')</action>"
+    out = a.parse(response, viewport=(1280, 800))
+    assert out["action"] == "mouse_click(x=640, y=400, button='right')"
+
+
+def test_browsergym_form_rescale_covers_the_other_mouse_actions():
+    a = get_action_parser("uitars", coord_scale=1000)
+    for fn in ["mouse_dblclick", "mouse_move", "mouse_down", "mouse_up"]:
+        response = f"<think>t</think><action>{fn}(x=500, y=500)</action>"
+        assert a.parse(response, viewport=(1280, 800))["action"] == f"{fn}(x=640, y=400)"
+
+
+def test_browsergym_form_rescale_accepts_float_coordinates():
+    a = get_action_parser("uitars", coord_scale=1000)
+    response = "<think>t</think><action>mouse_click(x=500.5, y=500.5)</action>"
+    assert a.parse(response, viewport=(1280, 800))["action"] == "mouse_click(x=641, y=400)"
+
+
+def test_browsergym_form_is_untouched_without_coord_scale():
+    """Default path: floats must not even be rounded."""
+    a = get_action_parser("uitars")
+    response = "<think>t</think><action>mouse_click(x=500.5, y=455)</action>"
+    out = a.parse(response, viewport=(1280, 800))
+    assert out["action"] == "mouse_click(x=500.5, y=455)"

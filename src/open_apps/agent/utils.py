@@ -324,6 +324,25 @@ def _normalize_hotkey_key(key: str) -> "str | None":
     return "+".join(out)
 
 
+# mouse_click(x=870, y=940) / mouse_dblclick(x=1.5, y=2) / mouse_move(...),
+# capturing the two numbers and whatever trailing kwargs follow.
+_BG_MOUSE_XY_RE = re.compile(
+    r"^(?P<fn>mouse_click|mouse_dblclick|mouse_move|mouse_down|mouse_up)"
+    r"\(\s*x\s*=\s*(?P<x>-?\d+(?:\.\d+)?)\s*,"
+    r"\s*y\s*=\s*(?P<y>-?\d+(?:\.\d+)?)\s*(?P<rest>[,)].*)$",
+    re.DOTALL,
+)
+
+
+def _rescale_browsergym_mouse_action(action: str, rescale) -> str:
+    """Convert x=/y= in an already-browsergym-form mouse action to pixels."""
+    match = _BG_MOUSE_XY_RE.match(action.strip())
+    if not match:
+        return action
+    x, y = rescale(match.group("x"), match.group("y"))
+    return f"{match.group('fn')}(x={x}, y={y}{match.group('rest')}"
+
+
 def uitars_parser(result, rescale=None):
     """Translates UITARS actions to browser gym actions.
 
@@ -336,9 +355,17 @@ def uitars_parser(result, rescale=None):
     # note karenu: I am not sure if the translation is perfect
     # in particular if the coord are just transferable like that, but looks reasonable in practice
     # also both browsergym and uitars docs are ass, so i have to guess
-    if rescale is None:
+    scaling = rescale is not None
+    if not scaling:
         def rescale(x, y):
             return int(round(float(x))), int(round(float(y)))
+
+    # A model prompted in browsergym syntax emits mouse_click(x=, y=) directly,
+    # so it never hits the UI-TARS remaps below and would otherwise skip
+    # rescaling entirely. Rewrite in place, preserving any other kwargs
+    # (button=...). Guarded on ``scaling`` so the default path is untouched.
+    if scaling:
+        result["action"] = _rescale_browsergym_mouse_action(result["action"], rescale)
 
     # UITARS API -> BrowserGym API
 

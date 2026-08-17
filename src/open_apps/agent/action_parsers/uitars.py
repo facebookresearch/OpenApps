@@ -19,7 +19,11 @@ class UITarsActionParser(ActionParser):
     coord_scale: int | None = None
 
     def parse(self, response: str, viewport: tuple[int, int]) -> ActionParserResult:
-        return flexible_parser(
-            response,
-            rescale=lambda x, y: self.rescale(x, y, viewport),
-        )
+        # Pass no hook at all when there is nothing to convert: flexible_parser
+        # treats "no rescale" as "leave every coordinate exactly as written",
+        # which is stricter than converting through an identity (that would
+        # still round floats and rewrite already-valid browsergym calls).
+        rescale = None
+        if self.coord_scale:
+            rescale = lambda x, y: self.rescale(x, y, viewport)  # noqa: E731
+        return flexible_parser(response, rescale=rescale)
