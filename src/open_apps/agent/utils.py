@@ -187,9 +187,12 @@ def retry(
     raise ParseError(f"Could not parse a valid value after {n_retry} retries.")
 
 
-def flexible_parser(response: str) -> dict:
+def flexible_parser(response: str, rescale=None) -> dict:
     """
     A parser that tries to correct or interpret the LLMs output into a valid policy, e.g. if it did not close a parenthesis or tag.
+
+    ``rescale`` is an optional ``(x, y) -> (x, y)`` callable mapping the model's
+    coordinate space onto viewport pixels; None leaves coordinates untouched.
     """
     response = response.strip()
     result = {"action": None, "think": None}
@@ -257,7 +260,7 @@ def flexible_parser(response: str) -> dict:
 
     # HACK to help UI TARS: remap UI TARS native actions to browser gym actions
     result["displayed_action"] = result["action"]  # store model native actions
-    result = uitars_parser(result)
+    result = uitars_parser(result, rescale=rescale)
 
     return result
 
@@ -321,11 +324,21 @@ def _normalize_hotkey_key(key: str) -> "str | None":
     return "+".join(out)
 
 
-def uitars_parser(result):
-    "Translates UITARS actions to browser gym actions"
+def uitars_parser(result, rescale=None):
+    """Translates UITARS actions to browser gym actions.
+
+    ``rescale`` is an optional ``(x, y) -> (x, y)`` callable converting the
+    model's coordinate space to viewport pixels (see
+    ``open_apps.agent.action_parsers.coords.rescale_xy``). UI-TARS itself emits
+    raw pixels, so the default is a no-op; models reusing this grammar with a
+    normalized grid (Gemma) pass one in.
+    """
     # note karenu: I am not sure if the translation is perfect
     # in particular if the coord are just transferable like that, but looks reasonable in practice
     # also both browsergym and uitars docs are ass, so i have to guess
+    if rescale is None:
+        def rescale(x, y):
+            return int(round(float(x))), int(round(float(y)))
 
     # UITARS API -> BrowserGym API
 
@@ -341,7 +354,8 @@ def uitars_parser(result):
                 f"Could not parse two integer coordinates from click action: {result['action']!r}. "
                 "Expected format like click(point='(x,y)'), click(start_box='(x,y)'), or click(x=X, y=Y)."
             )
-        result["action"] = f"mouse_click(x={int(coords[0])}, y={int(coords[1])})"
+        x, y = rescale(coords[0], coords[1])
+        result["action"] = f"mouse_click(x={x}, y={y})"
     # type(content=text) -> keyboard_type(text=text)
     if result["action"].startswith("type(content="):
         result["action"] = translate_uitars_type_action(result["action"])
@@ -355,7 +369,9 @@ def uitars_parser(result):
         nums = re.findall(r"-?\d+", result["action"])
         if dir_match and len(nums) >= 2:
             direction = dir_match.group(1).lower()
-            x, y = int(nums[0]), int(nums[1])
+            # The magnitude is read off the point, so it is in the same space as
+            # a click coordinate and needs the same conversion.
+            x, y = rescale(nums[0], nums[1])
             if direction == "down":
                 dx, dy = 0, y
             elif direction == "up":
@@ -373,9 +389,8 @@ def uitars_parser(result):
                 f"Could not parse two integer coordinates from right_single action: {result['action']!r}. "
                 "Expected format like right_single(point='(x,y)')."
             )
-        result["action"] = (
-            f"mouse_click(x={int(coords[0])}, y={int(coords[1])}, button='right')"
-        )
+        x, y = rescale(coords[0], coords[1])
+        result["action"] = f"mouse_click(x={x}, y={y}, button='right')"
     # hotkey(key='ctrl alt e') -> keyboard_press(key='Control+Alt+e')
     if result["action"].startswith("hotkey(key="):
         key_comb = re.findall(r"hotkey\(key='(.*?)'\)", result["action"])

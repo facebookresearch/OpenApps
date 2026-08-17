@@ -6,7 +6,7 @@ import json
 import pytest
 from agentlab.llm.llm_utils import ParseError
 
-from open_apps.agent.action_parsers import REGISTRY, get_action_parser
+from open_apps.agent.action_parsers import REGISTRY, get_action_parser, rescale_xy
 from open_apps.agent.action_parsers.qwen3vl import Qwen3VLActionParser
 
 
@@ -28,6 +28,54 @@ def test_get_action_parser_defaults_to_uitars_when_none():
 def test_get_action_parser_raises_on_unknown_name():
     with pytest.raises(ValueError, match="Unknown action_parser 'bogus'"):
         get_action_parser("bogus")
+
+
+def test_action_parser_families_carry_their_own_coord_space():
+    assert get_action_parser("uitars").coord_scale is None
+    assert get_action_parser("qwen3vl").coord_scale == 1000
+
+
+def test_coord_scale_argument_overrides_the_family_default():
+    assert get_action_parser("uitars", 1024).coord_scale == 1024
+    assert get_action_parser("qwen3vl", 1024).coord_scale == 1024
+    # None means "keep the family default", not "raw pixels".
+    assert get_action_parser("qwen3vl", None).coord_scale == 1000
+
+
+# ---------------------------------------------------------------------------
+# rescale_xy: the shared coordinate conversion
+# ---------------------------------------------------------------------------
+
+def test_rescale_xy_passes_raw_pixels_through_when_scale_is_none():
+    assert rescale_xy(612, 455, None, VIEWPORT) == (612, 455)
+
+
+def test_rescale_xy_rounds_raw_pixels_to_int():
+    assert rescale_xy(612.6, 455.4, None, VIEWPORT) == (613, 455)
+
+
+def test_rescale_xy_maps_normalized_1000_space_to_viewport():
+    assert rescale_xy(870, 940, 1000, VIEWPORT) == (1670, 1015)
+    assert rescale_xy(500, 500, 1000, VIEWPORT) == (960, 540)
+
+
+def test_rescale_xy_maps_normalized_1024_space_to_viewport():
+    # Gemma/PaliGemma-lineage <locNNNN> bins are 0-1024.
+    assert rescale_xy(512, 512, 1024, (1280, 800)) == (640, 400)
+
+
+def test_rescale_xy_scales_each_axis_by_its_own_viewport_dimension():
+    # Same input coordinate, non-square viewport -> different pixel per axis.
+    assert rescale_xy(500, 500, 1000, (1280, 800)) == (640, 400)
+
+
+def test_rescale_xy_preserves_sign_for_negative_deltas():
+    assert rescale_xy(0, -500, 1000, VIEWPORT) == (0, -540)
+
+
+def test_rescale_xy_treats_zero_scale_as_raw_pixels():
+    # ``if coord_scale`` guards the division; 0 must not raise.
+    assert rescale_xy(100, 200, 0, VIEWPORT) == (100, 200)
 
 
 # ---------------------------------------------------------------------------
@@ -186,3 +234,44 @@ def test_uitars_action_parser_parses_native_action_syntax():
     assert out["action"] == "mouse_click(x=100, y=200)"
     assert out["think"] == "Click the Submit button."
     assert out["displayed_action"] == "click(point='<point>100 200</point>')"
+
+
+# ---------------------------------------------------------------------------
+# uitars grammar + a normalized coord space (the Gemma screenshot-only case)
+# ---------------------------------------------------------------------------
+
+def test_uitars_grammar_rescales_clicks_when_coord_scale_is_set():
+    a = get_action_parser("uitars", coord_scale=1000)
+    response = "<think>t</think><action>click(point='(500,500)')</action>"
+    out = a.parse(response, viewport=(1280, 800))
+    assert out["action"] == "mouse_click(x=640, y=400)"
+    # The model-native text shown in history stays in the model's own space.
+    assert out["displayed_action"] == "click(point='(500,500)')"
+
+
+def test_uitars_grammar_rescales_right_click_when_coord_scale_is_set():
+    a = get_action_parser("uitars", coord_scale=1000)
+    response = "<think>t</think><action>right_single(point='(500,500)')</action>"
+    out = a.parse(response, viewport=(1280, 800))
+    assert out["action"] == "mouse_click(x=640, y=400, button='right')"
+
+
+def test_uitars_grammar_rescales_scroll_magnitude_when_coord_scale_is_set():
+    # The magnitude is read off the point, so it lives in the same space.
+    a = get_action_parser("uitars", coord_scale=1000)
+    response = "<think>t</think><action>scroll(direction='down', point='(500,500)')</action>"
+    assert a.parse(response, viewport=(1280, 800))["action"] == "scroll(0, 400)"
+
+
+def test_coord_scale_does_not_touch_bid_or_text_actions():
+    a = get_action_parser("uitars", coord_scale=1000)
+    for action in ['click("96")', 'fill("92", "hello")', "scroll(0, 400)"]:
+        response = f"<think>t</think><action>{action}</action>"
+        assert a.parse(response, viewport=(1280, 800))["action"] == action
+
+
+def test_default_uitars_parser_still_passes_raw_pixels_through():
+    """Regression guard: the default path must be byte-identical to before."""
+    a = get_action_parser("uitars")
+    response = "<think>t</think><action>click(point='(500,500)')</action>"
+    assert a.parse(response, viewport=(1280, 800))["action"] == "mouse_click(x=500, y=500)"

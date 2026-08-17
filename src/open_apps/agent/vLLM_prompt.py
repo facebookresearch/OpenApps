@@ -4,6 +4,7 @@ Prompt builder for GenericAgent
 It is based on the dynamic_prompting module from the agentlab package.
 """
 
+import logging
 from dataclasses import dataclass
 from PIL import Image
 import numpy as np
@@ -265,7 +266,14 @@ class VllmMainPrompt(dp.PromptElement):
         if screenshot is not None and hasattr(screenshot, "shape"):
             self.viewport = (int(screenshot.shape[1]), int(screenshot.shape[0]))
         else:
+            # Only reachable with use_screenshot off; any rescaling coordinates
+            # would silently land in the wrong place under a non-1080p preset.
             self.viewport = (1920, 1080)
+            logging.warning(
+                "No screenshot in obs; falling back to a %s viewport for "
+                "coordinate rescaling.",
+                self.viewport,
+            )
 
         self.action_prompt = ActionPrompt(action_set, action_flags=flags.action,
                                            concrete_ex_txt=prompt_txt.get("action_concrete_example"), 

@@ -230,6 +230,10 @@ class AgentArgs(AgentLabAgentArgs):
     # Per-model-family action_parser (parser + coordinate space). See
     # open_apps.agent.action_parsers. Default preserves the flexible_parser path.
     action_parser: str = "uitars"
+    # Coordinate space the model predicts in: None = raw viewport pixels,
+    # N = normalized [0, N) grid (Qwen-VL/GLM-VL use 1000). None keeps the
+    # action_parser's own default. See action_parsers.coords.rescale_xy.
+    coord_scale: int = None
     # User-message sections to render; None = legacy default. See
     # VllmMainPrompt._SECTION_RENDERERS.
     prompt_sections: list[str] = None
@@ -296,6 +300,7 @@ class AgentArgs(AgentLabAgentArgs):
             prompt_txt=self.prompt_txt,
             save_dir=self.save_dir,
             action_parser_name=self.action_parser,
+            coord_scale=self.coord_scale,
             prompt_sections=self.prompt_sections,
         )
 
@@ -309,6 +314,7 @@ class VLLMAgent(Agent):
         max_retry: int = 3,
         save_dir: str = None,
         action_parser_name: str = "uitars",
+        coord_scale: int | None = None,
         prompt_sections: list[str] | None = None,
     ):
         logging.info("Initializing vllmAgent with flags: %s", asdict(flags))
@@ -318,7 +324,7 @@ class VLLMAgent(Agent):
         self.flags = flags
         self.action_set = flags.action.action_set.make_action_set()
         self._obs_preprocessor = dp.make_obs_preprocessor(flags.obs)
-        self.action_parser = get_action_parser(action_parser_name)
+        self.action_parser = get_action_parser(action_parser_name, coord_scale)
         self.prompt_sections = (
             list(prompt_sections) if prompt_sections is not None else None
         )

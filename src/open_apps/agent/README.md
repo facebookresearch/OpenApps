@@ -67,7 +67,39 @@ The `vllm_prompt.py` has several key components:
     - Improve the prompt such that the model can output according to instruction.
     - Improve the response parser to be more lenient in parsing. Note that if you change the prompt format, you might need to change the parser!
     - Enable multi-action? (for example, don't some tasks require fill and click at the same time step?)
-    - Figure out how to map coordinates correctly! Vision models use coordinates and it's unclear when a coordinate is correct but just off by a factor or a coordinate is wrong.
+
+## Coordinate Spaces
+
+Vision models disagree about what an `(x, y)` in their output means, and getting
+it wrong is silent: the click lands somewhere plausible and the episode scores 0
+without an error. `action_parsers/coords.py::rescale_xy` is the single place that
+conversion happens; every parser goes through `ActionParser.rescale`.
+
+| convention | `coord_scale` | who |
+| --- | --- | --- |
+| raw viewport pixels | `null` | UI-TARS 1.5, GPT-4o-style computer use |
+| normalized 0-1000 | `1000` | Qwen-VL, GLM-VL |
+| normalized [0, N) | `N` | PaliGemma/Gemma-lineage `<locNNNN>` bins are 0-1024 |
+
+Each parser family carries a default (`uitars`: null, `qwen3vl`: 1000). Override
+per model in the agent yaml with `coord_scale: N`. Note this is one scalar applied
+against each viewport axis, which is what a *square* normalized grid means — it
+cannot express a model predicting in its own non-square resized image space.
+
+### Calibrating a new model
+
+Don't guess the scale, measure it:
+
+1. Run a few episodes with `save_dir` set. Each step writes ground-truth element
+   boxes to `<exp_dir>/set_of_marks_coordinates.json` (see `utils.save_som_coordinates`).
+2. For a step where the model clearly intended a particular element, compare the
+   raw predicted `(x, y)` (kept verbatim in `displayed_action`) against that
+   element's `bbox`.
+3. `predicted / actual` should come out near a constant ratio per axis. A ratio
+   of ~0.52 on a 1920-wide viewport means the model is emitting 0-1000; ~0.53
+   means 0-1024. A ratio near 1.0 with scattered error means the model is
+   grounding badly, not scaling wrong — no `coord_scale` will fix that. Fall back
+   to targeting elements by set-of-marks bid (`save_som: true`) instead.
 
 ## Configuration Options
 

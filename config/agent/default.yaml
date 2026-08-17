@@ -54,6 +54,15 @@ save_som: False # Add a set of marks to the screenshot.
 # extract_visible_tag: False # Add a "visible" tag to visible elements in the AXTree.
 # extract_clickable_tag: False #  Add a "clickable" tag to clickable elements in the AXTree.
 extract_coords: False # Add the coordinates of the elements.
+
+# --- coordinate space ---
+# What an (x, y) in the model's output means. null = raw viewport pixels
+# (UI-TARS, GPT-4o); an integer N = a normalized [0, N) grid, converted to
+# pixels by action_parsers.coords.rescale_xy. Qwen-VL / GLM-VL use 1000; the
+# PaliGemma/Gemma lineage bins locations to 1024. Leave null unless you have
+# measured the model's convention -- a wrong scale clicks somewhere plausible
+# and scores 0 silently.
+coord_scale: null
 # filter_visible_elements_only: False  # filter elements that are not visible
 # use_focused_element: False  # use focused element
 
