@@ -282,3 +282,51 @@ def test_no_egress_page_has_zero_external_references(tmp_path_factory):
     # And it is still themed, i.e. the tokens carried the look.
     assert "--color-bg: #1e1e1e;" in html
     assert "width: 16.666667%" in html
+
+
+# ---------------------------------------------------------------------------
+# File tree icons
+# ---------------------------------------------------------------------------
+
+def test_rows_render_inline_svg_icons(editor_html):
+    assert "<svg" in editor_html
+    assert 'class="row-icon"' in editor_html
+
+
+def test_no_unicode_triangle_carets_remain(editor_html):
+    """The old caret was a filled U+25B6/U+25BC, blunt and over-angled."""
+    assert "▶" not in editor_html
+    assert "▼" not in editor_html
+
+
+def test_chevron_rotates_instead_of_swapping_glyphs(editor_html):
+    assert ".folder-row.is-expanded .folder-icon" in editor_html
+    assert "rotate(90deg)" in editor_html
+    assert "classList.toggle('is-expanded'" in editor_html
+
+
+def test_folder_icons_are_not_buttons(editor_html):
+    """They used to be Button(onclick="") wrappers, which put an unnamed
+    button in the accessibility tree for every folder -- noise the agent has
+    to read past."""
+    import re as _re
+
+    buttons = _re.findall(r"<button[^>]*>(.*?)</button>", editor_html, _re.S)
+    for body in buttons:
+        if "<svg" in body:
+            assert body.strip() != "", "icon-only button found in the tree"
+            # An icon-only button has no accessible name at all.
+            text = _re.sub(r"<[^>]+>", "", body).strip()
+            assert text, "button whose only content is an icon has no name"
+
+
+def test_file_icon_does_not_change_the_links_accessible_name(editor_html):
+    """The svg is aria-hidden, so the link's name stays the bare filename."""
+    import re as _re
+
+    links = _re.findall(r'<a[^>]*class="row-link[^"]*"[^>]*>(.*?)</a>', editor_html, _re.S)
+    assert links, "no file links rendered"
+    for body in links:
+        assert 'aria-hidden="true"' in body
+        text = _re.sub(r"<[^>]+>", "", body).strip()
+        assert text and "<" not in text

@@ -13,6 +13,7 @@ from starlette.responses import Response
 from src.open_apps.apps.start_page.helper import create_logo_header
 from src.open_apps.frontend import local_hdrs
 from src.open_apps.theme import _as_plain, load_theme, theme_style
+from src.open_apps.icons import Icon, icon
 
 # Global variables
 _base_hdrs_no_highlight = (
@@ -233,6 +234,59 @@ def set_environment(config):
             display: block;
             width: 100%;
         }}
+
+        /* ---- File tree icons -------------------------------------------
+           Inline SVG from open_apps.icons (see that module for why they are
+           not an icon font). They inherit colour via currentColor, so a live
+           theme swap recolours them with everything else. */
+        .sidebar .row-link {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .sidebar .folder-row {{
+            gap: 6px;
+        }}
+        .sidebar .row-icon {{
+            display: inline-flex;
+            align-items: center;
+            flex: none;
+            color: var(--color-muted, var(--custom-font-color));
+        }}
+        .sidebar .row-label {{
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        /* The name inside a folder row is a <button>; strip the control
+           chrome so it reads as a tree label like the file links do. */
+        .sidebar .folder-name {{
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font: inherit;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+        }}
+        /* One chevron for both states: rotated a quarter turn when open,
+           rather than swapping one glyph for another. */
+        .sidebar .folder-icon {{
+            display: inline-flex;
+            align-items: center;
+            flex: none;
+            color: var(--color-muted, var(--custom-font-color));
+            transition: transform 0.12s ease;
+        }}
+        .sidebar .folder-row.is-expanded .folder-icon {{
+            transform: rotate(90deg);
+        }}
+        /* Files sit one chevron-width in, so names line up with folder names
+           instead of hanging left of them. */
+        .sidebar .file-row {{
+            padding-left: calc(1rem + 12px + 6px);
+        }}
         #editor, .CodeMirror {{
             border: 1px solid var(--border-color);
             font-family: var(--custom-font-family), monospace;
@@ -445,9 +499,14 @@ def create_sidebar(current_path: str = None) -> Div:
                     f"{'is-current' if is_current else ''}"
             )(
                 A(
-                    item['name'],
+                    # Icon inside the link so the whole row, glyph included, is
+                    # one hit target. The svg is aria-hidden, so it adds no
+                    # AXTree node and the link's accessible name stays the
+                    # bare filename.
+                    Span(icon(Icon.FILE, size=14), cls="row-icon"),
+                    Span(item['name'], cls="row-label"),
                     href=f"/codeeditor/{file_path}",
-                    cls="text-white hover:text-white no-underline"
+                    cls="row-link no-underline"
                 )
             )
         else:
@@ -466,11 +525,11 @@ def create_sidebar(current_path: str = None) -> Div:
                         "onclick": f"""
                             const container = this.closest('.folder-container');
                             const content = container.querySelector('.folder-content');
-                            const icon = this.querySelector('.folder-icon');
                             const isVisible = content.style.display === 'block';
                             content.style.display = isVisible ? 'none' : 'block';
-                            icon.textContent = isVisible ? '▶' : '▼';
-                            
+                            // One chevron, rotated by CSS -- no glyph swap.
+                            this.classList.toggle('is-expanded', !isVisible);
+
                             const storageKey = getStorageKey('{folder_path}');
                             localStorage.setItem(storageKey, (!isVisible).toString());
                             
@@ -478,8 +537,15 @@ def create_sidebar(current_path: str = None) -> Div:
                         """
                     }
                 )(
-                    Button(cls="folder-icon mr-1", onclick="")(Span("▶")),
-                    Button(item['name'], cls="folder-name text-white", onclick=""),
+                    # Chevron and folder glyph are spans, not buttons. They
+                    # used to be Button(onclick="") wrappers, which put an
+                    # extra *unnamed* button in the accessibility tree for
+                    # every folder -- pure noise in the agent's observation.
+                    # The name stays a Button so the folder keeps one named,
+                    # clickable node to target.
+                    Span(icon(Icon.CHEVRON, size=12), cls="folder-icon"),
+                    Span(icon(Icon.FOLDER, size=14), cls="row-icon"),
+                    Button(item['name'], cls="folder-name row-label", onclick=""),
                 ),
                 Div(
                     cls="folder-content ml-2",
@@ -583,18 +649,18 @@ def create_sidebar(current_path: str = None) -> Div:
         Script("""
             document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.folder-container').forEach(container => {
-                    const folderHeader = container.querySelector('.flex');
-                    const icon = container.querySelector('.folder-icon');
+                    const folderHeader = container.querySelector('.folder-row');
                     const content = container.querySelector('.folder-content');
                     const folderPath = folderHeader.getAttribute('data-path');
-                    
+
                     // Set initial state from localStorage, default to collapsed (false)
                     const storageKey = getStorageKey(folderPath);
                     const isExpanded = localStorage.getItem(storageKey) === 'true';
-                    
+
                     // Always start collapsed unless explicitly set to expanded in localStorage
                     content.style.display = isExpanded ? 'block' : 'none';
-                    icon.textContent = isExpanded ? '▼' : '▶';
+                    // Rotate the single chevron rather than swapping glyphs.
+                    folderHeader.classList.toggle('is-expanded', isExpanded);
                 });
             });
             function showErrorModal(message) {
