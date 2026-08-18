@@ -12,6 +12,7 @@ import json
 from starlette.responses import Response
 from src.open_apps.apps.start_page.helper import create_logo_header
 from src.open_apps.frontend import local_hdrs
+from src.open_apps.theme import _as_plain, load_theme, theme_style
 
 # Global variables
 _base_hdrs_no_highlight = (
@@ -117,7 +118,31 @@ def set_environment(config):
         }
     """),)
     _base_hdrs = _base_hdrs_with_highlight if config.code_editor.highlight else _base_hdrs_no_highlight
+
+    # Drop every third-party stylesheet/script. The inline blocks below carry
+    # the design tokens, the layout utilities this app uses and base control
+    # styling, so the page renders identically with no outbound network.
+    #
+    # Worth knowing which way the risk runs: on a host that already has no
+    # egress those CDN tags fail silently and the inline CSS is what renders
+    # anyway, so setting this makes the result deterministic rather than
+    # network-dependent. On a host *with* egress it is a visible change,
+    # because Tailwind and DaisyUI stop contributing.
+    if getattr(config.code_editor, 'no_egress', False):
+        _base_hdrs = (
+            Script("""
+                function getStorageKey(folderPath) {
+                    return `folder_state_${folderPath}`;
+                }
+            """),
+        )
     
+    # Colours and typography come from the shared design tokens
+    # (config/apps/theme/<name>.yaml), emitted as a :root block by
+    # theme_style() and consumed here via var(). The legacy appearance keys
+    # are kept as the fallback arm of each var() so the old appearance presets
+    # still render, and so a theme that omits an editor-specific token
+    # degrades to a sensible general one instead of to nothing.
     primary_color = getattr(config.code_editor, 'primary_button_color', '#4A90E2')
     secondary_color = getattr(config.code_editor, 'secondary_button_color', '#50E3C2')
     danger_color = getattr(config.code_editor, 'danger_button_color', '#D0021B')
@@ -125,29 +150,23 @@ def set_environment(config):
     textarea_background_color = getattr(config.code_editor, 'textarea_background_color', '#2d2d2d')
     # grey 900 background as default
     main_background_color = getattr(config.code_editor, 'main_background_color', '#1a202c')
-    # Optional, added for the VS Code-style presets. All fall back to values
-    # derived from the old two-colour scheme so existing appearance yamls
-    # (default, dark_theme, colorblind_access, ...) render exactly as before.
-    sidebar_background_color = getattr(
-        config.code_editor, 'sidebar_background_color', main_background_color
-    )
-    border_color = getattr(config.code_editor, 'border_color', 'transparent')
-    accent_color = getattr(config.code_editor, 'accent_color', primary_color)
-    row_hover_color = getattr(config.code_editor, 'row_hover_color', 'rgba(255,255,255,0.08)')
-    row_active_color = getattr(config.code_editor, 'row_active_color', accent_color)
 
     env_styles = Style(
         f"""
         :root {{
-            --custom-font-size: {config.code_editor.font_size}px;
-            --custom-font-family: {config.code_editor.font};
-            --custom-font-color: {config.code_editor.fontcolor};
-            --main-bg-color: {main_background_color};
-            --sidebar-bg-color: {sidebar_background_color};
-            --border-color: {border_color};
-            --accent-color: {accent_color};
-            --row-hover-color: {row_hover_color};
-            --row-active-color: {row_active_color};
+            --custom-font-size: var(--font-size-base, {config.code_editor.font_size}px);
+            --custom-font-family: var(--font-family, {config.code_editor.font});
+            --custom-font-color: var(--color-fg, {config.code_editor.fontcolor});
+            --main-bg-color: var(--color-bg, {main_background_color});
+            /* Editor-specific tokens degrade to general ones, so a theme that
+               predates them (default, dark, mono, solarized) still works. */
+            --sidebar-bg-color: var(--color-surface, {main_background_color});
+            --border-color: var(--color-border, transparent);
+            --accent-color: var(--color-accent, {primary_color});
+            --row-hover-color: var(--color-row-hover, var(--color-surface, rgba(127,127,127,0.2)));
+            --row-active-color: var(--color-row-active, var(--color-primary, {primary_color}));
+            --editor-bg-color: var(--color-editor-bg, var(--color-bg, {textarea_background_color}));
+            --editor-fg-color: var(--color-editor-fg, var(--color-fg, {textarea_background_color}));
         }}
         .main-content {{
             background-color: var(--main-bg-color);
@@ -162,26 +181,26 @@ def set_environment(config):
             color: var(--custom-font-color);
         }}
         textarea {{
-            background-color: {textarea_background_color};
-            color: var(--custom-font-color);
+            background-color: var(--editor-bg-color);
+            color: var(--editor-fg-color);
             font-family: var(--custom-font-family);
         }}
         .btn-primary {{
-            background-color: {primary_color} !important;
-            border-color: {primary_color} !important;
-            color: var(--custom-font-color) !important;
+            background-color: var(--color-primary, {primary_color}) !important;
+            border-color: var(--color-primary, {primary_color}) !important;
+            color: var(--color-on-primary, var(--custom-font-color)) !important;
             font-family: var(--custom-font-family); !important;
         }}
         .btn-secondary {{
-            background-color: {secondary_color} !important;
-            border-color: {secondary_color} !important;
-            color: var(--custom-font-color) !important;
+            background-color: var(--color-neutral, {secondary_color}) !important;
+            border-color: var(--color-neutral, {secondary_color}) !important;
+            color: var(--color-btn-fg, var(--custom-font-color)) !important;
             font-family: var(--custom-font-family); !important;
         }}
         .btn-error {{
-            background-color: {danger_color} !important;
-            border-color: {danger_color} !important;
-            color: var(--custom-font-color) !important;
+            background-color: var(--color-danger, {danger_color}) !important;
+            border-color: var(--color-danger, {danger_color}) !important;
+            color: var(--color-btn-fg, var(--custom-font-color)) !important;
             font-family: var(--custom-font-family); !important;
         }}
 
@@ -220,18 +239,6 @@ def set_environment(config):
             font-size: var(--custom-font-size);
         }}
 
-        /* ---- Local (CDN-free) editor themes ---------------------------
-           With code_editor.highlight off there is no CodeMirror on the page,
-           so the theme selector used to call a no-op shim. These classes let
-           the shim restyle the textarea instead, which means theme swapping
-           works on an air-gapped node. CodeMirror overrides these when
-           highlight is on. */
-        textarea#editor.theme-vscode-dark {{ background-color: #1e1e1e; color: #d4d4d4; }}
-        textarea#editor.theme-vscode-light {{ background-color: #ffffff; color: #1f1f1f; }}
-        textarea#editor.theme-monokai {{ background-color: #272822; color: #f8f8f2; }}
-        textarea#editor.theme-solarized {{ background-color: #002b36; color: #93a1a1; }}
-        textarea#editor.theme-high-contrast {{ background-color: #000000; color: #ffffff; }}
-
         /* ---- Layout fallback ------------------------------------------
            Tailwind, DaisyUI and CodeMirror are all CDN fetches. On a host
            without egress none of them arrive and the page collapses to
@@ -254,12 +261,44 @@ def set_environment(config):
         .rounded-lg {{ border-radius: 0.5rem; }}
         .overflow-y-auto {{ overflow-y: auto; }}
         .cursor-pointer {{ cursor: pointer; }}
-        body {{ background-color: var(--main-bg-color); }}
+        body {{
+            background-color: var(--main-bg-color);
+            color: var(--custom-font-color);
+            font-family: var(--custom-font-family);
+        }}
+        /* Base control styling, normally supplied by DaisyUI/pico over the
+           network. Only shape and spacing here -- the colours are set by the
+           .btn-* rules above from design tokens. */
+        .btn {{
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius, 4px);
+            border: 1px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            line-height: 1.2;
+        }}
+        select, .select {{
+            background-color: var(--sidebar-bg-color);
+            color: var(--custom-font-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius, 4px);
+            padding: 0.25rem 0.5rem;
+            font-family: var(--custom-font-family);
+        }}
+        textarea {{
+            border-radius: var(--radius, 4px);
+            padding: 0.5rem;
+            width: 100%;
+        }}
     """
     )
     app.config = config
-    # Update app headers by extending existing ones
-    app.hdrs = (*_base_hdrs, env_styles)
+    # Order matters: theme tokens define the :root custom properties that
+    # env_styles consumes via var(), so they must come first. Both are inline
+    # <style> blocks, so the whole look survives an unreachable CDN.
+    app.hdrs = (*_base_hdrs, theme_style(config, "code_editor"), env_styles,
+                theme_switcher_script(config))
 
     if config.code_editor.sort_feature:
         list_of_modes = sorted(list_of_modes)
@@ -270,6 +309,34 @@ def set_environment(config):
         base_url="/codeeditor",
         current_file_path=__file__
     )
+
+def theme_switcher_script(config) -> Script:
+    """Embed every selectable theme's tokens so the selector can swap live.
+
+    The tokens for all of ``list_of_themes`` are inlined as JSON, so changing
+    theme is a set of ``style.setProperty`` calls on :root -- no page reload,
+    no server round-trip, and nothing fetched from a CDN. That is what makes
+    the dropdown a real-time surface rather than a form control.
+
+    The server is still notified (``/codeeditor/update-config``) so the choice
+    survives a reload and shows up in the config an eval records, but the
+    visual change does not wait on that request.
+    """
+    names = list(getattr(config.code_editor, "list_of_themes", []) or [])
+    palettes = {name: _as_plain(load_theme(name).get("tokens", {})) for name in names}
+    return Script(f"""
+        window.OPENAPPS_THEMES = {json.dumps(palettes)};
+        window.applyTheme = function(name) {{
+            var tokens = window.OPENAPPS_THEMES[name];
+            if (!tokens) {{ return false; }}
+            var root = document.documentElement;
+            Object.keys(tokens).forEach(function(k) {{
+                root.style.setProperty('--' + k, tokens[k]);
+            }});
+            return true;
+        }};
+    """)
+
 
 def return_to_index():
     return A("Code Editor Index Page", href="/codeeditor", cls="btn btn-primary")
@@ -316,29 +383,24 @@ def editor_binding(options_js: str) -> str:
             "var editor = CodeMirror.fromTextArea(document.getElementById('editor'), "
             f"{options_js});"
         )
-    initial_theme = getattr(app.config.code_editor, "theme", "") or ""
     return """
                     var editorTextarea = document.getElementById('editor');
-                    function applyLocalTheme(name) {
-                        if (!editorTextarea) { return; }
-                        editorTextarea.className = editorTextarea.className
-                            .split(/\\s+/)
-                            .filter(function(c) { return c && c.indexOf('theme-') !== 0; })
-                            .join(' ');
-                        if (name) { editorTextarea.classList.add('theme-' + name); }
-                    }
-                    applyLocalTheme('%s');
                     var editor = {
                         getValue: function() { return editorTextarea.value; },
                         setValue: function(value) { editorTextarea.value = value; },
                         getOption: function() { return null; },
                         setOption: function(name, value) {
-                            if (name === 'theme') { applyLocalTheme(value); }
+                            // Themes are design tokens now, applied to :root by
+                            // window.applyTheme, so this works with no CodeMirror
+                            // on the page and nothing fetched from a CDN.
+                            if (name === 'theme' && window.applyTheme) {
+                                window.applyTheme(value);
+                            }
                         },
                         setSize: function() {},
                         refresh: function() {},
                         focus: function() { editorTextarea.focus(); }
-                    };""" % initial_theme
+                    };"""
 
 
 def get_file_tree(path: str) -> Dict:
@@ -618,6 +680,7 @@ def index():
                             id="theme-selector",
                             cls="bg-gray-800 text-white p-2 rounded",
                             onchange="""
+                                window.applyTheme(this.value);
                                 editor.setOption('theme', this.value);
                                 fetch('/codeeditor/update_config', {
                                     method: 'POST',
@@ -715,6 +778,7 @@ def get_folder(folder: str):
                             id="theme-selector",
                             cls="bg-gray-800 text-white p-2 rounded",
                             onchange="""
+                                window.applyTheme(this.value);
                                 editor.setOption('theme', this.value);
                                 fetch('/codeeditor/update_config', {
                                     method: 'POST',
@@ -1003,6 +1067,7 @@ def get_file(file: str):
                             id="theme-selector",
                             cls="bg-gray-800 text-white p-2 rounded",
                             onchange="""
+                                window.applyTheme(this.value);
                                 editor.setOption('theme', this.value);
                                 fetch('/codeeditor/update_config', {
                                     method: 'POST',

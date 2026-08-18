@@ -1,0 +1,37 @@
+# @package apps.theme
+# VS Code "Dark+" — the palette a VLM has seen most often.
+#
+# Colours are VS Code's own Dark+ values. Chosen for agent evals on two
+# grounds: high contrast (low-contrast controls are hard for a VLM to segment
+# at all) and familiarity (a model has seen an enormous number of VS Code
+# screenshots and essentially none of this app, so a conventional layout lets
+# its priors apply rather than fight an unfamiliar UI).
+#
+# import_url is empty on purpose. Every value here renders from the inline
+# :root block, so this theme needs no outbound network — see the code editor's
+# local layout fallbacks for the rest of the no-egress story.
+name: vscode_dark
+import_url: ""
+tokens:
+  color-bg: "#1e1e1e"          # editor.background
+  color-surface: "#252526"     # sideBar.background
+  color-fg: "#d4d4d4"          # editor.foreground
+  color-muted: "#858585"       # editorLineNumber.foreground
+  color-border: "#3c3c3c"      # panel.border
+  color-primary: "#0e639c"     # button.background
+  color-on-primary: "#ffffff"
+  color-accent: "#007acc"      # focusBorder / statusBar
+  color-danger: "#f14c4c"      # editorError.foreground
+  color-neutral: "#3a3d41"     # button.secondaryBackground
+  color-btn-fg: "#ffffff"
+  font-family: "Consolas, 'Droid Sans Mono', Menlo, 'Courier New', monospace"
+  font-heading: "inherit"
+  font-size-base: "14px"
+  radius: "3px"
+  space: "8px"
+  # Editor-specific tokens. Other apps ignore them; the code editor uses them
+  # for the file tree, which has no analogue in the todo app.
+  color-row-hover: "#2a2d2e"   # list.hoverBackground
+  color-row-active: "#04395e"  # list.activeSelectionBackground
+  color-editor-bg: "#1e1e1e"   # the textarea itself
+  color-editor-fg: "#d4d4d4"

@@ -66,20 +66,34 @@ def editor_html_for_open_file(client):
 # The default appearance is the VS Code palette
 # ---------------------------------------------------------------------------
 
-def test_default_appearance_is_vscode_dark():
+def test_editor_resolves_to_the_vscode_theme():
+    from src.open_apps.theme import resolve_theme
+
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
-    ce = config.apps.code_editor
-    assert ce.main_background_color == "#1e1e1e"
-    assert ce.sidebar_background_color == "#252526"
-    assert ce.fontcolor == "#d4d4d4"
+    theme = resolve_theme(config.apps, "code_editor")
+    assert theme["name"] == "vscode_dark"
+    assert theme["tokens"]["color-bg"] == "#1e1e1e"
+    assert theme["tokens"]["color-surface"] == "#252526"
+
+
+def test_per_app_theme_does_not_restyle_other_apps():
+    """The editor opts in; todo keeps the global default."""
+    from src.open_apps.theme import resolve_theme
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config")
+    assert resolve_theme(config.apps, "todo")["name"] == "default"
 
 
 def test_default_font_is_monospace():
     """A proportional font (the old "Arial") does not read as a code editor."""
+    from src.open_apps.theme import resolve_theme
+
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
-    assert "monospace" in config.apps.code_editor.font.lower()
+    font = resolve_theme(config.apps, "code_editor")["tokens"]["font-family"]
+    assert "monospace" in font.lower()
 
 
 def test_palette_reaches_the_rendered_page(editor_html):
@@ -99,10 +113,12 @@ def test_sidebar_has_its_own_surface(editor_html):
 
 
 def test_sidebar_colour_differs_from_editor_pane():
+    from src.open_apps.theme import resolve_theme
+
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
-    ce = config.apps.code_editor
-    assert ce.sidebar_background_color != ce.main_background_color
+    tokens = resolve_theme(config.apps, "code_editor")["tokens"]
+    assert tokens["color-surface"] != tokens["color-bg"]
 
 
 def test_file_rows_carry_semantic_classes(editor_html):
@@ -138,23 +154,40 @@ def test_highlight_is_off_so_no_codemirror_cdn_dependency():
 def test_set_option_is_no_longer_a_no_op(editor_html):
     """The regression: setOption used to be `function() {}`."""
     assert "setOption: function() {}" not in editor_html
-    assert "applyLocalTheme" in editor_html
+    assert "window.applyTheme" in editor_html
 
 
 def test_theme_selector_reaches_the_shim(editor_html):
     assert "editor.setOption('theme', this.value)" in editor_html
 
 
-def test_local_theme_classes_exist_for_every_locally_backed_theme(editor_html):
-    for theme in ["vscode-dark", "vscode-light", "monokai", "high-contrast"]:
-        assert f"textarea#editor.theme-{theme}" in editor_html, (
-            f"{theme} is offered in the selector but has no local CSS class, "
-            "so selecting it would do nothing with highlight off"
-        )
+def test_every_selectable_theme_has_its_tokens_embedded(editor_html):
+    """The selector must not offer a theme the page cannot render offline."""
+    import json as _json
+    import re as _re
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config")
+    offered = list(config.apps.code_editor.list_of_themes)
+
+    match = _re.search(r"window\.OPENAPPS_THEMES = (\{.*?\});", editor_html, _re.S)
+    assert match, "theme palettes were not embedded in the page"
+    embedded = _json.loads(match.group(1))
+
+    assert set(embedded) == set(offered)
+    for name, tokens in embedded.items():
+        assert tokens.get("color-bg"), f"{name} embedded with no colour tokens"
 
 
-def test_configured_theme_is_applied_on_load(editor_html):
-    assert "applyLocalTheme('vscode-dark')" in editor_html
+def test_theme_switch_needs_no_reload_or_network(editor_html):
+    """Swapping is setProperty calls on :root -- no fetch, no reload."""
+    assert "root.style.setProperty" in editor_html
+    assert "window.applyTheme(this.value)" in editor_html
+
+
+def test_configured_theme_is_applied_server_side(editor_html):
+    """First paint must already be themed, not flash then correct."""
+    assert "--color-bg: #1e1e1e;" in editor_html
 
 
 # ---------------------------------------------------------------------------
@@ -186,3 +219,66 @@ def test_legacy_presets_still_compose(preset):
             overrides=[f"apps/code_editor/appearance={preset}"],
         )
     assert "sidebar_background_color" not in config.apps.code_editor
+
+
+# ---------------------------------------------------------------------------
+# no_egress: the page must fetch nothing at all
+# ---------------------------------------------------------------------------
+
+def test_no_egress_flag_is_off_by_default():
+    """Flipping it changes the look on a host that has egress."""
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config")
+    assert config.apps.code_editor.no_egress is False
+
+
+def test_default_page_still_declares_its_cdn_dependencies(editor_html):
+    """Guards the premise of the test below."""
+    assert "https://" in editor_html
+
+
+def test_no_egress_page_has_zero_external_references(tmp_path_factory):
+    """Rendered with no_egress, nothing may point off-host."""
+    import re as _re
+    import subprocess
+    import sys
+    import textwrap
+
+    # Run in a subprocess: the app and its DBs are process-wide singletons and
+    # are already configured by the module fixture above.
+    script = textwrap.dedent(
+        """
+        import sys
+        from pathlib import Path
+        from hydra import compose, initialize
+        from starlette.testclient import TestClient
+        from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
+
+        logs = sys.argv[1]
+        with initialize(version_base=None, config_path="config"):
+            cfg = compose(
+                config_name="config",
+                overrides=[f"logs_dir={logs}", "apps.code_editor.no_egress=true"],
+            )
+        Path(cfg.logs_dir).mkdir(parents=True, exist_ok=True)
+        Path(cfg.databases_dir).mkdir(parents=True, exist_ok=True)
+        initialize_routes_and_configure_task(cfg.apps)
+        print(TestClient(app).get("/codeeditor/").text)
+        """
+    )
+    logs = str(tmp_path_factory.mktemp("noegress"))
+    out = subprocess.run(
+        [sys.executable, "-c", script, logs],
+        capture_output=True, text=True, cwd=".",
+    )
+    assert out.returncode == 0, out.stderr[-2000:]
+    html = out.stdout
+
+    # Same-origin absolute links are fine (TestClient renders its own base URL
+    # as http://testserver/...); what must be gone is any third-party host.
+    urls = _re.findall(r'(?:src|href)="((?://|https?://)[^"]*)"', html)
+    external = [u for u in urls if "testserver" not in u]
+    assert not external, f"no_egress page still fetches: {external}"
+    # And it is still themed, i.e. the tokens carried the look.
+    assert "--color-bg: #1e1e1e;" in html
+    assert "width: 16.666667%" in html

@@ -4,48 +4,41 @@ defaults:
 
 database_path: ${databases_dir}/codeeditor
 
-# Per-app theme override. null = inherit the global `apps/theme` selection.
-# Override for just this app with `apps.code_editor.theme=solarized`.
+# Serve the editor with no third-party CDN fetches at all (pico, Tailwind,
+# DaisyUI, CodeMirror). The inline design tokens, layout fallbacks and base
+# control styling cover everything the app uses.
 #
-# Note this is the *shared* theme, not CodeMirror's -- the syntax-highlighting
-# stylesheet is `editor_theme` below. The two were both called `theme` until
-# the appearance groups were removed, and the per-app override silently won,
-# leaving CodeMirror initialised with `theme: 'None'`.
-theme: null
+# Left off by default only because flipping it changes the look on a host that
+# *does* have egress, and that wants a visual check first. On an air-gapped
+# node those fetches already fail silently, so turning this on there costs
+# nothing and makes rendering deterministic:
+#   apps.code_editor.no_egress=true
+no_egress: false
 
-# --- Behaviour -------------------------------------------------------------
+# Design theme for this app, resolved by open_apps.theme.resolve_theme. Set
+# per-app so the editor can be VS Code dark without restyling every other
+# app; use `apps/theme=vscode_dark` to change the global default instead.
+#
+# This key doubles as CodeMirror's theme name when code_editor.highlight is
+# on. That is deliberate -- one selector, one concept -- but it means a
+# design-theme name has no matching CodeMirror stylesheet, so syntax colours
+# fall back to CodeMirror's default. The design tokens still restyle the
+# surrounding chrome and the editor surface.
+theme: vscode_dark
 
-# CodeMirror syntax-highlighting stylesheet, loaded by name from the CDN.
-# It is a whole stylesheet rather than a set of variables, so the shared
-# theme selects one via its `tone` (see `editor_theme_by_tone`).
-editor_theme: "eclipse"
-editor_theme_by_tone:
-  dark: "monokai"
-  mono: "eclipse"
-# Language mode the editor starts in.
-mode: "python"
-# Load CodeMirror at all. False renders a plain <textarea> -- a meaningfully
-# different observation for an agent, so it is behaviour, not appearance.
-highlight: False
-# Sort the mode/theme dropdowns alphabetically instead of config order.
-sort_feature: True
-
-list_of_modes:
-  - python
-  - javascript
-  - css
-  - yaml
-  - markdown
-  - shell
-  - clike
-  - go
+# The design themes offered by the in-editor selector. Each must exist as
+# config/apps/theme/<name>.yaml.
 list_of_themes:
-  - monokai
-  - eclipse
+  - vscode_dark
+  - default
+  - dark
   - solarized
-  - seti
-  - night
-  - dracula
-  - twilight
-  - zenburn
   - material
+  - mono
+
+# Fallback arms only. Every rule that reads these is written as
+# `var(--token, <this value>)`, so they are what renders if a theme omits the
+# corresponding token -- never the primary source. Change the theme, not these.
+font: "Arial"
+font_size: 12
+fontcolor: ""
