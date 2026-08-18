@@ -364,6 +364,24 @@ def set_environment(config):
         current_file_path=__file__
     )
 
+def live_theme_style() -> Style:
+    """Re-emit the design tokens for the *current* config, per request.
+
+    The token block in ``app.hdrs`` is built once in ``set_environment``, so it
+    freezes whatever theme was configured at startup. Selecting a theme updates
+    ``app.config.code_editor.theme`` (via /codeeditor/update_config) and
+    repaints the live page, but the next navigation used to re-render from
+    those frozen headers and snap the look back to the startup theme -- while
+    the dropdown, which reads the config, still showed the chosen one.
+
+    Emitting the block again per request fixes that: it appears after the
+    header copy, so its :root wins, and it always reflects the current config.
+    theme.py's own guidance is to call theme_style per request for exactly
+    this reason.
+    """
+    return theme_style(app.config, "code_editor")
+
+
 def theme_switcher_script(config) -> Script:
     """Embed every selectable theme's tokens so the selector can swap live.
 
@@ -372,7 +390,7 @@ def theme_switcher_script(config) -> Script:
     no server round-trip, and nothing fetched from a CDN. That is what makes
     the dropdown a real-time surface rather than a form control.
 
-    The server is still notified (``/codeeditor/update-config``) so the choice
+    The server is still notified (``/codeeditor/update_config``) so the choice
     survives a reload and shows up in the config an eval records, but the
     visual change does not wait on that request.
     """
@@ -789,7 +807,7 @@ def index():
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(live_theme_style(), logo_title_container, page)
 
 
 @app.get("/codeeditor/{path:path}")
@@ -897,7 +915,7 @@ def get_folder(folder: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(live_theme_style(), logo_title_container, page)
 
 def get_file(file: str):
     side_bar = create_sidebar(file)
@@ -1222,7 +1240,7 @@ def get_file(file: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(live_theme_style(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")
 def create_folder(folder: str):

@@ -330,3 +330,38 @@ def test_file_icon_does_not_change_the_links_accessible_name(editor_html):
         assert 'aria-hidden="true"' in body
         text = _re.sub(r"<[^>]+>", "", body).strip()
         assert text and "<" not in text
+
+
+# ---------------------------------------------------------------------------
+# A chosen theme survives navigation
+# ---------------------------------------------------------------------------
+
+def test_theme_choice_survives_navigation(client):
+    """Regression: opening a folder snapped the look back to the startup theme.
+
+    The token block lived only in app.hdrs, built once at startup, so any
+    re-render served frozen tokens -- while the dropdown, which reads the live
+    config, still showed the theme the user picked.
+    """
+    def tokens_of(path):
+        html = client.get(path).text
+        # The last :root block wins, and that is the per-request one.
+        return html.rsplit("--color-bg:", 1)[1].split(";")[0].strip()
+
+    assert tokens_of("/codeeditor/") == "#1e1e1e"
+
+    resp = client.post(
+        "/codeeditor/update_config", json={"type": "theme", "value": "solarized"}
+    )
+    assert resp.json()["success"] is True
+
+    # Every route that renders a page must reflect the new theme.
+    for path in ["/codeeditor/", "/codeeditor/script.py", "/codeeditor/developing"]:
+        assert tokens_of(path) == "#fdf6e3", f"{path} snapped back to the old theme"
+
+    # And the selector agrees with what is rendered.
+    assert 'value="solarized" selected' in client.get("/codeeditor/").text
+
+    # Restore so later tests in this module see the configured default.
+    client.post("/codeeditor/update_config", json={"type": "theme", "value": "vscode_dark"})
+    assert tokens_of("/codeeditor/") == "#1e1e1e"
