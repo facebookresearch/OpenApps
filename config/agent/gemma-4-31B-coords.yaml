@@ -1,27 +1,42 @@
 # Gemma 4 31B, screenshot-only via pixel coordinates.
 #
-# The coordinate-mode counterpart to gemma-4-31B-computer-use.yaml (which
-# targets elements by set-of-marks bid). Run both and compare -- Gemma is not
-# GUI-pretrained the way UI-TARS is, so bids are expected to win; this config
-# exists to measure that rather than assume it.
+# NOT THE RECOMMENDED CONFIG. Use gemma-4-31B-computer-use.yaml (set-of-marks
+# bids). This one is kept as a measured negative result, so the experiment is
+# not repeated from scratch.
 #
-# ## The coordinate space
+# ## What was measured
 #
-# Earlier screenshot-only runs clicked off-target because the model's (x, y)
-# was fed to playwright as if it were already viewport pixels. Rather than
-# reverse-engineer Gemma's native grid, this config does what the Qwen3.6-VL
-# config does: it *declares* a 1000x1000 screen in the prompt and sets
-# coord_scale: 1000 to match. If the model honors the declared space, the
-# conversion is correct by construction.
+# The theory was that Gemma's off-target clicks were a coordinate-space
+# problem -- that it emitted normalized coordinates which were being fed to
+# playwright as raw viewport pixels. Two cluster runs falsified that. Taking
+# the executed action and inverting the conversion:
 #
-# If it does not honor it and falls back to a native convention, calibrate --
-# do not guess. The recipe is in src/open_apps/agent/README.md ("Calibrating a
-# new model"); it uses the ground-truth boxes that save_dir writes to
-# set_of_marks_coordinates.json. The Gemma/PaliGemma lineage bins locations to
-# 0-1024, so coord_scale=1024 is the first alternative to try:
-#   uv run launch_agent.py agent=gemma-4-31B-coords agent.coord_scale=1024
+#   model said (88, 238),  coord_scale=1024, 1920x1080 -> executed (165, 251)
+#   model said (611, 645), coord_scale=1000, 1920x1080 -> executed (1173, 697)
 #
-# Pair with: browsergym_env_args=screenshot
+# Both exact to the pixel, at two different scales. The conversion put the
+# cursor precisely where the model asked; the model asked for the wrong place.
+# That is a grounding failure, not a scaling one, and no coord_scale value
+# fixes it -- see "Calibrating a new model" in src/open_apps/agent/README.md
+# for how to tell the two apart.
+#
+# A run with bids instead was mechanically sound by comparison -- clicks
+# executed and navigation worked -- but the model still misread which printed
+# label belonged to which row. So Gemma 4 31B struggles with pixel grounding
+# *and* with reading marks off an image. Feeding it the accessibility tree
+# (agent.use_axtree=true) turns "decode a label in an image" into "read a
+# name from text" and is the more promising direction.
+#
+# ## If you run this anyway
+#
+# The prompt declares a 1000x1000 grid and coord_scale matches it, so the
+# conversion is correct by construction as long as the model complies -- and
+# it does comply; that was never the failing part. Do not pass
+# agent.coord_scale=1024: it contradicts the declared grid and shrinks every
+# click ~2.3% toward the top-left.
+#
+# Pair with: browsergym_env_args=screenshot (also raises max_steps 10 -> 25;
+# on the default preset this task can run out of budget before it finishes).
 defaults:
   - default
   - _self_
