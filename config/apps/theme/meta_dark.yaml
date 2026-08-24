@@ -1,0 +1,66 @@
+# @package apps.theme
+# Meta brand palette, dark mode.
+#
+# The dark counterpart to `meta`. Deliberately token-for-token identical in
+# shape: the runtime light/dark toggle swaps which of the two is resolved, and
+# no app should have to know which one it got. Adding a token here without
+# adding it to meta.yaml (or vice versa) will make one mode fall back to
+# whatever Pico defaults to for that property, which reads as a single
+# mis-coloured element rather than an obvious break.
+#
+# Three values are derived rather than quoted from the palette, because the
+# canonical palette has no dark elevated surface and no dark divider. All are
+# alpha tints so they stay traceable:
+#   color-surface   -> white @ 6%  over Meta Gray 1000
+#   color-border    -> white @ 15%
+#   color-row-hover -> white @ 8%
+#
+# color-accent moves from Meta Blue (#0064e0) to the AI-ring Blue (#006fff).
+# The former is legible on white and muddy on #1c2b33; the ring blue is the
+# palette's own brighter blue and holds contrast on the dark ground.
+name: meta_dark
+import_url: ""
+tokens:
+  # --- Core surfaces and text -------------------------------------------
+  color-bg: "#1c2b33"                       # Meta Gray 1000 - dark background
+  color-surface: "rgba(255, 255, 255, 0.06)"   # derived: elevated surface
+  color-fg: "#ffffff"                       # White
+  color-muted: "#8a8d91"                    # Gray 55 - muted text
+  color-border: "rgba(255, 255, 255, 0.15)"    # derived
+
+  # --- Actions -----------------------------------------------------------
+  color-primary: "#1877f2"                  # Meta Blue 50 - primary CTA
+  color-on-primary: "#ffffff"
+  color-accent: "#006fff"                   # AI ring Blue - legible on dark
+  color-danger: "#e41e3f"                   # Red 35
+  color-neutral: "#65676b"                  # Medium Gray
+  color-btn-fg: "#ffffff"
+
+  # --- Typography and shape ---------------------------------------------
+  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"
+
+  # --- Code editor -------------------------------------------------------
+  color-editor-bg: "#1c2b33"                # Meta Gray 1000
+  color-editor-fg: "#ffffff"
+  color-row-hover: "rgba(255, 255, 255, 0.08)" # derived
+  color-row-active: "#0143b5"               # Blue 800 - selection
+
+  # --- Semantic ----------------------------------------------------------
+  color-success: "#45bd62"                  # Green 60
+  color-warning: "#f7b928"                  # Yellow 60
+  color-emphasis: "#eb630e"                 # Orange 40
+  color-info: "#0143b5"                     # Blue 800 - Blue 90 glares on dark
+
+  # --- Brand accents -----------------------------------------------------
+  color-accent-pink: "#f351c0"              # Pink 500
+  color-accent-violet: "#991df9"            # Violet 650
+  color-accent-teal: "#a5f0e6"              # Teal 300
+  ring-blue: "#006fff"
+  ring-dark-blue: "#0033ff"
+  ring-pink: "#f24eed"
+  ring-teal: "#00d1ae"
+  ring-violet: "#931efa"

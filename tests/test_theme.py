@@ -217,3 +217,64 @@ class TestThemeStyle:
         cfg = OmegaConf.create({"theme": "default", "todo": {"theme": "solarized"}})
         assert "--color-bg: #fdf6e3;" in css(theme_style(cfg, "todo"))
         assert "--color-bg: #ffffff;" in css(theme_style(cfg, "calendar"))
+
+
+class TestMetaThemePair:
+    """The light/dark pair must stay interchangeable.
+
+    The runtime mode toggle swaps which of ``meta`` / ``meta_dark`` is
+    resolved, and no app is told which one it got. A token present in one and
+    missing from the other therefore doesn't fail loudly — that property falls
+    back to whatever Pico defaults to, and shows up as one mis-coloured element
+    in one mode only, which is exactly the kind of thing nobody notices until a
+    screenshot diff catches it months later.
+    """
+
+    CANONICAL = "default"      # the token set every theme is expected to cover
+    EDITOR_EXTRAS = {
+        "color-editor-bg",
+        "color-editor-fg",
+        "color-row-hover",
+        "color-row-active",
+    }
+
+    def test_light_and_dark_define_the_same_tokens(self):
+        light = set(load_theme("meta")["tokens"])
+        dark = set(load_theme("meta_dark")["tokens"])
+        assert light == dark, (
+            "meta / meta_dark token sets diverged. "
+            f"only in meta: {sorted(light - dark)}; "
+            f"only in meta_dark: {sorted(dark - light)}"
+        )
+
+    def test_both_cover_the_canonical_token_set(self):
+        canonical = set(load_theme(self.CANONICAL)["tokens"])
+        for name in ("meta", "meta_dark"):
+            tokens = set(load_theme(name)["tokens"])
+            assert canonical <= tokens, (
+                f"{name} is missing canonical tokens: {sorted(canonical - tokens)}"
+            )
+
+    def test_both_cover_the_editor_tokens(self):
+        """Without these the code editor falls back mid-theme, not cleanly."""
+        for name in ("meta", "meta_dark"):
+            tokens = set(load_theme(name)["tokens"])
+            assert self.EDITOR_EXTRAS <= tokens, (
+                f"{name} is missing editor tokens: "
+                f"{sorted(self.EDITOR_EXTRAS - tokens)}"
+            )
+
+    def test_neither_theme_reaches_the_network(self):
+        """No webfont, no @import. The eval nodes have no outbound network."""
+        for name in ("meta", "meta_dark"):
+            theme = load_theme(name)
+            assert theme["import_url"] == "", f"{name} sets import_url"
+            out = css(render_theme_tokens(theme))
+            assert "http" not in out, f"{name} renders an external reference"
+
+    def test_the_two_modes_actually_differ(self):
+        """Guards against a copy-paste that leaves dark mode light."""
+        light = load_theme("meta")["tokens"]
+        dark = load_theme("meta_dark")["tokens"]
+        assert light["color-bg"] != dark["color-bg"]
+        assert light["color-fg"] != dark["color-fg"]

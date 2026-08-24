@@ -1,0 +1,72 @@
+# @package apps.theme
+# Meta brand palette, light mode.
+#
+# Select globally with `apps/theme=meta`, or per app with
+# `apps.<app>.theme=meta`. The dark counterpart is `meta_dark`; the two are
+# token-for-token identical in *shape* so the runtime light/dark toggle can
+# swap between them without any app needing to know which is active.
+#
+# Every value here is a flat colour or a tint derived from one, so the whole
+# theme renders from the inline `:root` block with no webfont and no outbound
+# request. That matters: the eval nodes have no network, and a theme that
+# half-loads is worse than one that never tried.
+#
+# `font-family` is a system stack rather than Meta's brand typeface, which is
+# not publicly distributable. The stack resolves to the same faces a Meta
+# property renders in on each platform, without shipping or fetching a font.
+#
+# Two values are derived rather than quoted from the palette, because the
+# palette has no light divider grey and no dark elevated surface. Both are
+# alpha tints of a canonical colour so they stay traceable:
+#   color-border  -> Meta Gray 1000 at 15%
+#   (see meta_dark.yaml for the dark-side equivalents)
+name: meta
+import_url: ""
+tokens:
+  # --- Core surfaces and text -------------------------------------------
+  color-bg: "#ffffff"                       # White
+  color-surface: "#f0f2f5"                  # Gray 95 - card fill
+  color-fg: "#1c2b33"                       # Meta Gray 1000 - primary text
+  color-muted: "#65676b"                    # Medium Gray - secondary text
+  color-border: "rgba(28, 43, 51, 0.15)"    # derived: Meta Gray 1000 @ 15%
+
+  # --- Actions -----------------------------------------------------------
+  color-primary: "#1877f2"                  # Meta Blue 50 - primary CTA
+  color-on-primary: "#ffffff"
+  color-accent: "#0064e0"                   # Meta Blue - brand / save action
+  color-danger: "#e41e3f"                   # Red 35 - destructive
+  color-neutral: "#65676b"                  # Medium Gray - secondary button
+  color-btn-fg: "#ffffff"
+
+  # --- Typography and shape ---------------------------------------------
+  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"
+
+  # --- Code editor -------------------------------------------------------
+  # Light theme keeps the editor light so the mode toggle changes everything
+  # at once. vscode_dark remains the option for a dark editor on its own.
+  color-editor-bg: "#ffffff"
+  color-editor-fg: "#1c2b33"
+  color-row-hover: "#f0f2f5"                # Gray 95
+  color-row-active: "#cde5ff"               # Blue 90 - selection
+
+  # --- Semantic ----------------------------------------------------------
+  color-success: "#45bd62"                  # Green 60
+  color-warning: "#f7b928"                  # Yellow 60
+  color-emphasis: "#eb630e"                 # Orange 40
+  color-info: "#cde5ff"                     # Blue 90
+
+  # --- Brand accents -----------------------------------------------------
+  # Not consumed by the current apps; the desktop shell uses them to tint app
+  # tiles so the launcher does not read as one undifferentiated blue grid.
+  color-accent-pink: "#f351c0"              # Pink 500
+  color-accent-violet: "#991df9"            # Violet 650
+  color-accent-teal: "#a5f0e6"              # Teal 300
+  ring-blue: "#006fff"
+  ring-dark-blue: "#0033ff"
+  ring-pink: "#f24eed"
+  ring-teal: "#00d1ae"
+  ring-violet: "#931efa"
