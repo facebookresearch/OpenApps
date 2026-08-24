@@ -41,6 +41,18 @@ class Icon(str, Enum):
     FILE = "file"
     FOLDER = "folder"
     FOLDER_OPEN = "folder-open"
+    # Desktop shell
+    PIN = "pin"
+    PIN_FILLED = "pin-filled"
+    APPS = "apps"
+    CLOCK = "clock"
+    CLOSE = "close"
+    # Light/dark mode toggle
+    SUN = "sun"
+    MOON = "moon"
+    # Weather, keyed off the condition string in the desktop config
+    CLOUD = "cloud"
+    CLOUD_RAIN = "cloud-rain"
 
 
 # Path geometry on a 24x24 grid, drawn as strokes rather than fills. Stroked
@@ -63,6 +75,51 @@ _GEOMETRY: dict[Icon, str] = {
     Icon.FOLDER_OPEN: (
         '<path d="M4 7A1.5 1.5 0 0 1 5.5 5.5h3.4l1.6 2h8A1.5 1.5 0 0 1 20 9"/>'
         '<path d="M3.6 10.5h17.2l-1.9 7.1a1.5 1.5 0 0 1-1.45 1.1H5.5a1.5 1.5 0 0 1-1.45-1.1z"/>'
+    ),
+    # --- Desktop shell ------------------------------------------------------
+    # A pushpin, not a map pin. The affordance is "fasten this to the desktop",
+    # and a map marker reads as "location" — wrong verb for the same glyph.
+    Icon.PIN: (
+        '<path d="M15 3H9l1 6-3 2v2h10v-2l-3-2z"/>'
+        '<path d="M12 13v8"/>'
+    ),
+    # The pinned state. Filled rather than a different shape: the two states
+    # must be recognisable as the same control, and weight reads faster than
+    # form at 16px. fill overrides the svg-level fill="none".
+    Icon.PIN_FILLED: (
+        '<path d="M15 3H9l1 6-3 2v2h10v-2l-3-2z" fill="currentColor"/>'
+        '<path d="M12 13v8"/>'
+    ),
+    # Launcher button. A 2x2 grid of tiles, echoing the desktop it opens.
+    Icon.APPS: (
+        '<rect x="4" y="4" width="7" height="7" rx="1.5"/>'
+        '<rect x="13" y="4" width="7" height="7" rx="1.5"/>'
+        '<rect x="4" y="13" width="7" height="7" rx="1.5"/>'
+        '<rect x="13" y="13" width="7" height="7" rx="1.5"/>'
+    ),
+    Icon.CLOCK: (
+        '<circle cx="12" cy="12" r="8.5"/>'
+        '<path d="M12 7.5V12l3 2"/>'
+    ),
+    Icon.CLOSE: '<path d="M6 6l12 12M18 6L6 18"/>',
+    # --- Light/dark toggle --------------------------------------------------
+    Icon.SUN: (
+        '<circle cx="12" cy="12" r="4"/>'
+        '<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4'
+        'M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
+    ),
+    Icon.MOON: '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
+    # --- Weather ------------------------------------------------------------
+    # Selected by the condition string in the desktop config, never by a
+    # network lookup — see config/apps/start_page/layout/desktop.yaml.
+    Icon.CLOUD: (
+        '<path d="M17.5 18a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.1 10.5'
+        'A3.75 3.75 0 0 0 6.5 18z"/>'
+    ),
+    Icon.CLOUD_RAIN: (
+        '<path d="M17.5 15a4.5 4.5 0 0 0 .5-8.97A6 6 0 0 0 6.1 7.5'
+        'A3.75 3.75 0 0 0 6.5 15z"/>'
+        '<path d="M8 18v2M12 18v2.5M16 18v2"/>'
     ),
 }
 

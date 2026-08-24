@@ -24,11 +24,21 @@ import pytest
 from src.open_apps.icons import Icon, icon, icon_markup
 
 
+#: SVG elements that actually draw. Checked as a set rather than just `<path`
+#: because some glyphs are cleaner as primitives -- the launcher grid is four
+#: rounded `<rect>`s, and expressing that as path data would be longer and
+#: harder to adjust for no benefit. The property being tested is "this member
+#: renders something", which the original `<path` check was only a proxy for.
+DRAWABLE_ELEMENTS = ("<path", "<rect", "<circle", "<ellipse", "<line", "<polyline", "<polygon")
+
+
 def test_every_enum_member_has_geometry():
-    """A member with no path renders an empty svg -- a blank gap in the UI."""
+    """A member with no geometry renders an empty svg -- a blank gap in the UI."""
     for member in Icon:
         markup = icon_markup(member)
-        assert "<path" in markup, f"{member.value} has no path geometry"
+        assert any(el in markup for el in DRAWABLE_ELEMENTS), (
+            f"{member.value} renders no geometry"
+        )
 
 
 def test_icons_inherit_colour_from_css():

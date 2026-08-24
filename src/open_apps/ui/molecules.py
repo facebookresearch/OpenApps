@@ -1,0 +1,191 @@
+"""
+Copyright (c) Meta Platforms, Inc. and affiliates.
+All rights reserved.
+This source code is licensed under the license found in the
+LICENSE file in the root directory of this source tree.
+
+Molecules -- atoms composed into recognisable UI pieces.
+
+These are the parts of the desktop shell: the toolbar and its chips, the
+launcher menu, a pinnable app row, a desktop shortcut.
+
+Two conventions matter here, both for the same reason -- this UI is scored by
+agents, not only looked at by people:
+
+**Everything interactive is a real control with a real name.** Buttons are
+``<button>`` with ``aria-label``, not styled ``<div>``s. An agent driving the
+accessibility tree can only act on what is named there, and a div with a click
+handler is invisible to it.
+
+**Nothing here reads the clock or the network.** The time and weather shown in
+the toolbar are passed in from config. A live clock would change every
+screenshot and break reference comparison; a weather lookup would be egress the
+eval nodes cannot make. Frozen values also mean a task can ask "what is the
+temperature?" and have a correct answer.
+"""
+from __future__ import annotations
+
+from fasthtml.common import A, Div, Span
+
+from open_apps.icons import Icon, icon
+from open_apps.ui.atoms import IconButton, Stack, Text
+
+#: Weather condition -> icon. The condition string comes from the desktop
+#: config, so this is a closed set; anything unrecognised falls back to CLOUD
+#: rather than rendering a gap where an affordance should be.
+WEATHER_ICONS = {
+    "clear": Icon.SUN,
+    "sunny": Icon.SUN,
+    "cloudy": Icon.CLOUD,
+    "overcast": Icon.CLOUD,
+    "rain": Icon.CLOUD_RAIN,
+    "rainy": Icon.CLOUD_RAIN,
+}
+
+
+def Clock(time_text: str, cls: str = ""):
+    """Toolbar clock.
+
+    ``time_text`` is rendered verbatim from config -- this never calls
+    ``datetime.now()``. See the module docstring.
+    """
+    return Div(
+        icon(Icon.CLOCK, size=15),
+        Text(time_text, variant="caption"),
+        cls=f"ui-chip {cls}".strip(),
+        data_testid="toolbar-clock",
+    )
+
+
+def WeatherChip(condition: str, temperature: str, cls: str = ""):
+    """Toolbar weather. Also config-driven, for the same reasons."""
+    glyph = WEATHER_ICONS.get((condition or "").lower(), Icon.CLOUD)
+    return Div(
+        icon(glyph, size=15),
+        Text(temperature, variant="caption"),
+        cls=f"ui-chip {cls}".strip(),
+        title=condition,
+        data_testid="toolbar-weather",
+    )
+
+
+def ModeToggle(mode: str, post_url: str = "/desktop/mode", cls: str = ""):
+    """Light/dark switch.
+
+    Shows the mode you would move *to*, not the one you are in -- a sun while
+    dark, a moon while light. The label says so explicitly, because the glyph
+    alone is ambiguous to anything reading the accessibility tree.
+
+    Posts to ``post_url`` and swaps the whole shell, so the new theme's
+    ``:root`` block arrives with the response rather than needing a reload.
+    """
+    going_to = "light" if mode == "dark" else "dark"
+    return IconButton(
+        Icon.SUN if mode == "dark" else Icon.MOON,
+        label=f"Switch to {going_to} mode",
+        cls=f"ui-mode-toggle {cls}".strip(),
+        hx_post=post_url,
+        hx_target="#desktop-shell",
+        hx_swap="outerHTML",
+        data_testid="mode-toggle",
+        data_mode=mode,
+    )
+
+
+def Toolbar(*, left=(), right=(), cls: str = ""):
+    """Top bar. Two slots, so callers decide what goes where."""
+    return Div(
+        Div(*left, cls="ui-toolbar-side"),
+        Div(*right, cls="ui-toolbar-side is-right"),
+        cls=f"ui-toolbar {cls}".strip(),
+        role="toolbar",
+        aria_label="Desktop toolbar",
+    )
+
+
+def AppTile(title: str, href: str, glyph=None, accent: str | None = None, cls: str = ""):
+    """A shortcut on the desktop surface.
+
+    ``accent`` is a token *name* (e.g. ``color-accent-pink``), not a colour.
+    Passing a hex here would survive a theme swap unchanged and stand out as
+    the one element that did not repaint.
+    """
+    style = f"--ui-tile-accent:var(--{accent});" if accent else None
+    return A(
+        Div(glyph if glyph is not None else icon(Icon.APPS, size=22), cls="ui-tile-glyph"),
+        Text(title, variant="caption", cls="ui-tile-label"),
+        href=href,
+        cls=f"ui-tile {cls}".strip(),
+        style=style,
+        data_testid=f"shortcut-{title.lower().replace(' ', '-')}",
+    )
+
+
+def LauncherItem(
+    title: str,
+    href: str,
+    app_key: str,
+    pinned: bool = False,
+    glyph=None,
+    pin_url: str = "/desktop/pin",
+    cls: str = "",
+):
+    """A row in the launcher menu, with a pin control revealed on hover.
+
+    The pin is a real ``<button>`` that exists in the DOM whether or not it is
+    visible -- hover only changes its opacity. Rendering it on hover instead
+    would make it unreachable to anything that cannot hover, including keyboard
+    users and any agent acting off the accessibility tree. It stays reachable
+    by keyboard, and CSS keeps it visible while focused.
+    """
+    return Div(
+        A(
+            Div(glyph if glyph is not None else icon(Icon.APPS, size=18), cls="ui-launcher-glyph"),
+            Text(title, variant="body"),
+            href=href,
+            cls="ui-launcher-link",
+        ),
+        IconButton(
+            Icon.PIN_FILLED if pinned else Icon.PIN,
+            label=f"{'Unpin' if pinned else 'Pin'} {title} {'from' if pinned else 'to'} desktop",
+            size=16,
+            cls="ui-pin-btn" + (" is-pinned" if pinned else ""),
+            hx_post=f"{pin_url}/{app_key}",
+            hx_target="#desktop-shell",
+            hx_swap="outerHTML",
+            data_testid=f"pin-{app_key}",
+            data_pinned=str(pinned).lower(),
+        ),
+        cls=f"ui-launcher-item {cls}".strip(),
+    )
+
+
+def LauncherMenu(*items, open: bool = False, toggle_url: str = "/desktop/launcher", cls: str = ""):
+    """The launcher: a button plus the panel it opens.
+
+    Open/closed is server state swapped over htmx rather than a CSS-only
+    disclosure. That costs a request, and buys two things: the panel's contents
+    are always current after a pin, and whether it is open is visible in the
+    DOM, so a test or an agent can tell without inspecting computed styles.
+    """
+    return Div(
+        IconButton(
+            Icon.APPS,
+            label="Close app launcher" if open else "Open app launcher",
+            size=20,
+            cls="ui-launcher-btn" + (" is-open" if open else ""),
+            hx_post=toggle_url,
+            hx_target="#desktop-shell",
+            hx_swap="outerHTML",
+            data_testid="launcher-button",
+            aria_expanded=str(open).lower(),
+        ),
+        Div(
+            *items,
+            cls="ui-launcher-panel",
+            role="menu",
+            aria_label="Applications",
+            data_testid="launcher-panel",
+        ) if open else None,
+        cls=f"ui-launcher {cls}".strip(),
+    )
