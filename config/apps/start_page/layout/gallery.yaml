@@ -1,0 +1,5 @@
+# @package apps.start_page
+# The original html5up "Story" tile gallery. Default, so existing tasks, the
+# start-page reference screenshot and any prompt describing tiles keep working
+# unchanged.
+layout: gallery

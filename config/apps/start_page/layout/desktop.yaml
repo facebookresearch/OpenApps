@@ -1,0 +1,42 @@
+# @package apps.start_page
+# Desktop-shell landing page: a toolbar, a launcher menu and pinnable
+# shortcuts, in place of the tile gallery.
+#
+# Select with `apps/start_page/layout=desktop`. Pair with `apps/theme=meta`
+# (or meta_dark) for the Meta-branded palette.
+#
+# NOTHING HERE IS READ FROM THE CLOCK OR THE NETWORK.
+#
+# The toolbar time and weather are fixed strings. That is deliberate three
+# times over:
+#   * a live clock changes every screenshot, so reference comparison in
+#     tests/save_screenshots.py would fail on every run;
+#   * a weather lookup is egress, and the eval nodes have no outbound network;
+#   * a frozen value has a correct answer, so a task can ask "what is the
+#     temperature?" and be scored.
+# Vary them the way any other appearance axis is varied -- by adding another
+# file to this group.
+layout: desktop
+
+desktop:
+  # Rendered verbatim into the toolbar. Any string; no parsing, no formatting.
+  time: "9:41 AM"
+  weather:
+    # One of: clear, sunny, cloudy, overcast, rain, rainy. Anything else falls
+    # back to the cloud glyph rather than rendering a gap.
+    condition: "clear"
+    temperature: "18°C"
+  # Initial light/dark mode. Mutable at runtime via the toolbar toggle, which
+  # is scoreable state -- this is only the starting value.
+  mode: "light"
+  # App keys pinned to the desktop on first load. Also mutable at runtime.
+  pinned: ["todo", "calendar"]
+  # Token names (not hex) used to tint each app's tile, so the launcher does
+  # not read as one undifferentiated blue grid. Falls back to color-primary.
+  accents:
+    todo: color-primary
+    calendar: color-accent-violet
+    messages: color-accent-teal
+    maps: color-success
+    codeeditor: color-accent-pink
+    onlineshop: color-warning

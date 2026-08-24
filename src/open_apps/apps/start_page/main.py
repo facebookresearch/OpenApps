@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 # assets come from https://html5up.net/story
 from fasthtml.common import *
+import json
 import random
 try:
     from helper import (
@@ -67,6 +68,52 @@ def tile_colors(config):
     if tone in by_tone:
         return [by_tone[tone]]
     return config.app_background_colors
+
+from open_apps.theme import theme_style
+from open_apps.ui import (
+    AppTile,
+    Clock,
+    LauncherItem,
+    LauncherMenu,
+    ModeToggle,
+    Text,
+    Toolbar,
+    WeatherChip,
+    component_styles,
+)
+
+# ---------------------------------------------------------------------------
+# Desktop shell state
+#
+# Two fields are scoreable and exposed at /desktop_all: the light/dark `mode`
+# and the list of `pinned` app keys. `launcher_open` is deliberately not --
+# whether a menu happens to be open is transient UI, and including it would
+# make a task fail or pass on whether the agent left a popover showing.
+#
+# Held in memory rather than sqlite. The other apps persist because their state
+# outlives a page load in ways an agent can navigate away from and back to; this
+# is per-episode shell state, the server is restarted between episodes, and
+# reset_all_apps() re-seeds it from config. A table here would be ceremony.
+# ---------------------------------------------------------------------------
+_DESKTOP_DEFAULTS = {"mode": "light", "pinned": [], "launcher_open": False}
+_desktop_state = dict(_DESKTOP_DEFAULTS)
+
+
+def _desktop_config(start_page_cfg):
+    """The `desktop:` block from the layout config, as a plain dict."""
+    raw = start_page_cfg.get("desktop") if hasattr(start_page_cfg, "get") else None
+    if raw is None:
+        return {}
+    return OmegaConf.to_container(raw, resolve=True) if OmegaConf.is_config(raw) else dict(raw)
+
+
+def reset_desktop_state(start_page_cfg=None) -> None:
+    """Re-seed shell state from config. Called on app reset."""
+    global _desktop_state
+    _desktop_state = dict(_DESKTOP_DEFAULTS)
+    cfg = _desktop_config(start_page_cfg) if start_page_cfg is not None else {}
+    _desktop_state["mode"] = cfg.get("mode", "light")
+    _desktop_state["pinned"] = list(cfg.get("pinned", []) or [])
 
 # Define available apps and their route getters
 AVAILABLE_APPS = {
@@ -142,6 +189,10 @@ def reset_all_apps(config: DictConfig):
         if folder.exists():
             shutil.rmtree(folder)
 
+    # Shell state is part of what a reset must restore: a task that scores on
+    # pinned apps or theme mode would otherwise inherit the previous episode's.
+    reset_desktop_state(getattr(config, "start_page", None))
+
     for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
         try:
             module = __import__(module_path, fromlist=[getter_func])
@@ -161,6 +212,9 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     """Initialize all apps and configure the app with provided config."""
     # Hydra should handle the config loading, see launch_experiment.py
     app.config = config  # Update the global app config
+    # Seed the desktop shell from config. Harmless under the gallery layout --
+    # the state simply goes unread.
+    reset_desktop_state(getattr(config, "start_page", None))
 
     java_version_high_enough = get_java_version().startswith("21")
     if not app.config.onlineshop.enable:
@@ -221,6 +275,12 @@ app, rt = get_app()
 def get():
     # Get configuration from app.config
     config = app.config.start_page
+
+    # Layout group selects the landing page. `gallery` (default) keeps the
+    # html5up tile grid so existing tasks, prompts and the reference screenshot
+    # are untouched; `desktop` renders the shell instead.
+    if config.get("layout") == "desktop":
+        return PageWrapper("main-page", render_desktop_shell(config), config=config)
     
     colors = tile_colors(config)
 
@@ -367,6 +427,132 @@ def get():
         # Resolved per-request so live `reconfigure` theme swaps take effect.
         theme_css=render_theme_css(resolve_theme(app.config, "start_page")),
     )
+
+
+def _enabled_apps(config):
+    """(key, app_config) for every enabled app, in configured order."""
+    if not hasattr(config, "apps"):
+        return []
+    items = [
+        (name, cfg)
+        for name, cfg in config.apps.items()
+        if cfg.get("enabled", True)
+        and not (name == "onlineshop" and not app.config.onlineshop.enable)
+    ]
+    items.sort(key=lambda kv: kv[1].get("position", 999))
+    return items
+
+
+def render_desktop_shell(config):
+    """The whole desktop, as one swappable element.
+
+    Every control in the shell targets ``#desktop-shell`` and swaps it
+    outerHTML. That is why the theme's ``:root`` block is rendered *inside*
+    this element rather than in the page head: toggling light/dark has to
+    change the tokens, and a head-level block would not come back with the
+    swap. Same reason the component stylesheet lives here.
+    """
+    desktop_cfg = _desktop_config(config)
+    accents = desktop_cfg.get("accents", {}) or {}
+    weather = desktop_cfg.get("weather", {}) or {}
+    mode = _desktop_state["mode"]
+    pinned = _desktop_state["pinned"]
+
+    # The mode toggle picks which theme resolves, so the tokens in this block
+    # change with it. Falls back to the app's configured theme when the two
+    # Meta themes are not the ones in play.
+    theme_name = {"light": "meta", "dark": "meta_dark"}.get(mode)
+    theme_cfg = OmegaConf.create({"theme": theme_name}) if theme_name else app.config
+
+    apps = _enabled_apps(config)
+    launcher_items = [
+        LauncherItem(
+            title=cfg.get("title", key.capitalize()),
+            href=f"/{key}",
+            app_key=key,
+            pinned=key in pinned,
+        )
+        for key, cfg in apps
+    ]
+    # Pinned tiles follow the configured app order, not pin order, so the
+    # desktop does not reshuffle every time something is pinned.
+    tiles = [
+        AppTile(
+            title=cfg.get("title", key.capitalize()),
+            href=f"/{key}",
+            accent=accents.get(key),
+        )
+        for key, cfg in apps
+        if key in pinned
+    ]
+
+    return Div(
+        theme_style(theme_cfg, "start_page"),
+        component_styles(),
+        Toolbar(
+            left=[
+                LauncherMenu(*launcher_items, open=_desktop_state["launcher_open"]),
+                Text(config.get("headline", "OpenApps"), variant="body"),
+            ],
+            right=[
+                WeatherChip(weather.get("condition", "clear"), weather.get("temperature", "")),
+                Clock(desktop_cfg.get("time", "")),
+                ModeToggle(mode),
+            ],
+        ),
+        Div(
+            Div(*tiles, cls="ui-tile-grid", data_testid="desktop-tiles")
+            if tiles
+            else Text("Nothing pinned yet. Open the launcher to pin an app.", variant="caption"),
+            cls="ui-desktop-surface",
+        ),
+        id="desktop-shell",
+        cls="ui-desktop",
+        data_mode=mode,
+        data_pinned=",".join(pinned),
+    )
+
+
+@rt("/desktop/mode", methods=["POST"])
+def toggle_mode():
+    """Flip light/dark. Scoreable -- see /desktop_all."""
+    _desktop_state["mode"] = "dark" if _desktop_state["mode"] == "light" else "light"
+    return render_desktop_shell(app.config.start_page)
+
+
+@rt("/desktop/pin/{app_key}", methods=["POST"])
+def toggle_pin(app_key: str):
+    """Pin or unpin an app. Scoreable -- see /desktop_all.
+
+    Unknown keys are ignored rather than 404'd: the shell is re-rendered either
+    way, so a stale button never leaves the page in a broken state.
+    """
+    known = {key for key, _ in _enabled_apps(app.config.start_page)}
+    if app_key in known:
+        pinned = _desktop_state["pinned"]
+        if app_key in pinned:
+            pinned.remove(app_key)
+        else:
+            pinned.append(app_key)
+    return render_desktop_shell(app.config.start_page)
+
+
+@rt("/desktop/launcher", methods=["POST"])
+def toggle_launcher():
+    """Open/close the launcher panel. Not scoreable -- transient UI."""
+    _desktop_state["launcher_open"] = not _desktop_state["launcher_open"]
+    return render_desktop_shell(app.config.start_page)
+
+
+@app.get("/desktop_all")
+def desktop_all():
+    """Scoreable shell state, for reward computation.
+
+    Only the two durable fields. `launcher_open` is excluded on purpose: a task
+    should not pass or fail on whether a popover was left showing.
+    """
+    payload = {"mode": _desktop_state["mode"], "pinned": list(_desktop_state["pinned"])}
+    return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
 
 
 @rt("/environment_variables")
