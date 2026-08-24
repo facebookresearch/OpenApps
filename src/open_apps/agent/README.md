@@ -81,9 +81,9 @@ conversion happens; every parser goes through `ActionParser.rescale`.
 | normalized 0-1000 | `1000` | Qwen-VL, GLM-VL |
 | normalized [0, N) | `N` | PaliGemma/Gemma-lineage `<locNNNN>` bins are 0-1024 |
 
-Each parser family carries a default (`uitars`: null, `qwen3vl`: 1000). Override
-per model in the agent yaml with `coord_scale: N`. Note this is one scalar applied
-against each viewport axis, which is what a *square* normalized grid means — it
+Each parser family carries a default (`uitars`: raw pixels, `qwen3vl`: 1000). In the
+agent yaml, leaving `coord_scale` unset (or `null`) means "use the family default";
+set `coord_scale: N` to override. Note this is one scalar applied
 cannot express a model predicting in its own non-square resized image space.
 
 The most reliable setup is to *declare* the grid in the prompt and set
