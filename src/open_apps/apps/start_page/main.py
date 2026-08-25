@@ -476,7 +476,11 @@ def render_desktop_shell(config):
             force=bool(wallpaper_cfg.get("regenerate", False)),
         )
         if url:
-            shell_style = f"--ui-wallpaper:url('{url}');"
+            shell_style = (
+                f"--ui-wallpaper:url('{url}');"
+                f"--ui-wallpaper-blur:{wallpaper_cfg.get('blur', '4px')};"
+                f"--ui-wallpaper-fade:{wallpaper_cfg.get('fade', 0.7)};"
+            )
 
     apps = _enabled_apps(config)
     launcher_items = [

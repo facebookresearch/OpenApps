@@ -105,7 +105,13 @@ _CSS = """
   align-items: center;
   gap: var(--space);
   padding: calc(var(--space) * 0.75) calc(var(--space) * 1.5);
-  background: var(--color-surface);
+  /* Frosted rather than opaque, so the wallpaper reads continuously behind the
+     chrome. Mixed with transparent rather than given an alpha literal, because
+     --color-surface is an opaque hex in light mode and already a translucent
+     tint in dark -- color-mix handles both without a per-mode override. */
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border-bottom: 1px solid var(--color-border);
 }
 .ui-toolbar-side { display: flex; align-items: center; gap: var(--space); }
@@ -144,7 +150,56 @@ _CSS = """
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
+  /* Own stacking context, so the two overlay layers below cannot escape it and
+     land on top of a modal or the launcher panel. */
+  position: relative;
+  isolation: isolate;
 }
+
+/* Depth-of-field pass. A flat frosted sheet over the whole image would just
+   look out of focus; masking the blur so it peaks at the top and bottom edges
+   and clears through the middle band reads as depth instead, and keeps the
+   ridgeline legible while softening everything the UI actually sits on. */
+.ui-desktop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  backdrop-filter: blur(var(--ui-wallpaper-blur, 4px)) saturate(112%);
+  -webkit-backdrop-filter: blur(var(--ui-wallpaper-blur, 4px)) saturate(112%);
+  -webkit-mask-image: linear-gradient(180deg,
+      rgb(0 0 0 / 100%) 0%,
+      rgb(0 0 0 / 18%) 38%,
+      rgb(0 0 0 / 40%) 62%,
+      rgb(0 0 0 / 100%) 100%);
+  mask-image: linear-gradient(180deg,
+      rgb(0 0 0 / 100%) 0%,
+      rgb(0 0 0 / 18%) 38%,
+      rgb(0 0 0 / 40%) 62%,
+      rgb(0 0 0 / 100%) 100%);
+}
+
+/* Fade toward the page background so the wallpaper sits behind the UI rather
+   than competing with it. The gradient shape is fixed and the overall strength
+   is a single tunable, which keeps `wallpaper.fade` in config to one number
+   instead of a set of stops that have to stay consistent with each other. */
+.ui-desktop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+      var(--color-bg) 0%,
+      color-mix(in srgb, var(--color-bg) 65%, transparent) 42%,
+      var(--color-bg) 100%);
+  opacity: var(--ui-wallpaper-fade, 0.7);
+}
+
+/* Both overlays are absolutely positioned at z-index 0; real content has to be
+   lifted above them or the toolbar would end up underneath the scrim. */
+.ui-desktop > * { position: relative; z-index: 1; }
 
 /* Shortcuts dock: pinned to the bottom-right, stacking upward.
    column-reverse puts the first pinned app at the bottom so the stack grows
@@ -206,7 +261,11 @@ _CSS = """
   z-index: 50;
   min-width: 260px;
   padding: calc(var(--space) * 0.5);
-  background: var(--color-bg);
+  /* Same frosting as the toolbar. Kept fairly opaque -- this one holds a list
+     of text labels an agent has to read, so legibility beats the effect. */
+  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-fg) 18%, transparent);

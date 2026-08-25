@@ -45,6 +45,12 @@ desktop:
     # false in evals -- regenerating on every page load is wasted work and
     # makes the first paint depend on how fast the box is.
     regenerate: false
+    # Overlay tuning. blur is the depth-of-field pass (gradient-masked, so it
+    # peaks at the top and bottom edges); fade is how far the whole image is
+    # pulled toward the page background. 0 = full-strength wallpaper, 1 = it
+    # disappears entirely into color-bg.
+    blur: "4px"
+    fade: 0.7
 
   # Token names (not hex) used to tint each app's tile, so the launcher does
   # not read as one undifferentiated blue grid. Falls back to color-primary.
