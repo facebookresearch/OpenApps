@@ -31,6 +31,21 @@ desktop:
   mode: "light"
   # App keys pinned to the desktop on first load. Also mutable at runtime.
   pinned: ["todo", "calendar"]
+  # Programmatically generated background. Rendered by open_apps.wallpaper:
+  # ImageMagick if it is on PATH, Pillow otherwise, and if somehow neither
+  # works the shell falls back to a pure-CSS gradient of the same hues. Nothing
+  # here can take the page down.
+  wallpaper:
+    enabled: true
+    # Each variant is a different arrangement of the same ridges and palette.
+    # Deterministic: the same variant renders byte-identically anywhere, which
+    # is what keeps screenshot comparison stable across runs.
+    variant: 0
+    # Force a re-render even when the file is already cached on disk. Leave
+    # false in evals -- regenerating on every page load is wasted work and
+    # makes the first paint depend on how fast the box is.
+    regenerate: false
+
   # Token names (not hex) used to tint each app's tile, so the launcher does
   # not read as one undifferentiated blue grid. Falls back to color-primary.
   accents:

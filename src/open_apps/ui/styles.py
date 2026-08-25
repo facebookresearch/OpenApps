@@ -110,6 +110,9 @@ _CSS = """
 }
 .ui-toolbar-side { display: flex; align-items: center; gap: var(--space); }
 
+.ui-wordmark { display: block; }
+.ui-brand { display: inline-flex; align-items: center; }
+
 .ui-chip {
   display: inline-flex;
   align-items: center;
@@ -124,17 +127,44 @@ _CSS = """
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-family);
   font-size: var(--font-size-base);
+  /* The shell sets --ui-wallpaper inline when a generated image is available.
+     When it is not -- no ImageMagick, no Pillow, nothing on disk -- this falls
+     back to a token gradient of the same hues, so the desktop still looks
+     deliberate rather than blank. */
+  background-color: var(--color-bg);
+  background-image: var(--ui-wallpaper, linear-gradient(
+      180deg,
+      var(--ring-dark-blue) 0%,
+      var(--ring-violet) 45%,
+      var(--ring-pink) 68%,
+      var(--color-accent) 100%));
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
 }
-.ui-desktop-surface { flex: 1; padding: calc(var(--space) * 3); }
-.ui-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: calc(var(--space) * 2);
-  max-width: 760px;
+
+/* Shortcuts dock: pinned to the bottom-right, stacking upward.
+   column-reverse puts the first pinned app at the bottom so the stack grows
+   toward the top of the window; wrap-reverse spills a full column leftward
+   instead of running off the top edge. */
+.ui-desktop-surface {
+  flex: 1;
+  padding: calc(var(--space) * 3);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-height: 0;
+}
+.ui-tile-dock {
+  display: flex;
+  flex-direction: column-reverse;
+  flex-wrap: wrap-reverse;
+  align-content: flex-end;
+  gap: calc(var(--space) * 1.5);
+  max-height: 100%;
 }
 .ui-tile {
   display: flex;
@@ -146,7 +176,13 @@ _CSS = """
   text-decoration: none;
   color: var(--color-fg);
 }
-.ui-tile:hover { background: color-mix(in srgb, var(--color-fg) 6%, transparent); }
+.ui-tile:hover { background: color-mix(in srgb, var(--color-on-primary) 18%, transparent); }
+/* These sit over the wallpaper, not over --color-bg, so they cannot use
+   --color-fg: it is near-black in light mode and would vanish into the dark
+   lower half of the image. --color-on-primary is white in both modes, which is
+   what "text on a saturated brand surface" means here. */
+.ui-tile { color: var(--color-on-primary); text-shadow: 0 1px 3px rgb(0 0 0 / 45%); }
+.ui-tile .ui-text { color: inherit; }
 .ui-tile-glyph {
   display: flex;
   align-items: center;

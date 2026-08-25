@@ -54,6 +54,7 @@ from open_apps.ui.molecules import (
     Toolbar,
     WeatherChip,
 )
+from open_apps.ui.brand import Wordmark
 from open_apps.ui.styles import component_styles
 
 __all__ = [
@@ -73,6 +74,8 @@ __all__ = [
     "ModeToggle",
     "Toolbar",
     "WeatherChip",
+    # brand
+    "Wordmark",
     # styles
     "component_styles",
 ]
