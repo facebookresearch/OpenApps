@@ -54,16 +54,17 @@ _MARK_STROKE = "2.4"
 # Everything is derived from the constants below. Arc endpoints and the SVG
 # large-arc/sweep flags are exactly what rots when someone nudges the radius and
 # hand-edits the path.
-_MARK_CX, _MARK_CY, _MARK_R = 13.0, 13.2, 7.0
+_MARK_CX, _MARK_CY, _MARK_R = 13.0, 13.5, 7.0
 
 #: How far the rays run past the ring, as a multiple of the radius. They have to
 #: overshoot: ending flush would close the wedge back up into a plain pie slice.
 _RAY_REACH = 1.20
 
 #: The ring is open between these two angles. SVG degrees with y growing
-#: downward, so 90 is six o'clock and 45 is half past four -- the wedge sits in
-#: the lower right, and a ray exits through each edge of it.
-_GAP_FROM, _GAP_TO = 45.0, 90.0
+#: downward, so 90 is six o'clock. The wedge is centred on straight-down and
+#: symmetric about it, which is what makes the two rays read as one V rather
+#: than as a stem plus a diagonal. A ray exits through each edge.
+_GAP_FROM, _GAP_TO = 67.5, 112.5
 
 
 def _polar(angle_deg: float, reach: float = 1.0) -> tuple[float, float]:
