@@ -205,9 +205,28 @@ _CSS = """
    column-reverse puts the first pinned app at the bottom so the stack grows
    toward the top of the window; wrap-reverse spills a full column leftward
    instead of running off the top edge. */
+/* Two rows: a centred headline pinned to the top, and everything else pushed
+   to the bottom-right. Splitting them means the dock keeps its own alignment
+   instead of the headline dragging it back into the centre. */
 .ui-desktop-surface {
   flex: 1;
   padding: calc(var(--space) * 3);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ui-desktop-headline {
+  text-align: center;
+  margin: calc(var(--space) * 2) auto 0;
+  max-width: 34ch;
+  /* Same reasoning as the tiles: this sits on the wallpaper, not on
+     --color-bg, so --color-fg would vanish against the image in light mode. */
+  color: var(--color-on-primary);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 40%);
+}
+.ui-desktop-headline .ui-text { color: inherit; }
+.ui-dock-row {
+  flex: 1;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;

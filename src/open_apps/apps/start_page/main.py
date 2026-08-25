@@ -519,9 +519,20 @@ def render_desktop_shell(config):
             ],
         ),
         Div(
-            Div(*tiles, cls="ui-tile-dock", data_testid="desktop-tiles")
-            if tiles
-            else Text("Nothing pinned yet. Open the launcher to pin an app.", variant="caption"),
+            Div(
+                Text(
+                    desktop_cfg.get("headline") or config.get("headline", ""),
+                    variant="title",
+                ),
+                cls="ui-desktop-headline",
+                data_testid="desktop-headline",
+            ),
+            Div(
+                Div(*tiles, cls="ui-tile-dock", data_testid="desktop-tiles")
+                if tiles
+                else Text("Nothing pinned yet. Open the launcher to pin an app.", variant="caption"),
+                cls="ui-dock-row",
+            ),
             cls="ui-desktop-surface",
         ),
         id="desktop-shell",

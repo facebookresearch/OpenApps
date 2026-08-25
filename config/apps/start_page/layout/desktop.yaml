@@ -19,6 +19,9 @@
 layout: desktop
 
 desktop:
+  # Centred at the top of the desktop surface. Falls back to the start page's
+  # own `headline` when unset, so the gallery layout's copy is not disturbed.
+  headline: "An open source environment for digital agents"
   # Rendered verbatim into the toolbar. Any string; no parsing, no formatting.
   time: "9:41 AM"
   weather:
