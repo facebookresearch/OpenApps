@@ -8,6 +8,7 @@ LICENSE file in the root directory of this source tree.
 from fasthtml.common import *
 import json
 import random
+from datetime import datetime
 try:
     from helper import (
         Wrapper,
@@ -97,7 +98,12 @@ from open_apps.ui import (
 # is per-episode shell state, the server is restarted between episodes, and
 # reset_all_apps() re-seeds it from config. A table here would be ceremony.
 # ---------------------------------------------------------------------------
-_DESKTOP_DEFAULTS = {"mode": "light", "pinned": [], "launcher_open": False}
+_DESKTOP_DEFAULTS = {
+    "mode": "light",
+    "pinned": [],
+    "units": "celsius",
+    "launcher_open": False,
+}
 _desktop_state = dict(_DESKTOP_DEFAULTS)
 
 
@@ -116,6 +122,7 @@ def reset_desktop_state(start_page_cfg=None) -> None:
     cfg = _desktop_config(start_page_cfg) if start_page_cfg is not None else {}
     _desktop_state["mode"] = cfg.get("mode", "light")
     _desktop_state["pinned"] = list(cfg.get("pinned", []) or [])
+    _desktop_state["units"] = cfg.get("units", "celsius")
 
 # Define available apps and their route getters
 AVAILABLE_APPS = {
@@ -445,6 +452,39 @@ def _enabled_apps(config):
     return items
 
 
+def clock_text(desktop_cfg) -> str:
+    """The toolbar time: real clock, unless config pins it.
+
+    Live by default. A fixed ``time:`` in the layout config freezes it, which
+    is what an eval wants -- ``tests/save_screenshots.py`` pixel-compares the
+    start page, and a ticking clock changes that image on every run.
+    """
+    frozen = desktop_cfg.get("time")
+    if frozen:
+        return str(frozen)
+    now = datetime.now()
+    # %-I is glibc/BSD-only, so strip the pad by hand rather than relying on it.
+    return f"{now.strftime('%I').lstrip('0') or '12'}:{now.strftime('%M %p')}"
+
+
+def temperature_text(weather_cfg, units: str) -> str:
+    """Render the configured temperature in the requested units.
+
+    Config carries Celsius as the single source of truth and this converts,
+    rather than config holding both -- two numbers that can disagree is a bug
+    waiting to happen, and the task answer should not depend on which unit the
+    agent happened to leave the toolbar in.
+    """
+    raw = weather_cfg.get("celsius", weather_cfg.get("temperature"))
+    try:
+        celsius = float(str(raw).rstrip("°CF").strip())
+    except (TypeError, ValueError):
+        return str(raw or "")
+    if units == "fahrenheit":
+        return f"{round(celsius * 9 / 5 + 32)}°F"
+    return f"{round(celsius)}°C"
+
+
 def render_desktop_shell(config):
     """The whole desktop, as one swappable element.
 
@@ -513,8 +553,12 @@ def render_desktop_shell(config):
                 Div(Wordmark(height=22), cls="ui-brand"),
             ],
             right=[
-                WeatherChip(weather.get("condition", "clear"), weather.get("temperature", "")),
-                Clock(desktop_cfg.get("time", "")),
+                WeatherChip(
+                    weather.get("condition", "clear"),
+                    temperature_text(weather, _desktop_state["units"]),
+                    units=_desktop_state["units"],
+                ),
+                Clock(clock_text(desktop_cfg)),
                 ModeToggle(mode),
             ],
         ),
@@ -540,6 +584,7 @@ def render_desktop_shell(config):
         style=shell_style,
         data_mode=mode,
         data_pinned=",".join(pinned),
+        data_units=_desktop_state["units"],
     )
 
 
@@ -567,6 +612,15 @@ def toggle_pin(app_key: str):
     return render_desktop_shell(app.config.start_page)
 
 
+@rt("/desktop/units", methods=["POST"])
+def toggle_units():
+    """Switch the toolbar between Celsius and Fahrenheit. Scoreable."""
+    _desktop_state["units"] = (
+        "fahrenheit" if _desktop_state["units"] == "celsius" else "celsius"
+    )
+    return render_desktop_shell(app.config.start_page)
+
+
 @rt("/desktop/launcher", methods=["POST"])
 def toggle_launcher():
     """Open/close the launcher panel. Not scoreable -- transient UI."""
@@ -581,7 +635,11 @@ def desktop_all():
     Only the two durable fields. `launcher_open` is excluded on purpose: a task
     should not pass or fail on whether a popover was left showing.
     """
-    payload = {"mode": _desktop_state["mode"], "pinned": list(_desktop_state["pinned"])}
+    payload = {
+        "mode": _desktop_state["mode"],
+        "pinned": list(_desktop_state["pinned"]),
+        "units": _desktop_state["units"],
+    }
     return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
 
 

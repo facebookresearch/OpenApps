@@ -57,14 +57,21 @@ _MARK_STROKE = "2.4"
 # consistent if they are retuned -- the endpoints and arc flags are exactly the
 # kind of thing that rots when hand-copied.
 _MARK_CX, _MARK_CY, _MARK_R = 13.0, 15.0, 7.0
-_MARK_OVERSHOOT = 1.6   # how far the 45-degree line runs past the ring
+
+#: Chord offset from the centre, as a fraction of the radius, i.e. how deep the
+#: 45-degree line bites into the ring. Small values put the chord near the
+#: centre and take out most of the lower-right; large values leave a tight
+#: notch. 0.5 removed so much of the ring that the diagonal dominated the mark
+#: and the O stopped reading as an O.
+_MARK_CUT_DEPTH = 0.72
+_MARK_OVERSHOOT = 1.4   # how far the 45-degree line runs past the ring
 _STEM_TOP = 5.5
 
 
 def _mark_geometry() -> dict:
     """Endpoints and arc flags for the mark, computed from the constants."""
     k = math.sqrt(0.5)
-    d = _MARK_R / 2                                   # chord offset from centre
+    d = _MARK_R * _MARK_CUT_DEPTH                     # chord offset from centre
     half = math.sqrt(_MARK_R**2 - d**2)               # half the chord length
     # Chord midpoint, offset down-right; chord itself runs up-and-to-the-right.
     mx, my = _MARK_CX + d * k, _MARK_CY + d * k

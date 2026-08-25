@@ -22,16 +22,26 @@ desktop:
   # Centred at the top of the desktop surface. Falls back to the start page's
   # own `headline` when unset, so the gallery layout's copy is not disturbed.
   headline: "An open source environment for digital agents"
-  # Rendered verbatim into the toolbar. Any string; no parsing, no formatting.
-  time: "9:41 AM"
+  # Toolbar clock. Leave null for the real current time. Set a string to FREEZE
+  # it -- which is what an eval wants: tests/save_screenshots.py pixel-compares
+  # the start page, and a ticking clock changes that image on every run.
+  #   time: "9:41 AM"
+  time: null
   weather:
     # One of: clear, sunny, cloudy, overcast, rain, rainy. Anything else falls
     # back to the cloud glyph rather than rendering a gap.
     condition: "clear"
-    temperature: "18°C"
+    # Celsius only, as a bare number. Fahrenheit is derived when the toolbar is
+    # toggled, rather than configured alongside -- two numbers that can
+    # disagree is a bug waiting to happen, and a task's expected answer should
+    # not depend on which unit the agent left the toolbar showing.
+    celsius: 18
   # Initial light/dark mode. Mutable at runtime via the toolbar toggle, which
   # is scoreable state -- this is only the starting value.
   mode: "light"
+  # Initial temperature units: celsius | fahrenheit. Also mutable at runtime by
+  # clicking the toolbar temperature, and also scoreable.
+  units: "celsius"
   # App keys pinned to the desktop on first load. Also mutable at runtime.
   pinned: ["todo", "calendar"]
   # Programmatically generated background, rendered by open_apps.wallpaper

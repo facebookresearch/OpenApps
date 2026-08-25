@@ -17,15 +17,16 @@ agents, not only looked at by people:
 accessibility tree can only act on what is named there, and a div with a click
 handler is invisible to it.
 
-**Nothing here reads the clock or the network.** The time and weather shown in
-the toolbar are passed in from config. A live clock would change every
-screenshot and break reference comparison; a weather lookup would be egress the
-eval nodes cannot make. Frozen values also mean a task can ask "what is the
-temperature?" and have a correct answer.
+**Nothing here reads the clock or the network directly.** Both the time and the
+weather arrive as strings from the caller. The weather is always config -- a
+lookup would be egress the eval nodes cannot make, and a fixed value means a
+task can ask "what is the temperature?" and have a correct answer. The clock
+now shows real time by default, with a config override to freeze it; see the
+note on screenshots in ``config/apps/start_page/layout/desktop.yaml``.
 """
 from __future__ import annotations
 
-from fasthtml.common import A, Div, Span
+from fasthtml.common import A, Button, Div, Span
 
 from open_apps.icons import Icon, icon
 from open_apps.ui.atoms import IconButton, Stack, Text
@@ -46,8 +47,9 @@ WEATHER_ICONS = {
 def Clock(time_text: str, cls: str = ""):
     """Toolbar clock.
 
-    ``time_text`` is rendered verbatim from config -- this never calls
-    ``datetime.now()``. See the module docstring.
+    ``time_text`` is rendered verbatim. Whether it is the live clock or a
+    frozen string is decided by the caller -- see ``clock_text`` in the start
+    page, and the note about screenshots in the desktop layout config.
     """
     return Div(
         icon(Icon.CLOCK, size=15),
@@ -57,15 +59,33 @@ def Clock(time_text: str, cls: str = ""):
     )
 
 
-def WeatherChip(condition: str, temperature: str, cls: str = ""):
-    """Toolbar weather. Also config-driven, for the same reasons."""
+def WeatherChip(
+    condition: str,
+    temperature: str,
+    units: str = "celsius",
+    post_url: str = "/desktop/units",
+    cls: str = "",
+):
+    """Toolbar weather. Click to switch between Celsius and Fahrenheit.
+
+    A real ``<button>``, not a Div with a handler. The unit switch is a genuine
+    affordance, and a div is invisible to the accessibility tree that most of
+    these agents actually act on -- it would be a control only a sighted mouse
+    user could find.
+    """
     glyph = WEATHER_ICONS.get((condition or "").lower(), Icon.CLOUD)
-    return Div(
+    other = "Fahrenheit" if units == "celsius" else "Celsius"
+    return Button(
         icon(glyph, size=15),
         Text(temperature, variant="caption"),
-        cls=f"ui-chip {cls}".strip(),
-        title=condition,
+        cls=f"ui-chip is-button {cls}".strip(),
+        title=f"{condition} — click to show {other}",
+        aria_label=f"Temperature {temperature}. Switch to {other}.",
+        hx_post=post_url,
+        hx_target="#desktop-shell",
+        hx_swap="outerHTML",
         data_testid="toolbar-weather",
+        data_units=units,
     )
 
 

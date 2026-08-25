@@ -70,15 +70,21 @@ _CSS = """
    a theme only has to define the base and both modes stay consistent. */
 .ui-btn:hover { filter: brightness(0.94); }
 
+/* Perfect circles. A fixed box plus 50% rather than padding plus a radius:
+   padding makes the width depend on the glyph, so a 16px icon and a 20px icon
+   would give two different ovals sitting next to each other in the toolbar. */
 .ui-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  width: var(--ui-icon-btn-size, 34px);
+  height: var(--ui-icon-btn-size, 34px);
+  padding: 0;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: 50%;
   color: var(--color-fg);
-  padding: calc(var(--space) * 0.5);
   cursor: pointer;
 }
 .ui-icon-btn:hover { background: color-mix(in srgb, var(--color-fg) 8%, transparent); }
@@ -201,6 +207,14 @@ _CSS = """
    lifted above them or the toolbar would end up underneath the scrim. */
 .ui-desktop > * { position: relative; z-index: 1; }
 
+/* ...but the toolbar has to outrank the surface, not just the overlays.
+   `> *` gives both of them z-index 1, and the surface comes later in the DOM,
+   so it painted on top. The launcher panel's own z-index could not save it:
+   z-index 50 is scoped to the toolbar's stacking context, which as a whole was
+   still below the surface. The panel rendered, the surface covered it, and
+   every click on an app link or a pin button landed on the desktop instead. */
+.ui-desktop > .ui-toolbar { z-index: 3; }
+
 /* Shortcuts dock: pinned to the bottom-right, stacking upward.
    column-reverse puts the first pinned app at the bottom so the stack grows
    toward the top of the window; wrap-reverse spills a full column leftward
@@ -321,7 +335,7 @@ _CSS = """
    on hover would put it out of reach of keyboards and of any agent acting off
    the accessibility tree. It stays visible while focused, and while pinned --
    otherwise unpinning would require discovering a control you cannot see. */
-.ui-pin-btn { opacity: 0; transition: opacity 120ms ease; }
+.ui-pin-btn { --ui-icon-btn-size: 28px; opacity: 0; transition: opacity 120ms ease; }
 .ui-launcher-item:hover .ui-pin-btn,
 .ui-launcher-item:focus-within .ui-pin-btn,
 .ui-pin-btn:focus-visible,
