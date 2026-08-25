@@ -17,11 +17,11 @@ down-and-right at 45 degrees. It reads as a stylised Q.
 
 Two further details worth knowing:
 
-* **The gradient reads theme tokens**, not hex. ``stop-color="var(--ring-blue)"``
-  resolves inside inline SVG the same way it does in CSS, so the mark follows a
-  theme swap and the light/dark toggle instead of staying one fixed blue. Each
-  ``var()`` carries a literal fallback for the case where a theme omits the
-  token.
+* **Everything strokes ``currentColor``** -- no gradient, one flat colour. In
+  the toolbar that resolves to ``--color-fg``, which is near-black
+  (``#1c2b33``) in light mode and white in dark. Hardcoding ``#000`` would give
+  a literally black mark that disappears against the dark theme's background,
+  so "black" here means "the text colour, which is black in light mode".
 * **The lettering is SVG ``<text>``** in the theme's own font stack, not traced
   outlines. It stays selectable and searchable, it costs a few hundred bytes
   rather than a few kilobytes of path data, and it inherits ``currentColor`` so
@@ -32,11 +32,6 @@ from __future__ import annotations
 import math
 
 from fasthtml.common import NotStr
-
-#: One wordmark per page, so a fixed gradient id is safe. If that ever stops
-#: being true this needs a suffix -- duplicate ids would make every instance
-#: resolve to the first one's stops.
-_GRADIENT_ID = "oa-wordmark-gradient"
 
 _MARK_STROKE = "2.4"
 
@@ -54,17 +49,22 @@ _MARK_STROKE = "2.4"
 # Everything is derived from the constants below. Arc endpoints and the SVG
 # large-arc/sweep flags are exactly what rots when someone nudges the radius and
 # hand-edits the path.
-_MARK_CX, _MARK_CY, _MARK_R = 13.0, 13.5, 7.0
+_MARK_CX, _MARK_CY, _MARK_R = 13.0, 14.0, 7.0
 
 #: How far the rays run past the ring, as a multiple of the radius. They have to
 #: overshoot: ending flush would close the wedge back up into a plain pie slice.
-_RAY_REACH = 1.20
+_RAY_REACH = 1.25
 
 #: The ring is open between these two angles. SVG degrees with y growing
 #: downward, so 90 is six o'clock. The wedge is centred on straight-down and
-#: symmetric about it, which is what makes the two rays read as one V rather
-#: than as a stem plus a diagonal. A ray exits through each edge.
-_GAP_FROM, _GAP_TO = 67.5, 112.5
+#: symmetric about it, which is what makes the two rays read as one inverted V
+#: rather than as a stem plus a diagonal.
+#:
+#: 75 degrees wide, not the 45 it started at. At 45 the two rays sat close
+#: enough together that the opening between them read as a slot; the inverted V
+#: only becomes legible once the wedge is open enough to show daylight under
+#: the peak.
+_GAP_FROM, _GAP_TO = 52.5, 127.5
 
 
 def _polar(angle_deg: float, reach: float = 1.0) -> tuple[float, float]:
@@ -99,16 +99,9 @@ def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 28"'
         f' height="{height}" role="img" aria-label="{label}"'
         f' class="ui-wordmark">'
-        f'<defs>'
-        f'<linearGradient id="{_GRADIENT_ID}" x1="0" y1="0" x2="1" y2="1">'
-        f'<stop offset="0%" stop-color="var(--ring-dark-blue, #0033ff)"/>'
-        f'<stop offset="50%" stop-color="var(--ring-violet, #931efa)"/>'
-        f'<stop offset="100%" stop-color="var(--ring-pink, #f24eed)"/>'
-        f'</linearGradient>'
-        f'</defs>'
         # The mark. One group so the ring and both rays share a stroke and
         # cannot drift apart in weight -- equal weight is the point of the shape.
-        f'<g fill="none" stroke="url(#{_GRADIENT_ID})"'
+        f'<g fill="none" stroke="currentColor"'
         f' stroke-width="{_MARK_STROKE}" stroke-linecap="round">'
         # Ring, open across the wedge.
         f'<path d="M {g["arc_start"][0]:.3f} {g["arc_start"][1]:.3f}'
