@@ -16,20 +16,17 @@ Nothing is downloaded and nothing is random. The whole image is a function of
 any machine -- which matters here, because a wallpaper that differed per run
 would change every screenshot an agent is scored against.
 
-## Backends, in preference order
+## Rendering
 
-1. **ImageMagick**, if ``magick`` or ``convert`` is on PATH.
-2. **Pillow**, which is a declared dependency and therefore always available.
+Pillow and numpy, both already declared dependencies -- no shell-out, no system
+package to install, nothing to detect at runtime. An earlier version preferred
+ImageMagick and fell back to Pillow; the fallback was doing all the work, and
+a second code path producing the same picture was a second thing to keep
+correct for no benefit in a Python project.
 
-Both target the same design. The ImageMagick path is preferred because it is
-what the request asked for, but it is *verified after it runs* -- output must
-exist, be non-empty and have the requested dimensions -- and anything short of
-that silently falls back to Pillow. A missing ImageMagick, a broken delegate,
-or a pipeline that changes syntax between major versions all degrade to a
-working image instead of a broken page.
-
-3. If both somehow fail, :func:`ensure_wallpaper` returns ``None`` and the
-   caller drops to a pure-CSS gradient. The desktop never renders bare.
+If rendering fails for any reason, :func:`ensure_wallpaper` returns ``None``
+and the caller drops to a pure-CSS gradient of the same hues. This is
+decoration; it should never be able to take a page down.
 
 ## Regenerating
 
@@ -47,8 +44,6 @@ Or from the command line, to refresh the committed default::
 from __future__ import annotations
 
 import math
-import shutil
-import subprocess
 from pathlib import Path
 
 #: Every colour the wallpaper may contain. Dithering maps each pixel to the
@@ -98,15 +93,15 @@ def wallpaper_url(variant: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Geometry -- shared by both backends so they describe the same picture
+# Geometry
 # ---------------------------------------------------------------------------
 
 def _ridges(variant: int) -> list[dict]:
     """Wave parameters for each hill layer, front to back.
 
-    Derived from ``variant`` arithmetically rather than from a seeded RNG.
-    Both backends can then compute identical geometry without having to agree
-    on a random number generator.
+    Derived from ``variant`` arithmetically rather than from a seeded RNG, so
+    the same variant renders identically on any machine and any Python build
+    without depending on a generator's stream staying stable.
     """
     layers = []
     for i in range(5):
@@ -133,10 +128,10 @@ def _ridges(variant: int) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Pillow backend -- always available, fully deterministic
+# Renderer
 # ---------------------------------------------------------------------------
 
-def _render_pillow(variant: int, width: int, height: int, out: Path) -> Path:
+def _render(variant: int, width: int, height: int, out: Path) -> Path:
     import numpy as np
     from PIL import Image
 
@@ -208,73 +203,6 @@ def _render_pillow(variant: int, width: int, height: int, out: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# ImageMagick backend -- preferred when present, verified after it runs
-# ---------------------------------------------------------------------------
-
-def _imagemagick_binary() -> str | None:
-    return shutil.which("magick") or shutil.which("convert")
-
-
-def _render_imagemagick(variant: int, width: int, height: int, out: Path) -> Path | None:
-    """Render via ImageMagick, or return None so the caller falls back.
-
-    Deliberately returns rather than raises on every failure path. This is a
-    decorative background: no arrangement of a missing binary, an unexpected
-    IM major version, or a changed option name should be able to take the page
-    down with it.
-    """
-    binary = _imagemagick_binary()
-    if binary is None:
-        return None
-
-    w, h = width // PIXEL_SCALE, height // PIXEL_SCALE
-    layers = _ridges(variant)
-    # One `-wave amplitude x wavelength` pass per ridge over a gradient fill,
-    # composited in order, then ordered-dithered and scaled back up.
-    args = [
-        binary,
-        "-size", f"{w}x{h}",
-        "gradient:#0033FF-#F24EED",
-    ]
-    for layer in layers:
-        amp = max(1, int(layer["amplitude"] * h))
-        wavelength = max(8, int(w / max(0.5, layer["frequency"])))
-        r, g, b = layer["colour"]
-        args += [
-            "(", "-size", f"{w}x{int(h * (1 - layer['base']))}",
-            f"xc:#{r:02x}{g:02x}{b:02x}",
-            "-background", "none", "-wave", f"{amp}x{wavelength}",
-            ")",
-            "-gravity", "south", "-compose", "over", "-composite",
-        ]
-    args += [
-        "-ordered-dither", "o8x8",
-        "-colors", str(len(META_PALETTE)),
-        "-filter", "point", "-resize", f"{width}x{height}!",
-        str(out),
-    ]
-
-    try:
-        subprocess.run(args, check=True, capture_output=True, timeout=60)
-    except (subprocess.SubprocessError, OSError):
-        return None
-
-    # Verify rather than trust. An IM pipeline can exit 0 and still write
-    # nothing useful if a delegate is missing or an option was reinterpreted.
-    try:
-        from PIL import Image
-
-        with Image.open(out) as im:
-            if im.size != (width, height):
-                return None
-    except Exception:
-        return None
-    if not out.exists() or out.stat().st_size == 0:
-        return None
-    return out
-
-
-# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
@@ -287,22 +215,19 @@ def ensure_wallpaper(
     """Return the URL for ``variant``'s wallpaper, rendering it if needed.
 
     Cached by filename: an existing file is reused unless ``force``. Returns
-    ``None`` only if every backend failed, which the caller should treat as
-    "use the CSS gradient" rather than as an error.
+    ``None`` if rendering failed, which the caller should treat as "use the CSS
+    gradient" rather than as an error -- this is decoration, and nothing about
+    it should be able to take a page down.
     """
     out = wallpaper_path(variant)
     if out.exists() and not force:
         return wallpaper_url(variant)
 
-    out.parent.mkdir(parents=True, exist_ok=True)
-    if _render_imagemagick(variant, width, height, out) is not None:
-        return wallpaper_url(variant)
     try:
-        _render_pillow(variant, width, height, out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        _render(variant, width, height, out)
         return wallpaper_url(variant)
     except Exception:
-        # Both backends gone. The desktop has a gradient fallback in CSS, so
-        # returning None degrades the look and nothing else.
         return None
 
 
@@ -314,30 +239,12 @@ def _main() -> None:
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
     parser.add_argument("--force", action="store_true")
-    parser.add_argument(
-        "--backend",
-        choices=("auto", "pillow", "imagemagick"),
-        default="auto",
-        help="auto prefers ImageMagick and falls back to Pillow",
-    )
     ns = parser.parse_args()
 
     out = wallpaper_path(ns.variant)
     out.parent.mkdir(parents=True, exist_ok=True)
-    if ns.backend == "pillow":
-        _render_pillow(ns.variant, ns.width, ns.height, out)
-        used = "pillow"
-    elif ns.backend == "imagemagick":
-        if _render_imagemagick(ns.variant, ns.width, ns.height, out) is None:
-            raise SystemExit("ImageMagick backend failed or is unavailable")
-        used = "imagemagick"
-    else:
-        url = ensure_wallpaper(ns.variant, ns.width, ns.height, force=True)
-        if url is None:
-            raise SystemExit("every backend failed")
-        used = "imagemagick" if _imagemagick_binary() else "pillow"
-
-    print(f"{out}  ({used}, {out.stat().st_size // 1024} KiB)")
+    _render(ns.variant, ns.width, ns.height, out)
+    print(f"{out}  ({out.stat().st_size // 1024} KiB)")
 
 
 if __name__ == "__main__":

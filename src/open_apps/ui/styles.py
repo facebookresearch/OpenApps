@@ -137,9 +137,9 @@ _CSS = """
   font-family: var(--font-family);
   font-size: var(--font-size-base);
   /* The shell sets --ui-wallpaper inline when a generated image is available.
-     When it is not -- no ImageMagick, no Pillow, nothing on disk -- this falls
-     back to a token gradient of the same hues, so the desktop still looks
-     deliberate rather than blank. */
+     When it is not -- rendering failed, or nothing is on disk yet -- this
+     falls back to a token gradient of the same hues, so the desktop still
+     looks deliberate rather than blank. */
   background-color: var(--color-bg);
   background-image: var(--ui-wallpaper, linear-gradient(
       180deg,
