@@ -33,12 +33,9 @@ import math
 
 from fasthtml.common import NotStr
 
-_MARK_STROKE = "2.4"
-
 # --- the mark --------------------------------------------------------------
-# A ring with a wedge cut out of the lower right, and two rays running from the
-# centre out through the wedge's edges: one straight down, one down-and-right at
-# 45 degrees. Reads as a stylised Q.
+# A ring with a wedge cut out of the bottom and two rays running from the centre
+# out through the wedge's edges, forming an inverted V that opens downward.
 #
 # Not a chord cutting a circle, which is what earlier versions were, and which
 # carried an awkward constraint: a chord's offset from the centre is
@@ -49,7 +46,19 @@ _MARK_STROKE = "2.4"
 # Everything is derived from the constants below. Arc endpoints and the SVG
 # large-arc/sweep flags are exactly what rots when someone nudges the radius and
 # hand-edits the path.
-_MARK_CX, _MARK_CY, _MARK_R = 13.0, 14.0, 7.0
+# The mark FILLS the viewBox vertically rather than sitting inset in it. That
+# is what lets `height=N` on the <svg> mean "render the mark N pixels tall", so
+# the lockup can be sized to match the circular toolbar buttons beside it
+# without anyone having to work out the inset by hand.
+#
+# These are solved, not chosen: given the wedge angle, the ray reach and a
+# stroke-to-radius ratio, there is exactly one radius that makes the glyph span
+# the box. See tests/test_brand.py, which re-derives them.
+_VIEWBOX_H = 28.0
+_STROKE_RATIO = 0.343          # stroke width as a fraction of the radius
+_MARK_R = 11.993
+_MARK_STROKE = f"{_MARK_R * _STROKE_RATIO:.3f}"
+_MARK_CX = _MARK_CY = 14.05    # centred so the ring's left/top edge sits at 0
 
 #: How far the rays run past the ring, as a multiple of the radius. They have to
 #: overshoot: ending flush would close the wedge back up into a plain pie slice.
@@ -65,6 +74,15 @@ _RAY_REACH = 1.25
 #: only becomes legible once the wedge is open enough to show daylight under
 #: the peak.
 _GAP_FROM, _GAP_TO = 52.5, 127.5
+
+#: Where the word starts, and how wide the whole lockup is. The mark occupies
+#: 0..28 horizontally once it fills the box, so the word clears it with a gap.
+_TEXT_X = 34
+_VIEWBOX_W = 132
+
+#: Single gradient id, so one wordmark per page. A second instance would
+#: resolve to the first one's stops.
+_GRADIENT_ID = "oa-wordmark-gradient"
 
 
 def _polar(angle_deg: float, reach: float = 1.0) -> tuple[float, float]:
@@ -96,27 +114,42 @@ def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
     """Raw ``<svg>`` for the lockup: the wedged ring plus the word."""
     g = _mark_geometry()
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 28"'
+        f'<svg xmlns="http://www.w3.org/2000/svg"'
+        f' viewBox="0 0 {_VIEWBOX_W} {_VIEWBOX_H:g}"'
         f' height="{height}" role="img" aria-label="{label}"'
         f' class="ui-wordmark">'
-        # The mark. One group so the ring and both rays share a stroke and
-        # cannot drift apart in weight -- equal weight is the point of the shape.
-        f'<g fill="none" stroke="currentColor"'
+        # A subtle brand wash rising from the bottom: the ray tips pick up the
+        # accent and it has faded into the text colour by roughly a third of the
+        # way up. userSpaceOnUse rather than the default objectBoundingBox --
+        # the bounding box of a *stroked* path is measured inconsistently across
+        # renderers, so tying the stops to viewBox coordinates keeps the fade
+        # landing in the same place everywhere.
+        f'<defs>'
+        f'<linearGradient id="{_GRADIENT_ID}" gradientUnits="userSpaceOnUse"'
+        f' x1="0" y1="{_VIEWBOX_H:g}" x2="0" y2="0">'
+        f'<stop offset="0%" stop-color="var(--color-accent, #0064e0)"/>'
+        f'<stop offset="38%" stop-color="currentColor"/>'
+        f'<stop offset="100%" stop-color="currentColor"/>'
+        f'</linearGradient>'
+        f'</defs>'
+        # One group so the ring and both rays share a stroke and cannot drift
+        # apart in weight. The class is a hook for the dark-mode flip in
+        # ui/styles.py -- flipping the <svg> itself would take the word with it.
+        f'<g class="ui-wordmark-mark" fill="none"'
+        f' stroke="url(#{_GRADIENT_ID})"'
         f' stroke-width="{_MARK_STROKE}" stroke-linecap="round">'
-        # Ring, open across the wedge.
         f'<path d="M {g["arc_start"][0]:.3f} {g["arc_start"][1]:.3f}'
-        f' A {_MARK_R} {_MARK_R} 0 {g["large_arc"]} {g["sweep"]}'
+        f' A {_MARK_R:.3f} {_MARK_R:.3f} 0 {g["large_arc"]} {g["sweep"]}'
         f' {g["arc_end"][0]:.3f} {g["arc_end"][1]:.3f}"/>'
-        # The two rays, out through the wedge edges.
         + "".join(
             f'<path d="M {a[0]:.3f} {a[1]:.3f} L {b[0]:.3f} {b[1]:.3f}"/>'
             for a, b in g["rays"]
         )
         + f'</g>'
-        # The word. font-family reads the theme token so the lockup changes
-        # with the theme rather than pinning one family.
-        f'<text x="25" y="19.5" fill="currentColor"'
-        f' font-family="var(--font-family)" font-size="16.5"'
+        # The word stays flat currentColor. A gradient across lettering costs
+        # legibility for no brand gain at this size.
+        f'<text x="{_TEXT_X:g}" y="20.5" fill="currentColor"'
+        f' font-family="var(--font-family)" font-size="19"'
         f' font-weight="700" letter-spacing="-0.5">{label}</text>'
         f'</svg>'
     )

@@ -550,7 +550,7 @@ def render_desktop_shell(config):
         Toolbar(
             left=[
                 LauncherMenu(*launcher_items, open=_desktop_state["launcher_open"]),
-                Div(Wordmark(height=22), cls="ui-brand"),
+                Div(Wordmark(height=34), cls="ui-brand"),
             ],
             right=[
                 WeatherChip(
