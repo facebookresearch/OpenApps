@@ -247,6 +247,60 @@ uv run launch_agent.py browsergym_env_args.headless=False
 
 ![Live Agent](images/gif.gif)
 
+### Devices
+
+The device is a variation axis of its own, alongside appearance, content and
+pop-ups. `config/device/` ships four:
+
+| `device=` | Viewport | Form factor | Input |
+| --- | --- | --- | --- |
+| `desktop` (default) | 1920×1080 | desktop | mouse |
+| `laptop` | 1280×800 | desktop | mouse |
+| `tablet` | 820×1180 | tablet | touch, no hover |
+| `phone` | 390×844 | phone | touch, no hover |
+
+```bash
+uv run launch.py +experiment=phone                      # browse the phone build
+uv run launch_agent.py agent=dummy +experiment=phone    # run an agent on it
+uv run launch_agent.py agent=dummy device=tablet        # just the device
+```
+
+One setting moves two things:
+
+* **the browser** — `browsergym_env_args.task_kwargs.screen_resolution` is
+  `${device.viewport}`, and `open_apps.agent.env_args.DeviceEnvArgs` forwards
+  `is_mobile`, `has_touch`, `device_scale_factor` and `user_agent` to the
+  Playwright context. On a phone or tablet the page gets a real mobile visual
+  viewport and a coarse pointer, so `@media (hover: none)` and
+  `(pointer: coarse)` match and hover-only affordances correctly disappear;
+* **the apps** — the node is mirrored to `apps.device`, so a server-rendered
+  layout can pick a composition for the form factor rather than only reflowing
+  to the width.
+
+The start page's desktop shell does exactly that. On a phone it renders a home
+screen: status bar, wordmark widget, an icon grid of the apps that are **not**
+pinned, and a dock holding the ones that are — so pinning moves an app into the
+dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+the test ids and `/desktop_all` are the same on both, so a task written against
+one scores unchanged on the other; what differs is what the agent can see and
+how far it has to travel. Which composition a form factor gets is config, not
+code:
+
+```bash
+# the control condition: the desktop composition, in a phone-sized window
+uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
+```
+
+Adding a device is a file in `config/device/`; a form factor with no variant of
+its own falls back to the desktop composition rather than to a blank page.
+
+!!! warning "Keep `device_scale_factor` at 1"
+    Screenshots are captured in *device* pixels and actions are dispatched in
+    *CSS* pixels, and nothing in between divides by the ratio — the agent's
+    coordinate space comes straight from the screenshot's shape. At scale 2 a
+    grounded click lands at twice the intended offset. Every shipped device
+    keeps it at 1, retina or not.
+
 ### Logs
 
 By default, information about the number of steps an agent took, task success, etc. will be shown in the terminal:
