@@ -70,6 +70,7 @@ def tile_colors(config):
         return [by_tone[tone]]
     return config.app_background_colors
 
+from open_apps import device
 from open_apps.theme import theme_style
 from open_apps.wallpaper import ensure_wallpaper
 from open_apps.ui import (
@@ -485,6 +486,48 @@ def temperature_text(weather_cfg, units: str) -> str:
     return f"{round(celsius)}°C"
 
 
+def _layout_variant(desktop_cfg, factor: str) -> str:
+    """Which composition this form factor gets: ``shell`` | ``home_screen``.
+
+    The mapping is config (``variants:`` in the layout file), not code, so a
+    run can compare compositions on one device -- ``apps.start_page.desktop.
+    variants.phone=shell`` renders the desktop shell in a 390px window, which
+    is the control condition for "does the phone layout actually help".
+
+    An unlisted form factor falls back to the desktop composition rather than
+    to nothing: a new device file should render a working page before anyone
+    has written a layout for it.
+    """
+    variants = desktop_cfg.get("variants") or {}
+    return str(variants.get(factor, "shell"))
+
+
+def _phone_home(*, status_bar, widget, grid, dock):
+    """The phone composition: status bar, widget, icon grid, dock.
+
+    Different markup from the desktop, not the same markup reflowed -- that is
+    the whole reason the device is a config axis rather than a media query.
+    The grid holds the apps that are *not* pinned and the dock holds the ones
+    that are, so pinning moves an icon from the grid into the dock the way it
+    moves an app onto the desktop on a laptop. Same route, same
+    ``/desktop_all``, same reward; a different thing to look at and a
+    different distance to travel.
+    """
+    return (
+        status_bar,
+        Div(widget, grid, cls="ui-desktop-surface"),
+        dock,
+    )
+
+
+def _desktop_composition(*, toolbar, widget, dock_row):
+    """The desktop composition: toolbar, centred headline, bottom-right dock."""
+    return (
+        toolbar,
+        Div(widget, dock_row, cls="ui-desktop-surface"),
+    )
+
+
 def render_desktop_shell(config):
     """The whole desktop, as one swappable element.
 
@@ -493,6 +536,9 @@ def render_desktop_shell(config):
     this element rather than in the page head: toggling light/dark has to
     change the tokens, and a head-level block would not come back with the
     swap. Same reason the component stylesheet lives here.
+
+    The composition is chosen by the configured device's form factor -- see
+    ``_layout_variant`` and ``config/device/``.
     """
     desktop_cfg = _desktop_config(config)
     accents = desktop_cfg.get("accents", {}) or {}
@@ -532,59 +578,87 @@ def render_desktop_shell(config):
         )
         for key, cfg in apps
     ]
-    # Pinned tiles follow the configured app order, not pin order, so the
-    # desktop does not reshuffle every time something is pinned.
-    tiles = [
-        AppTile(
+
+    def tile(key, cfg, slot):
+        return AppTile(
             title=cfg.get("title", key.capitalize()),
             href=f"/{key}",
             accent=accents.get(key),
+            slot=slot,
         )
-        for key, cfg in apps
-        if key in pinned
-    ]
 
-    return Div(
-        theme_style(theme_cfg, "start_page"),
-        component_styles(),
-        Toolbar(
-            left=[
-                LauncherMenu(*launcher_items, open=_desktop_state["launcher_open"]),
-                Div(Wordmark(height=34), cls="ui-brand"),
-            ],
-            right=[
-                WeatherChip(
-                    weather.get("condition", "clear"),
-                    temperature_text(weather, _desktop_state["units"]),
-                    units=_desktop_state["units"],
-                ),
-                Clock(clock_text(desktop_cfg)),
-                ModeToggle(mode),
-            ],
-        ),
-        Div(
-            Div(
-                Text(
-                    desktop_cfg.get("headline") or config.get("headline", ""),
-                    variant="title",
-                ),
+    factor = device.form_factor(app.config)
+    variant = _layout_variant(desktop_cfg, factor)
+
+    launcher = LauncherMenu(*launcher_items, open=_desktop_state["launcher_open"])
+    weather_chip = WeatherChip(
+        weather.get("condition", "clear"),
+        temperature_text(weather, _desktop_state["units"]),
+        units=_desktop_state["units"],
+    )
+    clock = Clock(clock_text(desktop_cfg))
+    mode_toggle = ModeToggle(mode)
+    headline = desktop_cfg.get("headline") or config.get("headline", "")
+
+    if variant == "home_screen":
+        # Grid: everything not pinned. Dock: everything pinned. Both follow the
+        # configured app order rather than pin order, so the home screen does
+        # not reshuffle every time something is pinned.
+        grid_tiles = [tile(k, c, "shortcut") for k, c in apps if k not in pinned]
+        dock_tiles = [tile(k, c, "favorite") for k, c in apps if k in pinned]
+        body = _phone_home(
+            # Time on the left, indicators on the right -- a status bar, not a
+            # scaled-down toolbar. The brand moves into the widget below,
+            # where there is room for it.
+            status_bar=Toolbar(left=[clock], right=[weather_chip, mode_toggle]),
+            widget=Div(
+                Div(Wordmark(height=20), cls="ui-brand"),
+                Text(headline, variant="body"),
                 cls="ui-desktop-headline",
                 data_testid="desktop-headline",
             ),
-            Div(
+            grid=Div(
+                Div(*grid_tiles, cls="ui-tile-dock", data_testid="desktop-tiles"),
+                cls="ui-dock-row",
+            ),
+            dock=Div(*dock_tiles, launcher, cls="ui-phone-dock", data_testid="phone-dock"),
+        )
+    else:
+        tiles = [tile(k, c, "shortcut") for k, c in apps if k in pinned]
+        body = _desktop_composition(
+            toolbar=Toolbar(
+                left=[launcher, Div(Wordmark(height=34), cls="ui-brand")],
+                right=[weather_chip, clock, mode_toggle],
+            ),
+            widget=Div(
+                Text(headline, variant="title"),
+                cls="ui-desktop-headline",
+                data_testid="desktop-headline",
+            ),
+            dock_row=Div(
                 Div(*tiles, cls="ui-tile-dock", data_testid="desktop-tiles")
                 if tiles
                 else Text("Nothing pinned yet. Open the launcher to pin an app.", variant="caption"),
                 cls="ui-dock-row",
             ),
-            cls="ui-desktop-surface",
-        ),
+        )
+
+    return Div(
+        theme_style(theme_cfg, "start_page"),
+        component_styles(),
+        *body,
         id="desktop-shell",
-        cls="ui-desktop",
+        # The form factor is on the root as a class *and* an attribute: the
+        # class is what the stylesheet keys off, the attribute is what a test
+        # or an agent can read without inspecting computed styles -- the same
+        # reasoning as data-mode and data-pinned.
+        cls=f"ui-desktop is-{factor}",
         style=shell_style,
         data_mode=mode,
         data_pinned=",".join(pinned),
         data_units=_desktop_state["units"],
+        data_device=factor,
+        data_layout=variant,
     )
 
 

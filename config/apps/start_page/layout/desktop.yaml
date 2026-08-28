@@ -19,6 +19,22 @@
 layout: desktop
 
 desktop:
+  # Composition per device form factor (see config/device/). `shell` is the
+  # desktop: toolbar, centred headline, shortcuts docked bottom-right.
+  # `home_screen` is the phone: status bar, wordmark widget, a grid of the apps
+  # that are NOT pinned, and a dock holding the ones that are.
+  #
+  # Anything unlisted -- `tablet` here -- gets `shell`, which on a tablet is
+  # the right answer: there is room for the desktop composition, and what the
+  # tablet actually changes is the input model (touch, no hover).
+  #
+  # Overridable, which is the point of it being data: rendering the desktop
+  # composition on a phone is the control condition for measuring whether the
+  # phone one helps.
+  #   uv run launch.py device=phone apps.start_page.desktop.variants.phone=shell
+  variants:
+    phone: home_screen
+
   # Centred at the top of the desktop surface. Falls back to the start page's
   # own `headline` when unset, so the gallery layout's copy is not disturbed.
   headline: "An open source environment for digital agents"

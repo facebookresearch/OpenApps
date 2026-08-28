@@ -123,12 +123,24 @@ def Toolbar(*, left=(), right=(), cls: str = ""):
     )
 
 
-def AppTile(title: str, href: str, glyph=None, accent: str | None = None, cls: str = ""):
-    """A shortcut on the desktop surface.
+def AppTile(
+    title: str,
+    href: str,
+    glyph=None,
+    accent: str | None = None,
+    slot: str = "shortcut",
+    cls: str = "",
+):
+    """A shortcut on the desktop surface, or an icon on a phone home screen.
 
     ``accent`` is a token *name* (e.g. ``color-accent-pink``), not a colour.
     Passing a hex here would survive a theme swap unchanged and stand out as
     the one element that did not repaint.
+
+    ``slot`` namespaces the test id. The phone composition renders tiles in two
+    places -- the home grid and the dock -- and two nodes answering to
+    ``shortcut-opentodos`` would make every selector ambiguous, for a test and
+    for an agent alike.
     """
     style = f"--ui-tile-accent:var(--{accent});" if accent else None
     return A(
@@ -137,7 +149,7 @@ def AppTile(title: str, href: str, glyph=None, accent: str | None = None, cls: s
         href=href,
         cls=f"ui-tile {cls}".strip(),
         style=style,
-        data_testid=f"shortcut-{title.lower().replace(' ', '-')}",
+        data_testid=f"{slot}-{title.lower().replace(' ', '-')}",
     )
 
 
