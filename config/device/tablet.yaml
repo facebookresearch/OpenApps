@@ -1,0 +1,17 @@
+# A tablet, portrait. 820x1180 is the iPad Air logical viewport.
+#
+# Deliberately keeps the desktop composition -- there is room for it -- and
+# changes the input model instead: touch, no hover. That is the interesting
+# half of this device. Hover-revealed affordances (the launcher's pin buttons)
+# have to survive a pointer that cannot hover, and a tablet is the cheapest
+# environment in which to find out that they do not.
+#
+# See config/device/desktop.yaml for what every field means.
+name: tablet
+form_factor: tablet
+viewport: [820, 1180]
+
+device_scale_factor: 1
+is_mobile: true
+has_touch: true
+user_agent: null

@@ -1,15 +1,27 @@
 # Env args for screenshot-only agents. Select with:
 #   uv run launch_agent.py agent=gemma-4-31B-computer-use browsergym_env_args=screenshot
 #
-# Differs from default.yaml in two ways:
-#  * screen_resolution 1280x800 instead of 1920x1080. The screenshot is sent at
-#    full size (agent.utils.image_to_jpg_base64_url does not downscale), so the
-#    served model's image processor resizes it; the less it has to squash, the
-#    more legible the set-of-marks labels are.
+# Differs from default.yaml in one way, and asks for a second:
 #  * max_steps 25 instead of 10. A screenshot-only agent spends steps
 #    navigating (start page -> app -> item) and recovering from misclicks, and
 #    10 leaves no room for either.
-_target_: browsergym.experiments.EnvArgs
+#
+# PAIR IT WITH `device=laptop`:
+#   uv run launch_agent.py agent=gemma-4-31B-computer-use \
+#       browsergym_env_args=screenshot device=laptop
+#
+# The window size now comes from the `device` group (this file used to hardcode
+# 1280x800, which is what `laptop` is), and a preset cannot select another
+# group's option from its own defaults list -- Hydra resolves the entry against
+# this config's package, not the global one. So the pairing is by convention,
+# not by composition. It matters: the screenshot is sent at full size
+# (agent.utils.image_to_jpg_base64_url does not downscale) and the served
+# model's image processor resizes it, so the less it has to squash, the more
+# legible the set-of-marks labels are. `device=desktop` gives it 1920x1080 to
+# squash instead.
+_target_: open_apps.agent.env_args.DeviceEnvArgs
+_convert_: all
+device: ${device}
 task_name: "" # needs to be a registered task
 task_seed: 42 # not relevant for us we have only deterministic envrionments
 max_steps: 25 # maximum number of steps per episode
@@ -18,4 +30,4 @@ record_video: False
 
 task_kwargs:
   base_url: null # this neets to be the localhost url, will be set automatically in launch_experiment.py
-  screen_resolution: [1280, 800]
+  screen_resolution: ${device.viewport}

@@ -1,0 +1,26 @@
+# A phone. 390x844 is the iPhone 14/15 logical viewport.
+#
+#   uv run launch.py device=phone apps/start_page/layout=desktop
+#   uv run launch_agent.py agent=dummy device=phone
+#
+# `form_factor: phone` is the interesting part: the start page's desktop shell
+# renders its `home_screen` variant instead of the desktop composition -- a
+# status bar, a wordmark widget, an icon grid of the apps that are *not*
+# pinned, and a dock holding the ones that are, next to the launcher. Same
+# routes, same state, same /desktop_all, different affordances. Every other
+# app reflows to the width through its own stylesheet.
+#
+# Expect to raise `browsergym_env_args.max_steps` (default 10): a phone shows a
+# fraction of the page, so several steps go on scrolling to controls the
+# desktop puts on screen at once.
+#
+# See config/device/desktop.yaml for what every field means, including why
+# device_scale_factor stays at 1 on a device that is physically 3x.
+name: phone
+form_factor: phone
+viewport: [390, 844]
+
+device_scale_factor: 1
+is_mobile: true
+has_touch: true
+user_agent: null

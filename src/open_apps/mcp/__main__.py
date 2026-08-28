@@ -61,9 +61,21 @@ def main() -> None:
     )
     p.add_argument("--host", default="127.0.0.1", help="Bind host for HTTP/SSE.")
     p.add_argument("--port", type=int, default=8000, help="Bind port for HTTP/SSE.")
+    p.add_argument(
+        "--device",
+        default=None,
+        help=(
+            "A config/device/ option (phone, tablet, laptop, desktop). Sets the "
+            "browser size and input model AND the layout the apps render, so "
+            "the two cannot disagree. Default: the session's historical "
+            "1024x640 desktop window."
+        ),
+    )
     args = p.parse_args()
 
     os.environ["OPENAPPS_APP"] = args.app
+    if args.device:
+        os.environ["OPENAPPS_DEVICE"] = args.device
     os.environ["OPENAPPS_MCP_HOST"] = args.host
     os.environ["OPENAPPS_MCP_PORT"] = str(args.port)
 

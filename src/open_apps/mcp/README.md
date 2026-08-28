@@ -23,10 +23,19 @@ uv run python -m open_apps.mcp --app todo
 
 # HTTP / SSE (remote or multiple clients connect to a running server)
 uv run python -m open_apps.mcp --app todo --transport http --host 127.0.0.1 --port 8000
+
+# on a phone: 390x844, touch pointer, and the apps rendered for that form factor
+uv run python -m open_apps.mcp --app todo --device phone
 ```
 
 Flags: `--app {todo,calendar,messages,map,codeeditor}` (default `todo`),
-`--transport {stdio,http,sse}` (default `stdio`), `--host`, `--port`.
+`--transport {stdio,http,sse}` (default `stdio`), `--host`, `--port`,
+`--device {desktop,laptop,tablet,phone}` (default: a 1024x640 desktop window).
+
+`--device` is one setting for two things: it sizes the Playwright context and
+sets its input model (`is_mobile`, `has_touch`), *and* it is passed to the app
+server as a Hydra override, so the pages render for that device rather than
+being a desktop layout in a narrow window. See `config/device/`.
 
 On startup you'll see the apps initialize ("Setting environment for ...");
 the server is then ready for tool calls.

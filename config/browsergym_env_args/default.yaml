@@ -1,7 +1,18 @@
-_target_: browsergym.experiments.EnvArgs
-task_name:
-  "" # needs to be a registered task
-  #screen_resolution: [1024, 640] # HD screen resolution -> https://en.wikipedia.org/wiki/List_of_common_display_resolutions the HDTV is incompatible with browsergym
+# Screen size and input model come from the `device` group, not from here --
+# see config/device/desktop.yaml. `device=desktop` (the default) is 1920x1080,
+# which is what this file used to hardcode, so the default run is unchanged.
+#
+# DeviceEnvArgs is a three-line subclass of browsergym's EnvArgs that forwards
+# the emulation flags to the Playwright context; the pinned BrowserGym exposes
+# `pw_context_kwargs` only for `storage_state`, so there is no way to reach
+# them through the stock dataclass. It behaves exactly like EnvArgs when
+# `device` is null.
+_target_: open_apps.agent.env_args.DeviceEnvArgs
+# Hand the subclass plain dicts rather than DictConfigs -- ExpArgs serializes
+# env_args to JSON, and an OmegaConf node does not survive that round trip.
+_convert_: all
+device: ${device}
+task_name: "" # needs to be a registered task
 task_seed: 42 # not relevant for us we have only deterministic envrionments
 max_steps: 10 # maximum number of steps per episode
 headless: True # keep the browser open
@@ -9,4 +20,4 @@ record_video: False
 
 task_kwargs:
   base_url: null # this neets to be the localhost url, will be set automatically in launch_experiment.py
-  screen_resolution: [1920, 1080] # HDTV screen resolution -> https://en.wikipedia.org/wiki/List_of_common_display_resolutions
+  screen_resolution: ${device.viewport}

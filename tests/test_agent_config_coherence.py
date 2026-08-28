@@ -194,4 +194,18 @@ class TestScreenshotEnvArgs:
             )
         env = config.browsergym_env_args
         assert env.max_steps == 25
+
+    def test_the_bundle_pairs_it_with_a_laptop_window(self):
+        # The 1280x800 this preset used to hardcode now lives in the `device`
+        # group, and a group config cannot select another group's option --
+        # hence the experiment bundle. Both halves have to arrive together or
+        # the screenshot the model reads is 1920x1080 squashed by its image
+        # processor, which is the failure this pairing exists to avoid.
+        with initialize(version_base=None, config_path="../config/"):
+            config = compose(
+                config_name="config", overrides=["+experiment=screenshot_agent"]
+            )
+        env = config.browsergym_env_args
+        assert env.max_steps == 25
+        assert config.device.name == "laptop"
         assert list(env.task_kwargs.screen_resolution) == [1280, 800]
