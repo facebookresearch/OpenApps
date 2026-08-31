@@ -23,6 +23,7 @@ would still complete and still report a number.
 """
 
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -92,6 +93,55 @@ def ids_in(markup: str) -> set[str]:
     return set(re.findall(r'data-testid="([^"]+)"', markup))
 
 
+class _Ancestors(HTMLParser):
+    """Every class on every element enclosing the first match for a class."""
+
+    def __init__(self, target: str):
+        super().__init__(convert_charrefs=True)
+        self.target = target
+        self._stack: list[tuple[str, list[str]]] = []
+        self.found: list[str] | None = None
+
+    def handle_starttag(self, tag, attrs):
+        classes = dict(attrs).get("class", "").split()
+        if self.found is None and self.target in classes:
+            self.found = [c for _, frame in self._stack for c in frame]
+        self._stack.append((tag, classes))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self._stack) - 1, -1, -1):
+            if self._stack[i][0] == tag:
+                del self._stack[i:]
+                return
+
+
+def ancestor_classes(markup: str, target: str) -> list[str]:
+    """The classes of everything wrapping ``target``, outermost first.
+
+    ``<style>`` is CDATA to the parser, so the shell's inline stylesheet does
+    not have to be stripped first.
+    """
+    parser = _Ancestors(target)
+    parser.feed(markup)
+    return parser.found or []
+
+
+def scroll_container_classes(css: str) -> set[str]:
+    """Classes whose rule makes them clip -- any overflow but ``visible``.
+
+    Keyed on the selector's last compound, which is the element the rule
+    actually applies to. One axis is enough: ``overflow-x`` alone computes the
+    other axis from ``visible`` to ``auto``, which is exactly the trap this
+    exists to catch.
+    """
+    found: set[str] = set()
+    for selector, declarations in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        if not re.search(r"\boverflow(-[xy])?\s*:\s*(?!visible)\S", declarations):
+            continue
+        found |= set(re.findall(r"\.([A-Za-z0-9_-]+)", selector.strip().split()[-1]))
+    return found
+
+
 class TestCompositionSelection:
 
     def test_phone_gets_the_home_screen(self):
@@ -140,6 +190,20 @@ class TestPhoneHomeScreen:
         dock = markup[markup.index('data-testid="phone-dock"') :]
         assert 'data-testid="launcher-button"' in dock
 
+    def test_the_launcher_sits_beside_the_scrolling_strip_not_inside_it(self):
+        # The strip of pinned icons scrolls, because enough pinned apps will
+        # not fit across 390px. The launcher has to stay out of it: a scroll
+        # container clips what opens out of it, and the panel opens upward.
+        chain = ancestor_classes(render("phone", pinned=("todo", "calendar")), "ui-launcher")
+        assert "ui-phone-dock" in chain
+        assert "ui-phone-dock-apps" not in chain
+
+    def test_no_empty_strip_when_nothing_is_pinned(self):
+        # An unnamed empty <div> is a node an agent reading the accessibility
+        # tree has to wonder about; the dock renders the launcher alone.
+        markup = render("phone", pinned=())
+        assert "ui-phone-dock-apps" not in body(markup)
+
     def test_the_status_bar_leads_with_the_clock(self):
         markup = render("phone")
         assert markup.index('data-testid="toolbar-clock"') < markup.index(
@@ -150,6 +214,39 @@ class TestPhoneHomeScreen:
         markup = render("phone")
         widget = markup[markup.index('data-testid="desktop-headline"') :]
         assert "ui-wordmark" in widget[: widget.index("ui-dock-row")]
+
+
+class TestTheAppsMenuOpens:
+    """The launcher panel has to be *on screen*, not merely in the DOM.
+
+    This failed silently once and it is the worst shape a bug in here can
+    take: the button toggled, ``aria-expanded`` flipped, the panel rendered
+    with every app in it -- and a scrolling ancestor clipped the whole thing
+    out of view. Nothing errors, no test that counts nodes or checks hrefs
+    notices, and the run reports a number as if the apps were reachable.
+    """
+
+    def css(self) -> str:
+        return re.sub(r"/\*.*?\*/", "", to_xml(component_styles()), flags=re.S)
+
+    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    def test_nothing_between_the_panel_and_the_shell_root_clips(self, device):
+        markup = render(device, launcher_open=True)
+        chain = ancestor_classes(markup, "ui-launcher-panel")
+        assert chain, "the launcher panel is not in the markup at all"
+        clipping = scroll_container_classes(self.css()) & set(chain)
+        assert not clipping, f"{sorted(clipping)} clips the open launcher panel on {device}"
+
+    def test_the_phone_panel_is_inset_from_both_screen_edges(self):
+        # Anchored to the dock, which spans the screen -- not to the button,
+        # whose position moves with the number of pinned icons and puts a
+        # full-width panel off the left edge of a 390px screen.
+        declarations = re.search(
+            r"\.is-phone \.ui-launcher-panel\s*\{([^}]*)\}", self.css()
+        )
+        assert declarations, "no phone rule for the launcher panel"
+        assert "left: var(--space)" in declarations.group(1)
+        assert "right: var(--space)" in declarations.group(1)
 
 
 class TestDesktopShellIsUnchanged:

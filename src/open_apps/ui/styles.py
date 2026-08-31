@@ -435,7 +435,14 @@ _CSS = """
 
 /* The dock: pinned apps, then the launcher. In flow as the shell's last child
    rather than positioned over it, so nothing has to reserve space for it and
-   the grid above simply gets what is left. */
+   the grid above simply gets what is left.
+ *
+ * The dock itself must NOT set overflow. The launcher panel opens upward out
+ * of it, and any overflow value other than visible makes this a scroll
+ * container that clips the panel to the dock's own box -- the panel renders,
+ * `aria-expanded` flips, and nothing appears on screen. Scrolling belongs to
+ * the strip of pinned icons below, which is the part that can actually run
+ * out of room. */
 .ui-phone-dock {
   display: flex;
   align-items: center;
@@ -446,8 +453,22 @@ _CSS = """
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border-top: 1px solid var(--color-border);
-  /* Pin every app and the dock still has to fit on a 390px screen. */
+}
+/* Pin every app and the icons still have to fit on a 390px screen: the strip
+   scrolls, and the launcher beside it stays put rather than being pushed off
+   the edge with them. */
+.ui-phone-dock-apps {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space) * 1.5);
+  min-width: 0;
   overflow-x: auto;
+  /* Room for the icons' drop shadow. A scroll container clips at its own
+     edges, so without the inset the shadow would end in a hard line; the
+     matching negative margin gives the space back, leaving the dock's own
+     padding to set the visual height. */
+  padding-block: calc(var(--space) * 0.75);
+  margin-block: calc(var(--space) * -0.75);
 }
 /* Home indicator. A pseudo-element because it is decoration: an empty <div>
    would show up in the accessibility tree as an unnamed node for an agent to
@@ -473,13 +494,20 @@ _CSS = """
   --ui-icon-btn-size: 46px;
   background: color-mix(in srgb, var(--color-fg) 8%, transparent);
 }
-/* The launcher panel rises from the dock instead of hanging off the toolbar. */
+/* The launcher panel rises from the dock instead of hanging off the toolbar,
+   and it is anchored to the dock rather than to the button inside it -- hence
+   dropping the launcher's own `position: relative` here. The dock spans the
+   screen and its contents are centred, so a panel hung off the button's right
+   edge starts wherever the number of pinned icons happens to put it and runs
+   off the left of a 390px screen at anything near its full width. Off the
+   dock it is a sheet: full width, inset by the dock's own padding. */
+.is-phone .ui-launcher { position: static; }
 .is-phone .ui-launcher-panel {
   top: auto;
   bottom: calc(100% + var(--space));
-  left: auto;
-  right: 0;
-  width: min(84vw, 320px);
+  left: var(--space);
+  right: var(--space);
+  width: auto;
   min-width: 0;
   max-height: 60vh;
   overflow-y: auto;

@@ -621,7 +621,17 @@ def render_desktop_shell(config):
                 Div(*grid_tiles, cls="ui-tile-dock", data_testid="desktop-tiles"),
                 cls="ui-dock-row",
             ),
-            dock=Div(*dock_tiles, launcher, cls="ui-phone-dock", data_testid="phone-dock"),
+            # The pinned icons go in their own strip, with the launcher outside
+            # it. The strip is what scrolls when enough apps are pinned to
+            # overflow a 390px screen, and a scroll container clips what opens
+            # out of it -- with the launcher inside, the panel was clipped to
+            # the dock and the apps menu simply never appeared.
+            dock=Div(
+                Div(*dock_tiles, cls="ui-phone-dock-apps") if dock_tiles else None,
+                launcher,
+                cls="ui-phone-dock",
+                data_testid="phone-dock",
+            ),
         )
     else:
         tiles = [tile(k, c, "shortcut") for k, c in apps if k in pinned]
