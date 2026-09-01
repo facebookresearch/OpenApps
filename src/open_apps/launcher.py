@@ -40,6 +40,7 @@ from omegaconf import DictConfig, OmegaConf
 
 # Project-specific imports
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+from open_apps.preview import open_preview
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
 from open_apps.tasks.tasks import Task
 from open_apps.utils import merge_plus_keys
@@ -200,6 +201,14 @@ class OpenAppsLauncher:
 
         initialize_routes_and_configure_task(self.config.apps)
 
+        # Open a window on the apps, sized like `config/device/`. Off whenever
+        # something other than a person is driving: `headless=True` is passed
+        # by launch_apps_via_shell (agent runs) and by save_screenshots.py,
+        # both of which bring their own browser.
+        if not self.config.get("headless", False):
+            url = f"http://{self.web_app_host}:{self.web_app_port}/"
+            open_preview(url, self.config.get("device"))
+
         serve(
             appname="launch",
             reload=False,
@@ -222,7 +231,7 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
         )
         if self.config.apps.onlineshop.enable:
             command += " apps.onlineshop.enable=True"

@@ -28,6 +28,13 @@ apps:
 
 task_name: add_meeting_with_dennis
 
+# `uv run launch.py` opens a browser on the apps once they are up, sized to the
+# active `device=` (so `launch.py device=phone` shows you the phone layout at a
+# phone viewport, not a narrow desktop one). Set true to serve headlessly.
+# Anything non-interactive already passes this: agent runs and
+# tests/save_screenshots.py drive their own browser.
+headless: False
+
 # useful to debug configs without launching jobs
 use_wandb: False
 

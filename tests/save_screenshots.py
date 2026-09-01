@@ -211,6 +211,9 @@ def launch_variation(
         "--config-name",
         launcher.config_path.name,
         "use_wandb=False",
+        # This harness drives its own Playwright browser; launch.py must not
+        # also pop one per variation.
+        "headless=True",
     ]
     if launcher.config.apps.onlineshop.enable:
         command.append("apps.onlineshop.enable=True")

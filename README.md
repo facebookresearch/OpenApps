@@ -46,11 +46,44 @@ uv run launch.py
 <img width="1440" height="822" alt="image" src="https://github.com/user-attachments/assets/46024c36-9f6d-462b-acb7-b6c148ed1754" />
 
 
+A browser opens on the apps once they are up, sized to the configured device.
+Pass `headless=True` to just serve them.
+
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:
 
 ```bash
 uv run launch.py app.todo.title='Super Todo'
 ```
+
+### Overrides: when to use `=`, `+=` and `+`
+
+Hydra syntax, and the one thing worth memorising up front:
+
+| Form | Means | Example |
+| --- | --- | --- |
+| `key=value` | Change something that already exists | `uv run launch.py device=phone` |
+| `+key=value` | Add something not in the defaults list | `uv run launch.py +experiment=phone` |
+| `++key=value` | Add *or* change, whichever applies | `uv run launch.py ++apps.todo.title=Tasks` |
+
+A plain `=` fails on a key that does not exist yet, and a `+` fails on one that
+does — the error tells you which you needed. Groups already in the defaults
+list (`device`, `agent`, `tasks`, `apps/theme`, each app's `layout` and
+`content`) take `=`. Only `experiment` needs `+`, because it is deliberately
+not a default: an experiment config overrides *other* groups, so Hydra has to
+compose it last, and appending it is what `+` does.
+
+```bash
+uv run launch.py device=phone                    # existing group
+uv run launch.py apps/theme=dark                 # existing group
+uv run launch.py +experiment=phone               # preset bundle, not a default
+uv run launch.py +experiment=phone device=tablet # bundle, then override one part
+```
+
+An **experiment** is a named bundle that sets several groups at once, for the
+cases where the halves have to agree. `+experiment=phone` is `device=phone`
+plus the home-screen layout plus a larger step budget; `device=phone` alone
+gives you a phone-sized window still rendering the desktop layout. See
+`config/experiment/`.
 
 Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/). 
 
