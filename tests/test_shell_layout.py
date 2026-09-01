@@ -229,7 +229,10 @@ class TestTheAppsMenuOpens:
     def css(self) -> str:
         return re.sub(r"/\*.*?\*/", "", to_xml(component_styles()), flags=re.S)
 
-    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    # Phone is excluded: it no longer uses an anchored panel, and the sheet has
+    # its own stronger guarantee above (fixed to the viewport, so no ancestor
+    # can clip it at all).
+    @pytest.mark.parametrize("device", ["desktop"])
     def test_nothing_between_the_panel_and_the_shell_root_clips(self, device):
         markup = render(device, launcher_open=True)
         chain = ancestor_classes(markup, "ui-launcher-panel")
@@ -237,16 +240,54 @@ class TestTheAppsMenuOpens:
         clipping = scroll_container_classes(self.css()) & set(chain)
         assert not clipping, f"{sorted(clipping)} clips the open launcher panel on {device}"
 
-    def test_the_phone_panel_is_inset_from_both_screen_edges(self):
-        # Anchored to the dock, which spans the screen -- not to the button,
-        # whose position moves with the number of pinned icons and puts a
-        # full-width panel off the left edge of a 390px screen.
+    def test_the_phone_menu_is_a_full_screen_sheet(self):
+        """Not an anchored popover -- see LauncherSheet for why."""
         declarations = re.search(
-            r"\.is-phone \.ui-launcher-panel\s*\{([^}]*)\}", self.css()
+            r"\.ui-launcher-overlay\s*\{([^}]*)\}", self.css()
         )
-        assert declarations, "no phone rule for the launcher panel"
-        assert "left: var(--space)" in declarations.group(1)
-        assert "right: var(--space)" in declarations.group(1)
+        assert declarations, "no rule for the phone launcher overlay"
+        assert "position: fixed" in declarations.group(1)
+        assert "inset: 0" in declarations.group(1)
+
+    def test_the_phone_sheet_is_not_nested_in_a_filtered_ancestor(self):
+        """`position: fixed` resolves against the nearest filtered ancestor.
+
+        `.ui-phone-dock` sets `backdrop-filter`, and filter/backdrop-filter/
+        transform all make an element the containing block for fixed
+        descendants. Nested in the dock, the sheet's `inset: 0` would resolve
+        to the dock's own ~88px box instead of the viewport and render as a
+        sliver behind the icons -- with correct markup, as always.
+        """
+        markup = render("phone", launcher_open=True)
+        chain = ancestor_classes(markup, "ui-launcher-overlay")
+        assert chain, "the launcher sheet is not in the phone markup"
+        filtered = {
+            selector.lstrip(".")
+            for selector, body in re.findall(r"([^{}]+)\{([^}]*)\}", self.css())
+            if "backdrop-filter" in body or re.search(r"[^-]transform:", body)
+        }
+        offenders = {c for c in chain if c in filtered}
+        assert not offenders, (
+            f"{sorted(offenders)} would become the containing block for the "
+            f"sheet's position: fixed"
+        )
+
+    def test_the_phone_dock_still_holds_the_button(self):
+        """The button stays in the dock even though the menu moved out of it."""
+        markup = render("phone", launcher_open=False)
+        chain = ancestor_classes(markup, "ui-launcher-btn")
+        assert "ui-phone-dock" in chain, chain
+
+    def test_the_sheet_can_be_dismissed_without_the_button(self):
+        """Tapping outside is the expected gesture; it must be a real control."""
+        markup = render("phone", launcher_open=True)
+        assert 'data-testid="launcher-scrim"' in markup
+        assert 'data-testid="launcher-close"' in markup
+
+    def test_closed_phone_menu_adds_nothing_to_the_dom(self):
+        # By testid, not class name -- the class appears in the inlined
+        # stylesheet, which is part of the swapped markup.
+        assert 'data-testid="launcher-overlay"' not in render("phone", launcher_open=False)
 
 
 class TestDesktopShellIsUnchanged:

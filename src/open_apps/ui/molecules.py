@@ -29,7 +29,7 @@ from __future__ import annotations
 from fasthtml.common import A, Button, Div, Span
 
 from open_apps.icons import Icon, icon
-from open_apps.ui.atoms import IconButton, Stack, Text
+from open_apps.ui.atoms import IconButton, Stack, Text, _cls
 
 #: Weather condition -> icon. The condition string comes from the desktop
 #: config, so this is a closed set; anything unrecognised falls back to CLOUD
@@ -192,8 +192,27 @@ def LauncherItem(
     )
 
 
+def LauncherButton(open: bool = False, toggle_url: str = "/desktop/launcher", cls: str = ""):
+    """The button that opens the launcher, on its own.
+
+    Split out from :func:`LauncherMenu` because the phone renders the button
+    and the menu in different places in the DOM -- see :func:`LauncherSheet`.
+    """
+    return IconButton(
+        Icon.APPS,
+        label="Close app launcher" if open else "Open app launcher",
+        size=20,
+        cls=_cls("ui-launcher-btn" + (" is-open" if open else ""), cls),
+        hx_post=toggle_url,
+        hx_target="#desktop-shell",
+        hx_swap="outerHTML",
+        data_testid="launcher-button",
+        aria_expanded=str(open).lower(),
+    )
+
+
 def LauncherMenu(*items, open: bool = False, toggle_url: str = "/desktop/launcher", cls: str = ""):
-    """The launcher: a button plus the panel it opens.
+    """The desktop launcher: a button plus the popover panel it opens.
 
     Open/closed is server state swapped over htmx rather than a CSS-only
     disclosure. That costs a request, and buys two things: the panel's contents
@@ -201,17 +220,7 @@ def LauncherMenu(*items, open: bool = False, toggle_url: str = "/desktop/launche
     DOM, so a test or an agent can tell without inspecting computed styles.
     """
     return Div(
-        IconButton(
-            Icon.APPS,
-            label="Close app launcher" if open else "Open app launcher",
-            size=20,
-            cls="ui-launcher-btn" + (" is-open" if open else ""),
-            hx_post=toggle_url,
-            hx_target="#desktop-shell",
-            hx_swap="outerHTML",
-            data_testid="launcher-button",
-            aria_expanded=str(open).lower(),
-        ),
+        LauncherButton(open=open, toggle_url=toggle_url),
         Div(
             *items,
             cls="ui-launcher-panel",
@@ -220,4 +229,67 @@ def LauncherMenu(*items, open: bool = False, toggle_url: str = "/desktop/launche
             data_testid="launcher-panel",
         ) if open else None,
         cls=f"ui-launcher {cls}".strip(),
+    )
+
+
+def LauncherSheet(*items, open: bool = False, toggle_url: str = "/desktop/launcher"):
+    """The phone app drawer: a full-screen sheet, not a popover.
+
+    Two reasons it is a sheet rather than the desktop's anchored panel.
+
+    A popover anchored above the dock has to fit in whatever space is left on a
+    844px-tall screen, and it is one `overflow` away from being clipped by an
+    ancestor -- the failure mode is silent, because the markup is correct and
+    `aria-expanded` flips either way. A sheet owns the screen and cannot be
+    clipped or mispositioned. It is also what a phone user expects: this is the
+    app-drawer pattern, not a desktop menu shrunk down.
+
+    **Render this at the shell root, never inside the dock.** `.ui-phone-dock`
+    sets `backdrop-filter`, and any of filter/backdrop-filter/transform makes an
+    element the containing block for `position: fixed` descendants -- inside the
+    dock, `inset: 0` would resolve to the dock's own ~88px box instead of the
+    viewport, and the sheet would render as a sliver behind the icons.
+
+    Returns ``None`` when closed so the closed state adds nothing to the DOM.
+    """
+    if not open:
+        return None
+    return Div(
+        # The scrim is a real button, not a bare div: tapping outside to close
+        # is the expected gesture, and as a button it is reachable by keyboard
+        # and named in the accessibility tree an agent reads.
+        Button(
+            cls="ui-launcher-scrim",
+            hx_post=toggle_url,
+            hx_target="#desktop-shell",
+            hx_swap="outerHTML",
+            aria_label="Close app launcher",
+            data_testid="launcher-scrim",
+            tabindex="-1",
+        ),
+        Div(
+            Div(
+                Text("Apps", variant="title"),
+                IconButton(
+                    Icon.CLOSE,
+                    label="Close app launcher",
+                    size=20,
+                    hx_post=toggle_url,
+                    hx_target="#desktop-shell",
+                    hx_swap="outerHTML",
+                    data_testid="launcher-close",
+                ),
+                cls="ui-launcher-sheet-head",
+            ),
+            Div(
+                *items,
+                cls="ui-launcher-sheet-list",
+                role="menu",
+                aria_label="Applications",
+                data_testid="launcher-panel",
+            ),
+            cls="ui-launcher-sheet",
+        ),
+        cls="ui-launcher-overlay",
+        data_testid="launcher-overlay",
     )

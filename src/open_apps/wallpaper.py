@@ -30,9 +30,15 @@ decoration; it should never be able to take a page down.
 
 ## Regenerating
 
-Variant 0 is committed under ``apps/assets/img/`` so a fresh clone paints
-without generating anything. Other variants are rendered on demand into the
-same directory and cached by filename::
+Nothing is committed. Because the image is a pure function of its arguments,
+regenerating produces the same bytes, so a generated file is strictly better
+than a checked-in binary -- it keeps the blob out of a public remote's history
+and there is no committed copy to drift from the code that renders it. The
+output is gitignored.
+
+Variants are rendered on demand into ``apps/assets/img/`` and cached by
+filename; the start page pre-renders the one it needs at startup, so the cost
+never lands on a request. Rendering by hand::
 
     from open_apps.wallpaper import ensure_wallpaper
     ensure_wallpaper(variant=3)

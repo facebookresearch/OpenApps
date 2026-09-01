@@ -501,17 +501,57 @@ _CSS = """
    edge starts wherever the number of pinned icons happens to put it and runs
    off the left of a 390px screen at anything near its full width. Off the
    dock it is a sheet: full width, inset by the dock's own padding. */
-.is-phone .ui-launcher { position: static; }
-.is-phone .ui-launcher-panel {
-  top: auto;
-  bottom: calc(100% + var(--space));
-  left: var(--space);
-  right: var(--space);
-  width: auto;
-  min-width: 0;
-  max-height: 60vh;
+/* The phone does not use the anchored panel at all -- LauncherSheet renders a
+   full-screen drawer at the shell root instead. A popover here had to fit in
+   whatever vertical space the dock left it and was one `overflow` on any
+   ancestor away from being clipped to nothing, with correct markup and a
+   correct `aria-expanded` either way: a silent failure.
+
+   The overlay is `fixed` and MUST stay outside `.ui-phone-dock`, which sets
+   `backdrop-filter`. Any of filter/backdrop-filter/transform makes an element
+   the containing block for fixed descendants, so nested in the dock `inset: 0`
+   would resolve to the dock's ~88px box rather than the viewport. */
+.ui-launcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.ui-launcher-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, #000 45%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.ui-launcher-sheet {
+  position: relative;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space) var(--space) calc(var(--space) * 2.5);
+  background: color-mix(in srgb, var(--color-bg) 96%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-top: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) * 3) calc(var(--radius) * 3) 0 0;
+  box-shadow: 0 -8px 32px color-mix(in srgb, var(--color-fg) 22%, transparent);
+}
+.ui-launcher-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(var(--space) * 0.5) var(--space) var(--space);
+}
+.ui-launcher-sheet-list {
   overflow-y: auto;
-  border-radius: calc(var(--radius) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 0.25);
 }
 .is-phone .ui-launcher-link { padding: var(--space); gap: calc(var(--space) * 1.25); }
 .is-phone .ui-launcher-glyph { width: 34px; height: 34px; }

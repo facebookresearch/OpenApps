@@ -76,8 +76,10 @@ from open_apps.wallpaper import ensure_wallpaper
 from open_apps.ui import (
     AppTile,
     Clock,
+    LauncherButton,
     LauncherItem,
     LauncherMenu,
+    LauncherSheet,
     ModeToggle,
     Text,
     Toolbar,
@@ -214,6 +216,38 @@ def reset_all_apps(config: DictConfig):
             print(f"Warning: failed to reset {app_name}: {e}")
 
 
+def _prerender_wallpaper(start_page_cfg) -> None:
+    """Render the wallpaper at startup if the desktop shell will ask for it.
+
+    The file is generated, not committed (see open_apps.wallpaper): it is a
+    pure function of (variant, width, height), so regenerating is byte-identical
+    and keeps a binary out of a public remote's history.
+
+    `ensure_wallpaper` would render it lazily on first paint anyway. Doing it
+    here moves the ~0.3s off the request path, which matters because that first
+    paint is usually an agent's first observation -- a third of a second inside
+    a page load is a screenshot taken mid-render.
+
+    Skipped entirely unless the desktop layout is selected and the wallpaper is
+    enabled, so the gallery layout pays nothing. Never raises: a missing
+    wallpaper falls back to a CSS gradient.
+    """
+    if start_page_cfg is None:
+        return
+    if start_page_cfg.get("layout") != "desktop":
+        return
+    wallpaper_cfg = (_desktop_config(start_page_cfg).get("wallpaper") or {})
+    if not wallpaper_cfg.get("enabled", True):
+        return
+    try:
+        ensure_wallpaper(
+            variant=int(wallpaper_cfg.get("variant", 0)),
+            force=bool(wallpaper_cfg.get("regenerate", False)),
+        )
+    except Exception:
+        pass
+
+
 def get_start_page_routes():
     return app.routes
 
@@ -225,6 +259,7 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     # Seed the desktop shell from config. Harmless under the gallery layout --
     # the state simply goes unread.
     reset_desktop_state(getattr(config, "start_page", None))
+    _prerender_wallpaper(getattr(config, "start_page", None))
 
     java_version_high_enough = get_java_version().startswith("21")
     if not app.config.onlineshop.enable:
@@ -626,13 +661,21 @@ def render_desktop_shell(config):
             # overflow a 390px screen, and a scroll container clips what opens
             # out of it -- with the launcher inside, the panel was clipped to
             # the dock and the apps menu simply never appeared.
+            # Only the button lives in the dock. The menu itself is a
+            # full-screen sheet appended at the shell root below -- the dock
+            # sets backdrop-filter, which would become the containing block for
+            # the sheet's `position: fixed` and trap it in the dock's own box.
             dock=Div(
                 Div(*dock_tiles, cls="ui-phone-dock-apps") if dock_tiles else None,
-                launcher,
+                Div(
+                    LauncherButton(open=_desktop_state["launcher_open"]),
+                    cls="ui-launcher",
+                ),
                 cls="ui-phone-dock",
                 data_testid="phone-dock",
             ),
         )
+        body = (*body, LauncherSheet(*launcher_items, open=_desktop_state["launcher_open"]))
     else:
         tiles = [tile(k, c, "shortcut") for k, c in apps if k in pinned]
         body = _desktop_composition(
