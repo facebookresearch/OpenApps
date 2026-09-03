@@ -10,10 +10,11 @@ import shutil
 from typing import Dict
 import json
 from starlette.responses import Response
-from src.open_apps.apps.start_page.helper import create_logo_header
-from src.open_apps.frontend import local_hdrs
-from src.open_apps.theme import _as_plain, load_theme, theme_style
-from src.open_apps.icons import Icon, icon
+
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import _as_plain, load_theme, theme_style
+from open_apps.icons import Icon, icon
 
 # Global variables
 _base_hdrs_no_highlight = (
@@ -137,7 +138,7 @@ def set_environment(config):
                 }
             """),
         )
-    
+
     # Colours and typography come from the shared design tokens
     # (config/apps/theme/<name>.yaml), emitted as a :root block by
     # theme_style() and consumed here via var(). The legacy appearance keys
@@ -550,7 +551,7 @@ def create_sidebar(current_path: str = None) -> Div:
 
                             const storageKey = getStorageKey('{folder_path}');
                             localStorage.setItem(storageKey, (!isVisible).toString());
-                            
+
                             window.location = '/codeeditor/{folder_path}';
                         """
                     }
@@ -1000,7 +1001,7 @@ def get_file(file: str):
                 // Initialize opened files
                 let openedFiles = getOpenedFiles();
                 const currentFile = '""" + file + """';
-                
+
                 if (!openedFiles.includes(currentFile)) {
                     openedFiles.push(currentFile);
                     updateOpenedFiles(openedFiles);
@@ -1010,13 +1011,13 @@ def get_file(file: str):
                 function renderTabs() {
                     const container = document.getElementById('tab-container');
                     container.innerHTML = '';
-                    
+
                     openedFiles.forEach(file => {
                         const tab = document.createElement('div');
                         tab.className = `flex items-center px-4 py-2 cursor-pointer ${
                             file === currentFile ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                         }`;
-                        
+
                         const fileName = document.createElement('span');
                         fileName.textContent = file.split('/').pop();
                         fileName.onclick = () => {
@@ -1024,7 +1025,7 @@ def get_file(file: str):
                                 window.location = '/codeeditor/' + file;
                             }
                         };
-                        
+
                         const closeBtn = document.createElement('button');
                         closeBtn.className = 'ml-2 text-gray-500 hover:text-white focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0';
                         closeBtn.innerHTML = '×';
@@ -1032,7 +1033,7 @@ def get_file(file: str):
                             e.stopPropagation();
                             openedFiles = openedFiles.filter(f => f !== file);
                             updateOpenedFiles(openedFiles);
-                            
+
                             if (file === currentFile) {
                                 // Navigate to the next available tab or index
                                 if (openedFiles.length > 0) {
@@ -1044,7 +1045,7 @@ def get_file(file: str):
                                 renderTabs();
                             }
                         };
-                        
+
                         tab.appendChild(fileName);
                         tab.appendChild(closeBtn);
                         container.appendChild(tab);
@@ -1107,7 +1108,7 @@ def get_file(file: str):
                                     .then(data => {{
                                         if (data.success) {{
                                             // Update tab name before navigation
-                                            updateTabOnRename('{file}', newName);                                            
+                                            updateTabOnRename('{file}', newName);
                                             window.location = '/codeeditor/' + newName;
                                         }} else {{
                                             showErrorModal('Failed to rename: ' + data.error);
