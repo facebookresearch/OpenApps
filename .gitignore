@@ -184,12 +184,8 @@ outputs/*
 log_outputs/*
 artifacts/*
 
-# java config
-src/open_apps/apps/onlineshop_app/java
-src/open_apps/apps/onlineshop_app/data
-src/open_apps/apps/onlineshop_app/search_engine/indexes*
-src/open_apps/apps/onlineshop_app/search_engine/resources*
-src/open_apps/apps/onlineshop_app/goals*
+# java config (map app's OpenTripPlanner server; installed by setup.sh)
+src/open_apps/apps/map_app/java
 
 .vscode/*
 .vscode/settings.json
@@ -199,3 +195,14 @@ CLAUDE.md
 tests/generated_screenshots/.runtime/*
 
 internal-*
+
+# Nested git worktrees. `git worktree add .claude/worktrees/<topic>` puts a
+# full checkout inside the repo, which otherwise shows up as untracked and a
+# stray `git add -A` would commit the entire tree.
+.claude/worktrees/
+
+# The online shop's catalog, built from the WebShop item dump by
+# `scripts/fetch_webshop.py`. Those records are scraped Amazon listings --
+# real brand names and real marketing copy -- so they are downloaded onto the
+# machine that runs the shop and are never committed here.
+config/apps/onlineshop/content/webshop.yaml

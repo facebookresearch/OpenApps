@@ -113,6 +113,30 @@ Or specific apps with: `apps/calendar/content=$CONTENT`.
 
 You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
 
+#### Layout
+
+Where *appearance* varies colours and fonts, *layout* varies page structure —
+what elements exist and how they are arranged — so an agent cannot rely on a
+fixed DOM. Apps with a `layout` group:
+
+| App | Layouts |
+| --- | --- |
+| `todo` | `default`, `kanban_board` |
+| `onlineshop` | `default` (one product per row), `grid` (card grid), `compact_table` (dense text-only table) |
+
+```shell
+uv run launch.py apps/onlineshop/layout=grid
+uv run launch.py apps/todo/layout=kanban_board apps/onlineshop/layout=compact_table
+```
+
+These apps render from the shared design tokens rather than from an
+`appearance` group, so their colours and fonts come from `apps/theme=` instead:
+
+```shell
+uv run launch.py apps/theme=solarized              # every app
+uv run launch.py apps.onlineshop.theme=dark        # just the shop
+```
+
 Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
 
 ## Exposing OpenApps as an MCP server
@@ -260,9 +284,8 @@ Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
-- [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
 - [Open Street Maps](https://www.openstreetmap.org/copyright): for our Maps apps.
-- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton University
+- our online shop descends from [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md), developed by Princeton University. The application has been rewritten and shares none of WebShop's code. Its catalog is still WebShop's item dump, which `scripts/fetch_webshop.py` downloads on request; that data is not redistributed as part of this repository.
 
 Some icons are have been designed using resources from Flaticon.com
 

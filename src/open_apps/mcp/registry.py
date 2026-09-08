@@ -48,14 +48,20 @@ def config_dir_for(app_name: str) -> str:
 
 
 def list_variants(app_name: str, group: str) -> list[str]:
-    """List Hydra variant yamls for an app's group (``appearance``/``content``).
+    """List Hydra variant yamls for a group (``theme``/``layout``/``content``/``appearance``).
 
     Returns a sorted list of variant stems (without ``.yaml``).
     ``"default"`` is forced to index 0 when present so it has a stable
     sampling identity. Returns ``["default"]`` if the group dir is
     missing.
+
+    ``theme`` is a *shared* group (``config/apps/theme/``) applying to every
+    app, so ``app_name`` is ignored for it; all other groups are per-app.
     """
-    group_dir = config_dir() / "apps" / config_dir_for(app_name) / group
+    if group == "theme":
+        group_dir = config_dir() / "apps" / "theme"
+    else:
+        group_dir = config_dir() / "apps" / config_dir_for(app_name) / group
     if not group_dir.is_dir():
         return ["default"]
     stems = sorted(p.stem for p in group_dir.glob("*.yaml"))

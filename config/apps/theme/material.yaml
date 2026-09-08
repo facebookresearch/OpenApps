@@ -1,0 +1,21 @@
+# @package apps.theme
+# Material Design look approximated with design tokens (no MUI CSS needed).
+name: material
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#f5f5f5"
+  color-fg: "#212121"
+  color-muted: "#757575"
+  color-border: "#e0e0e0"
+  color-primary: "#6200ee"
+  color-on-primary: "#ffffff"
+  color-accent: "#03dac6"
+  color-danger: "#b00020"
+  color-neutral: "#757575"
+  color-btn-fg: "#ffffff"
+  font-family: "'Roboto', 'Helvetica Neue', sans-serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "4px"
+  space: "8px"

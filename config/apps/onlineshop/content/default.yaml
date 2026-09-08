@@ -1,34 +1,56 @@
 # @package apps.onlineshop
 
+# Shop chrome only -- no catalog.
+#
+# The shop deliberately ships with zero products. Its catalog is the WebShop
+# item dump (scraped Amazon listings), which is not redistributed with this
+# repository, so there is nothing here to seed from until the optional setup
+# script has been run:
+#
+#     uv run scripts/fetch_webshop.py
+#     uv run launch.py apps/onlineshop/content=webshop
+#
+# With an empty catalog the start page does not register the shop's routes and
+# does not show its tile -- the app is absent rather than broken. See
+# `start_page.main.initialize_routes_and_configure_task`.
+#
+# `content/fixture.yaml` holds the small mechanical catalog the test suite
+# runs against; it is not intended as a usable storefront.
+#
+# Product schema (see `onlineshop_app.main.Product`):
+#   sku         stable id, used in URLs and in the cart/order state
+#   title       display name; also the highest-weighted search field
+#   price       float, in `currency` units
+#   category    slug, groups products on the home page and in `?category=`
+#   breadcrumb  list of crumbs shown on the item page
+#   rating      float 0-5, rendered as stars
+#   options     mapping of option name -> selectable values (may be empty)
+#   bullets     short feature list
+#   description free text; searched, and truncated in listings
+
 title: ${apps.start_page.apps.onlineshop.title}
 
 description: 'Your one-stop shop for everything!'
-promotional_message: '✨ Special Pick of the Day!' # "🎯 Handpicked Just for You!"
+promotional_message: '✨ Special Pick of the Day!'
 additional_info_to_item: ''
 
+currency_symbol: '$'
 
-cart:
-  - asin: "B09QQP3356"
-    options: {"color": "light blue", "size": "x-large"}
-    quantity: 1
-    image: "https://m.media-amazon.com/images/I/41m6qF2BlZL.jpg"
-  - asin: "B08K7LDM7Q"
-    options: {"size": "20\"x20\""}
-    quantity: 2
-    image: "https://m.media-amazon.com/images/I/414UNymlFJL.jpg"
+# Shown as the category strip on the home page. Order is preserved. These stay
+# here rather than in the generated pack so the labels remain a translation
+# axis (see `german.yaml`) independent of whatever catalog is loaded.
+categories:
+  electronics: 'Electronics'
+  home_kitchen: 'Home & Kitchen'
+  furniture: 'Furniture'
+  apparel: 'Apparel'
+  outdoors: 'Outdoors'
+  beauty: 'Beauty'
+  grocery: 'Grocery'
+  office: 'Office'
 
-orders:
-  - order_id: "0efcf51f"
-    items: {"('B07YPYJ32Z', '{}')": {"quantity": 1, "options": {}, "selected": true, "image": "https://m.media-amazon.com/images/I/51hs-NMRWzL.jpg"}}
-    total: 31.15
-    name: "Name"
-    address: "address"
-    date: "2025-08-29 19:54:34"
-    status: "Processing"
-  - order_id: "09bd3dfb"
-    items: {"('B08BV94TBP', '{}')": {"quantity": 2, "options": {}, "selected": true, "image": "https://m.media-amazon.com/images/I/41WXx9sipvL.jpg"}, "('B073J29HJW', '{}')": {"quantity": 1, "options": {}, "selected": true, "image": "https://m.media-amazon.com/images/I/41e3AlYYKVL.jpg"}}
-    total: 249.99
-    name: "name"
-    address: "Add"
-    date: "2025-08-29 19:55:08"
-    status: "Processing"
+products: []
+
+cart: []
+
+orders: []

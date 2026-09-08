@@ -1,5 +1,49 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
 
-database_path: ${databases_dir}/onlineshop
+# A single SQLite file, like the other apps. The previous implementation wrote
+# `cart.json` / `orders.json` into a directory of this name; the rewrite keeps
+# everything (catalog included) in one database so other apps can read the
+# shop's tables directly.
+database_path: ${databases_dir}/onlineshop.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.onlineshop.theme=solarized`.
+theme: null
+
+# The shop used to be gated behind an OpenJDK 21 install (Lucene, via
+# pyserini) as well as its dataset. Search is now SQLite FTS5, so the native
+# dependency is gone and this flag is on -- but the catalog still has to be
+# built by `scripts/fetch_webshop.py` before the shop appears, because the
+# `default` content pack ships empty. See `content/default.yaml`.
+#
+# So: `enable=False` hides the shop outright; leaving it True and skipping the
+# setup script also hides it, until a catalog exists.
+enable: True
+
+allowed_credit_cards:
+  - 'Visa'
+  - 'MasterCard'
+enable_credit_card_check: false
+
+# Products per page in listings and search results.
+products_per_page: 10
+
+# How product thumbnails are drawn.
+#
+#   glyphs   generated inline SVG line art, keyed on the product title
+#   hotlink  the catalog's own image URLs, as a carousel when there is more
+#            than one, falling back to the glyph if an image fails to load
+#
+# `glyphs` is the default deliberately. Under `hotlink` the pages reference
+# the source CDN, which means:
+#   * the eval nodes have no outbound network, so the images do not arrive
+#     there -- the page still returns 200 and a screenshot-scored agent is
+#     graded on an observation that silently lost its imagery;
+#   * `tests/test_onlineshop.py::TestNoEgress` will fail, by design;
+#   * for the WebShop catalog those URLs point at Amazon's CDN, so hotlinking
+#     them is subject to whatever terms attach to that.
+# Use it for local browsing and for runs where you have deliberately decided
+# the network is available.
+product_images: glyphs

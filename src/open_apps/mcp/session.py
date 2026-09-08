@@ -208,6 +208,8 @@ class Session:
     async def reconfigure(
         self,
         *,
+        theme: str | None = None,
+        layout: str | None = None,
         appearance: str | None = None,
         content: str | None = None,
         seed: int | None = None,
@@ -216,6 +218,8 @@ class Session:
         self._require_started()
         await asyncio.to_thread(
             self.appserver.reconfigure,
+            theme=theme,
+            layout=layout,
             appearance=appearance,
             content=content,
             seed=seed,

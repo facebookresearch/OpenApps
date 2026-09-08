@@ -288,6 +288,9 @@
             background-color: #e3f2fd;
         }
     </style>
+    <!-- Shared design tokens (open_apps.theme). Empty unless a theme is
+         selected; must come last so it overrides the appearance config above. -->
+    <style>{{ theme_css|safe }}</style>
 </head>
 
 <body>

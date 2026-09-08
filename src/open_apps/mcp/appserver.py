@@ -157,6 +157,8 @@ class AppServer:
     def reconfigure(
         self,
         *,
+        theme: str | None = None,
+        layout: str | None = None,
         appearance: str | None = None,
         content: str | None = None,
         seed: int | None = None,
@@ -166,12 +168,19 @@ class AppServer:
 
         FastHTML routes read ``app.config`` per-request, so the live
         config update propagates without restarting the server. This
-        only swaps appearance/content/seed/extras + re-seeds sqlite; it
+        only swaps theme/layout/content/seed/extras + re-seeds sqlite; it
         cannot add or remove apps (the registered set is fixed at init).
 
         Args:
-            appearance: Variant yaml stem under
-                ``config/apps/<app>/appearance/`` for ``self.app_name``.
+            theme: Shared design-token theme stem under
+                ``config/apps/theme/`` (e.g. ``solarized``). Global: applies
+                to every app that renders design tokens.
+            layout: Per-app structure variant stem under
+                ``config/apps/<app>/layout/`` for ``self.app_name``
+                (e.g. ``kanban_board``).
+            appearance: Legacy per-app variant stem under
+                ``config/apps/<app>/appearance/`` for apps not yet migrated
+                to the theme/layout split.
             content: Variant yaml stem under
                 ``config/apps/<app>/content/`` for ``self.app_name``.
             seed: Fresh integer seed for the OpenApps content samplers.
@@ -181,6 +190,10 @@ class AppServer:
         """
         cfg_dir = config_dir_for(self.app_name)
         overrides: list[str] = []
+        if theme is not None:
+            overrides.append(f"apps/theme={theme}")
+        if layout is not None:
+            overrides.append(f"apps/{cfg_dir}/layout={layout}")
         if appearance is not None:
             overrides.append(f"apps/{cfg_dir}/appearance={appearance}")
         if content is not None:

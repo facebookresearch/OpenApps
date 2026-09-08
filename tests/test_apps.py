@@ -25,9 +25,6 @@ from open_apps.apps.start_page.main import (
     app,
     initialize_routes_and_configure_task,
 )
-from open_apps.apps.start_page.helper import (
-    get_java_version,
-)
 
 
 @pytest.fixture(scope="module")
@@ -86,13 +83,21 @@ class TestApps:
         response = client.get("/maps")
         assert response.status_code == 200
 
-    def test_onlineshop(self, client):
-        if get_java_version().startswith("21"):
-            response = client.get("/onlineshop")
-            assert response.status_code == 200
-        else:
-            # Skip the test if Java version is not 21 or higher
-            pytest.skip("Java version is not 21 or higher, skipping onlineshop test.")
+    def test_onlineshop_is_absent_without_a_catalog(self, client):
+        """The shop ships with no products, so by default it does not exist.
+
+        Its catalog is the WebShop item dump, which is scraped Amazon data and
+        is therefore downloaded by `scripts/fetch_webshop.py` instead of being
+        committed. Until that has run there is nothing to sell, and the start
+        page leaves the routes unregistered rather than serving an empty
+        storefront. See `tests/test_onlineshop.py` for the shop's behaviour
+        once a catalog is present.
+        """
+        assert client.get("/onlineshop").status_code == 404
+
+    def test_homepage_hides_the_shop_tile_without_a_catalog(self, client):
+        """A tile for unregistered routes would just 404 the user."""
+        assert 'href="/onlineshop"' not in client.get("/").text
 
 
 class TestTasks:

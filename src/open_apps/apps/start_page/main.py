@@ -34,6 +34,7 @@ except ImportError:
         generate_random_colors,
     )
 from omegaconf import DictConfig, OmegaConf
+from open_apps.theme import legacy_theme_css
 
 # Define available apps and their route getters
 AVAILABLE_APPS = {
@@ -62,7 +63,23 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.messenger_app": "messenger",
     "open_apps.apps.codeeditor_app": "code_editor",
     "open_apps.apps.map_app": "maps",
+    "open_apps.apps.onlineshop_app": "onlineshop",
 }
+
+
+def onlineshop_has_catalog(apps_cfg) -> bool:
+    """Whether the shop has any products configured.
+
+    The shipped `content` pack is chrome only: the catalog is the WebShop item
+    dump, which is scraped Amazon data and so is downloaded by
+    `scripts/fetch_webshop.py` rather than committed. Read off the config
+    rather than importing the shop module, which would pull in its FastHTML
+    app at start-page import time.
+    """
+    shop_cfg = getattr(apps_cfg, "onlineshop", None)
+    if shop_cfg is None:
+        return False
+    return bool(shop_cfg.get("products"))
 
 
 def _drop_app_tables(module, apps_cfg) -> None:
@@ -130,16 +147,27 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     app.config = config  # Update the global app config
 
     java_version_high_enough = get_java_version().startswith("21")
+
+    # The shop used to be gated on OpenJDK 21, because its search ran through
+    # a Lucene index via pyserini. Search is now SQLite FTS5, so there is no
+    # native dependency left -- but the catalog is the WebShop dump, which is
+    # not redistributed here. Without it there is nothing to sell, so the shop
+    # is left unregistered rather than served as an empty storefront: an app
+    # that is absent is a clearer signal than one that renders zero products.
+    # Maps still needs Java for the OTP routing server, which is what
+    # `java_version_high_enough` is for below.
     if not app.config.onlineshop.enable:
         print("---> Online shop is disabled in the config.")
+    elif not onlineshop_has_catalog(app.config):
+        print("---> Online shop has no catalog, skipping it. Run "
+              "`uv run scripts/fetch_webshop.py` to build one, then launch "
+              "with `apps/onlineshop/content=webshop`.")
     else:
-        print("Java version check:", get_java_version())
-        if java_version_high_enough:
-            print("---> Online shop turned on!!")
-            AVAILABLE_APPS["onlineshop"] = (
-                "open_apps.apps.onlineshop_app",
-                "get_onlineshop_routes",
-            )
+        print("---> Online shop turned on!!")
+        AVAILABLE_APPS["onlineshop"] = (
+            "open_apps.apps.onlineshop_app",
+            "get_onlineshop_routes",
+        )
     if java_version_high_enough:
         if app.config.maps.allow_planning:
             print("---> Map planning is not available without Java 21 or higher.")
@@ -200,8 +228,13 @@ def get():
         
         # Add items for each enabled app
         for index, (app_name, app_config) in enumerate(enabled_apps):
-            # Skip the shopping app if disabled
-            if app_name == "onlineshop" and not app.config.onlineshop.enable:
+            # Skip the shopping app if disabled, or if it has no catalog to
+            # sell (see `onlineshop_has_catalog`) -- its routes are not
+            # registered in that case, so a tile here would 404.
+            if app_name == "onlineshop" and (
+                not app.config.onlineshop.enable
+                or not onlineshop_has_catalog(app.config)
+            ):
                 continue
             # Get the app URL
             app_url = f"/{app_name}" if app_name != "vault" else "/todo"
@@ -324,7 +357,15 @@ def get():
     )
     
     # Return the page with configuration
-    return PageWrapper("main-page", wrapper, footer(), config=config)
+    return PageWrapper(
+        "main-page",
+        wrapper,
+        footer(),
+        config=config,
+        # Resolved per-request so live `reconfigure` theme swaps take effect;
+        # empty string on the default theme.
+        theme_css=legacy_theme_css(app.config, "start_page"),
+    )
 
 
 @rt("/environment_variables")

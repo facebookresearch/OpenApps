@@ -14,6 +14,7 @@ import requests
 from fasthtml.common import *
 import requests
 import json
+from open_apps.theme import legacy_theme_css
 from datetime import datetime, timezone
 import subprocess
 import time
@@ -122,6 +123,9 @@ async def map_page(request: Request):
             "calculate_button_hover_color": getattr(app.config.maps, "calculate_button_hover_color", "#2980b9"),
             "sidebar_background_color": getattr(app.config.maps, "sidebar_background_color", "#f8f9fa"),
             "allow_planning": app.config.maps.allow_planning,
+            # Resolved per-request so live `reconfigure` theme swaps take
+            # effect; empty string on the default theme.
+            "theme_css": legacy_theme_css(app.config, "maps"),
         },
     )
 

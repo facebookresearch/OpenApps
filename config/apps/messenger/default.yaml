@@ -3,3 +3,7 @@ defaults:
   - appearance: default
   
 database_path: ${databases_dir}/messenger.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.messenger.theme=solarized`.
+theme: null

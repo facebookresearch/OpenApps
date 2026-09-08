@@ -9,3 +9,17 @@ description: |
 promotional_message: |
   Bei uns ist jeder Kunde wichtig.
 
+# Category labels are part of the navigation chrome, so they translate with
+# it. Product titles, bullets and descriptions stay English: they did under
+# the scraped-dataset implementation too, and translating the catalog is a
+# content-authoring job rather than a config override. Override `products`
+# here if a sweep needs a fully German catalog.
+categories:
+  electronics: 'Elektronik'
+  home_kitchen: 'Haus & Küche'
+  furniture: 'Möbel'
+  apparel: 'Bekleidung'
+  outdoors: 'Outdoor'
+  beauty: 'Schönheit'
+  grocery: 'Lebensmittel'
+  office: 'Büro'

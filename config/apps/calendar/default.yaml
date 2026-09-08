@@ -4,3 +4,6 @@ defaults:
 
 database_path: ${databases_dir}/calendar.db
 
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.calendar.theme=solarized`.
+theme: null

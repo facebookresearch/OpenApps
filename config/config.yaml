@@ -4,6 +4,7 @@ defaults:
   - agent: default
   - tasks: all_tasks
   - browsergym_env_args: default
+  - apps/theme: default
   - apps/code_editor: default
   - apps/maps: default
   - apps/messenger: default

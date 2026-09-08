@@ -4,3 +4,7 @@ defaults:
 
 database_path: ${databases_dir}/maps.db
 otp_url: 'http://localhost:8080/'
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.maps.theme=solarized`.
+theme: null

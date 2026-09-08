@@ -86,14 +86,26 @@ async def reset(seed: int | None = None):
 
 @mcp.tool()
 async def reconfigure(
+    theme: str | None = None,
+    layout: str | None = None,
     appearance: str | None = None,
     content: str | None = None,
     seed: int | None = None,
     extras: dict | None = None,
 ) -> str:
-    """Swap appearance/content variant and seed (live) and re-seed app state."""
+    """Swap theme/layout/content variant and seed (live) and re-seed app state.
+
+    `theme` is the shared design-token theme (global); `layout` is the per-app
+    structure; `appearance` is the legacy per-app variant for apps not yet
+    migrated to the theme/layout split.
+    """
     await _require().reconfigure(
-        appearance=appearance, content=content, seed=seed, extras=extras
+        theme=theme,
+        layout=layout,
+        appearance=appearance,
+        content=content,
+        seed=seed,
+        extras=extras,
     )
     return "reconfigured"
 

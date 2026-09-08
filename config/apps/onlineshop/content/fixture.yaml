@@ -1,0 +1,290 @@
+# @package apps.onlineshop
+
+# The catalog the test suite runs against. Not a storefront.
+#
+# The shop's real catalog comes from the WebShop dump via
+# `scripts/fetch_webshop.py`, which is downloaded per-machine and never
+# committed. The tests still need a catalog that is fixed, small and present
+# in a clean checkout, so this file supplies one.
+#
+# Everything here is deliberately mechanical: generic product-type names, no
+# marketing prose, empty bullets and descriptions. It exists to pin ids,
+# prices and option values that assertions reference -- not to read like a
+# shop. Two products per category covers the category strip; eighteen total
+# puts the listing over `products_per_page` so pagination is exercised.
+#
+# Assertions depend on specifics here, so read `tests/test_onlineshop.py`
+# before editing:
+#   * `offi-pen-702` is priced 89.00 (line-total formatting)
+#   * `furn-desk-205` offers a walnut finish but never says "walnut" in text
+#     (proves option values are indexed for search)
+#   * `offi-lamp-704` and `offi-orgz-703` both contain "desk" in their titles
+#     and must resolve to their own glyphs, not the desk one
+#   * the seeded cart and the two order ids are compared literally
+
+defaults:
+  - default
+
+products:
+  # ---- electronics ------------------------------------------------------
+  # The only two products carrying `images`, so the hotlink mode and its
+  # carousel can be tested without a real catalog. The hosts are `.invalid`
+  # (RFC 2606) and can never resolve, which is the point: nothing here should
+  # ever be fetched, and the default `glyphs` mode must not emit them at all.
+  - sku: 'elec-hdph-001'
+    title: 'Over-Ear Headphones'
+    price: 249.00
+    category: electronics
+    breadcrumb: ['Electronics', 'Audio']
+    rating: 4.6
+    options:
+      color: ['black', 'silver', 'navy']
+    bullets: []
+    description: ''
+    images:
+      - 'https://images.example.invalid/hdph-front.jpg'
+      - 'https://images.example.invalid/hdph-side.jpg'
+      - 'https://images.example.invalid/hdph-case.jpg'
+
+  # Exactly one image: renders the photo but no carousel controls.
+  - sku: 'elec-mntr-002'
+    title: '27-inch Monitor'
+    price: 379.00
+    category: electronics
+    breadcrumb: ['Electronics', 'Displays']
+    rating: 4.4
+    options:
+      size: ['27 inch', '32 inch']
+    bullets: []
+    description: ''
+    images:
+      - 'https://images.example.invalid/mntr-front.jpg'
+
+  # ---- home & kitchen ---------------------------------------------------
+  - sku: 'home-brew-102'
+    title: 'Pour-Over Coffee Set'
+    price: 64.00
+    category: home_kitchen
+    breadcrumb: ['Home & Kitchen', 'Coffee']
+    rating: 4.3
+    options:
+      color: ['matte white', 'matte black']
+    bullets: []
+    description: ''
+
+  - sku: 'home-skil-103'
+    title: 'Cast Iron Skillet'
+    price: 42.00
+    category: home_kitchen
+    breadcrumb: ['Home & Kitchen', 'Cookware']
+    rating: 4.7
+    options:
+      size: ['10 inch', '12 inch']
+    bullets: []
+    description: ''
+
+  # ---- furniture --------------------------------------------------------
+  - sku: 'furn-table-201'
+    title: 'Oak Dining Table'
+    price: 899.00
+    category: furniture
+    breadcrumb: ['Furniture', 'Tables']
+    rating: 4.5
+    options:
+      finish: ['walnut', 'natural']
+      size: ['seats four', 'seats six']
+    bullets: []
+    description: ''
+
+  # `finish` offers walnut, but no field below contains the word. The search
+  # test relies on that: a hit can only come from the indexed option values.
+  - sku: 'furn-desk-205'
+    title: 'Standing Desk'
+    price: 649.00
+    category: furniture
+    breadcrumb: ['Furniture', 'Desks']
+    rating: 4.2
+    options:
+      finish: ['walnut', 'natural']
+      width: ['120 cm', '140 cm']
+    bullets: []
+    description: ''
+
+  # ---- apparel ----------------------------------------------------------
+  - sku: 'appa-swtr-301'
+    title: 'Wool Sweater'
+    price: 118.00
+    category: apparel
+    breadcrumb: ['Apparel', 'Knitwear']
+    rating: 4.1
+    options:
+      size: ['small', 'medium', 'large']
+      color: ['navy', 'grey']
+    bullets: []
+    description: ''
+
+  - sku: 'appa-shoe-302'
+    title: 'Running Shoes'
+    price: 132.00
+    category: apparel
+    breadcrumb: ['Apparel', 'Footwear']
+    rating: 4.0
+    options:
+      size: ['9', '10', '11']
+      color: ['black', 'white']
+    bullets: []
+    description: ''
+
+  # ---- outdoors ---------------------------------------------------------
+  - sku: 'outd-tent-401'
+    title: 'Backpacking Tent'
+    price: 289.00
+    category: outdoors
+    breadcrumb: ['Outdoors', 'Camping']
+    rating: 4.4
+    options:
+      capacity: ['two person', 'three person']
+    bullets: []
+    description: ''
+
+  - sku: 'outd-bttl-402'
+    title: 'Insulated Water Bottle'
+    price: 38.00
+    category: outdoors
+    breadcrumb: ['Outdoors', 'Hydration']
+    rating: 4.6
+    options:
+      size: ['500 ml', '750 ml']
+      color: ['steel', 'olive']
+    bullets: []
+    description: ''
+
+  # ---- beauty -----------------------------------------------------------
+  - sku: 'beau-seru-501'
+    title: 'Facial Serum'
+    price: 46.00
+    category: beauty
+    breadcrumb: ['Beauty', 'Skin Care']
+    rating: 4.2
+    options:
+      size: ['30 ml', '50 ml']
+    bullets: []
+    description: ''
+
+  - sku: 'beau-mask-502'
+    title: 'Clay Mask'
+    price: 28.00
+    category: beauty
+    breadcrumb: ['Beauty', 'Skin Care']
+    rating: 4.0
+    options:
+      size: ['75 ml']
+    bullets: []
+    description: ''
+
+  # ---- grocery ----------------------------------------------------------
+  - sku: 'groc-coff-601'
+    title: 'Coffee Beans'
+    price: 22.00
+    category: grocery
+    breadcrumb: ['Grocery', 'Coffee']
+    rating: 4.5
+    options:
+      roast: ['light', 'medium', 'dark']
+      weight: ['250 g', '1 kg']
+      grind: ['whole bean', 'filter']
+    bullets: []
+    description: ''
+
+  - sku: 'groc-oliv-603'
+    title: 'Olive Oil'
+    price: 19.00
+    category: grocery
+    breadcrumb: ['Grocery', 'Pantry']
+    rating: 4.3
+    options:
+      size: ['500 ml', '1 l']
+    bullets: []
+    description: ''
+
+  # ---- office -----------------------------------------------------------
+  - sku: 'offi-note-701'
+    title: 'Notebook'
+    price: 24.00
+    category: office
+    breadcrumb: ['Office', 'Paper']
+    rating: 4.4
+    options:
+      size: ['a5', 'a4']
+      color: ['black', 'red']
+    bullets: []
+    description: ''
+
+  - sku: 'offi-pen-702'
+    title: 'Fountain Pen'
+    price: 89.00
+    category: office
+    breadcrumb: ['Office', 'Writing']
+    rating: 4.6
+    options:
+      nib: ['fine', 'medium', 'broad']
+      finish: ['black', 'chrome']
+    bullets: []
+    description: ''
+
+  # Both of the next two contain "desk". Keyword order in `_GLYPH_KEYWORDS`
+  # has to resolve them to organizer and lamp rather than the desk glyph.
+  - sku: 'offi-orgz-703'
+    title: 'Desk Organizer'
+    price: 54.00
+    category: office
+    breadcrumb: ['Office', 'Storage']
+    rating: 4.1
+    options:
+      finish: ['bamboo', 'black']
+    bullets: []
+    description: ''
+
+  - sku: 'offi-lamp-704'
+    title: 'LED Desk Lamp'
+    price: 76.00
+    category: office
+    breadcrumb: ['Office', 'Lighting']
+    rating: 4.3
+    options:
+      color: ['white', 'black']
+    bullets: []
+    description: ''
+
+# Initial cart. Compared literally by `test_seeded_state_matches_the_config`.
+cart:
+  - sku: 'elec-hdph-001'
+    options: {color: 'navy'}
+    quantity: 1
+  - sku: 'home-brew-102'
+    options: {color: 'matte white'}
+    quantity: 2
+
+# Initial order history, newest last. The ids are asserted literally.
+orders:
+  - order_id: '0efcf51f'
+    name: 'Test Customer'
+    address: '1 Test Street'
+    date: '2026-08-24 19:54:34'
+    status: 'Delivered'
+    items:
+      - sku: 'groc-coff-601'
+        options: {roast: 'medium', weight: '250 g', grind: 'whole bean'}
+        quantity: 1
+  - order_id: '09bd3dfb'
+    name: 'Test Customer'
+    address: '1 Test Street'
+    date: '2026-08-29 19:55:08'
+    status: 'Processing'
+    items:
+      - sku: 'appa-swtr-301'
+        options: {size: 'medium', color: 'navy'}
+        quantity: 2
+      - sku: 'offi-note-701'
+        options: {size: 'a5', color: 'black'}
+        quantity: 1

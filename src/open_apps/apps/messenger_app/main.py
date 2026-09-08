@@ -10,8 +10,9 @@ from datetime import datetime
 import random
 import ast
 import json
-from src.open_apps.apps.start_page.helper import create_logo_header
+from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.theme import legacy_theme_style
 
 
 @dataclass
@@ -377,6 +378,16 @@ def set_environment(config):
         current_file_path=__file__
     )
 
+def messenger_theme():
+    """The active theme, mapped onto this app's `appearance` CSS variables.
+
+    Empty on the default theme. Rendered into the page body (not `app.hdrs`)
+    so it lands after `env_styles`, which it has to override, and so live
+    `reconfigure` theme swaps take effect.
+    """
+    return legacy_theme_style(app.config, "messenger")
+
+
 def populate_database(config, db):
     """Adds chat history to database"""
     chat_history = config.messenger.chat_history
@@ -527,6 +538,7 @@ def index():
     )
 
     return Div(
+        messenger_theme(),
         logo_title_container,
         page
     )
@@ -633,6 +645,7 @@ def index(user_id: str):
     )
 
     return Div(
+        messenger_theme(),
         logo_title_container,
         page
     )

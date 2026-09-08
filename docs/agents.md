@@ -112,7 +112,8 @@ uv sync
 uv run playwright install chromium
 uv run playwright install-deps chromium   # system deps (may need sudo/module)
 
-# App setup (OpenJDK 21 for onlineshop, dataset via gdown, spaCy en_core_web_lg)
+# Optional: OpenJDK 21, only for the map app's route-planning server.
+# No app needs it to launch; the online shop dropped its JDK dependency.
 ./setup.sh
 
 # Secrets — do NOT commit this file

@@ -1,0 +1,21 @@
+# @package apps.theme
+# Faithful port of the former todo `black_and_white` appearance variant.
+name: mono
+import_url: ""
+tokens:
+  color-bg: "#000000"
+  color-surface: "#ffffff"
+  color-fg: "#000000"
+  color-muted: "#000000"
+  color-border: "#000000"
+  color-primary: "#000000"
+  color-on-primary: "#ffffff"
+  color-accent: "#000000"
+  color-danger: "#000000"
+  color-neutral: "#000000"
+  color-btn-fg: "#ffffff"
+  font-family: "'Times New Roman', serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"
