@@ -132,7 +132,17 @@ def render_theme_css(theme: dict) -> str:
         # Allow only simple custom-property names to avoid broken CSS/injection.
         if (not key) or any(not (c.isalnum() or c in "-_") for c in key):
             continue
-        val = str(value).replace("\n", " ").replace("\r", " ")
+        # Sanitize values to avoid breaking out of the declaration / <style> context.
+        val = (
+            str(value)
+            .replace("\n", " ")
+            .replace("\r", " ")
+            .replace(";", " ")
+            .replace("}", " ")
+            .replace("<", " ")
+            .replace(">", " ")
+            .strip()
+        )
         safe_lines.append(f"  --{key}: {val};")
 
     lines = "\n".join(safe_lines)
