@@ -89,8 +89,7 @@ https://github.com/user-attachments/assets/40482d53-9481-4e48-962b-eb384e94e3c7
 
 ## Reproducing the paper
 
-`main` moves. The [`v1.0-paper`](https://github.com/facebookresearch/OpenApps/releases/tag/v1.0-paper) tag pins the last tree that runs the variation grid from [arXiv:2511.20766](https://arxiv.org/abs/2511.20766) as published — check it out if you are reproducing or comparing against our setup:
-
+`main` moves. The [`v1.0-paper`](https://github.com/facebookresearch/OpenApps/releases/tag/v1.0-paper) tag pins the paper-era config surface used for the variation grid in [arXiv:2511.20766](https://arxiv.org/abs/2511.20766) — check it out if you are reproducing or comparing against our setup:
 ```bash
 git clone https://github.com/facebookresearch/OpenApps.git
 cd OpenApps
