@@ -537,6 +537,60 @@ uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> <
 <p>Available layouts: <code>todo</code> has <code>default</code> and <code>kanban_board</code>; <code>start_page</code> has
 <code>default</code>, <code>broken_logos</code> (icons detached from their tiles) and
 <code>clickable_logos</code>; the other apps currently have <code>default</code> only.</p>
+<h4 id="migrating-from-appearance">Migrating from <code>appearance</code></h4>
+<p>The <code>appearance</code> group these two replaced was removed. Overrides written
+against it no longer resolve; translate them as:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Old override</th>
+<th>New override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=default</code></td>
+<td><code>apps/theme=default</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=dark_theme</code></td>
+<td><code>apps/theme=dark</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=black_and_white</code></td>
+<td><code>apps/theme=mono</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=challenging_font</code></td>
+<td><code>apps/theme=challenging_font</code></td>
+</tr>
+<tr>
+<td><code>apps/code_editor/appearance=colorblind_access</code></td>
+<td><code>apps/theme=colorblind</code></td>
+</tr>
+<tr>
+<td><code>apps/todo/appearance=kanban_board</code></td>
+<td><code>apps/todo/layout=kanban_board</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=broken_logos</code></td>
+<td><code>apps/start_page/layout=broken_logos</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=clickable_logos</code></td>
+<td><code>apps/start_page/layout=clickable_logos</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one <code>apps/theme=dark</code>. Two renderings shift slightly:
+<code>mono</code> picks white-page/black-ink for every app, where the old
+<code>black_and_white</code> variants disagreed on polarity (calendar inverted the page,
+the rest did not), and <code>colorblind</code> is now available to all apps rather than
+the code editor alone.</p>
+<p>To reproduce the numbers in <a href="https://arxiv.org/abs/2511.20766">the paper</a>
+rather than port to the new axes, check out the <code>v1.0-paper</code> tag — the last
+tree with <code>appearance</code> intact.</p>
 <h4 id="content">Content</h4>
 <div class="tabbed-set" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><label for="__tabbed_2_1">german</label><div class="tabbed-content">
 <div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>german
@@ -806,6 +860,12 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
             Layout
+        </a>
+        
+        <a href="#migrating-from-appearance"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Migrating from appearance
         </a>
         
         <a href="#content"
