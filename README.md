@@ -87,6 +87,20 @@ https://github.com/user-attachments/assets/40482d53-9481-4e48-962b-eb384e94e3c7
 
 
 
+## Reproducing the paper
+
+`main` moves. The [`v1.0-paper`](https://github.com/facebookresearch/OpenApps/releases/tag/v1.0-paper) tag pins the paper-era config surface used for the variation grid in [arXiv:2511.20766](https://arxiv.org/abs/2511.20766) — check it out if you are reproducing or comparing against our setup:
+```bash
+git clone https://github.com/facebookresearch/OpenApps.git
+cd OpenApps
+git checkout v1.0-paper
+uv sync
+```
+
+Everything after that tag is free to diverge. The first such change is the appearance refactor: the per-app `appearance` config group is replaced by a shared `apps/theme` (look) plus a per-app `apps/<app>/layout` (structure), so overrides written as `apps/todo/appearance=dark_theme` no longer resolve on `main`. See [App variations](https://facebookresearch.github.io/OpenApps/#app-variations) in the docs for the current axes, which include a table mapping every old `appearance` value onto its replacement.
+
+The tag is the config surface the paper used, not a byte-exact snapshot of the runs: it carries the app, task and harness fixes landed since publication, some of which move rewards (map tasks now match coordinates by ground distance, for example). Expect small differences from the published tables.
+
 ## Contributing
 
 We welcome pull requests with new features or issues via GitHub.
