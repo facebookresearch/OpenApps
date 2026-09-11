@@ -458,13 +458,13 @@
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/facebookresearch/OpenApps.git
 </code></pre></div>
 
-<p>Install dependencies:   </p>
+<p>Install dependencies:</p>
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>uv<span class="w"> </span>sync
 </code></pre></div>
 
 <p>For other installation options and online shop setup see <a href="installation/">Installation</a>.</p>
 <h3 id="run-openapps">Run OpenApps</h3>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing.png" /></p>
@@ -622,7 +622,7 @@ variant, and <code>config/apps/maps/default.yaml</code> for behaviour (map zoom,
 layer, route planning) that is neither.</p>
 <p>Optional: to save screenshots of all apps with a specific variation for testing, we offer <code>tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/</code> to make this easy.</p>
 <h2 id="exposing-openapps-as-an-mcp-server">Exposing OpenApps as an MCP server</h2>
-<p>If you want an agent to interact with OpenApps using <a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a> please see <code>src/mcp/README.md</code>.</p>
+<p>If you want an agent to interact with OpenApps using <a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a> please see <code>src/open_apps/mcp/README.md</code>.</p>
 <h2 id="launch-agent">Launch Agent</h2>
 <p>For agents to directly interact with apps, install: <code>playwright install chromium</code>.</p>
 <p>Launch an agent to perform a task of <em>adding a meeting with Dennis to the calendar</em>:</p>
@@ -730,7 +730,7 @@ measure how robust an agent is to how the same task is worded.</p>
 </code></pre></div>
 
 <h2 id="attribution">Attribution</h2>
-<p>Our apps are built on top of several excellent frameworks:  </p>
+<p>Our apps are built on top of several excellent frameworks:</p>
 <ul>
 <li>FastHTML <a href="https://github.com/AnswerDotAI/fasthtml">framework</a> and <a href="https://github.com/AnswerDotAI/fasthtml-example">examples</a> which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.</li>
 <li><a href="https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE">Browser Gym</a> and <a href="https://github.com/ServiceNow/AgentLab/blob/main/LICENSE">AgentLab</a>:</li>

@@ -20,7 +20,7 @@ Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) a
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
-Install dependencies:   
+Install dependencies:
 
 ```bash
    uv sync
@@ -31,7 +31,7 @@ For other installation options and online shop setup see [Installation](installa
 ### Run OpenApps
 
 ```bash
-uv run launch.py 
+uv run launch.py
 ```
 ![landing](images/landing.png)
 
@@ -192,7 +192,7 @@ Optional: to save screenshots of all apps with a specific variation for testing,
 
 ## Exposing OpenApps as an MCP server
 
-If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/mcp/README.md`.
+If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/open_apps/mcp/README.md`.
 
 ## Launch Agent
 
@@ -330,7 +330,7 @@ uv run -m pytest tests/
 
 ## Attribution
 
-Our apps are built on top of several excellent frameworks:  
+Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
