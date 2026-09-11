@@ -77,7 +77,7 @@ LAYOUT_VARIATIONS = {
 
 def available_themes() -> list[str]:
     """Theme stems under ``config/apps/theme/``, default first."""
-    stems = sorted(path.stem for path in THEME_DIR.glob("*.yaml"))
+    stems = sorted(p.stem for p in THEME_DIR.glob("*.yaml"))
     return ["default"] + [stem for stem in stems if stem != "default"]
 
 
