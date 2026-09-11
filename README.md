@@ -2,7 +2,7 @@
 <div align="center">
 
  #  <img width="45" height="45" alt="image" src="https://github.com/user-attachments/assets/6c409d42-6f3a-4a62-be7f-57793d9dad9d" /> OpenApps
- 
+
 *Building Blocks for Computer-Use Agents Research*
 
 🏆 ICLR Oral, Top 1%
@@ -41,7 +41,7 @@ see [docs](https://facebookresearch.github.io/OpenApps/) for details.
 Simply run:
 
 ```bash
-uv run launch.py 
+uv run launch.py
 ```
 <img width="1440" height="822" alt="image" src="https://github.com/user-attachments/assets/46024c36-9f6d-462b-acb7-b6c148ed1754" />
 
@@ -52,7 +52,7 @@ Each app can be modified with variables available in `config/apps`. You can over
 uv run launch.py app.todo.title='Super Todo'
 ```
 
-Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/). 
+Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/).
 
 
 
@@ -95,6 +95,7 @@ cp .env.example .env
 | `GPT55_API_KEY` | `config/agent/GPT-5.5-*.yaml` | key for the OpenAI-compatible endpoint |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | `config/agent/claude_4_sonnet.yaml` (`client_type: aws`) | Bedrock credentials, when left null in the config |
 | `WANDB_API_KEY`, `WANDB_BASE_URL`, `WANDB_MODE` | `wandb` | auth, self-hosted server, and `WANDB_MODE=offline` to skip online logging |
+| `EXPERIMENT_CONFIG_PATH` | `src/open_apps/configs.py` | optional path loaded by `load_config()` instead of the default config |
 
 Agent API keys are read through Hydra interpolation, so any variable name works — point the
 agent's `api_key` at the one you use:
@@ -149,7 +150,7 @@ To build docs:
 ```
 mkdocs build
 mkdocs serve
-``` 
+```
 
 this will launch docs available at https://facebookresearch.github.io/OpenApps/
 
@@ -167,13 +168,13 @@ uv run -m pytest tests/
 
 ## Attribution
 
-Our apps are built on top of several excellent frameworks:  
+Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
 - [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
 - Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.
-- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton 
+- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton
 
 Some icons are have been designed using resources from Flaticon.com
 
