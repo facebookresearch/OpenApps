@@ -91,11 +91,19 @@ async def reconfigure(
     content: str | None = None,
     seed: int | None = None,
     extras: dict | None = None,
+    appearance: str | None = None,
 ) -> str:
     """Swap theme/layout/content variant and seed (live) and re-seed app state.
 
     `theme` is the shared design-token theme and applies to every app;
     `layout` and `content` are per-app.
+
+    `appearance` is DEPRECATED: it names a stem from the removed `appearance`
+    group and is translated onto `theme`/`layout` (`dark_theme` -> `dark`,
+    `black_and_white` -> `mono`, `colorblind_access` -> `colorblind`,
+    `kanban_board`/`broken_logos`/`clickable_logos` -> the same `layout`).
+    Passing it alongside a conflicting `theme`/`layout` is an error. New
+    callers should use `theme`/`layout`; it will be removed in a later release.
     """
     await _require().reconfigure(
         theme=theme,
@@ -103,6 +111,7 @@ async def reconfigure(
         content=content,
         seed=seed,
         extras=extras,
+        appearance=appearance,
     )
     return "reconfigured"
 

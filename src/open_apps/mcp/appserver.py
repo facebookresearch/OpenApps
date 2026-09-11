@@ -38,7 +38,7 @@ from open_apps.apps.start_page.main import (
     initialize_routes_and_configure_task,
     reset_all_apps,
 )
-from open_apps.mcp.registry import config_dir_for, url_path_for
+from open_apps.mcp.registry import config_dir_for, migrate_appearance, url_path_for
 from open_apps.state import get_current_state
 
 
@@ -162,6 +162,7 @@ class AppServer:
         content: str | None = None,
         seed: int | None = None,
         extras: dict[str, Any] | None = None,
+        appearance: str | None = None,
     ) -> None:
         """Recompose the Hydra config with new variant choices and seed.
 
@@ -183,7 +184,16 @@ class AppServer:
             extras: Additional dotpath overrides applied to the live
                 config in-place after compose. Example for the maps
                 app: ``{"apps.maps.init_location": [40.78, -73.97]}``.
+            appearance: **Deprecated.** Stem from the removed ``appearance``
+                group, translated onto ``theme``/``layout`` via
+                ``registry.APPEARANCE_MIGRATION``. Raises if it disagrees
+                with a ``theme``/``layout`` passed alongside it.
         """
+        if appearance is not None:
+            theme, layout = migrate_appearance(
+                appearance, theme=theme, layout=layout
+            )
+
         cfg_dir = config_dir_for(self.app_name)
         overrides: list[str] = []
         if theme is not None:
