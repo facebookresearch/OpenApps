@@ -123,7 +123,55 @@ WANDB_API_KEY=...
 EOF
 ```
 
-`launch_agent.py` calls `load_dotenv()`, so `.env` is picked up automatically.
+`launch_agent.py` calls `load_dotenv()`, so `.env` is picked up automatically. See
+[`.env.example`](https://github.com/facebookresearch/OpenApps/blob/main/.env.example) for the
+full set of variables read through `.env`.
+
+### Cluster config: the `internal-*` convention
+
+`config/mode/slurm_cluster.yaml` ships with placeholder values (`logs_dir: /example/dir`,
+`slurm_account: example_replace_me`, …) that `sbatch` will reject. Rather than editing it and
+risking committing your site's paths and account names, `.gitignore` carries an `internal-*`
+rule: **any file named `internal-*` stays untracked**. The convention is to keep a private
+twin next to the public one:
+
+```bash
+cp config/mode/slurm_cluster.yaml config/mode/internal-slurm_cluster.yaml
+```
+
+```yaml
+# config/mode/internal-slurm_cluster.yaml  (untracked)
+# @package _global_
+project: open_apps
+
+logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${agent.model_name}/${job_id}
+databases_dir: ${logs_dir}/databases
+
+cluster: slurm
+
+slurm_sweep_launcher:
+  gpus_per_node: 0
+  nodes: 1
+  tasks_per_node: 1
+  cpus_per_task: 2
+  timeout_min: 400
+  slurm_account: your_account
+  slurm_qos: your_qos
+  slurm_partition: your_partition
+  mem_gb: 10
+  slurm_srun_args: ["-vv", "--cpu-bind", "none"]
+  slurm_comment: "parallel agent tasks"
+```
+
+Select it like any other Hydra mode:
+
+```bash
+uv run launch_parallel_agents.py mode=internal-slurm_cluster agent=dummy \
+    tasks=longer_horizon parallel_tasks.task_names=all use_wandb=True
+```
+
+The same pattern applies elsewhere — e.g. `docs/internal-notes.md` for cluster-specific
+instructions alongside the public `docs/`.
 
 ### 1. Launch the persistent vLLM serve job
 
@@ -168,9 +216,31 @@ model*, so it doesn't matter how the vLLM job was started (e.g. a `bash`-named
 VLLM_HOST=example_host AGENTS=gemma-4-e2b-it COUNT=1 sbatch scripts/conduct_slurm.sh
 ```
 
-Other env overrides: `VLLM_MODEL`, `VLLM_PORT`, and `WANDB_MODE` (set
-`WANDB_MODE=offline` to skip online logging). Extra CLI args are forwarded
-verbatim to `launch_agent.py` as Hydra overrides.
+**Account/QOS/partition:** the `#SBATCH` lines in `scripts/conduct_slurm.sh` are
+placeholders. Override them at submit time rather than editing the script — the
+command line takes precedence:
+
+```bash
+AGENTS=gemma-4-e2b-it COUNT=1 \
+  sbatch --account=... --qos=... --partition=... scripts/conduct_slurm.sh
+```
+
+The worker pool and its wrapper are configured entirely through the environment.
+These are read by the shell, **not** through `.env` — export them at the call site,
+or `set -a; source .env; set +a` first:
+
+| Variable | Read by | Default |
+| --- | --- | --- |
+| `AGENTS` | `scripts/conduct.sh` | `dummy` — space-separated `config/agent/<name>` stems, used round-robin |
+| `COUNT` | `scripts/conduct.sh` | number of agents — total runs to launch |
+| `MAX_PARALLEL` | `scripts/conduct.sh` | `4` — concurrent runs |
+| `HEADLESS` | `scripts/conduct.sh` | `True` |
+| `LOG_DIR`, `WANDB_GROUP` | `scripts/conduct.sh` | `log_outputs`, `batch-<timestamp>` |
+| `WANDB_MODE` | `wandb` | unset — `offline` skips online logging |
+| `VLLM_MODEL`, `VLLM_PORT` | `scripts/conduct_slurm.sh` | the `served_model_name` and port to look for |
+| `VLLM_HOST` | `scripts/conduct_slurm.sh` | unset — pin a node to skip auto-discovery |
+
+Extra CLI args are forwarded verbatim to `launch_agent.py` as Hydra overrides.
 
 **Fallback if compute→compute `:8000` is firewalled:** run the eval inside the
 vLLM job's own allocation and talk to it over localhost:

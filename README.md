@@ -103,89 +103,27 @@ agent's `api_key` at the one you use:
 uv run launch_agent.py agent=GPT-5.5-computer-use 'agent.api_key=${oc.env:OPENAI_API_KEY}'
 ```
 
-The batch scripts and the MCP server take environment variables too, but they are read by
-the shell (or by an MCP client's `env` block), **not** through `.env` — export them at the
-call site, or `set -a; source .env; set +a` first:
+The batch scripts take environment variables too (`AGENTS`, `COUNT`, `MAX_PARALLEL`,
+`VLLM_HOST`, …), but they are read by the shell, **not** through `.env` — export them at the
+call site, or `set -a; source .env; set +a` first. They are listed in the
+[agents docs](https://facebookresearch.github.io/OpenApps/agents/); the MCP server's
+variables are in [`src/open_apps/mcp/README.md`](src/open_apps/mcp/README.md).
 
-| Variable | Read by | Default |
-| --- | --- | --- |
-| `AGENTS` | `scripts/conduct.sh` | `dummy` — space-separated `config/agent/<name>` stems, used round-robin |
-| `COUNT` | `scripts/conduct.sh` | number of agents — total runs to launch |
-| `MAX_PARALLEL` | `scripts/conduct.sh` | `4` — concurrent runs |
-| `HEADLESS` | `scripts/conduct.sh` | `True` |
-| `LOG_DIR`, `WANDB_GROUP` | `scripts/conduct.sh` | `log_outputs`, `batch-<timestamp>` |
-| `VLLM_MODEL`, `VLLM_PORT` | `scripts/conduct_slurm.sh` | the `served_model_name` and port to look for |
-| `VLLM_HOST` | `scripts/conduct_slurm.sh` | unset — pin a node to skip auto-discovery |
-| `OPENAPPS_APP`, `OPENAPPS_MCP_HOST`, `OPENAPPS_MCP_PORT` | `src/open_apps/mcp/server.py` | `todo`, `127.0.0.1`, `8000` — also settable as `python -m open_apps.mcp --app/--host/--port` |
+## Running on a cluster
 
-## Running on SLURM
-
-`config/mode/slurm_cluster.yaml` ships with placeholder values (`logs_dir: /example/dir`,
-`slurm_account: example_replace_me`, …) that `sbatch` will reject. Rather than editing it and
-risking committing your site's paths and account names, `.gitignore` carries an `internal-*`
-rule: **any file named `internal-*` stays untracked**. The convention is to keep a private
-twin next to the public one:
+`config/mode/slurm_cluster.yaml` and the `#SBATCH` lines in `scripts/conduct_slurm.sh` ship
+with placeholder accounts and paths that `sbatch` will reject. Copy the mode to an
+`internal-` twin — `.gitignore` keeps any `internal-*` file untracked, so your site's paths
+and account names can't be committed by accident:
 
 ```bash
 cp config/mode/slurm_cluster.yaml config/mode/internal-slurm_cluster.yaml
-```
-
-```yaml
-# config/mode/internal-slurm_cluster.yaml  (untracked)
-# @package _global_
-project: open_apps
-
-logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${agent.model_name}/${job_id}
-databases_dir: ${logs_dir}/databases
-
-cluster: slurm
-
-slurm_sweep_launcher:
-  gpus_per_node: 0
-  nodes: 1
-  tasks_per_node: 1
-  cpus_per_task: 2
-  timeout_min: 400
-  slurm_account: your_account
-  slurm_qos: your_qos
-  slurm_partition: your_partition
-  mem_gb: 10
-  slurm_srun_args: ["-vv", "--cpu-bind", "none"]
-  slurm_comment: "parallel agent tasks"
-```
-
-Select it like any other Hydra mode:
-
-```bash
 uv run launch_parallel_agents.py mode=internal-slurm_cluster agent=dummy \
     tasks=longer_horizon parallel_tasks.task_names=all use_wandb=True
 ```
 
-The same pattern applies elsewhere — e.g. `docs/internal-notes.md` for cluster-specific
-instructions alongside the public `docs/`.
-
-For a self-hosted model, serve it on a GPU node and point the agent at that host:
-
-```bash
-# on the GPU node
-vllm serve <model> --host 0.0.0.0 --port 8000
-
-# from anywhere on the cluster
-uv run launch_agent.py agent=Qwen3.6-27B-computer-use agent.hostname=<node> agent.port=8000
-```
-
-`scripts/conduct_slurm.sh` automates that last step: it requests a CPU allocation, probes
-your running jobs (`squeue --me`) for a node serving `$VLLM_MODEL` on `$VLLM_PORT`, and runs
-the worker pool against it. Override the account/QOS/partition at submit time instead of
-editing the `#SBATCH` placeholders:
-
-```bash
-AGENTS=gemma-4-computer-use COUNT=1 \
-  sbatch --account=... --qos=... --partition=... scripts/conduct_slurm.sh
-```
-
 See the [agents docs](https://facebookresearch.github.io/OpenApps/agents/) for the full
-cluster walkthrough.
+SLURM + vLLM + W&B walkthrough.
 
 ## OpenApps in action
 
