@@ -33,10 +33,12 @@ from open_apps.apps.start_page.helper import (
 @pytest.fixture(scope="module")
 def client(tmpdir_factory):
     logs_dir = str(tmpdir_factory.getbasetemp())
+    # Exercise a non-default selection on every axis: the shared theme
+    # (global), a per-app theme override, and per-app content.
     alt_config = [
-        "apps/messenger/appearance=challenging_font",
+        "apps/theme=challenging_font",
         "apps/messenger/content=misleading_descriptions",
-        "apps/calendar/appearance=dark_theme",
+        "apps.calendar.theme=dark",
     ]
     standard_overrides = [f"logs_dir={logs_dir}"]
 

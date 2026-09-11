@@ -1,0 +1,31 @@
+# @package apps.theme
+# Colorblind-safe palette (IBM Design Library), generalised from the code
+# editor's former `colorblind_access` appearance variant so every app can use
+# it. Primary/danger stay distinguishable under deuteranopia and protanopia,
+# which is exactly the pair an agent has to tell apart (save vs delete).
+name: colorblind
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#648fff"        # IBM blue, as the editor variant used it
+  color-fg: "#000000"
+  color-muted: "#5a5a5a"
+  color-border: "#785ef0"
+  color-primary: "#dc267f"        # magenta
+  color-primary-hover: "#a81b62"
+  color-on-primary: "#ffffff"
+  color-accent: "#785ef0"         # violet
+  color-danger: "#fe6100"         # orange -- separable from magenta, unlike red
+  color-neutral: "#ffb000"        # amber
+  color-btn-fg: "#000000"
+  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+  font-heading: "inherit"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-size-base: "16px"
+  font-size-sm: "14px"
+  font-size-heading: "1.5rem"
+  radius: "8px"
+  space: "8px"
+assets:
+  tone: light
+  icon_set: color

@@ -20,7 +20,7 @@ Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) a
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
-Install dependencies:   
+Install dependencies:
 
 ```bash
    uv sync
@@ -31,7 +31,7 @@ For other installation options and online shop setup see [Installation](installa
 ### Run OpenApps
 
 ```bash
-uv run launch.py 
+uv run launch.py
 ```
 ![landing](images/landing.png)
 
@@ -46,12 +46,19 @@ uv run launch.py 'apps.todo.init_todos=[["Call Mom", false]]'
 
 OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.
 
-#### Appearance
+Appearance is split along two axes:
+
+* **Theme** -- *look*: colors, typography, shape. One shared set of design
+  tokens in `config/apps/theme/`, applied to **every** app at once.
+* **Layout** -- *structure*: how an individual app arranges itself. Per-app,
+  under `config/apps/<app>/layout/`.
+
+#### Theme
 
 /// tab | challenging font
 
     ::bash
-    export APPEARANCE=challenging_font
+    export THEME=challenging_font
 
 
 ![landing](images/landing-challenging-font.png)
@@ -59,25 +66,89 @@ OpenApps also comes with pre-defined variations that can affect the content and 
 /// tab | dark theme
 
     ::bash
-    export APPEARANCE=dark_theme
+    export THEME=dark
 
 ![landing](images/landing-dark.png)
 ///
 /// tab | default
 
     ::bash
-    export APPEARANCE=default
+    export THEME=default
 
 ![landing](images/landing.png)
 
 ///
 
-Launch specific apps with selected appearance:
+A single override themes every app:
 ```shell
-uv run launch.py apps/start_page/appearance=$APPEARANCE
+uv run launch.py apps/theme=$THEME
 ```
 
-Or specific apps with: `apps/calendar/appearance=$APPEARANCE`.
+Or one app only, leaving the rest on the global theme:
+`uv run launch.py apps.calendar.theme=$THEME`.
+
+Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
+`solarized`, `material`, `bootstrap`. Adding one means adding a yaml file to
+`config/apps/theme/` -- no app code changes.
+
+A theme file is a set of design tokens plus a small `assets` block:
+
+```yaml
+# config/apps/theme/dark.yaml
+name: dark
+tokens:
+  color-bg: "#121212"       # -> --color-bg, consumed as var(--color-bg)
+  color-primary: "#bb86fc"
+  font-family: "'Inter', system-ui, sans-serif"
+  radius: "4px"
+assets:
+  tone: dark                # apps map this onto their own non-CSS assets
+  icon_set: bw
+```
+
+Every `tokens` entry becomes a CSS custom property. `assets` covers the
+choices a CSS variable cannot reach -- the start page's raster icons, the
+Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
+app-agnostic: the theme says `tone: dark` and each app picks its own dark
+asset, so a theme file never has to know which apps exist.
+
+#### Layout
+
+```shell
+uv run launch.py apps/todo/layout=kanban_board
+uv run launch.py apps/start_page/layout=broken_logos
+```
+
+Available layouts: `todo` has `default` and `kanban_board`; `start_page` has
+`default`, `broken_logos` (icons detached from their tiles) and
+`clickable_logos`; the other apps currently have `default` only.
+
+#### Migrating from `appearance`
+
+The `appearance` group these two replaced was removed. Overrides written
+against it no longer resolve; translate them as:
+
+| Old override | New override |
+| --- | --- |
+| `apps/<app>/appearance=default` | `apps/theme=default` |
+| `apps/<app>/appearance=dark_theme` | `apps/theme=dark` |
+| `apps/<app>/appearance=black_and_white` | `apps/theme=mono` |
+| `apps/<app>/appearance=challenging_font` | `apps/theme=challenging_font` |
+| `apps/code_editor/appearance=colorblind_access` | `apps/theme=colorblind` |
+| `apps/todo/appearance=kanban_board` | `apps/todo/layout=kanban_board` |
+| `apps/start_page/appearance=broken_logos` | `apps/start_page/layout=broken_logos` |
+| `apps/start_page/appearance=clickable_logos` | `apps/start_page/layout=clickable_logos` |
+
+The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one `apps/theme=dark`. Two renderings shift slightly:
+`mono` picks white-page/black-ink for every app, where the old
+`black_and_white` variants disagreed on polarity (calendar inverted the page,
+the rest did not), and `colorblind` is now available to all apps rather than
+the code editor alone.
+
+To reproduce the numbers in [the paper](https://arxiv.org/abs/2511.20766)
+rather than port to the new axes, check out the `v1.0-paper` tag — the last
+tree with `appearance` intact.
 
 #### Content
 
@@ -111,13 +182,17 @@ uv run launch.py apps/start_page/content=$CONTENT
 
 Or specific apps with: `apps/calendar/content=$CONTENT`.
 
-You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
+You can see the specific variables for each defined in the individual apps.
+For example, `config/apps/theme/dark.yaml` for the shared design tokens,
+`config/apps/start_page/layout/broken_logos.yaml` for a per-app structure
+variant, and `config/apps/maps/default.yaml` for behaviour (map zoom, tile
+layer, route planning) that is neither.
 
 Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
 
 ## Exposing OpenApps as an MCP server
 
-If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/mcp/README.md`.
+If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/open_apps/mcp/README.md`.
 
 ## Launch Agent
 
@@ -198,14 +273,13 @@ parallel_tasks:
   app_variations:
     - ["apps/start_page/content=default", "apps/calendar/content=german"]
     - [
-        "apps/start_page/appearance=dark_theme",
-        "apps/calendar/appearance=dark_theme",
+        "apps/theme=dark",
       ]
 ```
 
 You can modify the set of tasks or app variation by updating the `config_parallel_tasks.yaml`. We ensure:
 
-* Each deployment of OpenApps can have different appearance and content per app.
+* Each deployment of OpenApps can have a different theme (global), plus layout and content per app.
 * Each task is launched in an isolated environment for reproducible results.
 
 To run **every** task in the loaded tasks config (rather than listing a subset by
@@ -256,7 +330,7 @@ uv run -m pytest tests/
 
 ## Attribution
 
-Our apps are built on top of several excellent frameworks:  
+Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):

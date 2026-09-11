@@ -5,6 +5,7 @@ defaults:
   - agent: dummy
   - tasks: all_tasks
   - browsergym_env_args: default
+  - apps/theme: default
   - apps/code_editor: default
   - apps/maps: default
   - apps/messenger: default
@@ -33,14 +34,9 @@ parallel_tasks:
     - message_alice_about_badminton
   app_variations:
     - ["apps/start_page/content=default", "apps/calendar/content=default"]
-    - [
-        "apps/start_page/appearance=dark_theme",
-        "apps/calendar/appearance=dark_theme",
-        "apps/todo/appearance=dark_theme",
-        "apps/messenger/appearance=dark_theme",
-        "apps/maps/appearance=dark_theme",
-        "apps/code_editor/appearance=dark_theme",
-      ]
+    # One override now themes every app -- that is the point of the shared
+    # `apps/theme` group replacing the per-app `appearance` ones.
+    - ["apps/theme=dark"]
 
 # auto-populated by launch_parallel_agents.py
 task_name: null

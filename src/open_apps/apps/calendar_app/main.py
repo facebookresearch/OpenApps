@@ -13,6 +13,7 @@ from fasthtml.common import (
     HighlightJS, database, dataclass)
 from datetime import datetime, timedelta
 from src.open_apps.frontend import local_hdrs
+from src.open_apps.theme import render_theme_css, resolve_theme
 import calendar
 import os
 import logging
@@ -29,160 +30,136 @@ logger = logging.getLogger(__name__)
 # fix relative path issue
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-def generate_styles_from_config(config):
-    """Generate CSS styles from configuration"""
-    if not hasattr(config.calendar, 'style'):
-        raise ValueError("Calendar config does not contain 'style' section")
-    
-    # Extract style config
-    style_config = config.calendar.style
-    colors = style_config.colors
-    typography = style_config.typography
-    buttons = style_config.buttons
-    layout = style_config.layout
-    
-    # Build CSS with variables
-    return f"""
-        /* Custom CSS Variables */
-        :root {{
-            --primary: {colors.primary};
-            --primary-hover: {colors.primary_hover};
-            --secondary: {colors.secondary};
-            --background: {colors.background};
-            --text: {colors.text};
-            --error: {colors.error};
-            --border: {colors.border};
-            --font-family: {typography.font_family};
-            --heading-font: {typography.heading_font};
-            --base-font-size: {typography.base_font_size};
-            --heading-size: {typography.heading_size};
-            --button-border-radius: {buttons.border_radius};
-            --button-padding: {buttons.padding};
-            --container-width: {layout.container_width};
-            --spacing: {layout.spacing};
-        }}
-        
-        /* Base styles */
-        body {{
-            font-family: var(--font-family);
-            font-size: var(--base-font-size);
-            color: var(--text);
-            background-color: var(--background);
-        }}
-        
-        h1, h2, h3, h4, h5, h6 {{
-            font-family: var(--heading-font);
-        }}
-        
-        h1 {{
-            font-size: var(--heading-size);
-        }}
-        
-        /* Button styles */
-        [role="button"], button {{
-            border-radius: var(--button-border-radius);
-            padding: var(--button-padding);
-        }}
-        
-        /* Apply primary color to buttons */
-        [role="button"]:not(.outline):not(.secondary),
-        button:not(.outline):not(.secondary) {{
-            background-color: var(--primary);
-            border-color: var(--primary);
-        }}
-        
-        /* Apply hover state for primary buttons */
-        [role="button"]:not(.outline):not(.secondary):hover,
-        button:not(.outline):not(.secondary):hover {{
-            background-color: var(--primary-hover);
-            border-color: var(--primary-hover);
-        }}
-        
-        /* Secondary buttons */
-        [role="button"].secondary,
-        button.secondary {{
-            background-color: var(--secondary);
-            border-color: var(--secondary);
-        }}
-        
-        /* Apply border color to form elements */
-        input, select, textarea {{
-            border: 1px solid var(--border);
-            border-radius: var(--button-border-radius);
-        }}
+# Static, theme-agnostic component styles. Every color, font and radius is a
+# design token from the shared theme (`config/apps/theme/`), resolved
+# per-request by `calendar_theme()`; the three structural values the calendar
+# owns come from its `layout` group as `--layout-*`. Nothing here depends on
+# the config, so this block is built once at import instead of rebuilt in
+# `set_environment`.
+_COMPONENT_CSS = """
+    /* Base styles */
+    body {
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        color: var(--color-fg);
+        background-color: var(--color-bg);
+    }
 
-        [role="button"].outline,
-        button.outline {{
-            background-color: var(--background);
-            border-color: var(--border);
-            color: var(--primary);
-        }}
-        
-        /* Apply container width */
-        #calendar-container {{
-            width: var(--container-width);
-            margin: 0 auto;
-        }}
-        
-        /* Apply border color to tables */
-        table, th, td {{
-            border-color: var(--border);
-        }}
-        
-        /* Calendar days */
-        .calendar-cell {{
-            border: 1px solid var(--border);
-            background-color: var(--background);
-        }}
-        
-        /* Links */
-        a:not([role="button"]) {{
-            color: var(--primary);
-        }}
-        
-        a:not([role="button"]):hover {{
-            color: var(--primary-hover);
-        }}
-        
-        /* Calendar app specific styles */
-        .logo-title-container {{
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-        }}
-        
-        .custom-logo {{
-            max-height: 50px;
-            margin-right: 10px;
-        }}
-        .calendar-title {{
-            margin: 0;
-            color: var(--primary);
-        }}
-        
-        .logo-title-container a {{
-            text-decoration: none;
-        }}
-        
-        .button-container {{
-            display: flex;
-            justify-content: space-between;
-            margin-top: var(--spacing);
-        }}
-        
-        .error-message {{
-            background-color: rgba(220, 53, 69, 0.1);
-            color: var(--error);
-            padding: var(--spacing);
-            margin-bottom: var(--spacing);
-            border-radius: var(--button-border-radius);
-            text-align: center;
-        }}
-    """
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+    }
 
-# Initialize with default styles
-# Will be updated in set_environment
-styles = Style("")
+    h1 {
+        font-size: var(--font-size-heading);
+    }
+
+    /* Button styles */
+    [role="button"], button {
+        border-radius: var(--radius);
+        padding: var(--layout-button-padding);
+    }
+
+    /* Apply primary color to buttons */
+    [role="button"]:not(.outline):not(.secondary),
+    button:not(.outline):not(.secondary) {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+
+    /* Apply hover state for primary buttons */
+    [role="button"]:not(.outline):not(.secondary):hover,
+    button:not(.outline):not(.secondary):hover {
+        background-color: var(--color-primary-hover);
+        border-color: var(--color-primary-hover);
+    }
+
+    /* Secondary buttons */
+    [role="button"].secondary,
+    button.secondary {
+        background-color: var(--color-neutral);
+        border-color: var(--color-neutral);
+        color: var(--color-btn-fg);
+    }
+
+    /* Apply border color to form elements */
+    input, select, textarea {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+    }
+
+    [role="button"].outline,
+    button.outline {
+        background-color: var(--color-bg);
+        border-color: var(--color-border);
+        color: var(--color-primary);
+    }
+
+    /* Apply container width */
+    #calendar-container {
+        width: var(--layout-container-width);
+        margin: 0 auto;
+    }
+
+    /* Apply border color to tables */
+    table, th, td {
+        border-color: var(--color-border);
+    }
+
+    /* Calendar days */
+    .calendar-cell {
+        border: 1px solid var(--color-border);
+        background-color: var(--color-surface);
+    }
+
+    /* Links */
+    a:not([role="button"]) {
+        color: var(--color-primary);
+    }
+
+    a:not([role="button"]):hover {
+        color: var(--color-primary-hover);
+    }
+
+    /* Calendar app specific styles */
+    .logo-title-container {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .custom-logo {
+        max-height: 50px;
+        margin-right: 10px;
+    }
+    .calendar-title {
+        margin: 0;
+        color: var(--color-primary);
+    }
+
+    .logo-title-container a {
+        text-decoration: none;
+    }
+
+    .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: var(--layout-spacing);
+    }
+
+    .error-message {
+        background-color: rgba(220, 53, 69, 0.1);
+        color: var(--color-danger);
+        padding: var(--layout-spacing);
+        margin-bottom: var(--layout-spacing);
+        border-radius: var(--radius);
+        text-align: center;
+    }
+"""
+
+styles = Style(_COMPONENT_CSS)
 
 
 app, rt = fast_app(
@@ -217,12 +194,9 @@ class Event:
 
 def set_environment(config):
     """Set environment variables for the messenger app"""
-    global app, styles, logo_title_container
+    global app, logo_title_container
     app.config = config
-    
-    # Update the styles from config
-    styles = Style(generate_styles_from_config(config))
-    
+
     db = database(config.calendar.database_path)
     # create new events
     global events
@@ -234,6 +208,27 @@ def set_environment(config):
         app_config=config.start_page.apps.calendar,
         base_url="/calendar",
         current_file_path=__file__
+    )
+
+
+def calendar_theme():
+    """The active theme's tokens plus this app's layout variables.
+
+    Resolved per-request so live `reconfigure` theme and layout swaps take
+    effect. The `--layout-*` block is emitted here rather than in
+    `_COMPONENT_CSS` because it is the only part of the stylesheet that
+    depends on config.
+    """
+    layout = app.config.calendar
+    return Style(
+        render_theme_css(resolve_theme(app.config, "calendar"))
+        + f"""
+:root {{
+  --layout-container-width: {layout.container_width};
+  --layout-spacing: {layout.spacing};
+  --layout-button-padding: {layout.button_padding};
+}}
+"""
     )
 
 
@@ -557,18 +552,18 @@ def show_main_layout(year, month, view="calendar", event_id=None):
     # Add calendar-specific styles that don't come from config
     calendar_specific_styles = Style(
         """
-        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing); }
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--layout-spacing); }
         .calendar-nav h2 { margin: 0; }
-        .view-toggle { display: flex; justify-content: center; gap: 10px; margin-bottom: var(--spacing); }
+        .view-toggle { display: flex; justify-content: center; gap: 10px; margin-bottom: var(--layout-spacing); }
         .calendar-table { width: 100%; table-layout: fixed; }
         .calendar-table th { text-align: center; font-weight: bold; }
         .calendar-cell { height: 100px; vertical-align: top; padding: 5px !important; }
         .day-number { font-weight: bold; margin-bottom: 5px; }
         .event-link { display: block; margin-bottom: 2px; font-size: 0.8em; }
         .agenda-list { list-style-type: none; padding: 0; }
-        .agenda-list li { margin-bottom: var(--spacing); }
-        .footer-container { margin-top: var(--spacing); }
-        #about-dialog-content { padding: var(--spacing); }
+        .agenda-list li { margin-bottom: var(--layout-spacing); }
+        .footer-container { margin-top: var(--layout-spacing); }
+        #about-dialog-content { padding: var(--layout-spacing); }
         """
     )
     
@@ -595,6 +590,7 @@ def get(req):
         Title(app.config.start_page.apps.calendar.title),
         Container(
             styles,
+            calendar_theme(),
             error_div, 
             show_main_layout(today.year, today.month, view)
         ),
@@ -626,6 +622,7 @@ def get(
         Title(app.config.start_page.apps.calendar.title),
         Container(
             styles,
+            calendar_theme(),
             show_main_layout(year, month, view)
         )
     )
@@ -707,7 +704,8 @@ def get(id: int):
     return (
         Title(event.title),
         Container(
-            styles,  
+            styles,
+            calendar_theme(),
             logo_title_container,
             Article(
                 H3(event.title),
@@ -770,6 +768,7 @@ def get():
     return (Title("Creating a new event"),
             Container(
         styles,
+        calendar_theme(),
         logo_title_container,
         Form(
             H3("Create New Event"),

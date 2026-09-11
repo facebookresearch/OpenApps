@@ -13,6 +13,15 @@ theme:
 site_url: https://facebookresearch.github.io/OpenApps/
 repo_url: https://github.com/facebookresearch/OpenApps
 
+# `docs/internal-*.md` are untracked by design (.gitignore line 201), but mkdocs
+# builds every page it finds, not just the ones in `nav`. Without this, a plain
+# `mkdocs build` renders them into `site/` and -- worse -- inlines their full
+# text into `site/search/search_index.json` and their URLs into
+# `site/sitemap.xml`, both of which *are* tracked and both of which push to a
+# public remote.
+exclude_docs: |
+  internal-*.md
+
 nav:
   - Start: index.md
   - Manual Installation: installation.md

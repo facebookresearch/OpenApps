@@ -1,0 +1,4 @@
+# @package apps.code_editor
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/code_editor/layout=<name>`.
+layout: default

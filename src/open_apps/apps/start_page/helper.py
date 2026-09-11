@@ -57,23 +57,12 @@ def Wrapper(title, description, content, style=1, align=None, color=None, invert
         "wrapper style", style, "align-", align, "invert", invert, "color", color
     )
     
-    # Apply custom styling to title and description
-    title_style = {}
-    desc_style = {}
-    
-    if config:
-        if config.get('heading_font'):
-            title_style['font-family'] = config['heading_font']
-        if config.get('heading_color'):
-            title_style['color'] = config['heading_color']
-        if config.get('font_family'):
-            desc_style['font-family'] = config['font_family']
-        if config.get('font_color'):
-            desc_style['color'] = config['font_color']
-    
+    # Typography is inherited from the shared theme's tokens (see the
+    # stylesheet PageWrapper emits) rather than written as inline styles from
+    # per-app font config, which is what the `appearance` group used to supply.
     inner_content = [
-        H2(title, style=";".join([f"{k}:{v}" for k, v in title_style.items()]) if title_style else None),
-        P(description, style=";".join([f"{k}:{v}" for k, v in desc_style.items()]) if desc_style else None),
+        H2(title),
+        P(description),
         content
     ]
     
@@ -110,26 +99,10 @@ def ItemContent(title, description, color="primary", icon=None, xtra=None, href=
         else:
             content.append(Span(cls=f"icon style2 major fa-{icon}"))
     
-    # Apply font styling to title and description if configured
-    title_style = {}
-    desc_style = {}
-    
-    if config.get('heading_font'):
-        title_style['font-family'] = config['heading_font']
-    if config.get('heading_color'):
-        title_style['color'] = config['heading_color']
-    if config.get('font_family'):
-        desc_style['font-family'] = config['font_family']
-    if config.get('font_color'):
-        desc_style['color'] = config['font_color']
-    if config.get('font_size'):
-        base_size = int(config['font_size'])
-        title_style['font-size'] = f"{base_size * 1.5}px"
-        desc_style['font-size'] = f"{base_size}px"
-    
-    # Add title and description with any configured styling
-    content.append(H3(title, style=";".join([f"{k}:{v}" for k, v in title_style.items()]) if title_style else None))
-    content.append(P(description, style=";".join([f"{k}:{v}" for k, v in desc_style.items()]) if desc_style else None))
+    # Tile typography comes from the shared theme (the `.item h3` / `.item p`
+    # rules in PageWrapper), not from inline per-app font config.
+    content.append(H3(title))
+    content.append(P(description))
     
     # Add any extra content
     if xtra:
@@ -300,35 +273,43 @@ class Raw:
     def __str__(self):
         return self.content
 
-def PageWrapper(title, *content, config=None):
+def PageWrapper(title, *content, config=None, theme_css=""):
     """
     Create a page wrapper with custom styling from configuration.
-    
+
     Args:
         title: Page title
         *content: Content elements
         config: Configuration dictionary with styling options
+        theme_css: Shared design-token CSS from ``open_apps.theme``. Emitted
+            last; every color and font below is a ``var()`` into it.
     """
     # Set defaults if config is None
     if config is None:
         config = {}
-    
-    # Generate custom CSS based on configuration
-    custom_css = ""
-    
-    # Font settings
-    if config.get('font_family'):
-        custom_css += f"body {{ font-family: {config['font_family']}; }}\n"
-    if config.get('font_color'):
-        custom_css += f"body {{ color: {config['font_color']}; }}\n"
-    if config.get('heading_font'):
-        custom_css += f"h1, h2, h3, h4, h5, h6 {{ font-family: {config['heading_font']}; }}\n"
-    if config.get('heading_color'):
-        custom_css += f"h1, h2, h3, h4, h5, h6 {{ color: {config['heading_color']}; }}\n"
-    if config.get('background_color'):
-        custom_css += f"body {{ background-color: {config['background_color']}; }}\n"
-    
+
+    # Typography and page chrome come from the shared theme; only geometry
+    # (radii, padding, hover behaviour) is still read from `config`, which is
+    # the start page's `layout` group.
+    custom_css = """
+        body {
+            font-family: var(--font-family);
+            color: var(--color-fg);
+            background-color: var(--color-bg);
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-heading);
+            color: var(--color-fg);
+        }
+        #wrapper > .wrapper {
+            background-color: var(--color-bg);
+        }
+    """
+
     # Add iOS-style typography for items
+    # Tile labels stay white in every theme: they sit on the tile fill, not
+    # on the page background, and every tone's fill is dark enough to carry
+    # white text. `--color-fg` here would be white-on-white in a light theme.
     custom_css += """
         .item h3 {
             font-size: 0.9em !important;
@@ -407,11 +388,15 @@ def PageWrapper(title, *content, config=None):
             .modal.left .modal-dialog {{ margin-left: 5%; }}
             .modal.right .modal-dialog {{ margin-left: auto; margin-right: 5%; }}
             
+            /* Themed like the rest of the page on purpose: a pop-up that
+               stayed near-white on a dark theme would be trivially easy to
+               spot, which confounds the adversarial-pop-up variation. */
             .modal-content {{
-                background-color: #fefefe;
+                background-color: var(--color-surface);
+                color: var(--color-fg);
                 padding: 20px;
                 padding-bottom: 80px;
-                border-radius: 5px;
+                border-radius: var(--radius);
                 box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             }}
             .close-modal {{
@@ -426,11 +411,12 @@ def PageWrapper(title, *content, config=None):
             }}
             
             .link-button {{
-                background-color: #4CAF50;
+                background-color: var(--color-accent);
+                color: var(--color-btn-fg);
             }}
-            
+
             .link-button:hover {{
-                background-color: #45a049;
+                background-color: var(--color-primary-hover);
             }}
             
             /* Story template item scaling customization */
@@ -547,6 +533,8 @@ def PageWrapper(title, *content, config=None):
             }}
             
             {custom_css}
+
+            {theme_css}
         </style>
         <script>
             function showModal(id) {{

@@ -458,13 +458,13 @@
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/facebookresearch/OpenApps.git
 </code></pre></div>
 
-<p>Install dependencies:   </p>
+<p>Install dependencies:</p>
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>uv<span class="w"> </span>sync
 </code></pre></div>
 
 <p>For other installation options and online shop setup see <a href="installation/">Installation</a>.</p>
 <h3 id="run-openapps">Run OpenApps</h3>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing.png" /></p>
@@ -475,31 +475,122 @@
 </code></pre></div>
 
 <p>OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.</p>
-<h4 id="appearance">Appearance</h4>
+<p>Appearance is split along two axes:</p>
+<ul>
+<li><strong>Theme</strong> -- <em>look</em>: colors, typography, shape. One shared set of design
+  tokens in <code>config/apps/theme/</code>, applied to <strong>every</strong> app at once.</li>
+<li><strong>Layout</strong> -- <em>structure</em>: how an individual app arranges itself. Per-app,
+  under <code>config/apps/&lt;app&gt;/layout/</code>.</li>
+</ul>
+<h4 id="theme">Theme</h4>
 <div class="tabbed-set" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><label for="__tabbed_1_1">challenging font</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>challenging_font
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">THEME</span><span class="o">=</span>challenging_font
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing-challenging-font.png" /></p>
 </div>
 <input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><label for="__tabbed_1_2">dark theme</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>dark_theme
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">THEME</span><span class="o">=</span>dark
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing-dark.png" /></p>
 </div>
 <input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><label for="__tabbed_1_3">default</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>default
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">THEME</span><span class="o">=</span>default
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing.png" /></p>
 </div>
 </div>
-<p>Launch specific apps with selected appearance:</p>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/appearance<span class="o">=</span><span class="nv">$APPEARANCE</span>
+<p>A single override themes every app:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/theme<span class="o">=</span><span class="nv">$THEME</span>
 </code></pre></div>
 
-<p>Or specific apps with: <code>apps/calendar/appearance=$APPEARANCE</code>.</p>
+<p>Or one app only, leaving the rest on the global theme:
+<code>uv run launch.py apps.calendar.theme=$THEME</code>.</p>
+<p>Shipped themes: <code>default</code>, <code>dark</code>, <code>mono</code>, <code>challenging_font</code>, <code>colorblind</code>,
+<code>solarized</code>, <code>material</code>, <code>bootstrap</code>. Adding one means adding a yaml file to
+<code>config/apps/theme/</code> -- no app code changes.</p>
+<p>A theme file is a set of design tokens plus a small <code>assets</code> block:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># config/apps/theme/dark.yaml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span>
+<span class="nt">tokens</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">color-bg</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#121212&quot;</span><span class="w">       </span><span class="c1"># -&gt; --color-bg, consumed as var(--color-bg)</span>
+<span class="w">  </span><span class="nt">color-primary</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#bb86fc&quot;</span>
+<span class="w">  </span><span class="nt">font-family</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&#39;Inter&#39;,</span><span class="nv"> </span><span class="s">system-ui,</span><span class="nv"> </span><span class="s">sans-serif&quot;</span>
+<span class="w">  </span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;4px&quot;</span>
+<span class="nt">assets</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">tone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span><span class="w">                </span><span class="c1"># apps map this onto their own non-CSS assets</span>
+<span class="w">  </span><span class="nt">icon_set</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bw</span>
+</code></pre></div>
+
+<p>Every <code>tokens</code> entry becomes a CSS custom property. <code>assets</code> covers the
+choices a CSS variable cannot reach -- the start page's raster icons, the
+Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
+app-agnostic: the theme says <code>tone: dark</code> and each app picks its own dark
+asset, so a theme file never has to know which apps exist.</p>
+<h4 id="layout">Layout</h4>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/todo/layout<span class="o">=</span>kanban_board
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/layout<span class="o">=</span>broken_logos
+</code></pre></div>
+
+<p>Available layouts: <code>todo</code> has <code>default</code> and <code>kanban_board</code>; <code>start_page</code> has
+<code>default</code>, <code>broken_logos</code> (icons detached from their tiles) and
+<code>clickable_logos</code>; the other apps currently have <code>default</code> only.</p>
+<h4 id="migrating-from-appearance">Migrating from <code>appearance</code></h4>
+<p>The <code>appearance</code> group these two replaced was removed. Overrides written
+against it no longer resolve; translate them as:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Old override</th>
+<th>New override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=default</code></td>
+<td><code>apps/theme=default</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=dark_theme</code></td>
+<td><code>apps/theme=dark</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=black_and_white</code></td>
+<td><code>apps/theme=mono</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=challenging_font</code></td>
+<td><code>apps/theme=challenging_font</code></td>
+</tr>
+<tr>
+<td><code>apps/code_editor/appearance=colorblind_access</code></td>
+<td><code>apps/theme=colorblind</code></td>
+</tr>
+<tr>
+<td><code>apps/todo/appearance=kanban_board</code></td>
+<td><code>apps/todo/layout=kanban_board</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=broken_logos</code></td>
+<td><code>apps/start_page/layout=broken_logos</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=clickable_logos</code></td>
+<td><code>apps/start_page/layout=clickable_logos</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one <code>apps/theme=dark</code>. Two renderings shift slightly:
+<code>mono</code> picks white-page/black-ink for every app, where the old
+<code>black_and_white</code> variants disagreed on polarity (calendar inverted the page,
+the rest did not), and <code>colorblind</code> is now available to all apps rather than
+the code editor alone.</p>
+<p>To reproduce the numbers in <a href="https://arxiv.org/abs/2511.20766">the paper</a>
+rather than port to the new axes, check out the <code>v1.0-paper</code> tag — the last
+tree with <code>appearance</code> intact.</p>
 <h4 id="content">Content</h4>
 <div class="tabbed-set" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><label for="__tabbed_2_1">german</label><div class="tabbed-content">
 <div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>german
@@ -524,7 +615,14 @@
 </code></pre></div>
 
 <p>Or specific apps with: <code>apps/calendar/content=$CONTENT</code>.</p>
-<p>You can see the specific variables for each defined in the individual apps. For example, <code>config/apps/maps/appearance/dark_theme.yaml</code>.</p>
+<p>You can see the specific variables for each defined in the individual apps.
+For example, <code>config/apps/theme/dark.yaml</code> for the shared design tokens,
+<code>config/apps/start_page/layout/broken_logos.yaml</code> for a per-app structure
+variant, and <code>config/apps/maps/default.yaml</code> for behaviour (map zoom, tile
+layer, route planning) that is neither.</p>
+<p>Optional: to save screenshots of all apps with a specific variation for testing, we offer <code>tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/</code> to make this easy.</p>
+<h2 id="exposing-openapps-as-an-mcp-server">Exposing OpenApps as an MCP server</h2>
+<p>If you want an agent to interact with OpenApps using <a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a> please see <code>src/open_apps/mcp/README.md</code>.</p>
 <h2 id="launch-agent">Launch Agent</h2>
 <p>For agents to directly interact with apps, install: <code>playwright install chromium</code>.</p>
 <p>Launch an agent to perform a task of <em>adding a meeting with Dennis to the calendar</em>:</p>
@@ -588,23 +686,51 @@ You can also enable logging to weights and biases by logging into your account a
 <span class="w">  </span><span class="nt">app_variations</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;apps/start_page/content=default&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;apps/calendar/content=german&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span>
-<span class="w">        </span><span class="s">&quot;apps/start_page/appearance=dark_theme&quot;</span><span class="p p-Indicator">,</span>
-<span class="w">        </span><span class="s">&quot;apps/calendar/appearance=dark_theme&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">        </span><span class="s">&quot;apps/theme=dark&quot;</span><span class="p p-Indicator">,</span>
 <span class="w">      </span><span class="p p-Indicator">]</span>
 </code></pre></div>
 
 <p>You can modify the set of tasks or app variation by updating the <code>config_parallel_tasks.yaml</code>. We ensure:</p>
 <ul>
-<li>Each deployment of OpenApps can have different appearance and content per app.</li>
+<li>Each deployment of OpenApps can have a different theme (global), plus layout and content per app.</li>
 <li>Each task is launched in an isolated environment for reproducible results.</li>
 </ul>
+<p>To run <strong>every</strong> task in the loaded tasks config (rather than listing a subset by
+hand), set <code>task_names</code> to <code>all</code>. This expands to all task names defined in the
+selected <code>tasks=</code> group, so it composes with any tasks file:</p>
+<div class="codehilite"><pre><span></span><code>uv run launch_parallel_agents.py \
+  mode=slurm_cluster agent=dummy tasks=longer_horizon \
+  parallel_tasks.task_names=all use_wandb=True
+</code></pre></div>
+
+<p>Passing an explicit list (e.g. <code>parallel_tasks.task_names=[task_a,task_b]</code>) still
+runs only that subset.</p>
+<p>You can also select a task group to run via <code>tasks=longer_horizon parallel_tasks.task_names=all</code>.</p>
+<h3 id="running-across-goal-variations">Running across goal variations</h3>
+<p>Every task ships with <strong>goal variations</strong> — the same task with the goal reworded
+in a different style. Styles are <code>casual</code>, <code>formal</code>, and <code>unrelated_context</code>
+(the instruction wrapped in unrelated chit-chat), with 9 variations per task.
+They live in <code>config/tasks/user_goal_variations.yaml</code>, keyed
+<code>&lt;original_task&gt;__&lt;style&gt;_&lt;n&gt;</code> (e.g. <code>add_meeting_with_dennis__formal_1</code>), and
+each one preserves the original task's reward — only the <code>goal</code> wording differs
+and a <code>goal_style</code> field records the style.</p>
+<p>To run agents across <strong>all</strong> tasks and their goal variations in parallel, use
+the dedicated config, which lists every task name swept over a single default
+app variation:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">uv</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="n">launch_parallel_agents</span><span class="o">.</span><span class="n">py</span><span class="w"> </span>\
+<span class="w">  </span><span class="o">--</span><span class="n">config</span><span class="o">-</span><span class="n">name</span><span class="o">=</span><span class="n">config_parallel_tasks_across_goal_variations</span><span class="w"> </span><span class="n">mode</span><span class="o">=</span><span class="n">slurm_cluster</span>
+</code></pre></div>
+
+<p>Use <code>mode=local</code> to run the jobs sequentially in the current process instead of
+on SLURM. This expands to one isolated job per goal phrasing, letting you
+measure how robust an agent is to how the same task is worded.</p>
 <h2 id="testing">Testing</h2>
 <p>Run all tests via:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">uv</span> <span class="n">run</span> <span class="o">-</span><span class="n">m</span> <span class="n">pytest</span> <span class="n">tests</span><span class="o">/</span>
 </code></pre></div>
 
 <h2 id="attribution">Attribution</h2>
-<p>Our apps are built on top of several excellent frameworks:  </p>
+<p>Our apps are built on top of several excellent frameworks:</p>
 <ul>
 <li>FastHTML <a href="https://github.com/AnswerDotAI/fasthtml">framework</a> and <a href="https://github.com/AnswerDotAI/fasthtml-example">examples</a> which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.</li>
 <li><a href="https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE">Browser Gym</a> and <a href="https://github.com/ServiceNow/AgentLab/blob/main/LICENSE">AgentLab</a>:</li>
@@ -724,10 +850,22 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
         </a>
         
         
-        <a href="#appearance"
+        <a href="#theme"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
-            Appearance
+            Theme
+        </a>
+        
+        <a href="#layout"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Layout
+        </a>
+        
+        <a href="#migrating-from-appearance"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Migrating from appearance
         </a>
         
         <a href="#content"
@@ -736,6 +874,14 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
             Content
         </a>
         
+        
+
+        
+        <a href="#exposing-openapps-as-an-mcp-server"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Exposing OpenApps as an MCP server
+        </a>
         
 
         
@@ -760,6 +906,14 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
             data-active="false" data-depth="2">
             Launch Agent(s) Across Multiple Tasks
         </a>
+        
+        
+        <a href="#running-across-goal-variations"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Running across goal variations
+        </a>
+        
         
 
         

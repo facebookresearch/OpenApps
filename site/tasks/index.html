@@ -490,6 +490,34 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
 </code></pre></div>
 
 <p>Finally, ask your agent to solve the task by specifying <code>task_name=my_custom_task</code>.</p>
+<h2 id="goal-variations">Goal Variations</h2>
+<p>Tasks come with <strong>goal variations</strong>: the same task with its goal reworded in a
+different style, so you can study how robust an agent is to phrasing. There are
+three styles — <code>casual</code>, <code>formal</code>, and <code>unrelated_context</code> (the instruction
+embedded in unrelated chit-chat) — with 9 variations per task.</p>
+<p>Tasks are split across two files, both composed into <code>all_tasks.yaml</code>:</p>
+<ul>
+<li><code>config/tasks/original_tasks.yaml</code> — the base tasks.</li>
+<li><code>config/tasks/user_goal_variations.yaml</code> — the variations, keyed
+  <code>&lt;original_task&gt;__&lt;style&gt;_&lt;n&gt;</code> (e.g. <code>mark_water_plants_as_done__casual_2</code>).</li>
+</ul>
+<p>Every variation copies its original's fields verbatim — only the <code>goal</code> is
+reworded, and an optional <code>goal_style</code> field records the style — so the reward
+logic is identical to the base task:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">mark_water_plants_as_done__casual_2</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">_target_</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">open_apps.tasks.tasks.MarkToDoDoneTask</span>
+<span class="w">  </span><span class="nt">goal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">can you check off &#39;Water plants&#39; in my to-do list?</span>
+<span class="w">  </span><span class="nt">todo_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Water</span><span class="nv"> </span><span class="s">plants&quot;</span>
+<span class="w">  </span><span class="nt">goal_style</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">casual</span>
+</code></pre></div>
+
+<p>Run a single variation like any other task:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-5-1<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>mark_water_plants_as_done__casual_2
+</code></pre></div>
+
+<p>To run agents across <strong>all</strong> tasks and their goal variations in parallel, use
+the <code>config_parallel_tasks_across_goal_variations.yaml</code> config — see
+<a href="../#launch-agents-across-multiple-tasks">Launch Agent(s) Across Multiple Tasks</a>.</p>
   </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
@@ -576,10 +604,26 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
         
         
         
-        <a href="#new-custom-tasks"
+        <a href="#adding-new-tasks"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
+            Adding New Tasks
+        </a>
+        
+        
+        <a href="#new-custom-tasks"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
             New custom tasks
+        </a>
+        
+        
+
+        
+        <a href="#goal-variations"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Goal Variations
         </a>
         
 

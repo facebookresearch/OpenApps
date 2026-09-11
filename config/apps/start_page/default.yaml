@@ -1,3 +1,7 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.start_page.theme=solarized`.
+theme: null

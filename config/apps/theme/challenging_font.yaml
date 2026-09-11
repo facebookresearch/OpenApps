@@ -1,0 +1,33 @@
+# @package apps.theme
+# The default palette rendered in a hard-to-read script face. Isolates
+# typography as a variation axis: identical colors and layout to `default`,
+# so any change in agent success is attributable to legibility alone.
+name: challenging_font
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#f4f5f7"
+  color-fg: "#1a1a1a"
+  color-muted: "#6b7280"
+  color-border: "#dfe1e6"
+  color-primary: "#2563eb"
+  color-primary-hover: "#1d4ed8"
+  color-on-primary: "#ffffff"
+  color-accent: "#2563eb"
+  color-danger: "#b22222"
+  color-neutral: "#36454f"
+  color-btn-fg: "#ffffff"
+  font-family: "'Brush Script MT', cursive"
+  font-heading: "inherit"
+  # The editor stays monospace on purpose -- a script face in a code pane
+  # destroys column alignment, which is a different perturbation than the
+  # legibility one this theme is meant to isolate.
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-size-base: "16px"
+  font-size-sm: "14px"
+  font-size-heading: "1.5rem"
+  radius: "8px"
+  space: "8px"
+assets:
+  tone: light
+  icon_set: color

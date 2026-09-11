@@ -544,6 +544,93 @@ Here are some key flags you can configure in your agent's YAML file:</p>
 </li>
 </ol>
 <p>This allows you to build rich, custom agent implementations tailored to your specific requirements.</p>
+<h2 id="running-evals-on-a-cluster-slurm-vllm-wb">Running Evals on a Cluster (SLURM + vLLM + W&amp;B)</h2>
+<p>The workflow consists of two jobs:</p>
+<ol>
+<li>A persistent <strong>vLLM GPU job</strong> that serves the model on <code>:8000</code>.</li>
+<li>An <strong>eval CPU job</strong> (<code>sbatch scripts/conduct_slurm.sh</code>) that auto-discovers the vLLM node and runs the worker pool against it.</li>
+</ol>
+<h3 id="one-time-cluster-setup">One-time cluster setup</h3>
+<p>The repo needs to live on shared storage (e.g. <code>/example/dir/$USER</code>
+or <code>/storage/home/$USER</code>). On a login node:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Bring the repo over. Use rsync if you have uncommitted local changes (e.g.</span>
+<span class="c1"># scripts/conduct.sh) that aren&#39;t pushed yet:</span>
+rsync<span class="w"> </span>-av<span class="w"> </span>--exclude<span class="w"> </span>.venv<span class="w"> </span>/path/to/local/OpenApps/<span class="w"> </span>/example/dir/<span class="nv">$USER</span>/OpenApps/
+<span class="c1"># ...or clone it fresh:</span>
+<span class="c1">#   git clone &lt;repo-url&gt; /example/dir/$USER/OpenApps</span>
+
+<span class="nb">cd</span><span class="w"> </span>/example/dir/<span class="nv">$USER</span>/OpenApps
+
+<span class="c1"># Python env</span>
+curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh<span class="w">   </span><span class="c1"># install uv if needed</span>
+uv<span class="w"> </span>sync
+
+<span class="c1"># Headless browser</span>
+uv<span class="w"> </span>run<span class="w"> </span>playwright<span class="w"> </span>install<span class="w"> </span>chromium
+uv<span class="w"> </span>run<span class="w"> </span>playwright<span class="w"> </span>install-deps<span class="w"> </span>chromium<span class="w">   </span><span class="c1"># system deps (may need sudo/module)</span>
+
+<span class="c1"># App setup (OpenJDK 21 for onlineshop, dataset via gdown, spaCy en_core_web_lg)</span>
+./setup.sh
+
+<span class="c1"># Secrets — do NOT commit this file</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>.env<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">OPENAI_API_KEY=sk-...</span>
+<span class="s">WANDB_BASE_URL=...</span>
+<span class="s">WANDB_API_KEY=...</span>
+<span class="s">EOF</span>
+</code></pre></div>
+
+<p><code>launch_agent.py</code> calls <code>load_dotenv()</code>, so <code>.env</code> is picked up automatically.</p>
+<h3 id="1-launch-the-persistent-vllm-serve-job">1. Launch the persistent vLLM serve job</h3>
+<p>Give it a generous <code>--time</code> so it isn't killed mid-eval. For example, an
+interactive allocation:</p>
+<div class="codehilite"><pre><span></span><code>srun<span class="w"> </span>--account<span class="o">=</span>example_account<span class="w"> </span>--qos<span class="o">=</span>example_qos<span class="w"> </span>--partition<span class="o">=</span>example_partition<span class="w"> </span><span class="se">\ </span>--gpus-per-node<span class="o">=</span><span class="m">1</span><span class="w"> </span>--time<span class="o">=</span><span class="m">1440</span><span class="w"> </span>--pty<span class="w"> </span>bash
+<span class="c1"># then, on the GPU node:</span>
+vllm<span class="w"> </span>serve<span class="w"> </span>google/gemma-4-E2B-it<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8000</span>
+</code></pre></div>
+
+<p>Confirm it's healthy from its own node:</p>
+<div class="codehilite"><pre><span></span><code>srun<span class="w"> </span>--overlap<span class="w"> </span>--jobid<span class="o">=</span>&lt;vllm-job&gt;<span class="w"> </span>--pty<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8000/v1/models
+<span class="c1"># expect: ...google/gemma-4-E2B-it...</span>
+</code></pre></div>
+
+<h3 id="2-submit-the-eval-job">2. Submit the eval job</h3>
+<p><code>scripts/conduct_slurm.sh</code> requests a CPU allocation, finds the vLLM node, and
+runs <code>scripts/conduct.sh</code> pointed at it with <code>use_wandb=True</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># smoke test (1 run)</span>
+<span class="nv">AGENTS</span><span class="o">=</span>gemma-4-e2b-it<span class="w"> </span><span class="nv">COUNT</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>sbatch<span class="w"> </span>scripts/conduct_slurm.sh
+
+<span class="c1"># larger sweep</span>
+<span class="nv">AGENTS</span><span class="o">=</span><span class="s2">&quot;gemma-4-e2b-it&quot;</span><span class="w"> </span><span class="nv">COUNT</span><span class="o">=</span><span class="m">20</span><span class="w"> </span><span class="nv">MAX_PARALLEL</span><span class="o">=</span><span class="m">4</span><span class="w"> </span>sbatch<span class="w"> </span>scripts/conduct_slurm.sh
+</code></pre></div>
+
+<p><strong>Discovery:</strong> the wrapper lists your running jobs (<code>squeue --me</code>), expands their
+nodelists, excludes the eval node itself, and probes each <code>http://&lt;node&gt;:8000/v1/models</code>,
+selecting the first one serving <code>google/gemma-4-E2B-it</code>. It probes by <em>serving the
+model</em>, so it doesn't matter how the vLLM job was started (e.g. a <code>bash</code>-named
+<code>srun --pty</code>).</p>
+<p><strong>Override:</strong> skip discovery by pinning the node:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">VLLM_HOST</span><span class="o">=</span>example_host<span class="w"> </span><span class="nv">AGENTS</span><span class="o">=</span>gemma-4-e2b-it<span class="w"> </span><span class="nv">COUNT</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>sbatch<span class="w"> </span>scripts/conduct_slurm.sh
+</code></pre></div>
+
+<p>Other env overrides: <code>VLLM_MODEL</code>, <code>VLLM_PORT</code>, and <code>WANDB_MODE</code> (set
+<code>WANDB_MODE=offline</code> to skip online logging). Extra CLI args are forwarded
+verbatim to <code>launch_agent.py</code> as Hydra overrides.</p>
+<p><strong>Fallback if compute→compute <code>:8000</code> is firewalled:</strong> run the eval inside the
+vLLM job's own allocation and talk to it over localhost:</p>
+<div class="codehilite"><pre><span></span><code>srun<span class="w"> </span>--overlap<span class="w"> </span>--jobid<span class="o">=</span>&lt;vllm-job&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>env<span class="w"> </span><span class="nv">AGENTS</span><span class="o">=</span>gemma-4-e2b-it<span class="w"> </span><span class="nv">COUNT</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">VLLM_HOST</span><span class="o">=</span>localhost<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>./scripts/conduct.sh<span class="w"> </span>agent.hostname<span class="o">=</span>localhost<span class="w"> </span><span class="nv">use_wandb</span><span class="o">=</span>True
+</code></pre></div>
+
+<h3 id="3-check-results">3. Check results</h3>
+<ul>
+<li>SLURM log: <code>slurm-&lt;jobid&gt;.out</code> — confirm discovery selected the vLLM node and
+  there are no "Connection error" messages.</li>
+<li>Per-run logs: <code>log_outputs/&lt;stamp&gt;/run-*.log</code> — confirm an action is produced.</li>
+<li>W&amp;B: a run should appear in <code>open_apps_${USER}</code> (i.e. <code>open_apps_aaronsmulktis</code>)
+  with the expected <code>group</code>/<code>job_type</code> and a logged <code>web_app_url</code>.</li>
+</ul>
   </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
@@ -684,6 +771,40 @@ Here are some key flags you can configure in your agent's YAML file:</p>
             data-active="false" data-depth="2">
             Creating Your Own Agent
         </a>
+        
+
+        
+        <a href="#running-evals-on-a-cluster-slurm-vllm-wb"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Running Evals on a Cluster (SLURM + vLLM + W&amp;B)
+        </a>
+        
+        
+        <a href="#one-time-cluster-setup"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            One-time cluster setup
+        </a>
+        
+        <a href="#1-launch-the-persistent-vllm-serve-job"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            1. Launch the persistent vLLM serve job
+        </a>
+        
+        <a href="#2-submit-the-eval-job"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            2. Submit the eval job
+        </a>
+        
+        <a href="#3-check-results"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            3. Check results
+        </a>
+        
         
 
         

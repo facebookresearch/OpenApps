@@ -34,6 +34,39 @@ except ImportError:
         generate_random_colors,
     )
 from omegaconf import DictConfig, OmegaConf
+from open_apps.theme import render_theme_css, resolve_theme, theme_asset
+
+
+def icon_for(app_config, app_name):
+    """Path to an app's start-page tile icon under the active theme.
+
+    The icons are PNGs, so a CSS variable cannot recolor them; the theme picks
+    a set via its `icon_set` asset and the repo ships a hand-made greyscale
+    version alongside the color one. Falls back to the color icon when a theme
+    asks for a set the config has no path for.
+    """
+    if theme_asset(app.config, "start_page", "icon_set", "color") == "bw":
+        bw = app_config.get("bw_icon")
+        if bw:
+            return bw
+    return app_config.get("icon", f"/assets/icons/real_icons/{app_name}.png")
+
+
+def tile_colors(config):
+    """Background fills for the app tiles, in position order.
+
+    The default palette is six saturated iOS-style hues that carry no semantic
+    meaning -- mapping them onto theme tokens would collapse six visually
+    distinct targets into one. Non-light themes do collapse them, deliberately:
+    that is the perturbation `dark` and `mono` are for.
+    """
+    if config.get("use_random_colors"):
+        return generate_random_colors(10)
+    tone = theme_asset(app.config, "start_page", "tone", "light")
+    by_tone = config.get("tile_fill_by_tone") or {}
+    if tone in by_tone:
+        return [by_tone[tone]]
+    return config.app_background_colors
 
 # Define available apps and their route getters
 AVAILABLE_APPS = {
@@ -165,12 +198,19 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
             print(f"Failed to find route getter for {app_name}: {e}")
 
     if getattr(app.config.start_page, "shuffle_icons", False):
-        # randomize icons and app names if specified
-        icons = [getattr(app.config.start_page.apps[app_name], "icon") for app_name in app.config.start_page.apps]
-        random.shuffle(icons)
-        print(app.config.start_page.apps)
-        for app_name in app.config.start_page.apps:
-            app.config.start_page.apps[app_name].icon = icons.pop()
+        # Detach each icon from its app so the picture stops identifying the
+        # tile. Both sets are permuted the same way, otherwise selecting a
+        # `bw` theme would quietly undo the shuffle.
+        apps_cfg = app.config.start_page.apps
+        order = list(apps_cfg)
+        shuffled = order[:]
+        random.shuffle(shuffled)
+        icons = {name: apps_cfg[name].get("icon") for name in order}
+        bw_icons = {name: apps_cfg[name].get("bw_icon") for name in order}
+        for name, source in zip(order, shuffled):
+            apps_cfg[name].icon = icons[source]
+            if bw_icons[source] is not None:
+                apps_cfg[name].bw_icon = bw_icons[source]
 
     return app
 
@@ -182,13 +222,8 @@ def get():
     # Get configuration from app.config
     config = app.config.start_page
     
-    # Check if we should use random colors
-    colors = []
-    if hasattr(config, 'use_random_colors') and config.use_random_colors:
-        colors = generate_random_colors(10)  # Generate more than we need
-    else:
-        colors = config.app_background_colors
-    
+    colors = tile_colors(config)
+
     # Build items based on app configurations
     items = []
     
@@ -215,7 +250,7 @@ def get():
                 ItemContent(
                     app_config.get('title', f"Open{app_name.capitalize()}"),
                     app_config.get('description', f"Description for {app_name}"),
-                    icon=app_config.get('icon', f"/assets/icons/real_icons/{app_name}.png"),
+                    icon=icon_for(app_config, app_name),
                     color=color,
                     href=app_url,
                     config=config,
@@ -324,7 +359,14 @@ def get():
     )
     
     # Return the page with configuration
-    return PageWrapper("main-page", wrapper, footer(), config=config)
+    return PageWrapper(
+        "main-page",
+        wrapper,
+        footer(),
+        config=config,
+        # Resolved per-request so live `reconfigure` theme swaps take effect.
+        theme_css=render_theme_css(resolve_theme(app.config, "start_page")),
+    )
 
 
 @rt("/environment_variables")

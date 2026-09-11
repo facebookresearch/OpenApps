@@ -38,7 +38,7 @@ from open_apps.apps.start_page.main import (
     initialize_routes_and_configure_task,
     reset_all_apps,
 )
-from open_apps.mcp.registry import config_dir_for, url_path_for
+from open_apps.mcp.registry import config_dir_for, migrate_appearance, url_path_for
 from open_apps.state import get_current_state
 
 
@@ -157,32 +157,49 @@ class AppServer:
     def reconfigure(
         self,
         *,
-        appearance: str | None = None,
+        theme: str | None = None,
+        layout: str | None = None,
         content: str | None = None,
         seed: int | None = None,
         extras: dict[str, Any] | None = None,
+        appearance: str | None = None,
     ) -> None:
         """Recompose the Hydra config with new variant choices and seed.
 
         FastHTML routes read ``app.config`` per-request, so the live
         config update propagates without restarting the server. This
-        only swaps appearance/content/seed/extras + re-seeds sqlite; it
+        only swaps theme/layout/content/seed/extras + re-seeds sqlite; it
         cannot add or remove apps (the registered set is fixed at init).
 
         Args:
-            appearance: Variant yaml stem under
-                ``config/apps/<app>/appearance/`` for ``self.app_name``.
+            theme: Shared design-token theme stem under
+                ``config/apps/theme/`` (e.g. ``solarized``). Global: applies
+                to every app that renders design tokens.
+            layout: Per-app structure variant stem under
+                ``config/apps/<app>/layout/`` for ``self.app_name``
+                (e.g. ``kanban_board``).
             content: Variant yaml stem under
                 ``config/apps/<app>/content/`` for ``self.app_name``.
             seed: Fresh integer seed for the OpenApps content samplers.
             extras: Additional dotpath overrides applied to the live
                 config in-place after compose. Example for the maps
                 app: ``{"apps.maps.init_location": [40.78, -73.97]}``.
+            appearance: **Deprecated.** Stem from the removed ``appearance``
+                group, translated onto ``theme``/``layout`` via
+                ``registry.APPEARANCE_MIGRATION``. Raises if it disagrees
+                with a ``theme``/``layout`` passed alongside it.
         """
+        if appearance is not None:
+            theme, layout = migrate_appearance(
+                appearance, theme=theme, layout=layout
+            )
+
         cfg_dir = config_dir_for(self.app_name)
         overrides: list[str] = []
-        if appearance is not None:
-            overrides.append(f"apps/{cfg_dir}/appearance={appearance}")
+        if theme is not None:
+            overrides.append(f"apps/theme={theme}")
+        if layout is not None:
+            overrides.append(f"apps/{cfg_dir}/layout={layout}")
         if content is not None:
             overrides.append(f"apps/{cfg_dir}/content={content}")
         if seed is not None:
@@ -201,7 +218,7 @@ class AppServer:
         # Routes read ``app.config`` per request, but the assignment above
         # rebinds ``self.config.apps`` to a fresh node — so re-point the
         # FastHTML app at it, otherwise the page keeps rendering the
-        # pre-reconfigure appearance/content.
+        # pre-reconfigure theme/layout/content.
         _fasthtml_app.config = self.config.apps
 
         shutil.rmtree(new_tmp_logs, ignore_errors=True)

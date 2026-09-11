@@ -11,8 +11,10 @@
     <style>
         body,
         html {
-            font-family: "{{ font_family }}";
-            font-size: "{{ base_font_size }}";
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            color: var(--color-fg);
+            background-color: var(--color-bg);
             margin: 0;
             padding: 0;
             height: 100vh;
@@ -37,20 +39,20 @@
         #sidebar {
             flex: 0.2;
             padding: 20px;
-            background: {{ sidebar_background_color }};
+            background: var(--color-surface);
             box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
             overflow-y: auto;
         }
 
         #sidebar h2 {
-            color: #2c3e50;
+            color: var(--color-fg);
             margin-bottom: 20px;
-            border-bottom: 2px solid #3498db;
+            border-bottom: 2px solid var(--color-primary);
             padding-bottom: 10px;
         }
 
         #sidebar h3 {
-            color: #34495e;
+            color: var(--color-fg);
             margin: 20px 0 10px 0;
         }
 
@@ -58,9 +60,9 @@
             cursor: pointer;
             padding: 10px;
             margin: 5px 0;
-            background-color: white;
+            background-color: var(--color-bg);
             border-radius: 5px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             transition: all 0.2s;
             display: flex;
             justify-content: space-between;
@@ -68,12 +70,12 @@
         }
 
         .popup-list-item:hover {
-            background-color: #f5f6fa;
+            background-color: var(--color-surface);
             transform: translateX(5px);
         }
 
         .delete-btn {
-            color: {{ delete_button_color }};
+            color: var(--color-danger);
             cursor: pointer;
             font-size: 18px;
             padding: 0 5px;
@@ -83,7 +85,7 @@
         }
 
         .delete-btn:hover {
-            background-color: {{ delete_button_hover_color }}
+            background-color: var(--color-surface)
         }
 
         .search-container {
@@ -95,15 +97,15 @@
         #searchInput {
             flex: 1;
             padding: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             border-radius: 5px;
             font-size: 14px;
         }
 
         #searchBtn {
             padding: 8px 15px;
-            background-color: {{ search_button_color }};
-            color: white;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -111,7 +113,7 @@
         }
 
         #searchBtn:hover {
-            background-color: {{ search_button_hover_color }}
+            background-color: var(--color-primary-hover)
         }
 
         #searchResults {
@@ -122,22 +124,22 @@
             cursor: pointer;
             padding: 10px;
             margin: 5px 0;
-            background-color: white;
+            background-color: var(--color-bg);
             border-radius: 5px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             transition: all 0.2s;
         }
 
         .search-result-item:hover {
-            background-color: #f5f6fa;
+            background-color: var(--color-surface);
             transform: translateX(5px);
         }
 
         .info-box {
-            background: white;
+            background: var(--color-bg);
             padding: 10px;
             border-radius: 5px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             margin: 10px 0;
             font-size: 14px;
         }
@@ -158,15 +160,15 @@
         .location-input-container input {
             flex: 1;
             padding: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             border-radius: 5px;
             font-size: 14px;
         }
 
         .location-input-container .search-btn {
             padding: 8px 15px;
-            background-color: {{ search_button_color }};
-            color: white;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -174,7 +176,7 @@
         }
 
         .location-input-container .search-btn:hover {
-            background-color: {{ search_button_hover_color }}
+            background-color: var(--color-primary-hover)
         }
 
         .search-results-mini {
@@ -185,16 +187,16 @@
             max-height: 100px;
             overflow-y: auto;
             margin: 5px 0;
-            background: white;
-            border: 1px solid #e0e0e0;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
             z-index: 1000;
         }
 
         #calculateRouteBtn {
             width: 100%;
             padding: 8px;
-            background-color: {{ calculate_button_color }};
-            color: white;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -202,13 +204,13 @@
         }
 
         #calculateRouteBtn:hover {
-            background-color: {{ calculate_button_hover_color }};
+            background-color: var(--color-primary-hover);
         } */
 
         .search-btn {
             padding: 8px 15px;
-            background-color: {{ search_button_color }}
-            color: white;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -217,14 +219,14 @@
         }
 
         .search-btn:hover {
-            background-color: {{ search_button_hover_color }};
+            background-color: var(--color-primary-hover);
         }
 
         #returnButton {
             width: 100%;
             padding: 10px;
-            background-color: {{ return_button_color }};
-            color: white;
+            background-color: var(--color-neutral);
+            color: var(--color-on-primary);
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -233,7 +235,7 @@
         }
 
         #returnButton:hover {
-            background-color: #7f8c8d;
+            background-color: var(--color-primary-hover);
         }
 
         .custom-select-container {
@@ -244,9 +246,9 @@
 
         .custom-select-header {
             padding: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--color-border);
             border-radius: 5px;
-            background: white;
+            background: var(--color-bg);
             cursor: pointer;
             display: flex;
             justify-content: space-between;
@@ -258,8 +260,8 @@
             top: 100%;
             left: 0;
             right: 0;
-            background: white;
-            border: 1px solid #e0e0e0;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
             border-radius: 5px;
             margin-top: 5px;
             max-height: 200px;
@@ -277,7 +279,7 @@
         }
 
         .custom-select-option:hover {
-            background-color: #f5f6fa;
+            background-color: var(--color-surface);
         }
 
         .custom-select-option i {
@@ -285,9 +287,12 @@
         }
 
         .custom-select-option.selected {
-            background-color: #e3f2fd;
+            background-color: var(--color-surface);
         }
     </style>
+    <!-- Shared design tokens (open_apps.theme). Every color and font above
+         is a var() into this block. -->
+    <style>{{ theme_css|safe }}</style>
 </head>
 
 <body>
@@ -489,13 +494,22 @@
                 maxZoom: 19,
                 attribution: '© OpenStreetMap contributors, © CartoDB'
             }),
+            // Greyscale basemap -- what the `mono` theme selects, so the map
+            // carries no hue either.
+            'CartoDB Positron': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors, © CartoDB'
+            }),
 
             'OpenStreetMap Transport': L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png', {
                 maxZoom: 18,
                 attribution: '© OpenStreetMap contributors, © MeMoMaps'
             }),
         };
-        layers['{{ default_layer }}'].addTo(map);
+        // Fall back rather than throw: an unknown name here used to raise a
+        // TypeError that aborted the rest of this script, leaving a blank map
+        // with no landmarks and no sidebar wiring.
+        (layers['{{ default_layer }}'] || layers['OpenStreetMap']).addTo(map);
 
         {% if enable_layer_control %}
         // Add layer control only if enabled
@@ -1205,7 +1219,7 @@
                                 let content = `
                                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                                         <div>Option ${index + 1}: ${icons}</div>
-                                        <div style="color: #666; font-size: 0.9em;">
+                                        <div style="color: var(--color-muted); font-size: 0.9em;">
                                             ${formatTime(startTime)} → ${formatTime(endTime)}
                                         </div>
                                     </div>
@@ -1275,7 +1289,7 @@
         {% endif %}
 
     </script>
-    <div id="markerCustomizationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;">
+    <div id="markerCustomizationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--color-bg); padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;">
         <h3>Customize Marker</h3>
         <div style="margin-bottom: 15px;">
             <label for="markerIcon">Icon:</label>
@@ -1342,7 +1356,7 @@
         </div>
         <div style="text-align: right;">
             <button onclick="cancelMarkerCustomization()" style="margin-right: 10px;">Cancel</button>
-            <button onclick="confirmMarkerCustomization()" style="background-color: #3498db; color: white; border: none; padding: 5px 15px; border-radius: 3px;">Confirm</button>
+            <button onclick="confirmMarkerCustomization()" style="background-color: var(--color-primary); color: var(--color-on-primary); border: none; padding: 5px 15px; border-radius: 3px;">Confirm</button>
         </div>
     </div>
 </body>
