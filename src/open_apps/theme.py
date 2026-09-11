@@ -149,7 +149,7 @@ def render_theme_css(theme: dict) -> str:
 
     import_url = (theme.get("import_url") or "").strip()
     # Avoid breaking out of the quoted @import string.
-    if any(c in import_url for c in ('"', "'", "\n", "\r")):
+    if any(c in import_url for c in ('"', "'", "\n", "\r", "<", ">")):
         import_url = ""
 
     import_rule = f'@import url("{import_url}");\n' if import_url else ""
