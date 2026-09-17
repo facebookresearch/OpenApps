@@ -665,6 +665,84 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
 </code></pre></div>
 
 <p><img alt="Live Agent" src="images/gif.gif" /></p>
+<h3 id="devices">Devices</h3>
+<p>The device is a variation axis of its own, alongside theme, layout, content and
+pop-ups. <code>config/device/</code> ships four:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th><code>device=</code></th>
+<th>Viewport</th>
+<th>Form factor</th>
+<th>Input</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>desktop</code> (default)</td>
+<td>1920×1080</td>
+<td>desktop</td>
+<td>mouse</td>
+</tr>
+<tr>
+<td><code>laptop</code></td>
+<td>1280×800</td>
+<td>desktop</td>
+<td>mouse</td>
+</tr>
+<tr>
+<td><code>tablet</code></td>
+<td>820×1180</td>
+<td>tablet</td>
+<td>touch, no hover</td>
+</tr>
+<tr>
+<td><code>phone</code></td>
+<td>390×844</td>
+<td>phone</td>
+<td>touch, no hover</td>
+</tr>
+</tbody>
+</table></div>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>+experiment<span class="o">=</span>phone<span class="w">                      </span><span class="c1"># browse the phone build</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span>+experiment<span class="o">=</span>phone<span class="w">    </span><span class="c1"># run an agent on it</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span><span class="nv">device</span><span class="o">=</span>tablet<span class="w">        </span><span class="c1"># just the device</span>
+</code></pre></div>
+
+<p>One setting moves two things:</p>
+<ul>
+<li><strong>the browser</strong> — <code>browsergym_env_args.task_kwargs.screen_resolution</code> is
+  <code>${device.viewport}</code>, and <code>open_apps.agent.env_args.DeviceEnvArgs</code> forwards
+  <code>is_mobile</code>, <code>has_touch</code>, <code>device_scale_factor</code> and <code>user_agent</code> to the
+  Playwright context. On a phone or tablet the page gets a real mobile visual
+  viewport and a coarse pointer, so <code>@media (hover: none)</code> and
+  <code>(pointer: coarse)</code> match and hover-only affordances correctly disappear;</li>
+<li><strong>the apps</strong> — the node is mirrored to <code>apps.device</code>, so a server-rendered
+  layout can pick a composition for the form factor rather than only reflowing
+  to the width.</li>
+</ul>
+<p>The start page's desktop shell does exactly that. On a phone it renders a home
+screen: status bar, wordmark widget, an icon grid of the apps that are <strong>not</strong>
+pinned, and a dock holding the ones that are — so pinning moves an app into the
+dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+the test ids and <code>/desktop_all</code> are the same on both, so a task written against
+one scores unchanged on the other; what differs is what the agent can see and
+how far it has to travel. Which composition a form factor gets is config, not
+code:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># the control condition: the desktop composition, in a phone-sized window</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>+experiment<span class="o">=</span>phone<span class="w"> </span>apps.start_page.desktop.variants.phone<span class="o">=</span>shell
+</code></pre></div>
+
+<p>Adding a device is a file in <code>config/device/</code>; a form factor with no variant of
+its own falls back to the desktop composition rather than to a blank page.</p>
+<div class="admonition warning">
+<p class="admonition-title">Keep <code>device_scale_factor</code> at 1</p>
+<p>Screenshots are captured in <em>device</em> pixels and actions are dispatched in
+<em>CSS</em> pixels, and nothing in between divides by the ratio — the agent's
+coordinate space comes straight from the screenshot's shape. At scale 2 a
+grounded click lands at twice the intended offset. Every shipped device
+keeps it at 1, retina or not.</p>
+</div>
 <h3 id="logs">Logs</h3>
 <p>By default, information about the number of steps an agent took, task success, etc. will be shown in the terminal:</p>
 <div class="codehilite"><pre><span></span><code>...
@@ -907,6 +985,12 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
             Launch Agent
         </a>
         
+        
+        <a href="#devices"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Devices
+        </a>
         
         <a href="#logs"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
