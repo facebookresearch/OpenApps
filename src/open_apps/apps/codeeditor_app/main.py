@@ -13,7 +13,13 @@ from starlette.responses import Response
 
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
-from open_apps.theme import _as_plain, load_theme, theme_style
+from open_apps.theme import (
+    _as_plain,
+    load_theme,
+    resolve_theme,
+    theme_asset,
+    theme_style,
+)
 from open_apps.icons import Icon, icon
 
 # Global variables
@@ -33,6 +39,9 @@ _base_hdrs_no_highlight = (
 )
 current_dir = None
 list_of_modes, list_of_themes = [], []
+# CodeMirror syntax stylesheets, distinct from `list_of_themes` (the shared
+# design themes the in-editor selector offers).
+list_of_editor_themes = []
 _base_hdrs = _base_hdrs_no_highlight
 opened_files = {}
 logo_title_container = None
@@ -73,7 +82,7 @@ def update_db_from_hydra(config):
 def set_environment(config):
     """Set environment variables for the code editor app"""
     # Create styles with environment variables
-    global app, _base_hdrs, list_of_modes, list_of_themes, current_dir, logo_title_container
+    global app, _base_hdrs, list_of_modes, list_of_themes, list_of_editor_themes, current_dir, logo_title_container
     if getattr(config.code_editor, 'no_css', False):
         app.hdrs = ()
         app.config = config
@@ -86,6 +95,7 @@ def set_environment(config):
         return
     list_of_modes = config.code_editor.list_of_modes
     list_of_themes = config.code_editor.list_of_themes
+    list_of_editor_themes = config.code_editor.list_of_editor_themes
     current_dir = config.code_editor.database_path + '/'
     if os.path.exists(current_dir):
         # alert the user
@@ -102,7 +112,17 @@ def set_environment(config):
         Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css"),
     )
-    for theme_name in list_of_themes:
+    # Every stylesheet the page could ask for, loaded up front: a shared-theme
+    # swap selects one by tone at request time. Include the tone-mapped names
+    # even if `list_of_editor_themes` was trimmed, otherwise `apps/theme=dark`
+    # asks CodeMirror for a stylesheet that is not on the page and the code
+    # pane silently renders unstyled. Design-theme names are deliberately not
+    # in here -- they have no CodeMirror stylesheet to fetch.
+    tone_themes = list(_as_plain(getattr(config.code_editor, "editor_theme_by_tone", None) or {}).values())
+    editor_themes = dict.fromkeys(
+        [*list_of_editor_themes, *tone_themes, config.code_editor.editor_theme]
+    )
+    for theme_name in editor_themes:
         _base_hdrs_with_highlight += (
             Link(rel="stylesheet", href=f"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/{theme_name}.min.css"),
         )
@@ -381,6 +401,36 @@ def live_theme_style() -> Style:
     this reason.
     """
     return theme_style(app.config, "code_editor")
+
+
+# Set by the in-page theme dropdown; None means "follow the configured theme".
+_design_theme_override = None
+
+
+def current_design_theme() -> str:
+    """Name of the design theme the page is currently rendering.
+
+    Resolves the per-app override against the global `apps/theme` group, so a
+    null `apps.code_editor.theme` reports the inherited theme instead of the
+    literal None the dropdown used to show.
+    """
+    if _design_theme_override is not None:
+        return _design_theme_override
+    return resolve_theme(app.config, "code_editor").get("name", "default")
+
+
+def current_editor_theme() -> str:
+    """CodeMirror's syntax-highlighting stylesheet name.
+
+    Not the shared design theme -- CodeMirror ships a whole stylesheet per
+    theme, which no CSS variable can substitute for. The shared theme therefore
+    picks one indirectly via its `tone` asset, so `apps/theme=dark` darkens the
+    code pane and not just the chrome around it.
+    """
+    cfg = app.config.code_editor
+    tone = theme_asset(app.config, "code_editor", "tone", "light")
+    by_tone = _as_plain(getattr(cfg, "editor_theme_by_tone", None) or {})
+    return by_tone.get(tone, cfg.editor_theme)
 
 
 def theme_switcher_script(config) -> Script:
@@ -707,7 +757,7 @@ def index():
     file_tree = get_file_tree(files_root)
     editor_options = f"""{{
                         mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
+                        theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         indentUnit: 4,
                         tabSize: 4,
@@ -783,7 +833,7 @@ def index():
                             });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -828,7 +878,7 @@ def get_folder(folder: str):
     side_bar = create_sidebar(folder)
     editor_options = f"""{{
                         mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
+                        theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         readOnly: true
                     }}"""
@@ -875,7 +925,7 @@ def get_folder(folder: str):
                                 });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -933,7 +983,7 @@ def get_file(file: str):
     file_tree = get_file_tree(files_root)
     editor_options = f"""{{
                         mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
+                        theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         indentUnit: 4,
                         tabSize: 4,
@@ -1164,7 +1214,7 @@ def get_file(file: str):
                                 });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -1326,7 +1376,9 @@ async def update_config(request):
         if data["type"] == "mode":
             app.config.code_editor.mode = data["value"]
         elif data["type"] == "theme":
+            global _design_theme_override
             app.config.code_editor.theme = data["value"]
+            _design_theme_override = data["value"]
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}

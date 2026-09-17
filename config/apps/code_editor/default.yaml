@@ -15,15 +15,15 @@ database_path: ${databases_dir}/codeeditor
 #   apps.code_editor.no_egress=true
 no_egress: false
 
-# Design theme for this app, resolved by open_apps.theme.resolve_theme. Set
-# per-app so the editor can be VS Code dark without restyling every other
-# app; use `apps/theme=vscode_dark` to change the global default instead.
+# Per-app design theme override, resolved by open_apps.theme.resolve_theme.
+# null would inherit the global `apps/theme` selection; the editor pins one so
+# it reads as a code editor out of the box.
 #
-# This key doubles as CodeMirror's theme name when code_editor.highlight is
-# on. That is deliberate -- one selector, one concept -- but it means a
-# design-theme name has no matching CodeMirror stylesheet, so syntax colours
-# fall back to CodeMirror's default. The design tokens still restyle the
-# surrounding chrome and the editor surface.
+# Know what the pin costs: a per-app override beats the global group, so
+# `apps/theme=dark` restyles every other app and leaves this one on
+# vscode_dark. Sweeping the shared theme axis *through* the editor means
+# clearing it -- `apps.code_editor.theme=null apps/theme=dark` -- or setting
+# the global to this palette with `apps/theme=vscode_dark`.
 theme: vscode_dark
 
 # The design themes offered by the in-editor selector. Each must exist as
@@ -42,3 +42,51 @@ list_of_themes:
 font: "Arial"
 font_size: 12
 fontcolor: ""
+
+# --- CodeMirror ------------------------------------------------------------
+# `theme` above is the *shared design* theme. CodeMirror's syntax highlighting
+# is a whole stylesheet loaded by name, which no CSS variable can substitute
+# for, so it is a separate key. The two were both called `theme` until the
+# appearance groups were removed, and the per-app override silently won,
+# leaving CodeMirror initialised with `theme: 'None'` (or with a design-theme
+# name that has no stylesheet on the CDN).
+editor_theme: "eclipse"
+# The shared theme picks a stylesheet indirectly via its `tone` asset, so
+# `apps/theme=dark` darkens the code pane and not just the chrome around it.
+editor_theme_by_tone:
+  dark: "monokai"
+  mono: "eclipse"
+# CodeMirror stylesheets to put on the page. The tone-mapped names are added
+# automatically, so trimming this list cannot leave a tone pointing at a
+# stylesheet that was never loaded.
+list_of_editor_themes:
+  - monokai
+  - eclipse
+  - solarized
+  - seti
+  - night
+  - dracula
+  - twilight
+  - zenburn
+  - material
+
+# --- Behaviour -------------------------------------------------------------
+# Not theme and not layout: these change what the editor *does*. They used to
+# come from the `appearance` group, which conflated all three.
+
+# Language mode the editor starts in.
+mode: "python"
+# Load CodeMirror at all. False renders a plain <textarea> -- a meaningfully
+# different observation for an agent, so it is behaviour, not appearance.
+highlight: False
+# Sort the mode/theme dropdowns alphabetically instead of config order.
+sort_feature: True
+list_of_modes:
+  - python
+  - javascript
+  - css
+  - yaml
+  - markdown
+  - shell
+  - clike
+  - go

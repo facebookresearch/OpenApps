@@ -67,7 +67,7 @@ def editor_html_for_open_file(client):
 # ---------------------------------------------------------------------------
 
 def test_editor_resolves_to_the_vscode_theme():
-    from src.open_apps.theme import resolve_theme
+    from open_apps.theme import resolve_theme
 
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
@@ -79,7 +79,7 @@ def test_editor_resolves_to_the_vscode_theme():
 
 def test_per_app_theme_does_not_restyle_other_apps():
     """The editor opts in; todo keeps the global default."""
-    from src.open_apps.theme import resolve_theme
+    from open_apps.theme import resolve_theme
 
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
@@ -88,7 +88,7 @@ def test_per_app_theme_does_not_restyle_other_apps():
 
 def test_default_font_is_monospace():
     """A proportional font (the old "Arial") does not read as a code editor."""
-    from src.open_apps.theme import resolve_theme
+    from open_apps.theme import resolve_theme
 
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
@@ -113,7 +113,7 @@ def test_sidebar_has_its_own_surface(editor_html):
 
 
 def test_sidebar_colour_differs_from_editor_pane():
-    from src.open_apps.theme import resolve_theme
+    from open_apps.theme import resolve_theme
 
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
@@ -205,20 +205,53 @@ def test_sidebar_width_survives_without_tailwind(editor_html):
 
 
 # ---------------------------------------------------------------------------
-# Legacy appearance presets still work
+# Legacy appearance presets still have somewhere to land
 # ---------------------------------------------------------------------------
+#
+# The `appearance` group is gone: it conflated global look with per-app
+# structure, and the split sends five stems to `theme` and three to `layout`.
+# Hydra cannot compose `apps/code_editor/appearance=<preset>` any more -- the
+# directory does not exist -- so the compatibility contract moved to
+# registry.migrate_appearance, which is what the MCP `appearance=` parameter
+# and the docs migration table both go through.
 
 @pytest.mark.parametrize(
     "preset", ["default", "dark_theme", "black_and_white", "colorblind_access"]
 )
-def test_legacy_presets_still_compose(preset):
-    """They predate the new keys and must fall back, not raise."""
+def test_legacy_presets_map_onto_a_composable_override(preset):
+    """Each old editor preset still names a variant that composes today."""
+    from open_apps.mcp import registry
+
+    with pytest.deprecated_call():
+        theme, layout = registry.migrate_appearance(preset)
+
+    overrides = []
+    if theme is not None:
+        overrides.append(f"apps/theme={theme}")
+    if layout is not None:
+        overrides.append(f"apps/code_editor/layout={layout}")
+    assert overrides, f"{preset} mapped to neither a theme nor a layout"
+
     with initialize(version_base=None, config_path="../config/"):
-        config = compose(
-            config_name="config",
-            overrides=[f"apps/code_editor/appearance={preset}"],
-        )
+        config = compose(config_name="config", overrides=overrides)
+    # The appearance-era colour keys are gone for good; colours are tokens now.
     assert "sidebar_background_color" not in config.apps.code_editor
+
+
+def test_the_removed_group_is_not_silently_composable():
+    """A stale `appearance=` override must fail loudly, not no-op.
+
+    Hydra would otherwise be the only thing catching it, and a sweep that
+    passes the old override would quietly run every job on the default look.
+    """
+    from hydra.errors import HydraException
+
+    with pytest.raises((HydraException, Exception)):
+        with initialize(version_base=None, config_path="../config/"):
+            compose(
+                config_name="config",
+                overrides=["apps/code_editor/appearance=dark_theme"],
+            )
 
 
 # ---------------------------------------------------------------------------

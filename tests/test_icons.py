@@ -21,7 +21,7 @@ to regress:
 
 import pytest
 
-from src.open_apps.icons import Icon, icon, icon_markup
+from open_apps.icons import Icon, icon, icon_markup
 
 
 #: SVG elements that actually draw. Checked as a set rather than just `<path`

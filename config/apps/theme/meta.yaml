@@ -32,6 +32,7 @@ tokens:
 
   # --- Actions -----------------------------------------------------------
   color-primary: "#1877f2"                  # Meta Blue 50 - primary CTA
+  color-primary-hover: "#166fe5"            # Meta Blue 50, one step down
   color-on-primary: "#ffffff"
   color-accent: "#0064e0"                   # Meta Blue - brand / save action
   color-danger: "#e41e3f"                   # Red 35 - destructive
@@ -42,6 +43,9 @@ tokens:
   font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
   font-heading: "inherit"
   font-size-base: "16px"
+  font-size-sm: "14px"                      # chat bubbles, editor gutter
+  font-size-heading: "1.5rem"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
   radius: "8px"
   space: "8px"
 
@@ -70,3 +74,10 @@ tokens:
   ring-pink: "#f24eed"
   ring-teal: "#00d1ae"
   ring-violet: "#931efa"
+
+# App-agnostic hints each app maps onto its own concrete asset. Light theme, so
+# the colour icon set and the light CodeMirror stylesheet are correct here --
+# spelled out rather than inherited so a default change cannot flip them.
+assets:
+  tone: light
+  icon_set: color

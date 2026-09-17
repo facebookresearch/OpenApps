@@ -249,7 +249,7 @@ uv run launch_agent.py browsergym_env_args.headless=False
 
 ### Devices
 
-The device is a variation axis of its own, alongside appearance, content and
+The device is a variation axis of its own, alongside theme, layout, content and
 pop-ups. `config/device/` ships four:
 
 | `device=` | Viewport | Form factor | Input |

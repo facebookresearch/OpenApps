@@ -22,7 +22,7 @@ Two conventions make these work with the design-token themes:
 
 Usage::
 
-    from src.open_apps.icons import Icon, icon
+    from open_apps.icons import Icon, icon
 
     icon(Icon.FILE)                 # 16px, inherits colour
     icon(Icon.CHEVRON, size=14)
