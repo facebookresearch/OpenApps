@@ -118,13 +118,93 @@ def _desktop_config(start_page_cfg):
     return OmegaConf.to_container(raw, resolve=True) if OmegaConf.is_config(raw) else dict(raw)
 
 
-def reset_desktop_state(start_page_cfg=None) -> None:
+def _inventory_keys(start_page_cfg) -> list[str]:
+    """Every app key that will actually render, in configured order.
+
+    Same source the renderer uses, so `pinned: all` cannot pin something the
+    desktop has no tile for. That matters for the online shop in particular: it
+    is `enabled` in the start page's inventory but gated off globally unless
+    Java 21 is present, and a pinned key with no tile would still be reported
+    by /desktop_all -- a task could score on having pinned an app that is not
+    on the page.
+
+    Reads the inventory directly rather than going through `_enabled_apps`,
+    because callers hand this a plain dict as often as a DictConfig -- the
+    question generator does -- and attribute access would quietly answer with
+    an empty inventory, which `all` would then expand to nothing.
+    """
+    if start_page_cfg is None:
+        return []
+    raw = start_page_cfg.get("apps") if hasattr(start_page_cfg, "get") else None
+    if raw is None:
+        return []
+    items = OmegaConf.to_container(raw, resolve=True) if OmegaConf.is_config(raw) else dict(raw)
+    enabled = [(k, v or {}) for k, v in items.items() if (v or {}).get("enabled", True)]
+    enabled.sort(key=lambda kv: kv[1].get("position", 999))
+    keys = [k for k, _ in enabled]
+    # The online shop is `enabled` in this inventory but gated globally on
+    # Java 21 plus a downloaded dataset. Left in, `all` would pin a key with no
+    # tile on the page, and /desktop_all would report it -- a task could score
+    # on having pinned an app nothing can reach. Best-effort: with no global
+    # config attached yet, over-pinning beats an empty desktop.
+    try:
+        if not app.config.onlineshop.enable:
+            keys = [k for k in keys if k != "onlineshop"]
+    except AttributeError:
+        pass
+    return keys
+
+
+def resolve_pinned(desktop_cfg, start_page_cfg, variant: str = "shell") -> list[str]:
+    """Which app keys start pinned.
+
+    `pinned` is either a list of keys or the string `all`, which expands to the
+    whole inventory so that adding an app does not silently leave it off the
+    desktop. `unpinned` is then subtracted, and that is the ergonomic half: the
+    launcher only matters to an agent when something it needs is behind it, so
+    forcing that case should be one short override rather than re-listing every
+    app you still want pinned.
+
+        apps.start_page.desktop.unpinned=[messages,maps]
+
+    The phone splits apps between a home grid (unpinned) and a dock (pinned),
+    so `all` there would dock everything and leave the grid empty. It takes
+    `pinned_by_variant.home_screen` instead when that is set. Nothing is hidden
+    on a phone either way -- an unpinned app is on the grid, not behind the
+    launcher -- so the launcher-pressure experiment is a desktop one.
+    """
+    inventory = _inventory_keys(start_page_cfg)
+
+    by_variant = desktop_cfg.get("pinned_by_variant") or {}
+    pinned = by_variant[variant] if variant in by_variant else desktop_cfg.get("pinned", [])
+
+    if isinstance(pinned, str):
+        if pinned != "all":
+            raise ValueError(
+                f"apps.start_page.desktop.pinned={pinned!r} is not understood; "
+                f"use `all` or a list of app keys from {inventory}."
+            )
+        keys = list(inventory)
+    else:
+        keys = list(pinned or [])
+
+    excluded = set(desktop_cfg.get("unpinned") or [])
+    # Ordered by the inventory, not by the pin list: the dock and the home grid
+    # both render in configured order, so a task's "third icon" does not depend
+    # on what order someone happened to write the yaml in.
+    ordered = [k for k in inventory if k in keys and k not in excluded]
+    # Keys outside the inventory are kept rather than dropped, so a typo shows
+    # up as an app that never appears instead of vanishing from /desktop_all.
+    return ordered + [k for k in keys if k not in inventory and k not in excluded]
+
+
+def reset_desktop_state(start_page_cfg=None, variant: str = "shell") -> None:
     """Re-seed shell state from config. Called on app reset."""
     global _desktop_state
     _desktop_state = dict(_DESKTOP_DEFAULTS)
     cfg = _desktop_config(start_page_cfg) if start_page_cfg is not None else {}
     _desktop_state["mode"] = cfg.get("mode", "light")
-    _desktop_state["pinned"] = list(cfg.get("pinned", []) or [])
+    _desktop_state["pinned"] = resolve_pinned(cfg, start_page_cfg, variant)
     _desktop_state["units"] = cfg.get("units", "celsius")
 
 # Define available apps and their route getters
@@ -182,6 +262,19 @@ def _drop_app_tables(module, apps_cfg) -> None:
         pass
 
 
+def _configured_variant(config) -> str:
+    """The composition this run will render, for seeding pin state.
+
+    Resolved from the device the same way rendering does, because the phone and
+    the desktop disagree about what `pinned` should default to -- see
+    `resolve_pinned`.
+    """
+    return _layout_variant(
+        _desktop_config(getattr(config, "start_page", None)),
+        device.form_factor(config),
+    )
+
+
 def reset_all_apps(config: DictConfig):
     """Reset all app databases to their configured initial state.
 
@@ -203,7 +296,7 @@ def reset_all_apps(config: DictConfig):
 
     # Shell state is part of what a reset must restore: a task that scores on
     # pinned apps or theme mode would otherwise inherit the previous episode's.
-    reset_desktop_state(getattr(config, "start_page", None))
+    reset_desktop_state(getattr(config, "start_page", None), _configured_variant(config))
 
     for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
         try:
@@ -258,7 +351,7 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     app.config = config  # Update the global app config
     # Seed the desktop shell from config. Harmless under the gallery layout --
     # the state simply goes unread.
-    reset_desktop_state(getattr(config, "start_page", None))
+    reset_desktop_state(getattr(config, "start_page", None), _configured_variant(config))
     _prerender_wallpaper(getattr(config, "start_page", None))
 
     java_version_high_enough = get_java_version().startswith("21")

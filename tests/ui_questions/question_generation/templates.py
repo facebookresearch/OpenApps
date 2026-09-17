@@ -1885,24 +1885,56 @@ def start_page_shell_toolbar_contents(state, config, rng, **_):
 
 
 def start_page_shell_pinned_apps(state, config, rng, **_):
-    """Which apps are docked -- read from config, since pinning is scoreable
-    state a task can change rather than a constant of the layout."""
-    if _layout(config) != "desktop":
-        return []
-    desktop = (config or {}).get("desktop") or {}
-    pinned_keys = list(desktop.get("pinned") or [])
+    """What is on the desktop, and what is only behind the launcher.
+
+    Which question is fair depends on the config. Everything is pinned by
+    default, so "which app is pinned?" has no wrong answer to offer and is
+    asked as a count instead. Once a researcher unpins something -- the whole
+    point of `desktop.unpinned`, and the only way the launcher exerts any
+    pressure -- both directions become answerable and more interesting.
+    """
+    from open_apps.apps.start_page.main import _inventory_keys, resolve_pinned
+
+    config = config or {}
+    desktop = config.get("desktop") or {}
+    # Both sets come off the inventory, not the raw `apps:` block. The online
+    # shop is listed there with a title but gated off globally, so building
+    # titles from the block would have made it the answer to "which app has no
+    # desktop shortcut" -- an app that is not on the page at all.
+    inventory = _inventory_keys(config)
+    # Not `desktop["pinned"]` -- that is `all` by default, and list("all") is
+    # three letters. Resolution also subtracts `unpinned`.
+    pinned_keys = resolve_pinned(desktop, config)
+    apps_cfg = config.get("apps") or {}
     titles = {
-        key: (((config or {}).get("apps") or {}).get(key) or {}).get("title")
-        for key in ((config or {}).get("apps") or {})
+        key: (apps_cfg.get(key) or {}).get("title")
+        for key in inventory
+        if (apps_cfg.get(key) or {}).get("title")
     }
-    pinned = [titles.get(k) for k in pinned_keys if titles.get(k)]
-    unpinned = [t for k, t in titles.items() if k not in pinned_keys and t]
-    # Needs one correct answer and three genuine distractors to be a fair MCQ.
-    if not pinned or len(unpinned) < 3:
+    pinned = [t for k, t in titles.items() if k in pinned_keys]
+    unpinned = [t for k, t in titles.items() if k not in pinned_keys]
+    if not pinned:
         return []
 
-    questions = []
-    for app_name in pinned:
+    # Always answerable, and the only one that works when everything is pinned.
+    choices, correct_letter = _shuffle_choices(
+        str(len(pinned)), _nearby_integers(len(pinned), 10, rng), rng
+    )
+    questions = [
+        MCQuestion(
+            question="How many app shortcuts are on the desktop?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="start_page",
+        )
+    ]
+
+    # Each direction needs three distractors from the *other* set, and the two
+    # sets are lopsided in opposite ways: everything is pinned by default, and
+    # a launcher experiment unpins one or two. So gate them independently
+    # rather than on one shared threshold.
+    for app_name in pinned if len(unpinned) >= 3 else []:
         distractors = rng.sample(unpinned, 3)
         choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
         questions.append(
@@ -1915,6 +1947,25 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
                 difficulty="medium",
             )
         )
+    # The inverse is the one that matters for a launcher task: naming the app
+    # with no shortcut is naming the app you have to open the menu to reach.
+    if len(pinned) >= 3 and unpinned:
+        for app_name in unpinned:
+            distractors = rng.sample(pinned, 3)
+            choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
+            questions.append(
+                MCQuestion(
+                    question=(
+                        "Which of these apps has no desktop shortcut, so it can "
+                        "only be opened from the launcher?"
+                    ),
+                    choices=choices,
+                    correct=correct_letter,
+                    category="element_content",
+                    app="start_page",
+                    difficulty="medium",
+                )
+            )
     return questions
 
 

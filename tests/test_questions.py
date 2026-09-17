@@ -15,6 +15,7 @@ from pathlib import Path
 from hydra import initialize, compose
 from starlette.testclient import TestClient
 
+from open_apps.apps.start_page import main as start_page_main
 from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
 from tests.ui_questions.question_generation.generator import (
     generate_questions_from_client,
@@ -185,6 +186,10 @@ class TestStartPageLayoutAwareness:
                 config_name="config",
                 overrides=[f"apps/start_page/layout={layout}"],
             )
+        # Attach the global config the way a live run does: the online shop is
+        # gated on Java 21 from a sibling node the start page cannot see, and
+        # without this it would count as a pinned app with no tile.
+        start_page_main.app.config = config.apps
         return [
             q
             for q in generate_questions_from_state({}, config)
@@ -225,18 +230,48 @@ class TestStartPageLayoutAwareness:
         """The desktop shell renders only the pinned apps.
 
         Everything else is behind the launcher popover and absent from the
-        initial HTML, so a question naming one as "shown" would be wrong.
+        initial HTML, so naming one as "shown" would be wrong.
         """
+        from open_apps.apps.start_page.main import _desktop_config, resolve_pinned
+
         questions, config = self._start_page_questions("desktop")
-        pinned_keys = list(config.apps.start_page.desktop.pinned)
-        pinned_titles = {
-            config.apps.start_page.apps[k].title for k in pinned_keys
-        }
+        sp = config.apps.start_page
+        pinned_keys = resolve_pinned(_desktop_config(sp), sp)
         unpinned_titles = {
             a.title
-            for k, a in config.apps.start_page.apps.items()
+            for k, a in sp.apps.items()
             if k not in pinned_keys and a.get("title")
         }
-        named_as_correct = {q.choices[q.correct] for q in questions}
-        assert pinned_titles <= named_as_correct
-        assert not (unpinned_titles & named_as_correct)
+        shown_as_correct = {
+            q.choices[q.correct]
+            for q in questions
+            if "no desktop shortcut" not in q.question
+        }
+        assert not (unpinned_titles & shown_as_correct)
+
+    def test_unpinning_creates_the_launcher_question(self):
+        """`desktop.unpinned` is the knob that makes the launcher load-bearing,
+        so the corpus should be able to ask about it."""
+        with initialize(version_base=None, config_path="../config/"):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "apps/start_page/layout=desktop",
+                    "apps.start_page.desktop.unpinned=[messages]",
+                ],
+            )
+        start_page_main.app.config = config.apps
+        questions = generate_questions_from_state({}, config)
+        launcher_qs = [q for q in questions if "no desktop shortcut" in q.question]
+        assert len(launcher_qs) == 1
+        q = launcher_qs[0]
+        assert q.choices[q.correct] == config.apps.start_page.apps.messages.title
+
+    def test_everything_pinned_asks_a_count_instead(self):
+        """With no unpinned app there is no wrong answer to offer, so the
+        "which is pinned" question would have been unanswerable."""
+        questions, _ = self._start_page_questions("desktop")
+        assert not any("pinned to the desktop" in q.question for q in questions)
+        counts = [q for q in questions if "How many app shortcuts" in q.question]
+        assert len(counts) == 1
+        assert counts[0].choices[counts[0].correct] == "5"

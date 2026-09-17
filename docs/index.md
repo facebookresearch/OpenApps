@@ -165,6 +165,35 @@ light/dark mode and the list of pinned app keys. `launcher_open` is
 deliberately excluded — a task should not pass or fail on whether the agent
 left a popover showing.
 
+##### Pinning, and making the agent use the launcher
+
+Every app is pinned by default (`pinned: all`), so each one has a shortcut on
+the desktop and the launcher is a convenience. The launcher only *tests*
+anything once something the agent needs is behind it, and that is one
+override — name the few to hide rather than re-listing the many to keep:
+
+```bash
+# OpenMessages has no shortcut; the only route to it is the launcher menu
+uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
+    apps.start_page.desktop.unpinned=[messages]
+
+# or sweep it as a variation axis
+uv run launch_parallel_agents.py \
+    'parallel_tasks.app_variations=[[],["apps.start_page.desktop.unpinned=[messages,maps]"]]'
+```
+
+`pinned` also takes an explicit list, and resolution always follows the app
+inventory's order rather than the order you wrote — so "the third icon" means
+the same thing however the override was typed. `all` expands to the apps that
+actually render, so the online shop is not pinned while it is gated off, which
+would otherwise put a key in `/desktop_all` with no tile on the page.
+
+The phone home screen is the exception: it splits apps between a grid
+(unpinned) and a dock (pinned), so `all` would dock everything and leave the
+grid empty. It takes `pinned_by_variant.home_screen` instead. It is not the
+composition for this experiment anyway — a phone's unpinned apps sit on the
+grid in plain view, not behind the menu.
+
 #### Migrating from `appearance`
 
 The `appearance` group these two replaced was removed: there are no

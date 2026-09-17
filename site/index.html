@@ -616,6 +616,30 @@ most:</p>
 light/dark mode and the list of pinned app keys. <code>launcher_open</code> is
 deliberately excluded — a task should not pass or fail on whether the agent
 left a popover showing.</p>
+<h5 id="pinning-and-making-the-agent-use-the-launcher">Pinning, and making the agent use the launcher</h5>
+<p>Every app is pinned by default (<code>pinned: all</code>), so each one has a shortcut on
+the desktop and the launcher is a convenience. The launcher only <em>tests</em>
+anything once something the agent needs is behind it, and that is one
+override — name the few to hide rather than re-listing the many to keep:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># OpenMessages has no shortcut; the only route to it is the launcher menu</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>navigate_to_messenger<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>apps.start_page.desktop.unpinned<span class="o">=[</span>messages<span class="o">]</span>
+
+<span class="c1"># or sweep it as a variation axis</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_parallel_agents.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="s1">&#39;parallel_tasks.app_variations=[[],[&quot;apps.start_page.desktop.unpinned=[messages,maps]&quot;]]&#39;</span>
+</code></pre></div>
+
+<p><code>pinned</code> also takes an explicit list, and resolution always follows the app
+inventory's order rather than the order you wrote — so "the third icon" means
+the same thing however the override was typed. <code>all</code> expands to the apps that
+actually render, so the online shop is not pinned while it is gated off, which
+would otherwise put a key in <code>/desktop_all</code> with no tile on the page.</p>
+<p>The phone home screen is the exception: it splits apps between a grid
+(unpinned) and a dock (pinned), so <code>all</code> would dock everything and leave the
+grid empty. It takes <code>pinned_by_variant.home_screen</code> instead. It is not the
+composition for this experiment anyway — a phone's unpinned apps sit on the
+grid in plain view, not behind the menu.</p>
 <h4 id="migrating-from-appearance">Migrating from <code>appearance</code></h4>
 <p>The <code>appearance</code> group these two replaced was removed: there are no
 <code>config/apps/&lt;app&gt;/appearance/</code> directories and no app renders from one.

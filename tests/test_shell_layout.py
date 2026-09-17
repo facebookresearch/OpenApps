@@ -401,3 +401,132 @@ class TestStylesheet:
 
     def test_tablets_get_touch_sized_targets(self):
         assert "44px" in self.rule(".is-tablet .ui-icon-btn")
+
+
+class TestWallpaperTextIsThemeAware:
+    """Ink over the wallpaper has to follow the theme, not be pinned white.
+
+    The headline and the tile labels sit on a generated image, not on
+    `--color-bg`. They used to hardcode `--color-on-primary`, which is white in
+    *both* Meta themes -- correct over the dark one, white-on-pale over the
+    light one. Nothing fails when this is wrong; it just renders illegibly.
+    """
+
+    def css(self) -> str:
+        return to_xml(component_styles())
+
+    def strip_comments(self, text: str) -> str:
+        return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+
+    def rule(self, selector: str) -> str:
+        """Every block for `selector`, concatenated.
+
+        A selector can legitimately appear more than once -- `.ui-tile` has a
+        layout block and a colour block -- and taking only the first would make
+        these assertions depend on declaration order.
+        """
+        css = self.strip_comments(self.css())
+        blocks = re.findall(
+            rf"(?:^|\}}|\{{)\s*{re.escape(selector)}\s*\{{([^}}]*)\}}", css, re.S
+        )
+        assert blocks, f"no rule for {selector}"
+        return "\n".join(blocks)
+
+    def test_the_halo_is_derived_from_the_page_background(self):
+        # --color-bg is light in a light theme and dark in a dark one, so the
+        # backing needs no per-mode branch and holds for a non-Meta theme too.
+        declarations = self.rule(".ui-desktop")
+        assert "--ui-wallpaper-halo" in declarations
+        assert "var(--color-bg)" in declarations
+
+    def test_headline_uses_the_theme_foreground(self):
+        declarations = self.rule(".ui-desktop-headline")
+        assert "color: var(--color-fg)" in declarations
+        assert "--color-on-primary" not in declarations
+        assert "--ui-wallpaper-halo" in declarations
+
+    def test_tile_labels_use_the_theme_foreground(self):
+        declarations = self.rule(".ui-tile")
+        assert "color: var(--color-fg)" in declarations
+        assert "--ui-wallpaper-halo" in declarations
+
+    def test_no_wallpaper_text_is_pinned_to_a_literal_colour(self):
+        # A raw rgb()/#hex in a text-shadow is the same bug in another form:
+        # it cannot follow the theme.
+        for selector in (".ui-desktop-headline", ".ui-tile"):
+            declarations = self.rule(selector)
+            shadow = re.search(r"text-shadow:([^;]*);", declarations)
+            assert shadow, selector
+            assert "rgb(" not in shadow.group(1), selector
+            assert "#" not in shadow.group(1), selector
+
+    def test_the_phone_widget_opts_out_of_the_halo(self):
+        # It sits on its own frosted card, not on the image.
+        declarations = self.rule(".is-phone .ui-desktop-headline")
+        assert "text-shadow: none" in declarations
+
+    def test_toolbar_chips_track_the_theme_foreground(self):
+        """The dark theme's --color-muted is a mid grey on a frosted bar over a
+        dark wallpaper, leaving the clock and temperature dimmer than the mode
+        toggle beside them."""
+        declarations = self.rule(".ui-desktop .ui-chip,\n.ui-desktop .ui-chip .ui-text")
+        assert "var(--color-fg)" in declarations
+        assert "--color-muted" not in declarations
+
+
+class TestPinResolution:
+    """`pinned: all` plus a subtractive `unpinned`.
+
+    The launcher only exerts pressure on an agent when something it needs is
+    behind it, so the ergonomic default is everything pinned and the
+    experiment is naming the few to hide.
+    """
+
+    def resolve(self, overrides=(), variant="shell"):
+        from open_apps.apps.start_page.main import _desktop_config, resolve_pinned
+
+        apps_cfg = compose_apps("desktop", *overrides)
+        # The inventory is filtered through the renderer's own enabled-apps
+        # check, which reads the global online-shop gate off app.config.
+        start_page.app.config = apps_cfg
+        sp = apps_cfg.start_page
+        return resolve_pinned(_desktop_config(sp), sp, variant)
+
+    def test_all_expands_to_every_rendered_app(self):
+        pinned = self.resolve()
+        assert pinned == ["todo", "calendar", "messages", "maps", "codeeditor"]
+
+    def test_the_online_shop_is_not_pinned_while_it_is_gated_off(self):
+        """It is `enabled` in the start page's inventory but gated globally on
+        Java 21. A pinned key with no tile would still reach /desktop_all, and
+        a task could score on pinning an app that is not on the page."""
+        assert "onlineshop" not in self.resolve()
+
+    def test_unpinned_subtracts(self):
+        pinned = self.resolve(["apps.start_page.desktop.unpinned=[messages,maps]"])
+        assert "messages" not in pinned and "maps" not in pinned
+        assert "todo" in pinned and "codeeditor" in pinned
+
+    def test_an_explicit_list_still_works(self):
+        assert self.resolve(["apps.start_page.desktop.pinned=[maps]"]) == ["maps"]
+
+    def test_order_follows_the_inventory_not_the_pin_list(self):
+        # The dock renders in configured order, so a task's "third icon" must
+        # not depend on the order someone wrote the yaml in.
+        assert self.resolve(["apps.start_page.desktop.pinned=[maps,todo]"]) == [
+            "todo",
+            "maps",
+        ]
+
+    def test_the_phone_keeps_a_grid_to_show(self):
+        """`all` on the home screen would dock every app and leave the grid
+        empty, since the grid is exactly the unpinned set."""
+        pinned = self.resolve(variant="home_screen")
+        assert pinned == ["todo", "calendar"]
+        assert len(pinned) < len(self.resolve())
+
+    def test_an_unknown_pinned_value_is_rejected(self):
+        # Not silently treated as "none": a typo'd sentinel would empty the
+        # desktop, which looks like a rendering bug rather than a config one.
+        with pytest.raises(ValueError, match="not understood"):
+            self.resolve(["apps.start_page.desktop.pinned=everything"])

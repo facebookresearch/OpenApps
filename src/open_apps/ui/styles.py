@@ -142,6 +142,17 @@ _CSS = """
   padding: calc(var(--space) * 0.25) calc(var(--space) * 0.75);
   border-radius: var(--radius);
 }
+/* In the shell the toolbar is frosted over the wallpaper, and --color-muted is
+   chosen to read on --color-bg. The dark theme's is a mid grey (#8a8d91) that
+   lands on a dark band of the image, leaving the clock and temperature dimmer
+   than the mode toggle sitting right beside them. Deriving from --color-fg
+   keeps them muted relative to their neighbours without picking a per-mode
+   value: dark ink at 72% in the light theme, white at 72% in the dark one.
+   The inner .ui-text.is-caption sets its own colour, so it is named too. */
+.ui-desktop .ui-chip,
+.ui-desktop .ui-chip .ui-text {
+  color: color-mix(in srgb, var(--color-fg) 72%, transparent);
+}
 
 /* ---- desktop ---------------------------------------------------------- */
 .ui-desktop {
@@ -169,6 +180,15 @@ _CSS = """
      land on top of a modal or the launcher panel. */
   position: relative;
   isolation: isolate;
+
+  /* Backing for text that sits on the wallpaper rather than on --color-bg.
+     The ink itself is --color-fg, which is already correct in both modes --
+     near-black in the light theme, white in the dark one. What it needs is a
+     halo, because the wallpaper is an image and no single ink survives every
+     band of it. Deriving the halo from --color-bg means it is always the
+     surface the text would have been legible against anyway, so this needs no
+     per-mode branch and holds for a theme that is neither Meta one. */
+  --ui-wallpaper-halo: color-mix(in srgb, var(--color-bg) 80%, transparent);
 }
 
 /* Depth-of-field pass. A flat frosted sheet over the whole image would just
@@ -242,10 +262,13 @@ _CSS = """
   text-align: center;
   margin: calc(var(--space) * 2) auto 0;
   max-width: 34ch;
-  /* Same reasoning as the tiles: this sits on the wallpaper, not on
-     --color-bg, so --color-fg would vanish against the image in light mode. */
-  color: var(--color-on-primary);
-  text-shadow: 0 1px 8px rgb(0 0 0 / 40%);
+  /* Sits on the wallpaper, not on --color-bg. --color-fg is still the right
+     ink -- it is what the active theme calls legible -- but it needs the halo
+     to survive the image. It used to be --color-on-primary, which is white in
+     *both* themes, so the light mode rendered white display type over a pale
+     wallpaper. */
+  color: var(--color-fg);
+  text-shadow: 0 1px 10px var(--ui-wallpaper-halo), 0 0 3px var(--ui-wallpaper-halo);
 }
 .ui-desktop-headline .ui-text { color: inherit; }
 .ui-dock-row {
@@ -273,12 +296,15 @@ _CSS = """
   text-decoration: none;
   color: var(--color-fg);
 }
-.ui-tile:hover { background: color-mix(in srgb, var(--color-on-primary) 18%, transparent); }
-/* These sit over the wallpaper, not over --color-bg, so they cannot use
-   --color-fg: it is near-black in light mode and would vanish into the dark
-   lower half of the image. --color-on-primary is white in both modes, which is
-   what "text on a saturated brand surface" means here. */
-.ui-tile { color: var(--color-on-primary); text-shadow: 0 1px 3px rgb(0 0 0 / 45%); }
+/* A white wash is invisible on a pale wallpaper, so the hover tint comes off
+   --color-fg too: dark in the light theme, white in the dark one. */
+.ui-tile:hover { background: color-mix(in srgb, var(--color-fg) 14%, transparent); }
+/* Over the wallpaper, so the same halo the headline uses. Previously pinned to
+   --color-on-primary (white in both themes) on the theory that a tile label is
+   "text on a saturated surface" -- but only the glyph tile is saturated; the
+   label sits on the wallpaper underneath it and was white-on-pale in light
+   mode. The glyph keeps --color-on-primary, which is correct there. */
+.ui-tile { color: var(--color-fg); text-shadow: 0 1px 3px var(--ui-wallpaper-halo), 0 0 2px var(--ui-wallpaper-halo); }
 .ui-tile .ui-text { color: inherit; }
 .ui-tile-glyph {
   display: flex;
@@ -396,8 +422,9 @@ _CSS = """
   background: color-mix(in srgb, var(--color-surface) 78%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
-  /* On its own surface now, not on the image, so the desktop's
-     white-with-a-shadow would be white on white in light mode. */
+  /* On its own surface, not on the image, so it wants the plain token and no
+     halo -- the desktop's wallpaper backing would just smear here. Same ink
+     either way; this only drops the shadow. */
   color: var(--color-fg);
   text-shadow: none;
 }

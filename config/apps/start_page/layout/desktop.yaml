@@ -58,8 +58,29 @@ desktop:
   # Initial temperature units: celsius | fahrenheit. Also mutable at runtime by
   # clicking the toolbar temperature, and also scoreable.
   units: "celsius"
-  # App keys pinned to the desktop on first load. Also mutable at runtime.
-  pinned: ["todo", "calendar"]
+  # App keys pinned to the desktop on first load. Also mutable at runtime, and
+  # scoreable -- /desktop_all reports the list.
+  #
+  # `all` expands to every enabled app in `apps:` above, so adding an app does
+  # not silently leave it off the desktop. A list of keys works too.
+  pinned: all
+  # Subtracted from `pinned`. This is the knob for launcher experiments: an
+  # unpinned app has no shortcut on the desktop, so the only way to it is
+  # through the launcher menu. Naming the few you want hidden beats re-listing
+  # every one you still want shown.
+  #
+  #   uv run launch.py apps.start_page.desktop.unpinned=[messages,maps]
+  #   uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
+  #       apps.start_page.desktop.unpinned=[messages]
+  unpinned: []
+  # Per-composition override of `pinned`, keyed like `variants:` above.
+  #
+  # The home screen splits apps between a grid (unpinned) and a dock (pinned),
+  # so `all` there would dock every app and leave the grid empty. It is not the
+  # composition to run launcher experiments on anyway: a phone's unpinned apps
+  # are on the grid, in plain view, not behind the menu.
+  pinned_by_variant:
+    home_screen: ["todo", "calendar"]
   # Programmatically generated background, rendered by open_apps.wallpaper
   # with Pillow and numpy -- both already dependencies, so there is nothing to
   # install. If rendering fails for any reason the shell falls back to a
