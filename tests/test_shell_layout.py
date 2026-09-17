@@ -465,6 +465,33 @@ class TestWallpaperTextIsThemeAware:
         declarations = self.rule(".is-phone .ui-desktop-headline")
         assert "text-shadow: none" in declarations
 
+    def test_tile_hover_lifts_a_surface_rather_than_tinting_with_the_ink(self):
+        """Hover must not reduce contrast.
+
+        A --color-fg wash is the same colour as the label sitting on top of it,
+        so the label got harder to read on hover -- in both modes, since both
+        the ink and the wash flip together. Washing toward --color-bg restores
+        the fg-on-bg pairing the tokens are built around.
+        """
+        declarations = self.rule(".ui-tile:hover")
+        assert "var(--color-bg)" in declarations
+        assert "var(--color-fg)" not in declarations
+
+    def test_elevation_shadows_are_not_derived_from_the_foreground(self):
+        """A --color-fg shadow inverts with the theme and becomes a white smear
+        under every app icon on the dark one. Depth stays dark."""
+        declarations = self.rule(".ui-desktop")
+        assert "--ui-shadow-raised" in declarations
+        shadow = re.search(r"--ui-shadow-raised:([^;]*);", declarations)
+        assert shadow and "--color-fg" not in shadow.group(1)
+
+    def test_the_phone_icon_shadow_uses_that_one_knob(self):
+        # It was a literal rgb(0 0 0 / 28%), tuned against the dark wallpaper
+        # where a black shadow all but disappears -- and far too heavy on the
+        # pale one, where it is the only place it actually shows.
+        declarations = self.rule(".is-phone .ui-tile-glyph")
+        assert "box-shadow: var(--ui-shadow-raised)" in declarations
+
     def test_toolbar_chips_track_the_theme_foreground(self):
         """The dark theme's --color-muted is a mid grey on a frosted bar over a
         dark wallpaper, leaving the clock and temperature dimmer than the mode

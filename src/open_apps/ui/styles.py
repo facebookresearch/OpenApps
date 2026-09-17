@@ -6,18 +6,25 @@ LICENSE file in the root directory of this source tree.
 
 Component CSS for :mod:`open_apps.ui`.
 
-One stylesheet for every atom and molecule, written entirely against
-``var(--token)``. Not a single literal colour appears below -- that is the
-property that makes a theme swap, or the light/dark toggle, repaint the whole
-shell without re-rendering any Python or reloading the page.
+One stylesheet for every atom and molecule, written against ``var(--token)``.
+That is the property that makes a theme swap, or the light/dark toggle, repaint
+the whole shell without re-rendering any Python or reloading the page.
+
+Three literal colours survive, all deliberate and all black:
+
+* the two ``mask-image`` gradients on the wallpaper overlays, where the colour
+  is never painted -- only its alpha is read;
+* ``--ui-shadow-raised`` and the launcher scrim, which are *absences of light*
+  rather than surfaces. A shadow derived from ``--color-fg`` would come out
+  white on the dark theme and smear under every icon.
+
+Anything that is a surface or ink reads a token. Where a component needs
+something the theme does not define -- a hover tint, say -- it uses
+``color-mix()`` against an existing token rather than inventing a hex, so it
+stays correct in both modes instead of only the one it was eyeballed in.
 
 Emitted as an inline ``<style>``. No stylesheet request, no bundler, nothing
 fetched at page load; the eval nodes have no outbound network.
-
-Every value that could reasonably differ between themes reads a token. Where a
-component needs something the theme does not define -- a hover tint, say -- it
-uses ``color-mix()`` against an existing token rather than inventing a hex, so
-it stays correct in both modes instead of only the one it was eyeballed in.
 """
 from __future__ import annotations
 
@@ -189,6 +196,16 @@ _CSS = """
      surface the text would have been legible against anyway, so this needs no
      per-mode branch and holds for a theme that is neither Meta one. */
   --ui-wallpaper-halo: color-mix(in srgb, var(--color-bg) 80%, transparent);
+
+  /* Elevation under something sitting on the wallpaper. Stays dark in both
+     modes on purpose: depth is an absence of light, and deriving it from
+     --color-fg the way the launcher panel does would put a white smear under
+     every app icon on the dark theme.
+     Only light mode really sees it -- on the dark wallpaper a black shadow has
+     nothing to contrast against and simply disappears, which is why this was
+     tuned by eye against the dark theme and came out far too heavy on the
+     pale one: 28% at a 16px blur read as a hard blob under each icon. */
+  --ui-shadow-raised: 0 3px 10px rgb(0 0 0 / 13%);
 }
 
 /* Depth-of-field pass. A flat frosted sheet over the whole image would just
@@ -296,9 +313,13 @@ _CSS = """
   text-decoration: none;
   color: var(--color-fg);
 }
-/* A white wash is invisible on a pale wallpaper, so the hover tint comes off
-   --color-fg too: dark in the light theme, white in the dark one. */
-.ui-tile:hover { background: color-mix(in srgb, var(--color-fg) 14%, transparent); }
+/* Hover lifts a surface under the tile rather than tinting it. A --color-fg
+   wash is the same colour as the label sitting on top of it, so contrast went
+   *down* on hover in both modes -- the one direction a hover state must not
+   go. Washing toward --color-bg restores the fg-on-bg pairing the tokens are
+   designed around: a pale card under dark text in the light theme, a dark one
+   under white text in the dark theme. */
+.ui-tile:hover { background: color-mix(in srgb, var(--color-bg) 55%, transparent); }
 /* Over the wallpaper, so the same halo the headline uses. Previously pinned to
    --color-on-primary (white in both themes) on the theory that a tile label is
    "text on a saturated surface" -- but only the glyph tile is saturated; the
@@ -449,7 +470,7 @@ _CSS = """
   /* A percentage, so the corners stay proportional at any size -- and rounded
      far enough to read as an app icon rather than as a card. */
   border-radius: 28%;
-  box-shadow: 0 6px 16px rgb(0 0 0 / 28%);
+  box-shadow: var(--ui-shadow-raised);
 }
 .is-phone .ui-tile-label {
   display: block;
