@@ -14,4 +14,8 @@ viewport: [820, 1180]
 device_scale_factor: 1
 is_mobile: true
 has_touch: true
-user_agent: null
+
+#: Note the absent `Mobile` token -- that, not the OS, is how Chrome tells a
+#: site it is a tablet, and it matches this device keeping the desktop
+#: composition. See config/device/phone.yaml for why the version is pinned.
+user_agent: "Mozilla/5.0 (Linux; Android 14; Pixel Tablet) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"

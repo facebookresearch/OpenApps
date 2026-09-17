@@ -139,12 +139,31 @@ asset, so a theme file never has to know which apps exist.
 
 ```shell
 uv run launch.py apps/todo/layout=kanban_board
-uv run launch.py apps/start_page/layout=broken_logos
+uv run launch.py apps/start_page/layout=gallery
 ```
 
-Available layouts: `todo` has `default` and `kanban_board`; `start_page` has
-`default`, `broken_logos` (icons detached from their tiles) and
-`clickable_logos`; the other apps currently have `default` only.
+| App | Layouts |
+| --- | --- |
+| `start_page` | `desktop` (default), `gallery`, `broken_logos`, `clickable_logos` |
+| `todo` | `default`, `kanban_board` |
+| everything else | `default` |
+
+The start page is the landing surface an agent sees first, so it carries the
+most:
+
+* **`desktop`** — the default. A toolbar (launcher, clock, weather, light/dark
+  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
+  it renders as a home screen instead; see [Devices](#devices).
+* **`gallery`** — the original html5up tile grid: five coloured tiles under a
+  "Welcome to OpenApps!" headline. Still a single override away, and it is what
+  the paper's figures show.
+* **`broken_logos`** / **`clickable_logos`** — variations *of the gallery*
+  (they compose it), so selecting either also selects the tile grid.
+
+Two pieces of desktop state are scoreable and served at `/desktop_all`: the
+light/dark mode and the list of pinned app keys. `launcher_open` is
+deliberately excluded — a task should not pass or fail on whether the agent
+left a popover showing.
 
 #### Migrating from `appearance`
 
@@ -275,18 +294,25 @@ uv run launch_agent.py browsergym_env_args.headless=False
 The device is a variation axis of its own, alongside theme, layout, content and
 pop-ups. `config/device/` ships four:
 
-| `device=` | Viewport | Form factor | Input |
-| --- | --- | --- | --- |
-| `desktop` (default) | 1920×1080 | desktop | mouse |
-| `laptop` | 1280×800 | desktop | mouse |
-| `tablet` | 820×1180 | tablet | touch, no hover |
-| `phone` | 390×844 | phone | touch, no hover |
+| `device=` | Viewport | Form factor | Input | User agent |
+| --- | --- | --- | --- | --- |
+| `desktop` (default) | 1920×1080 | desktop | mouse | Chromium's own |
+| `laptop` | 1280×800 | desktop | mouse | Chromium's own |
+| `tablet` | 820×1180 | tablet | touch, no hover | Chrome, Android tablet |
+| `phone` | 390×844 | phone | touch, no hover | Chrome, Android phone |
 
 ```bash
 uv run launch.py +experiment=phone                      # browse the phone build
 uv run launch_agent.py agent=dummy +experiment=phone    # run an agent on it
 uv run launch_agent.py agent=dummy device=tablet        # just the device
 ```
+
+The mobile devices set a matching UA because `is_mobile` alone leaves Chromium
+announcing itself as desktop Chrome — touch input, phone width, desktop
+browser, which is a contradiction anything UA-sniffing would see. They claim
+Chrome rather than iOS Safari because the engine really is Blink, and the
+version is pinned so a rendering does not change because the month did.
+Opt out with `device.user_agent=null`, or set your own.
 
 One setting moves two things:
 
@@ -316,6 +342,35 @@ uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
 
 Adding a device is a file in `config/device/`; a form factor with no variant of
 its own falls back to the desktop composition rather than to a blank page.
+
+#### The preview window
+
+`uv run launch.py` opens a browser on the apps once they answer, so "run it and
+look at it" is one command rather than two plus copying a URL out of the log.
+It is a Playwright Chromium, not the system browser, and it is handed the same
+`config/device/` emulation the agent path gets — viewport, `is_mobile`,
+`has_touch`, `device_scale_factor`, `user_agent`:
+
+```bash
+uv run launch.py                    # 1920×1080 desktop window
+uv run launch.py device=phone       # 390×844, touch pointer, phone UA
+uv run launch.py headless=True      # serve only, open nothing
+```
+
+`webbrowser.open` is not used because it can neither size a window nor make
+`@media (hover: none)` match, so `launch.py device=phone` would have opened a
+desktop-width page and the phone layout you asked to look at would not have
+been the thing on screen.
+
+It never opens for an agent run. `launch_agent.py` and
+`launch_parallel_agents.py` re-invoke `launch.py` with `headless=True`, and so
+does `tests/save_screenshots.py` — all three bring their own browser, and a
+second window fighting for focus mid-episode is not something an eval needs.
+
+Nothing here is fatal: with Playwright missing, its Chromium not installed, or
+no display available, this falls back to the system browser and finally to
+printing the URL. Serving the apps is the job; opening a window is a
+convenience.
 
 !!! warning "Keep `device_scale_factor` at 1"
     Screenshots are captured in *device* pixels and actions are dispatched in

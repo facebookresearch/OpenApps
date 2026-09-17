@@ -575,12 +575,47 @@ app-agnostic: the theme says <code>tone: dark</code> and each app picks its own 
 asset, so a theme file never has to know which apps exist.</p>
 <h4 id="layout">Layout</h4>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/todo/layout<span class="o">=</span>kanban_board
-uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/layout<span class="o">=</span>broken_logos
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/layout<span class="o">=</span>gallery
 </code></pre></div>
 
-<p>Available layouts: <code>todo</code> has <code>default</code> and <code>kanban_board</code>; <code>start_page</code> has
-<code>default</code>, <code>broken_logos</code> (icons detached from their tiles) and
-<code>clickable_logos</code>; the other apps currently have <code>default</code> only.</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>App</th>
+<th>Layouts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start_page</code></td>
+<td><code>desktop</code> (default), <code>gallery</code>, <code>broken_logos</code>, <code>clickable_logos</code></td>
+</tr>
+<tr>
+<td><code>todo</code></td>
+<td><code>default</code>, <code>kanban_board</code></td>
+</tr>
+<tr>
+<td>everything else</td>
+<td><code>default</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The start page is the landing surface an agent sees first, so it carries the
+most:</p>
+<ul>
+<li><strong><code>desktop</code></strong> — the default. A toolbar (launcher, clock, weather, light/dark
+  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
+  it renders as a home screen instead; see <a href="#devices">Devices</a>.</li>
+<li><strong><code>gallery</code></strong> — the original html5up tile grid: five coloured tiles under a
+  "Welcome to OpenApps!" headline. Still a single override away, and it is what
+  the paper's figures show.</li>
+<li><strong><code>broken_logos</code></strong> / <strong><code>clickable_logos</code></strong> — variations <em>of the gallery</em>
+  (they compose it), so selecting either also selects the tile grid.</li>
+</ul>
+<p>Two pieces of desktop state are scoreable and served at <code>/desktop_all</code>: the
+light/dark mode and the list of pinned app keys. <code>launcher_open</code> is
+deliberately excluded — a task should not pass or fail on whether the agent
+left a popover showing.</p>
 <h4 id="migrating-from-appearance">Migrating from <code>appearance</code></h4>
 <p>The <code>appearance</code> group these two replaced was removed: there are no
 <code>config/apps/&lt;app&gt;/appearance/</code> directories and no app renders from one.
@@ -719,6 +754,7 @@ pop-ups. <code>config/device/</code> ships four:</p>
 <th>Viewport</th>
 <th>Form factor</th>
 <th>Input</th>
+<th>User agent</th>
 </tr>
 </thead>
 <tbody>
@@ -727,24 +763,28 @@ pop-ups. <code>config/device/</code> ships four:</p>
 <td>1920×1080</td>
 <td>desktop</td>
 <td>mouse</td>
+<td>Chromium's own</td>
 </tr>
 <tr>
 <td><code>laptop</code></td>
 <td>1280×800</td>
 <td>desktop</td>
 <td>mouse</td>
+<td>Chromium's own</td>
 </tr>
 <tr>
 <td><code>tablet</code></td>
 <td>820×1180</td>
 <td>tablet</td>
 <td>touch, no hover</td>
+<td>Chrome, Android tablet</td>
 </tr>
 <tr>
 <td><code>phone</code></td>
 <td>390×844</td>
 <td>phone</td>
 <td>touch, no hover</td>
+<td>Chrome, Android phone</td>
 </tr>
 </tbody>
 </table></div>
@@ -753,6 +793,12 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
 uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span><span class="nv">device</span><span class="o">=</span>tablet<span class="w">        </span><span class="c1"># just the device</span>
 </code></pre></div>
 
+<p>The mobile devices set a matching UA because <code>is_mobile</code> alone leaves Chromium
+announcing itself as desktop Chrome — touch input, phone width, desktop
+browser, which is a contradiction anything UA-sniffing would see. They claim
+Chrome rather than iOS Safari because the engine really is Blink, and the
+version is pinned so a rendering does not change because the month did.
+Opt out with <code>device.user_agent=null</code>, or set your own.</p>
 <p>One setting moves two things:</p>
 <ul>
 <li><strong>the browser</strong> — <code>browsergym_env_args.task_kwargs.screen_resolution</code> is
@@ -779,6 +825,29 @@ uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> <
 
 <p>Adding a device is a file in <code>config/device/</code>; a form factor with no variant of
 its own falls back to the desktop composition rather than to a blank page.</p>
+<h4 id="the-preview-window">The preview window</h4>
+<p><code>uv run launch.py</code> opens a browser on the apps once they answer, so "run it and
+look at it" is one command rather than two plus copying a URL out of the log.
+It is a Playwright Chromium, not the system browser, and it is handed the same
+<code>config/device/</code> emulation the agent path gets — viewport, <code>is_mobile</code>,
+<code>has_touch</code>, <code>device_scale_factor</code>, <code>user_agent</code>:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w">                    </span><span class="c1"># 1920×1080 desktop window</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span><span class="nv">device</span><span class="o">=</span>phone<span class="w">       </span><span class="c1"># 390×844, touch pointer, phone UA</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span><span class="nv">headless</span><span class="o">=</span>True<span class="w">      </span><span class="c1"># serve only, open nothing</span>
+</code></pre></div>
+
+<p><code>webbrowser.open</code> is not used because it can neither size a window nor make
+<code>@media (hover: none)</code> match, so <code>launch.py device=phone</code> would have opened a
+desktop-width page and the phone layout you asked to look at would not have
+been the thing on screen.</p>
+<p>It never opens for an agent run. <code>launch_agent.py</code> and
+<code>launch_parallel_agents.py</code> re-invoke <code>launch.py</code> with <code>headless=True</code>, and so
+does <code>tests/save_screenshots.py</code> — all three bring their own browser, and a
+second window fighting for focus mid-episode is not something an eval needs.</p>
+<p>Nothing here is fatal: with Playwright missing, its Chromium not installed, or
+no display available, this falls back to the system browser and finally to
+printing the URL. Serving the apps is the job; opening a window is a
+convenience.</p>
 <div class="admonition warning">
 <p class="admonition-title">Keep <code>device_scale_factor</code> at 1</p>
 <p>Screenshots are captured in <em>device</em> pixels and actions are dispatched in

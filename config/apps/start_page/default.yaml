@@ -6,7 +6,7 @@
 defaults:
   - _self_
   - content: default
-  - layout: gallery
+  - layout: desktop
 
 # Per-app theme override. null = inherit the global `apps/theme` selection.
 # Override for just this app with `apps.start_page.theme=solarized`.

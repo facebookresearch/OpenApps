@@ -167,3 +167,76 @@ class TestQuestionGeneration:
         assert "element_identification" in categories
         assert "element_interaction" in categories
         assert "navigation" in categories
+
+
+class TestStartPageLayoutAwareness:
+    """The start page ships two compositions and the default is `desktop`.
+
+    A template that describes the tile gallery is simply false against the
+    desktop shell, and generating it raises nothing -- the corpus just goes
+    quietly wrong. These pin the branch so flipping the default layout, or
+    adding a third composition, fails here instead.
+    """
+
+    @staticmethod
+    def _start_page_questions(layout):
+        with initialize(version_base=None, config_path="../config/"):
+            config = compose(
+                config_name="config",
+                overrides=[f"apps/start_page/layout={layout}"],
+            )
+        return [
+            q
+            for q in generate_questions_from_state({}, config)
+            if q.app == "start_page"
+        ], config
+
+    def test_tile_questions_only_exist_for_the_gallery(self):
+        desktop, _ = self._start_page_questions("desktop")
+        assert desktop, "the default layout must still get start-page coverage"
+        for q in desktop:
+            assert "tile" not in q.question.lower(), q.question
+
+        gallery, _ = self._start_page_questions("gallery")
+        assert any("tile" in q.question.lower() for q in gallery)
+
+    def test_shell_questions_only_exist_for_the_desktop(self):
+        gallery, _ = self._start_page_questions("gallery")
+        for q in gallery:
+            assert "toolbar" not in q.question.lower(), q.question
+            assert "pinned to the desktop" not in q.question.lower(), q.question
+
+    @pytest.mark.parametrize(
+        "layout,expected",
+        [
+            ("gallery", "Welcome to OpenApps!"),
+            ("desktop", "An open source environment for digital agents"),
+        ],
+    )
+    def test_headline_question_follows_the_layout(self, layout, expected):
+        """The desktop shell overrides the start page's own headline copy."""
+        questions, _ = self._start_page_questions(layout)
+        headline_qs = [q for q in questions if "headline" in q.question.lower()]
+        assert len(headline_qs) == 1
+        q = headline_qs[0]
+        assert q.choices[q.correct] == expected
+
+    def test_only_apps_actually_in_the_dom_are_asked_about(self):
+        """The desktop shell renders only the pinned apps.
+
+        Everything else is behind the launcher popover and absent from the
+        initial HTML, so a question naming one as "shown" would be wrong.
+        """
+        questions, config = self._start_page_questions("desktop")
+        pinned_keys = list(config.apps.start_page.desktop.pinned)
+        pinned_titles = {
+            config.apps.start_page.apps[k].title for k in pinned_keys
+        }
+        unpinned_titles = {
+            a.title
+            for k, a in config.apps.start_page.apps.items()
+            if k not in pinned_keys and a.get("title")
+        }
+        named_as_correct = {q.choices[q.correct] for q in questions}
+        assert pinned_titles <= named_as_correct
+        assert not (unpinned_titles & named_as_correct)

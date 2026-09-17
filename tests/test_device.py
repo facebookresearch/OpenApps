@@ -134,7 +134,26 @@ class TestContextKwargs:
 
     def test_phone_is_mobile_and_touch(self):
         kwargs = device.context_kwargs(compose_config(["device=phone"]).device)
-        assert kwargs == {"is_mobile": True, "has_touch": True}
+        assert kwargs["is_mobile"] is True
+        assert kwargs["has_touch"] is True
+
+    @pytest.mark.parametrize(
+        "name,mobile_token", [("phone", True), ("tablet", False)]
+    )
+    def test_mobile_devices_announce_themselves_as_mobile(self, name, mobile_token):
+        """`is_mobile` alone leaves Chromium claiming to be desktop Chrome.
+
+        The `Mobile` token is how Chrome distinguishes a phone from a tablet,
+        which is the same split `form_factor` makes.
+        """
+        ua = device.context_kwargs(compose_config([f"device={name}"]).device)["user_agent"]
+        assert "Chrome/" in ua
+        assert ("Mobile Safari" in ua) is mobile_token
+
+    def test_desktop_devices_keep_chromiums_own_ua(self):
+        for name in ("desktop", "laptop"):
+            kwargs = device.context_kwargs(compose_config([f"device={name}"]).device)
+            assert "user_agent" not in kwargs, name
 
     def test_scale_and_user_agent_pass_through_when_set(self):
         kwargs = device.context_kwargs(
@@ -209,8 +228,11 @@ class TestExperimentBundles:
     """Device + layout + episode settings that only make sense together."""
 
     def test_phone_bundle_pairs_the_device_with_the_layout(self):
-        # `device=phone` alone leaves the start page on the gallery layout,
-        # which has no phone variant -- the interesting half would be missing.
+        # The bundle names the layout explicitly. `desktop` is the default
+        # now, so that is belt-and-braces rather than load-bearing -- but a
+        # bundle that silently leaned on the default would break the moment
+        # someone swept `apps/start_page/layout=`, which is the whole point of
+        # having the axis.
         cfg = compose_config(["+experiment=phone"])
         assert cfg.device.name == "phone"
         assert cfg.apps.start_page.layout == "desktop"
