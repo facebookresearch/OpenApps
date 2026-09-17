@@ -44,15 +44,10 @@ from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browserg
 from open_apps.tasks.tasks import Task
 from open_apps.utils import merge_plus_keys
 
-try:
-    # Register the custom 'now' resolver
-    OmegaConf.register_resolver(
-        "now",
-        lambda format_str="%Y-%m-%d_%H-%M-%S": datetime.now().strftime(format_str),
-    )
-except AssertionError:
-    # resolver already registered, ignore
-    pass
+# Note: the "now" interpolation resolver (used as ${now:...} in the configs)
+# is provided by Hydra's own setup at run/compose time, so we don't register
+# one here. (A local registration previously lived here but was shadowed by
+# Hydra's and never actually ran.)
 
 
 class OpenAppsLauncher:
@@ -311,8 +306,12 @@ class AgentLauncher(OpenAppsLauncher):
             [
                 i,
                 str(step_info.action),
-                str(step_info.obs["open_pages_urls"]),
-                str(step_info.agent_info.get("think")),
+                str(step_info.obs.get("open_pages_urls") if step_info.obs else None),
+                str(
+                    step_info.agent_info.get("think")
+                    if step_info.agent_info
+                    else None
+                ),
             ]
             for i, step_info in enumerate(exp_result.steps_info)
         ]

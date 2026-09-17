@@ -1,0 +1,137 @@
+# Gemma 4 31B, screenshot-only via set-of-marks.
+#
+# The model sees ONLY the screenshot (no AXTree, no HTML), but the screenshot is
+# annotated with numbered boxes (save_som: true -> ObsFlags.use_som), so it can
+# target elements by bid instead of by pixel coordinate. Gemma is not trained
+# for pixel-precise GUI grounding the way UI-TARS is, so reading a printed bid
+# off the image is the reliable path.
+#
+# The coordinate-mode counterpart is gemma-4-31B-coords.yaml, which declares a
+# 1000x1000 grid and sets coord_scale to convert it to viewport pixels. Run
+# both to compare; this one is the safer default.
+#
+# Pair with: browsergym_env_args=screenshot
+defaults:
+  - default
+  - _self_
+
+# Must exactly match the model vLLM is serving (the --model / served_model_name).
+model_name: "google/gemma-4-31B-it"
+model_pretty_name: "gemma-4-31B-computer-use"
+api_version: null
+client_type: "vllm"
+# For client_type=vllm the URL is built as http://${hostname}:${port}/v1
+# (base_url is ignored). The vLLM node changes every SLURM allocation, so pass it
+# at launch, e.g.: uv run launch_agent.py agent=gemma-4-31B-computer-use agent.hostname=h200-000-026
+hostname: null
+port: "8000"
+# vLLM does not check the key, but the OpenAI client requires a non-empty string.
+api_key: "EMPTY"
+# Grounding wants determinism, not diversity.
+temperature: 0
+max_tokens: 5000
+aws_access_key: null
+aws_secret_key: null
+aws_session_token: null
+aws_region: us-west-2
+
+# Bid-based actions only. Kept deliberately small: every action here is
+# described in action_prompt below, and a smaller space is easier for a model
+# that is not GUI-pretrained. All of these pass through flexible_parser
+# untouched (the UI-TARS remaps in utils.uitars_parser only fire on
+# click(point=/start_box=/x=, type(content=, scroll(direction=, right_single(,
+# and hotkey(key=).
+custom_actions:
+- click
+- fill
+- select_option
+- scroll
+- noop
+
+use_html: false
+use_axtree: false
+use_screenshot: true
+save_som: true # feeds ObsFlags.use_som -> the bid-annotated screenshot
+extract_visible_tag: false
+extract_clickable_tag: false
+extract_coords: false
+filter_visible_elements_only: false
+use_focused_element: false
+prompt_txt:
+  system_prompt: |-
+    You are a GUI agent operating a web browser. At each step you are given a
+    task, your action history, and a screenshot of the current page.
+
+    The screenshot is annotated with a set of marks: every interactive element
+    is outlined with a coloured box and labelled with a short id (its "bid"),
+    drawn at the corner of the box. Target elements by that id. Never guess
+    pixel coordinates -- there is no coordinate-based action available to you.
+
+    Read the bid off the image carefully; it is the label attached to the box
+    around the element you want, not the element's visible text.
+  output_format: '
+
+    <think>
+
+    </think>
+
+    <action>
+
+    </action>
+    '
+
+  think_prompt: null
+  # Overridden: agentlab's default abstract example tells the model to compute
+  # coordinates, which contradicts the bid-only action space above.
+  think_abstract_example: |
+    <think>
+    Think step by step. Describe what your previous action changed on the page,
+    name the element you need next, and read its bid off the annotated
+    screenshot.
+    </think>
+  think_concrete_example: null
+  action_prompt: |
+    ## Action Space
+
+    click("bid")
+      Click the element with this bid. Use for links, buttons, checkboxes,
+      tabs, files in a sidebar, and to focus a text field.
+
+    fill("bid", "text")
+      Type text into the input, textarea or editor with this bid. This
+      REPLACES the whole current value, so when you are editing existing
+      content include the existing text plus your change in one call.
+
+    select_option("bid", "option label")
+      Choose an option in a <select> dropdown.
+
+    scroll(delta_x, delta_y)
+      Scroll the page by a pixel amount. Positive delta_y scrolls down,
+      negative scrolls up. e.g. scroll(0, 400)
+
+    noop(wait_ms=5000)
+      Wait and re-screenshot. Use only when the page appears to still be
+      loading.
+
+    ## Note
+    - Exactly one action per step, inside a single <action> tag.
+    - Use English in the `think` part.
+    - Write a short plan, then state your next action and the element it
+      targets in one sentence.
+    - Check the history: if your last action did not change the page, pick a
+      different target rather than repeating it.
+    - Saving usually needs an explicit click on a Save/Send/Add button after
+      you fill a field.
+  action_abstract_example: |
+    <action>click("bid")</action>
+
+    or, to enter text:
+
+    <action>fill("bid", "the text to type")</action>
+  action_concrete_example: |
+    <action>click("92")</action>
+
+    then on the next step, to replace the contents of a code editor whose box
+    is labelled 47 with the original text plus a new line:
+
+    <action>fill("47", "import torch\nx = torch.randn(2, 3)\n# Reviewed by Bob")</action>

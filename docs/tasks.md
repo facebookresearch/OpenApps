@@ -61,6 +61,45 @@ my_custom_task:
 
 Finally, ask your agent to solve the task by specifying `task_name=my_custom_task`.
 
+### Example: editing a file in the Code Editor
+
+`EditFileTask` makes the Code Editor a first-class task app. Unlike the other
+apps, the Code Editor state is excluded from the generic state comparison, so
+`EditFileTask` implements its own reward: it walks the current file tree (from
+the `/codeeditor_all` endpoint), finds the file at `file_path`, and checks its
+saved contents. It also compares against the **initial** state so an unsaved or
+unchanged file earns no reward.
+
+Provide either `required_fragment` (a substring that must appear in the file) or
+`expected_content` (a whitespace-normalized full-file match):
+
+```yaml
+edit_script_add_header_comment:
+  _target_: open_apps.tasks.tasks.EditFileTask
+  goal: Open 'script.py' in the Code Editor, add the line '# Reviewed by Bob' as a
+    comment, and save the file.
+  file_path: script.py
+  required_fragment: "# Reviewed by Bob"
+```
+
+The same class also covers creating a new file — if the file did not exist in
+the initial state, any matching saved content counts as a change:
+
+```yaml
+create_notes_file_in_code_editor:
+  _target_: open_apps.tasks.tasks.EditFileTask
+  goal: "In the Code Editor, create a new file named 'notes.txt' containing the text
+    'TODO: refactor' and save it."
+  file_path: notes.txt
+  expected_content: "TODO: refactor"
+```
+
+Run it like any other task:
+
+```shell
+uv run launch_agent.py agent=gemma-4 task_name=edit_script_add_header_comment
+```
+
 ## Goal Variations
 
 Tasks come with **goal variations**: the same task with its goal reworded in a

@@ -1,0 +1,68 @@
+# @package apps.code_editor
+#
+# VS Code "Dark+" styling for the code editor — the default appearance.
+#
+# Why this exists: the previous default was a #90D5FF light-blue page with
+# white buttons and a sidebar the same colour as the editor pane. Nothing
+# about it read as a code editor, and white-on-light-blue is close to the
+# worst contrast in the palette.
+#
+# Two reasons that matters for agent evals:
+#   1. Contrast. Low-contrast controls are hard for a VLM to segment at all.
+#   2. Familiarity. A VLM has seen an enormous number of VS Code screenshots
+#      and essentially none of this app, so a conventional layout lets its
+#      priors ("dark panel on the left is the file tree") actually apply.
+#
+# Colours are VS Code's own Dark+ values. Kept CDN-free on purpose: every
+# colour here is applied through the inline <style> block that
+# set_environment builds, so it renders identically on a host with no
+# outbound network. See highlight below.
+
+font_size: 14
+font: "Consolas, 'Droid Sans Mono', Menlo, 'Courier New', monospace"
+fontcolor: "#d4d4d4"           # editor.foreground
+
+main_background_color: "#1e1e1e"     # editor.background
+sidebar_background_color: "#252526"  # sideBar.background
+textarea_background_color: "#1e1e1e"
+border_color: "#3c3c3c"              # panel.border
+accent_color: "#0e639c"              # button.background
+row_hover_color: "#2a2d2e"           # list.hoverBackground
+row_active_color: "#04395e"          # list.activeSelectionBackground
+
+primary_button_color: "#0e639c"      # button.background
+secondary_button_color: "#3a3d41"    # button.secondaryBackground
+danger_button_color: "#f14c4c"       # editorError.foreground
+
+theme: "vscode-dark"
+mode: "python"
+
+# Deliberately off. Turning it on pulls CodeMirror from cdnjs, and on a host
+# without egress the script never arrives, `CodeMirror` is undefined, and the
+# page-global `editor` fails to bind — which breaks Save, not just syntax
+# colours. With it off the textarea shim handles theme swapping through the
+# local theme-* CSS classes instead.
+highlight: False
+sort_feature: True
+
+list_of_modes:
+  - python
+  - javascript
+  - css
+  - yaml
+  - markdown
+  - shell
+  - clike
+  - go
+
+# The first four are implemented locally (theme-* classes in the inline
+# stylesheet) and work with highlight off. The rest only take effect when
+# highlight is on and the CodeMirror CDN is reachable.
+list_of_themes:
+  - vscode-dark
+  - vscode-light
+  - monokai
+  - high-contrast
+  - solarized
+  - dracula
+  - material

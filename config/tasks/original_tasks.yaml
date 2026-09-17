@@ -193,3 +193,24 @@ navigate_to_messenger:
   goal: Navigate to the Messenger app.
   source_app: start_page
   target_app: messages
+
+# ---- Code Editor tasks ---------------------------------------------------
+# EditFileTask walks the Code Editor file tree (the /codeeditor_all JSON)
+# and rewards once the target file's saved contents satisfy the content
+# requirement AND differ from the initial state (so an unsaved / unchanged
+# file earns no reward). Provide either `expected_content` (full-file match)
+# or `required_fragment` (substring match).
+
+edit_script_add_header_comment:
+  _target_: open_apps.tasks.tasks.EditFileTask
+  goal: Open 'script.py' in the Code Editor, add the line '# Reviewed by Bob' as a
+    comment, and save the file.
+  file_path: script.py
+  required_fragment: "# Reviewed by Bob"
+
+create_notes_file_in_code_editor:
+  _target_: open_apps.tasks.tasks.EditFileTask
+  goal: "In the Code Editor, create a new file named 'notes.txt' containing the text
+    'TODO: refactor' and save it."
+  file_path: notes.txt
+  expected_content: "TODO: refactor"
