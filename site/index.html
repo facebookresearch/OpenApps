@@ -509,8 +509,52 @@
 <p>Or one app only, leaving the rest on the global theme:
 <code>uv run launch.py apps.calendar.theme=$THEME</code>.</p>
 <p>Shipped themes: <code>default</code>, <code>dark</code>, <code>mono</code>, <code>challenging_font</code>, <code>colorblind</code>,
-<code>solarized</code>, <code>material</code>, <code>bootstrap</code>. Adding one means adding a yaml file to
-<code>config/apps/theme/</code> -- no app code changes.</p>
+<code>solarized</code>, <code>material</code>, <code>bootstrap</code>, <code>meta</code>, <code>meta_dark</code>, <code>vscode_dark</code>.
+Adding one means adding a yaml file to <code>config/apps/theme/</code> -- no app code
+changes.</p>
+<p>Precedence, highest first:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Example</th>
+<th>Beats</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>per-app pin</td>
+<td><code>apps.calendar.theme=dark</code></td>
+<td>everything</td>
+</tr>
+<tr>
+<td>global selection</td>
+<td><code>apps/theme=dark</code></td>
+<td>the app's own default</td>
+</tr>
+<tr>
+<td>the app's own default</td>
+<td><code>theme_default:</code> in its <code>default.yaml</code></td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>--</td>
+<td>--</td>
+</tr>
+</tbody>
+</table></div>
+<p>The middle two are the ones worth understanding. An app may declare a
+<code>theme_default</code> -- the code editor's is <code>vscode_dark</code>, so <code>uv run launch.py</code>
+opens on something that reads as a code editor. It applies <em>only</em> when no
+theme was selected, so sweeping the axis still moves every app, including the
+<code>apps/theme=default</code> cell the rest of the sweep is compared against. A
+per-app <code>theme</code> pin is the opposite: it wins over the sweep, which is what you
+want for dressing one app differently on purpose and not much else.</p>
+<p>This is why the <code>apps/theme</code> group defaults to <code>null</code> in <code>config/config.yaml</code>
+rather than to <code>default</code> -- "nothing was selected" has to be distinguishable
+from "<code>default</code> was selected". A null group default is still bindable without
+a <code>+</code>.</p>
 <p>A theme file is a set of design tokens plus a small <code>assets</code> block:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># config/apps/theme/dark.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span>

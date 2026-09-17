@@ -5,6 +5,12 @@ defaults:
   - agent: dummy
   - tasks: all_tasks
   - browsergym_env_args: default
+  # `default`, unlike config.yaml's `null`, and deliberately so. A sweep cell
+  # that names no theme should still put every app on the same one: letting an
+  # app's `theme_default` apply here would make the baseline cell the only one
+  # where the code editor renders differently from everything else, and that
+  # cell is what the rest of the grid is measured against. Interactive runs
+  # want the opposite -- see `resolve_theme`.
   - apps/theme: default
   - apps/code_editor: default
   - apps/maps: default

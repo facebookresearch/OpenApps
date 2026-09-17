@@ -15,16 +15,17 @@ database_path: ${databases_dir}/codeeditor
 #   apps.code_editor.no_egress=true
 no_egress: false
 
-# Per-app design theme override, resolved by open_apps.theme.resolve_theme.
-# null would inherit the global `apps/theme` selection; the editor pins one so
-# it reads as a code editor out of the box.
-#
-# Know what the pin costs: a per-app override beats the global group, so
-# `apps/theme=dark` restyles every other app and leaves this one on
-# vscode_dark. Sweeping the shared theme axis *through* the editor means
-# clearing it -- `apps.code_editor.theme=null apps/theme=dark` -- or setting
-# the global to this palette with `apps/theme=vscode_dark`.
-theme: vscode_dark
+# Per-app design theme *pin*. null = don't pin. A value here beats a global
+# `apps/theme=` selection, so it is for dressing the editor differently from
+# every other app on purpose -- not for setting its default look.
+theme: null
+
+# The editor's own preferred look, used only when nobody selected a theme, so
+# `uv run launch.py` opens on something that reads as a code editor. Any
+# explicit selection replaces it: `apps/theme=dark` darkens the editor along
+# with everything else, and `apps/theme=default` gives it the plain default.
+# See open_apps.theme.resolve_theme for the full precedence.
+theme_default: vscode_dark
 
 # The design themes offered by the in-editor selector. Each must exist as
 # config/apps/theme/<name>.yaml.

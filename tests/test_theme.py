@@ -146,6 +146,47 @@ class TestResolveTheme:
         cfg = OmegaConf.create({"theme": "solarized"})
         assert resolve_theme(cfg, "no_such_app")["name"] == "solarized"
 
+    def test_app_default_applies_when_nothing_was_selected(self):
+        cfg = OmegaConf.create({"code_editor": {"theme_default": "vscode_dark"}})
+        assert resolve_theme(cfg, "code_editor")["name"] == "vscode_dark"
+
+    def test_global_selection_replaces_the_app_default(self):
+        """The whole point of putting it *below* the global group.
+
+        An app default that outranked `apps/theme=` would freeze that app on
+        one look across every cell of a theme sweep.
+        """
+        cfg = OmegaConf.create(
+            {"theme": "dark", "code_editor": {"theme_default": "vscode_dark"}}
+        )
+        assert resolve_theme(cfg, "code_editor")["name"] == "dark"
+
+    def test_selecting_default_explicitly_replaces_the_app_default(self):
+        """`apps/theme=default` is a selection, not the absence of one.
+
+        It is the cell a sweep compares the others against, so it has to
+        render the same for the code editor as for every other app.
+        """
+        cfg = OmegaConf.create(
+            {"theme": "default", "code_editor": {"theme_default": "vscode_dark"}}
+        )
+        assert resolve_theme(cfg, "code_editor")["name"] == "default"
+
+    def test_pin_still_outranks_everything(self):
+        cfg = OmegaConf.create(
+            {
+                "theme": "dark",
+                "code_editor": {"theme": "solarized", "theme_default": "vscode_dark"},
+            }
+        )
+        assert resolve_theme(cfg, "code_editor")["name"] == "solarized"
+
+    def test_app_default_does_not_leak_to_other_apps(self):
+        cfg = OmegaConf.create(
+            {"code_editor": {"theme_default": "vscode_dark"}, "todo": {}}
+        )
+        assert resolve_theme(cfg, "todo")["name"] == "default"
+
     def test_unknown_per_app_name_degrades_to_default(self):
         cfg = OmegaConf.create({"theme": "solarized", "todo": {"theme": "bogus"}})
         # A bad per-app override must not raise, and must not silently

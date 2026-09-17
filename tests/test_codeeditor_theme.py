@@ -62,6 +62,20 @@ def editor_html_for_open_file(client):
     return response.text
 
 
+@pytest.fixture(scope="module")
+def live_bg(client):
+    """`--color-bg` of the theme the running app actually resolved.
+
+    The app and its DBs are process-wide singletons, so whichever test module
+    configures them first decides the theme. Hardcoding the VS Code palette
+    here made these tests pass or fail on test *ordering* -- they are about the
+    token block reaching the page, not about which theme is in it.
+    """
+    from open_apps.theme import resolve_theme
+
+    return resolve_theme(codeeditor_main.app.config, "code_editor")["tokens"]["color-bg"]
+
+
 # ---------------------------------------------------------------------------
 # The default appearance is the VS Code palette
 # ---------------------------------------------------------------------------
@@ -84,6 +98,23 @@ def test_per_app_theme_does_not_restyle_other_apps():
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config")
     assert resolve_theme(config.apps, "todo")["name"] == "default"
+
+
+@pytest.mark.parametrize("selected", ["default", "dark", "mono", "solarized"])
+def test_the_theme_sweep_still_moves_the_editor(selected):
+    """`theme_default` must not survive an explicit selection.
+
+    Against the real config, not a hand-built one: the behaviour depends on
+    `apps/theme` defaulting to null in config.yaml, and a well-meaning edit
+    back to `default` there would freeze the editor on vscode_dark for every
+    cell of a theme sweep while every other app varied.
+    """
+    from open_apps.theme import resolve_theme
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=[f"apps/theme={selected}"])
+    assert resolve_theme(config.apps, "code_editor")["name"] == selected
+    assert resolve_theme(config.apps, "todo")["name"] == selected
 
 
 def test_default_font_is_monospace():
@@ -185,9 +216,9 @@ def test_theme_switch_needs_no_reload_or_network(editor_html):
     assert "window.applyTheme(this.value)" in editor_html
 
 
-def test_configured_theme_is_applied_server_side(editor_html):
+def test_configured_theme_is_applied_server_side(editor_html, live_bg):
     """First paint must already be themed, not flash then correct."""
-    assert "--color-bg: #1e1e1e;" in editor_html
+    assert f"--color-bg: {live_bg};" in editor_html
 
 
 # ---------------------------------------------------------------------------
@@ -369,7 +400,7 @@ def test_file_icon_does_not_change_the_links_accessible_name(editor_html):
 # A chosen theme survives navigation
 # ---------------------------------------------------------------------------
 
-def test_theme_choice_survives_navigation(client):
+def test_theme_choice_survives_navigation(client, live_bg):
     """Regression: opening a folder snapped the look back to the startup theme.
 
     The token block lived only in app.hdrs, built once at startup, so any
@@ -381,7 +412,7 @@ def test_theme_choice_survives_navigation(client):
         # The last :root block wins, and that is the per-request one.
         return html.rsplit("--color-bg:", 1)[1].split(";")[0].strip()
 
-    assert tokens_of("/codeeditor/") == "#1e1e1e"
+    assert tokens_of("/codeeditor/") == live_bg
 
     resp = client.post(
         "/codeeditor/update_config", json={"type": "theme", "value": "solarized"}

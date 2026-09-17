@@ -88,8 +88,31 @@ Or one app only, leaving the rest on the global theme:
 `uv run launch.py apps.calendar.theme=$THEME`.
 
 Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
-`solarized`, `material`, `bootstrap`. Adding one means adding a yaml file to
-`config/apps/theme/` -- no app code changes.
+`solarized`, `material`, `bootstrap`, `meta`, `meta_dark`, `vscode_dark`.
+Adding one means adding a yaml file to `config/apps/theme/` -- no app code
+changes.
+
+Precedence, highest first:
+
+| Source | Example | Beats |
+| --- | --- | --- |
+| per-app pin | `apps.calendar.theme=dark` | everything |
+| global selection | `apps/theme=dark` | the app's own default |
+| the app's own default | `theme_default:` in its `default.yaml` | nothing |
+| `default` | -- | -- |
+
+The middle two are the ones worth understanding. An app may declare a
+`theme_default` -- the code editor's is `vscode_dark`, so `uv run launch.py`
+opens on something that reads as a code editor. It applies *only* when no
+theme was selected, so sweeping the axis still moves every app, including the
+`apps/theme=default` cell the rest of the sweep is compared against. A
+per-app `theme` pin is the opposite: it wins over the sweep, which is what you
+want for dressing one app differently on purpose and not much else.
+
+This is why the `apps/theme` group defaults to `null` in `config/config.yaml`
+rather than to `default` -- "nothing was selected" has to be distinguishable
+from "`default` was selected". A null group default is still bindable without
+a `+`.
 
 A theme file is a set of design tokens plus a small `assets` block:
 
