@@ -194,7 +194,7 @@ class Session:
 
     async def reset(self, *, seed: int | None = None, options: dict | None = None) -> Observation:
         self._require_started()
-        await asyncio.to_thread(self.appserver.reset)
+        await asyncio.to_thread(self.appserver.reset, seed=seed)
         self._initial_state = await asyncio.to_thread(self.appserver.get_state)
         await self.page.goto(self.appserver.url_for())
         try:
@@ -221,6 +221,7 @@ class Session:
             seed=seed,
             extras=extras,
         )
+        self._initial_state = await asyncio.to_thread(self.appserver.get_state)
 
     # -- action ------------------------------------------------------------
 
