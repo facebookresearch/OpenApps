@@ -1,0 +1,23 @@
+# @package apps.theme
+# Shared design tokens. Selected globally with `apps/theme=<name>` or per app
+# with `apps.<app>.theme=<name>`. Every `tokens` entry becomes a CSS custom
+# property (`color-primary` -> `--color-primary`) consumed via `var(--...)`.
+name: default
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#f4f5f7"
+  color-fg: "#1a1a1a"
+  color-muted: "#6b7280"
+  color-border: "#dfe1e6"
+  color-primary: "#2563eb"     # add / primary action
+  color-on-primary: "#ffffff"
+  color-accent: "#2563eb"      # save action
+  color-danger: "#b22222"      # remove / destructive
+  color-neutral: "#36454f"     # edit / secondary
+  color-btn-fg: "#ffffff"      # text on edit/remove/save buttons
+  font-family: "'Times New Roman', serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"

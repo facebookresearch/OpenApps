@@ -54,7 +54,8 @@ uv run launch.py app.todo.title='Super Todo'
 
 Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/). 
 
-
+For a hot reloading dev server (live changes in browser):
+`scripts/dev.sh`
 
 ## Launch an Agent
 

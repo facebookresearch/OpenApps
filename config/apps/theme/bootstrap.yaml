@@ -1,0 +1,21 @@
+# @package apps.theme
+# Bootstrap 5 look approximated with design tokens (no Bootstrap CSS needed).
+name: bootstrap
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#f8f9fa"
+  color-fg: "#212529"
+  color-muted: "#6c757d"
+  color-border: "#dee2e6"
+  color-primary: "#0d6efd"
+  color-on-primary: "#ffffff"
+  color-accent: "#198754"
+  color-danger: "#dc3545"
+  color-neutral: "#6c757d"
+  color-btn-fg: "#ffffff"
+  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "0.375rem"
+  space: "8px"

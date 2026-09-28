@@ -1,0 +1,4 @@
+# @package apps.todo
+# Structure only -- colors/fonts come from the shared theme. Select with
+# `apps/todo/layout=kanban_board`.
+layout: kanban_board

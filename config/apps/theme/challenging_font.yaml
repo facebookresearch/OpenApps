@@ -1,0 +1,22 @@
+# @package apps.theme
+# Faithful port of the former todo `challenging_font` appearance variant:
+# the default palette rendered in a hard-to-read script face.
+name: challenging_font
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#f4f5f7"
+  color-fg: "#1a1a1a"
+  color-muted: "#6b7280"
+  color-border: "#dfe1e6"
+  color-primary: "#2563eb"
+  color-on-primary: "#ffffff"
+  color-accent: "#2563eb"
+  color-danger: "#b22222"
+  color-neutral: "#36454f"
+  color-btn-fg: "#ffffff"
+  font-family: "'Brush Script MT', cursive"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"
