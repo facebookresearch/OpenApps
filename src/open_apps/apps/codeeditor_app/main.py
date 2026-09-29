@@ -23,6 +23,23 @@ _COMPONENT_STYLES = Style(
     .main-content {
         background-color: var(--color-bg);
     }
+    /* The chrome here is marked `text-white` throughout -- a leftover from
+       when this app painted its panels a hard-coded blue. `.main-content` is
+       now `var(--color-bg)`, which is white in the default theme, so the file
+       tree, the "No file selected" heading and the Language/Theme labels were
+       rendering white-on-white. Point them at the theme's foreground instead.
+       Controls and rows that carry their own dark fill (the mode/theme
+       selects, the tab strip, the highlighted folder row) still need white,
+       so they are restored below. */
+    .main-content .text-white {
+        color: var(--color-fg);
+    }
+    .main-content [class*="bg-gray-"] .text-white,
+    .main-content [class*="bg-gray-"].text-white,
+    .main-content [class*="bg-blue-"] .text-white,
+    .main-content [class*="bg-blue-"].text-white {
+        color: #ffffff;
+    }
     .styled-content {
         font-size: var(--font-size-sm);
         font-family: var(--font-family);
