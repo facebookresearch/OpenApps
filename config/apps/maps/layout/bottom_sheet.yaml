@@ -1,0 +1,11 @@
+# @package apps.maps
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/maps/layout=bottom_sheet`.
+#
+# Mobile-style arrangement: the sidebar becomes a full-width panel beneath
+# the map and Saved Locations becomes a horizontal scroller. Purely a CSS
+# change in map.html, so every id and route is unchanged.
+defaults:
+  - default
+
+layout: bottom_sheet

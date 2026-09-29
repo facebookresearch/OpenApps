@@ -116,12 +116,26 @@ def current_tile_layer() -> str:
     return cfg.default_layer
 
 
+def current_layout() -> str:
+    """The active structure variant from `config/apps/maps/layout/`.
+
+    Emitted as a `layout-<name>` class on <body>; every variant is CSS-only
+    (see map.html), so the map's ids and routes are identical across layouts
+    and rewards -- which read /maps/landmarks, not the DOM -- are unaffected.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return "default"
+    return getattr(config.maps, "layout", "default")
+
+
 @app.get("/maps", response_class=HTMLResponse)
 async def map_page(request: Request):
     return templates.TemplateResponse(
         "map.html",
         {
             "request": request,
+            "layout": current_layout(),
             "enable_layer_control": app.config.maps.enable_layer_control,
             "default_layer": current_tile_layer(),
             "popup_display_rule": app.config.maps.popup_display_rule,

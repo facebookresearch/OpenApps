@@ -1,0 +1,11 @@
+# @package apps.calendar
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/calendar/layout=agenda_first`.
+#
+# The agenda, not the month grid, is what a request without an explicit
+# `?view=` lands on, and the view toggle leads with it. Both views remain
+# reachable, so any task that navigates to the month grid still works.
+defaults:
+  - default
+
+layout: agenda_first

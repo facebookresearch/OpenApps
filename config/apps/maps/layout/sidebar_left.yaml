@@ -1,0 +1,11 @@
+# @package apps.maps
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/maps/layout=sidebar_left`.
+#
+# Mirrors the default arrangement: the sidebar holding search, Saved
+# Locations and route planning sits to the *left* of the map instead of the
+# right. Purely a CSS flip in map.html, so every id and route is unchanged.
+defaults:
+  - default
+
+layout: sidebar_left

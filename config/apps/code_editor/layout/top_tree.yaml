@@ -1,0 +1,11 @@
+# @package apps.code_editor
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/code_editor/layout=top_tree`.
+#
+# No side column at all: the file tree becomes a short horizontal strip above
+# the editor, so the editor gets the full page width and file targets sit in
+# a row rather than a column.
+defaults:
+  - default
+
+layout: top_tree

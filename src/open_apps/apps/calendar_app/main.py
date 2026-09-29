@@ -232,6 +232,27 @@ def calendar_theme():
     )
 
 
+def current_layout():
+    """The active structure variant from `config/apps/calendar/layout/`.
+
+    Distinct from the `--layout-*` geometry variables above: those tune
+    spacing, this one rearranges the page.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return "default"
+    return getattr(config.calendar, "layout", "default")
+
+
+def default_view():
+    """Which view a request without an explicit `?view=` lands on.
+
+    The `agenda_first` layout inverts the app's default so the agenda -- not
+    the month grid -- is what an agent sees on arrival.
+    """
+    return "agenda" if current_layout() == "agenda_first" else "calendar"
+
+
 def update_db_from_hydra():
 
     for event in app.config.calendar.events:
@@ -500,37 +521,53 @@ def show_main_layout(year, month, view="calendar", event_id=None):
         cls="calendar-nav",
     )
 
-    view_toggle = Div(
-        A(
-            "Calendar",
-            href=f"/calendar/calendar_content/{year}/{month}?view=calendar",
-            role="button",
-            cls="active" if view == "calendar" else "outline",
-        ),
-        A(
-            "Agenda",
-            href=f"/calendar/calendar_content/{year}/{month}?view=agenda",
-            role="button",
-            cls="active" if view == "agenda" else "outline",
-        ),
-        cls="view-toggle",
+    calendar_link = A(
+        "Calendar",
+        href=f"/calendar/calendar_content/{year}/{month}?view=calendar",
+        role="button",
+        cls="active" if view == "calendar" else "outline",
     )
+    agenda_link = A(
+        "Agenda",
+        href=f"/calendar/calendar_content/{year}/{month}?view=agenda",
+        role="button",
+        cls="active" if view == "agenda" else "outline",
+    )
+
+    layout = current_layout()
+    # `agenda_first` leads with the agenda, so the toggle has to lead with it
+    # too -- otherwise the highlighted button would sit second on arrival.
+    toggle_links = (
+        (agenda_link, calendar_link)
+        if layout == "agenda_first"
+        else (calendar_link, agenda_link)
+    )
+    view_toggle = Div(*toggle_links, cls="view-toggle")
 
     header = Div(
         nav,
         view_toggle,
+        cls="calendar-header",
     )
 
     cal, _ = get_month_calendar(year, month)
     month_events = get_events_for_month(year, month)
-    content = get_calendar_content(
-        year, month, view, cal, month_events
+    content = Div(
+        get_calendar_content(year, month, view, cal, month_events),
+        cls="calendar-content",
     )
+
+    if layout == "sidebar_nav":
+        # Nav and toggle become a left rail; the grid keeps the rest of the
+        # width. `.calendar-table` / `.agenda-list` stay where they are, so
+        # existing selectors and screenshots still resolve.
+        body = (Div(header, content, cls="calendar-body-sidebar"),)
+    else:
+        body = (header, content)
 
     calendar_container = Div(
         logo_title_container,  # Add logo and title container here
-        header,
-        content,
+        *body,
         create_footer(),
         id="calendar-container",
     )
@@ -564,6 +601,18 @@ def show_main_layout(year, month, view="calendar", event_id=None):
         .agenda-list li { margin-bottom: var(--layout-spacing); }
         .footer-container { margin-top: var(--layout-spacing); }
         #about-dialog-content { padding: var(--layout-spacing); }
+
+        /* Layout variants (`config/apps/calendar/layout/`). Structure only --
+           every color and font still comes from the shared theme. */
+
+        /* sidebar_nav: the month nav and view toggle leave the horizontal bar
+           above the grid and become a left rail beside it. Both stack
+           vertically once they are in a narrow column. */
+        .calendar-body-sidebar { display: flex; gap: var(--layout-spacing); align-items: flex-start; }
+        .calendar-body-sidebar > .calendar-header { flex: 0 0 12rem; }
+        .calendar-body-sidebar > .calendar-content { flex: 1; min-width: 0; }
+        .calendar-body-sidebar .calendar-nav { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+        .calendar-body-sidebar .view-toggle { flex-direction: column; gap: 0.5rem; }
         """
     )
     
@@ -581,7 +630,7 @@ def show_main_layout(year, month, view="calendar", event_id=None):
 @rt("/calendar")
 def get(req):
     today = datetime.now()
-    view = req.query_params.get("view", "calendar")
+    view = req.query_params.get("view") or default_view()
     # Get error message if present
     error_message = req.query_params.get("error")
     error_div = Div(error_message, cls="error-message") if error_message else ""
@@ -608,9 +657,14 @@ def get():
 def get(
     year: int,
     month: int,
-    view: str = "calendar",
+    view: str = "",
     direction: str = None,
 ):
+    # Empty rather than "calendar" so the layout decides the default; the
+    # nav/toggle links always pass an explicit view, so this only applies to
+    # a hand-typed or agent-constructed URL.
+    view = view or default_view()
+
     if direction == "prev":
         date = datetime(year, month, 1) - timedelta(days=1)
         year, month = date.year, date.month

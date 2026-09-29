@@ -52,6 +52,10 @@ ROUTES = (
     RouteSpec("todo", "/todo", "#todo-list"),
     RouteSpec("calendar", "/calendar", ".calendar-table, .agenda-list"),
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
+    # An open conversation, not just the chat list. `split_inbox` and
+    # `compact_list` both change the thread view, which the list route never
+    # renders. Alice is present in every content variation.
+    RouteSpec("messages_thread", "/messages/Alice/", "#chatlist"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
     RouteSpec("onlineshop", "/onlineshop/", "input[name='search_query']"),
@@ -72,6 +76,14 @@ LAYOUT_VARIATIONS = {
     "layout_kanban_board": ["apps/todo/layout=kanban_board"],
     "layout_broken_logos": ["apps/start_page/layout=broken_logos"],
     "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
+    "layout_calendar_agenda_first": ["apps/calendar/layout=agenda_first"],
+    "layout_calendar_sidebar_nav": ["apps/calendar/layout=sidebar_nav"],
+    "layout_messenger_split_inbox": ["apps/messenger/layout=split_inbox"],
+    "layout_messenger_compact_list": ["apps/messenger/layout=compact_list"],
+    "layout_maps_sidebar_left": ["apps/maps/layout=sidebar_left"],
+    "layout_maps_bottom_sheet": ["apps/maps/layout=bottom_sheet"],
+    "layout_code_editor_sidebar_right": ["apps/code_editor/layout=sidebar_right"],
+    "layout_code_editor_top_tree": ["apps/code_editor/layout=top_tree"],
 }
 
 

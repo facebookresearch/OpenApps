@@ -1,0 +1,11 @@
+# @package apps.code_editor
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/code_editor/layout=sidebar_right`.
+#
+# Mirrors the default arrangement: the file tree sits to the right of the
+# editor pane. A real DOM reorder in `editor_page`, so the accessibility tree
+# an agent reads matches what is rendered.
+defaults:
+  - default
+
+layout: sidebar_right

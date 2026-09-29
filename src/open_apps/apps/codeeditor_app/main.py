@@ -219,6 +219,67 @@ def current_editor_theme():
     )
 
 
+def current_layout():
+    """The active structure variant from `config/apps/code_editor/layout/`.
+
+    Consumed only by :func:`editor_page`. Every variant rearranges the file
+    tree relative to the editor and nothing else, so routes, ids and the
+    `/codeeditor_all` tree are identical across layouts.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return "default"
+    return getattr(config.code_editor, "layout", "default")
+
+
+# Layout rules live here rather than in `_COMPONENT_STYLES` so that the
+# structural variants stay readable as a group. `top_tree` has to override
+# the `w-1/6` / `w-5/6` utility classes the sidebar and editor carry, hence
+# the `> *` width rule.
+_LAYOUT_STYLES = Style("""
+    .codeeditor-page.layout-top_tree {
+        flex-direction: column;
+    }
+
+    .codeeditor-page.layout-top_tree > * {
+        width: 100%;
+    }
+
+    /* A short, full-width strip: the tree flows horizontally instead of
+       stacking, so it reads as a file bar above the editor rather than a
+       squashed sidebar. */
+    .codeeditor-page.layout-top_tree .codeeditor-sidebar {
+        max-height: 12rem;
+    }
+
+    .codeeditor-page.layout-top_tree .codeeditor-tree {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+""")
+
+
+def editor_page(side_bar, main_screen):
+    """Assemble the file tree and the editor pane per the active layout.
+
+    The three page handlers (`/codeeditor/`, the folder view and the file
+    view) all built `Div(cls="flex space-x-2")(side_bar, main_screen)`; this
+    is that same call with the layout branch folded in, so a new variant is
+    added in one place instead of three.
+
+    * `default`       -- tree left of the editor
+    * `sidebar_right` -- tree right of the editor (real DOM reorder, so the
+      accessibility tree matches what is rendered)
+    * `top_tree`      -- tree as a horizontal strip above the editor
+    """
+    layout = current_layout()
+    cls = f"codeeditor-page layout-{layout} flex space-x-2"
+    if layout == "sidebar_right":
+        return Div(_LAYOUT_STYLES, Div(cls=cls)(main_screen, side_bar))
+    return Div(_LAYOUT_STYLES, Div(cls=cls)(side_bar, main_screen))
+
+
 def return_to_index():
     return A("Code Editor Index Page", href="/codeeditor", cls="btn btn-primary")
 
@@ -334,7 +395,9 @@ def create_sidebar(current_path: str = None) -> Div:
     else:
         folder_path = current_path
     return Div(
-        cls="main-content w-1/6 p-4 rounded-lg overflow-y-auto",
+        # `codeeditor-sidebar` distinguishes this panel from the editor pane,
+        # which also carries `main-content`; the layout rules target it.
+        cls="codeeditor-sidebar main-content w-1/6 p-4 rounded-lg overflow-y-auto",
         style="max-height: calc(100vh - 2rem)"
     )(
         Div(cls="mb-4")(
@@ -407,7 +470,7 @@ def create_sidebar(current_path: str = None) -> Div:
                 )
             )
         ),
-        Div(cls="text-white")(
+        Div(cls="codeeditor-tree text-white")(
             *[render_tree_item(child) for child in file_tree['children']]
         ),
         Script("""
@@ -550,7 +613,7 @@ def index():
             ),
         ),
     )
-    page = Div(cls="flex space-x-2")(side_bar, main_screen)
+    page = editor_page(side_bar, main_screen)
     return Div(codeeditor_theme(), logo_title_container, page)
 
 
@@ -656,7 +719,7 @@ def get_folder(folder: str):
             ),
         ),
     )
-    page = Div(cls="flex space-x-2")(side_bar, main_screen)
+    page = editor_page(side_bar, main_screen)
     return Div(codeeditor_theme(), logo_title_container, page)
 
 def get_file(file: str):
@@ -979,7 +1042,7 @@ def get_file(file: str):
             ),
         ),
     )
-    page = Div(cls="flex space-x-2")(side_bar, main_screen)
+    page = editor_page(side_bar, main_screen)
     return Div(codeeditor_theme(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")

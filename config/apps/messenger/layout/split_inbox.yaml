@@ -1,0 +1,11 @@
+# @package apps.messenger
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/messenger/layout=split_inbox`.
+#
+# Desktop-mail arrangement: opening a conversation keeps the chat list on
+# screen beside the thread instead of replacing it. Both routes still
+# resolve and `#chatlist` is unchanged.
+defaults:
+  - default
+
+layout: split_inbox

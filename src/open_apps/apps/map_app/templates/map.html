@@ -289,13 +289,59 @@
         .custom-select-option.selected {
             background-color: var(--color-surface);
         }
+
+        /* --- Layout variants ---------------------------------------------
+           Structure only; colors still come from the shared theme. The active
+           layout arrives as a `layout-<name>` class on <body> (set in
+           main.py), so a variant is pure CSS: none of the JS below has to
+           know which layout is active, and #map / #sidebar / #popupList keep
+           their ids so tasks and screenshot selectors still resolve. */
+
+        /* sidebar_left: search, Saved Locations and route planning move to
+           the left of the map. The shadow has to flip with the panel,
+           otherwise it falls away from the map instead of onto it. */
+        body.layout-sidebar_left .container {
+            flex-direction: row-reverse;
+        }
+
+        body.layout-sidebar_left #sidebar {
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* bottom_sheet: the sidebar becomes a full-width panel beneath the
+           map. Saved Locations becomes a horizontal scroller -- in a short
+           panel a vertical list would push every landmark below the fold. */
+        body.layout-bottom_sheet .container {
+            flex-direction: column;
+        }
+
+        body.layout-bottom_sheet #map {
+            flex: 0.65;
+            width: 100%;
+        }
+
+        body.layout-bottom_sheet #sidebar {
+            flex: 0.35;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        body.layout-bottom_sheet #popupList {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        body.layout-bottom_sheet #popupList .popup-list-item {
+            flex: 0 0 auto;
+            min-width: 220px;
+        }
     </style>
     <!-- Shared design tokens (open_apps.theme). Every color and font above
          is a var() into this block. -->
     <style>{{ theme_css|safe }}</style>
 </head>
 
-<body>
+<body class="layout-{{ layout }}">
     <div class="container">
         <div id="map"></div>
         <div id="sidebar">

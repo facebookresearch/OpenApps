@@ -271,7 +271,11 @@ _base_hdrs = (
     ),
     _base_chat_script,
 )
-app = FastHTML(hdrs=_base_hdrs, cls="p-4 max-w-lg mx-auto", default_hdrs=False)
+# The app renders as a narrow, phone-width column. `set_environment` appends
+# the active `layout-<name>` to this so layout CSS can reach <body> itself --
+# `split_inbox` needs two panes side by side, which `max-w-lg` cannot fit.
+_DEFAULT_BODY_CLS = "p-4 max-w-lg mx-auto"
+app = FastHTML(hdrs=_base_hdrs, cls=_DEFAULT_BODY_CLS, default_hdrs=False)
 
 # Static, theme-agnostic component styles. Colors and fonts are design tokens
 # from the shared theme (`config/apps/theme/`), emitted per-request by
@@ -349,6 +353,12 @@ _COMPONENT_STYLES = Style(
 def set_environment(config):
     """Set environment variables for the messenger app"""
     global app, logo_title_container, message_history_db, user_logo, group_logo
+    # Put the layout on <body> rather than on an inner div: the width cap that
+    # makes this app phone-shaped lives on <body>, and a descendant cannot
+    # widen its own ancestor. Re-applied on every call, so an MCP
+    # `reconfigure` layout swap lands too.
+    layout = getattr(config.messenger, "layout", "default")
+    app.bodykw["cls"] = f"{_DEFAULT_BODY_CLS} layout-{layout}"
     # if getattr(config.messenger, 'no_css', False):
     #     app.hdrs = ()
     #     app.config = config
@@ -473,9 +483,57 @@ def SearchBar():
         )
     )
 
-# the main screen, create a page that displays a list of users. Each user can be clicked on to display the detailed messages
-@app.get("/messages")
-def index():
+def current_layout():
+    """The active structure variant from `config/apps/messenger/layout/`.
+
+    Both variants keep `/messages` and `/messages/{user_id}/` resolving and
+    leave `#chatlist` in place, so tasks and rewards (which read
+    `/messages_all`) are unaffected.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return "default"
+    return getattr(config.messenger, "layout", "default")
+
+
+# Layout rules. `compact_list` overrides daisyUI's chat classes, so it needs
+# the extra specificity of the layout class rather than a bare selector.
+_LAYOUT_STYLES = Style("""
+    /* split_inbox: conversation list and open thread side by side. The body
+       cap has to lift first -- `max-w-lg` is a utility class, so the
+       element+class selector here outranks it without !important. The thread
+       pane's <main> is centred by Pico, which would re-narrow it inside the
+       pane, hence the reset. */
+    body.layout-split_inbox { max-width: 76rem; }
+    .messenger-split { display: flex; align-items: flex-start; gap: 1rem; }
+    .messenger-split > .msg-list-pane { flex: 0 0 22rem; max-width: 22rem; }
+    .messenger-split > .msg-thread-pane { flex: 1; min-width: 0; }
+    .messenger-split > .msg-thread-pane > main { max-width: none; margin: 0; width: 100%; }
+
+    /* compact_list: strip the avatars and tighten the rows, then flatten the
+       thread from chat bubbles into left-aligned rows. */
+    .layout-compact_list .msg-avatar { display: none; }
+    .layout-compact_list .msg-row { padding: 0.25rem 0.5rem; }
+    .layout-compact_list .msg-row .ml-4 { margin-left: 0; padding-bottom: 0.4rem; }
+    .layout-compact_list .chat.chat-end { place-items: start; text-align: left; }
+    .layout-compact_list .chat .chat-bubble {
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+        background-color: transparent;
+        color: var(--color-fg);
+        border-bottom: 1px solid var(--color-border);
+        padding-left: 0;
+    }
+""")
+
+
+def conversation_list(selected: str = None):
+    """The list of chats, shared by `/messages` and the split_inbox thread view.
+
+    `selected` marks the open conversation when both panes are on screen; it
+    is None on the standalone list page.
+    """
     chats = []
     for history in message_history_db():
         messages = ast.literal_eval(history.messages)
@@ -509,6 +567,7 @@ def index():
                 Div(
                     Div(
                         user_logo if 'group' not in chat['user'].lower() else group_logo,
+                        cls="msg-avatar",
                     ),
                 # Chat info
                 Div(
@@ -520,7 +579,11 @@ def index():
                     P(f"{chat['last_message']:.35}{'...' if len(chat['last_message']) > 35 else ''}", cls="text-xs text-gray-600"),
                     cls="ml-4 flex-grow border-b border-base-200 pb-3",
                 ),
-                cls="flex items-center p-2 hover:bg-base-200 rounded-lg transition-colors w-full",
+                cls=(
+                    "msg-row flex items-center p-2 hover:bg-base-200 rounded-lg "
+                    "transition-colors w-full"
+                    + (" bg-base-200" if chat['user'] == selected else "")
+                ),
             ),
             href=f"/messages/{chat['user']}",
             cls="no-underline text-current",
@@ -528,22 +591,31 @@ def index():
         for chat in chats
     ]
 
+    return Div(
+        *userlist,
+        cls="flex flex-col divide-y divide-base-200 bg-base-100 rounded-box shadow",
+    )
+
+
+# the main screen, create a page that displays a list of users. Each user can be clicked on to display the detailed messages
+@app.get("/messages")
+def index():
     # Replace Container with Main for better structure
     page = Main(
         Div(
-            Div(
-                *userlist,
-                cls="flex flex-col divide-y divide-base-200 bg-base-100 rounded-box shadow",
-            ),
+            conversation_list(),
             A("Return to List of Apps", href="/", role="button", cls="btn btn-outline mt-6 w-full text-lg"),
             cls="max-w-md mx-auto p-4",
         )
     )
 
+    # The active layout is a class on <body> (see `set_environment`), so no
+    # wrapper class is needed here.
     return Div(
         messenger_theme(),
+        _LAYOUT_STYLES,
         logo_title_container,
-        page
+        page,
     )
 
 @app.get("/messages/{user_id}/")
@@ -647,10 +719,33 @@ def index(user_id: str):
         """)
     )
 
+    layout = current_layout()
+    if layout == "split_inbox":
+        # Desktop-mail arrangement: the chat list stays on screen next to the
+        # open thread instead of being a separate page. The thread is still at
+        # its own URL, so every existing link and task navigation still works.
+        body = Div(
+            Div(
+                conversation_list(selected=user_id),
+                A(
+                    "Return to List of Apps",
+                    href="/",
+                    role="button",
+                    cls="btn btn-outline mt-6 w-full text-lg",
+                ),
+                cls="msg-list-pane p-4",
+            ),
+            Div(page, cls="msg-thread-pane"),
+            cls="messenger-split",
+        )
+    else:
+        body = page
+
     return Div(
         messenger_theme(),
+        _LAYOUT_STYLES,
         logo_title_container,
-        page
+        body,
     )
 
 

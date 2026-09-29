@@ -116,12 +116,31 @@ asset, so a theme file never has to know which apps exist.
 
 ```shell
 uv run launch.py apps/todo/layout=kanban_board
+uv run launch.py apps/maps/layout=sidebar_left
 uv run launch.py apps/start_page/layout=broken_logos
 ```
 
-Available layouts: `todo` has `default` and `kanban_board`; `start_page` has
-`default`, `broken_logos` (icons detached from their tiles) and
-`clickable_logos`; the other apps currently have `default` only.
+A layout changes *structure* only -- where things sit on the page. Colors and
+fonts stay with the theme, and routes, element ids and the `/<app>_all` state
+endpoints are identical across layouts, so rewards are unaffected by the
+layout in play. Every app has `default`, plus:
+
+| App | Layouts | What changes |
+| --- | --- | --- |
+| `todo` | `kanban_board` | Status columns of cards instead of one list |
+| `calendar` | `agenda_first` | Lands on the agenda, not the month grid |
+| | `sidebar_nav` | Month nav and view toggle become a left rail |
+| `messenger` | `split_inbox` | Chat list stays beside the open thread |
+| | `compact_list` | Dense avatar-less rows; flat messages, not bubbles |
+| `maps` | `sidebar_left` | Search and Saved Locations left of the map |
+| | `bottom_sheet` | Sidebar becomes a panel under the map |
+| `code_editor` | `sidebar_right` | File tree right of the editor |
+| | `top_tree` | File tree as a strip above the editor, no side column |
+| `start_page` | `broken_logos` | Icons detached from their tiles |
+| | `clickable_logos` | Tile logos become their own click targets |
+
+`onlineshop` has `default` only -- it is off by default and gated on OpenJDK
+21 plus a downloaded dataset, so its layouts could not be screenshot-tested.
 
 #### Migrating from `appearance`
 
