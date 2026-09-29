@@ -29,7 +29,6 @@ import json
 from dataclasses import dataclass
 
 from fasthtml.common import (
-    H1,
     H2,
     A,
     Code,
@@ -148,6 +147,17 @@ NOOP_URL = "/uilibrary/noop"
 
 
 _LAYOUT_STYLES = Style("""
+    /* Paint the page from the active theme. Without this the token block is
+       declared and then unused, so the one page whose job is to demonstrate
+       what a theme does would render on the browser's default white no
+       matter which theme is selected -- dark swatches on a light page. */
+    body {
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+    }
+
     .uilib { display: flex; gap: calc(var(--space) * 3); align-items: flex-start; }
     .uilib-nav { flex: 0 0 12rem; position: sticky; top: var(--space); }
     .uilib-nav a { display: block; padding: var(--space); text-decoration: none; }
@@ -461,8 +471,9 @@ def _page(active: str):
         theme_style(app.config, "ui_library"),
         component_styles(),
         _LAYOUT_STYLES,
+        # `logo_title_container` already renders the icon and the app title;
+        # a second heading here would print the name twice.
         logo_title_container,
-        H1(app.config.start_page.apps.uilibrary.title),
         Text(getattr(app.config.ui_library, "intro", ""), variant="body"),
         Div(nav, canvas, cls=f"uilib is-{layout}"),
         id="uilibrary",
