@@ -1,0 +1,9 @@
+# @package apps.ui_library
+intro: >-
+  下面的每个组件都是从共享组件库渲染的，使用当前激活的主题。
+  使用 `apps/theme=` 切换主题，即可看到这些设计令牌的实际效果。
+section_labels:
+  tokens: 设计令牌
+  atoms: 原子组件
+  molecules: 分子组件
+  brand: 品牌

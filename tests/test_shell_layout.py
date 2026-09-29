@@ -520,8 +520,18 @@ class TestPinResolution:
         return resolve_pinned(_desktop_config(sp), sp, variant)
 
     def test_all_expands_to_every_rendered_app(self):
+        # Position order from the start page's inventory. `onlineshop` sits at
+        # position 6 and is absent because it is gated off (see the next
+        # test); `uilibrary` is position 7.
         pinned = self.resolve()
-        assert pinned == ["todo", "calendar", "messages", "maps", "codeeditor"]
+        assert pinned == [
+            "todo",
+            "calendar",
+            "messages",
+            "maps",
+            "codeeditor",
+            "uilibrary",
+        ]
 
     def test_the_online_shop_is_not_pinned_while_it_is_gated_off(self):
         """It is `enabled` in the start page's inventory but gated globally on

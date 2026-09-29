@@ -35,7 +35,7 @@ def get_current_state(url: str) -> dict:
 
     Returns:
         Dict keyed by app name (todo, calendar, map, messenger,
-        codeeditor, online_shop) whose values are the JSON the
+        codeeditor, ui_library, online_shop) whose values are the JSON the
         corresponding ``/<app>_all`` endpoints return.
     """
     state: dict = {}
@@ -44,6 +44,7 @@ def get_current_state(url: str) -> dict:
     state["map"] = safe_get_json(url + "/maps/landmarks")
     state["messenger"] = safe_get_json(url + "/messages_all")
     state["codeeditor"] = safe_get_json(url + "/codeeditor_all")
+    state["ui_library"] = safe_get_json(url + "/uilibrary_all")
     try:
         state["online_shop"] = safe_get_json(url + "/onlineshop_all")
     except Exception:

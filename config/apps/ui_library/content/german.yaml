@@ -1,0 +1,10 @@
+# @package apps.ui_library
+intro: >-
+  Jede Komponente unten wird aus der gemeinsamen Bibliothek gerendert, mit
+  dem aktuell aktiven Design. Wechseln Sie das Design mit `apps/theme=`, um
+  zu sehen, was die Tokens tatsächlich bewirken.
+section_labels:
+  tokens: Tokens
+  atoms: Atome
+  molecules: Moleküle
+  brand: Marke

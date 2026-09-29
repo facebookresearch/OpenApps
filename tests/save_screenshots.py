@@ -54,6 +54,10 @@ ROUTES = (
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
+    RouteSpec("uilibrary", "/uilibrary", "#uilibrary"),
+    # The atoms section is where the knobs live, so it is the page that
+    # actually shows whether a theme repaints the components.
+    RouteSpec("uilibrary_atoms", "/uilibrary/atoms", ".uilib-story"),
     RouteSpec("onlineshop", "/onlineshop/", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/search/electronics/1", ".card"),
     RouteSpec("onlineshop_fashion", "/onlineshop/search/fashion/1", ".card"),
@@ -63,7 +67,15 @@ ROUTES = (
 
 THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
-CONTENT_APPS = ("start_page", "todo", "calendar", "messenger", "maps", "code_editor")
+CONTENT_APPS = (
+    "start_page",
+    "todo",
+    "calendar",
+    "messenger",
+    "maps",
+    "code_editor",
+    "ui_library",
+)
 
 # Per-app structure variants worth a screenshot of their own. Themes are
 # captured separately (one variation per stem) because they are global -- a
@@ -72,6 +84,8 @@ LAYOUT_VARIATIONS = {
     "layout_kanban_board": ["apps/todo/layout=kanban_board"],
     "layout_broken_logos": ["apps/start_page/layout=broken_logos"],
     "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
+    "layout_uilibrary_single_column": ["apps/ui_library/layout=single_column"],
+    "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
 }
 
 
