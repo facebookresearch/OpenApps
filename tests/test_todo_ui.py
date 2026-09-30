@@ -134,16 +134,29 @@ class TestBoardLayout:
 
 
 class TestChromeAndThemes:
-    @pytest.mark.parametrize("layout", ["default", "kanban_board"])
-    def test_home_link_keeps_text_href_and_role(self, tmp_path, layout):
+    @pytest.mark.parametrize(
+        "layout, cls",
+        [("default", "todo-home-button"), ("kanban_board", "todo-home-link")],
+    )
+    def test_home_link_keeps_text_href_and_role(self, tmp_path, layout, cls):
         client = _client(tmp_path, f"apps/todo/layout={layout}")
         html = _markup(client.get("/todo").text)
         assert (
-            '<a href="/" role="button" class="todo-home-link">Return to List of Apps</a>'
+            f'<a href="/" role="button" class="{cls}">Return to List of Apps</a>'
             in html
         )
         # Still after the list/board, as before.
-        assert html.index("todo-home-link") > html.rindex('id="todo-')
+        assert html.index(cls) > html.rindex('id="todo-')
+
+    def test_home_link_is_prominent_only_in_default(self, tmp_path):
+        """Navigation tasks need screenshot agents to find the button in the
+        default layout; other layouts get the demoted link."""
+        default = _markup(_client(tmp_path / "list").get("/todo").text)
+        board = _markup(
+            _client(tmp_path / "board", "apps/todo/layout=kanban_board").get("/todo").text
+        )
+        assert "todo-home-button" in default and "todo-home-link" not in default
+        assert "todo-home-link" in board and "todo-home-button" not in board
 
     @pytest.mark.parametrize("theme", ["dark", "solarized", "mono", "challenging_font"])
     @pytest.mark.parametrize("layout", ["default", "kanban_board"])

@@ -382,8 +382,30 @@ styles = Style("""
     }
 
     /* ---- Chrome ------------------------------------------------------- */
-    /* Same text/href/role as before; it is navigation, not an action, so it
-       is styled as a quiet link rather than a filled button. */
+    /* Default layout: a full-size filled button at the bottom of the page,
+       as the original was. The navigation tasks rely on screenshot agents
+       spotting it, so it gets no hover-only or muted treatment. */
+    a.todo-home-button[role=button] {
+        display: inline-block;
+        width: auto;
+        margin-top: calc(var(--space) * 2);
+        background-color: var(--color-neutral);
+        border: 1px solid var(--color-neutral);
+        color: var(--color-btn-fg);
+        font-weight: 500;
+        box-shadow: none;
+    }
+    a.todo-home-button[role=button]:hover {
+        background-color: color-mix(in srgb, var(--color-neutral) 85%, var(--color-fg));
+        border-color: color-mix(in srgb, var(--color-neutral) 85%, var(--color-fg));
+        color: var(--color-btn-fg);
+    }
+    a.todo-home-button[role=button]:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+    /* Other layouts: same text/href/role, styled as a quiet link since it is
+       navigation rather than an action. */
     a.todo-home-link[role=button] {
         display: inline-block;
         width: auto;
@@ -633,11 +655,15 @@ def render_kanban_board(edit_id=None, edit_header=None):
     return Div(columns, id="todo-board", cls="kanban-board")
 
 
-def home_link():
-    """Back-to-launcher chrome. Text, href and ``role`` are unchanged from the
-    original filled button (agents locate it by them); only the styling is
-    demoted to a quiet link."""
-    return A("Return to List of Apps", href="/", role="button", cls="todo-home-link")
+def home_link(prominent: bool = False):
+    """Back-to-launcher chrome. Text, href, ``role`` and position are the same
+    in every layout (agents locate it by them).
+
+    ``prominent`` keeps it a full-size filled button: the default layout's
+    navigation tasks depend on screenshot agents finding it. Other layouts
+    demote it to a quiet link, the realistic treatment."""
+    cls = "todo-home-button" if prominent else "todo-home-link"
+    return A("Return to List of Apps", href="/", role="button", cls=cls)
 
 
 @rt("/todo")
@@ -674,7 +700,7 @@ def get():
         styles,
         logo_title_container,
         card,
-        home_link(),
+        home_link(prominent=True),
         cls="todo-page todo-page--list",
     )
 
