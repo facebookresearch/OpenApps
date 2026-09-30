@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from open_apps.frontend import local_hdrs
+from open_apps.ui.brand import Wordmark
 
 # src/proficiency_playground/playground_server
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,7 +63,13 @@ def Wrapper(title, description, content, style=1, align=None, color=None, invert
     # per-app font config, which is what the `appearance` group used to supply.
     # An empty sub-header is dropped rather than rendered as a blank <p>: it
     # only added a paragraph-sized gap between the headline and the grid.
-    inner_content = [H2(title, cls="launcher-title")]
+    # The OpenApps wordmark heads the page, as a product's logo heads its
+    # new-tab page. It is an inline SVG (role="img", labelled "OpenApps"), not
+    # a link, so the page's set of links is unchanged.
+    inner_content = [
+        Div(Wordmark(height=40), cls="launcher-brand"),
+        H2(title, cls="launcher-title"),
+    ]
     if description and str(description).strip():
         inner_content.append(P(description, cls="launcher-subtitle"))
     inner_content.append(content)
@@ -278,7 +285,20 @@ LAUNCHER_CSS = """
         padding: calc(var(--space) * 12) calc(var(--space) * 4) calc(var(--space) * 8);
     }
 
-    /* Header */
+    /* Header: the wordmark, then the welcome line beneath it. The mark and
+       word draw in currentColor, so pinning `color` is what keeps the lockup
+       on the theme's text colour rather than Pico's heading colour. */
+    #wrapper .launcher-brand {
+        display: flex;
+        justify-content: center;
+        margin: 0 0 calc(var(--space) * 2.5);
+        color: var(--color-fg);
+    }
+    #wrapper .launcher-brand .ui-wordmark {
+        display: block;
+        width: auto;
+        height: calc(var(--space) * 5);
+    }
     #wrapper .launcher-title {
         margin: 0 0 calc(var(--space) * 1.5);
         font-family: var(--font-heading);
@@ -323,13 +343,33 @@ LAUNCHER_CSS = """
         --icon-size: calc(var(--space) * 10);
     }
 
-    /* Tile: the colored square is the link. The icon sits in the middle, the
-       name along the bottom edge, as on a start-screen tile. */
-    #wrapper .launcher > .item {
-        display: grid;
-        grid-template-rows: minmax(0, 1fr) auto;
-        justify-items: center;
+    /* Tile: the colored square is the link, with the icon and the name
+       centred in it as one group.
+
+       In a browser, the Story template's main.js wraps each tile's children
+       in a `<div class="inner">` (`$('.items').children().wrapInner(...)`) --
+       it is what the optional `fade_in` scroll reveal animates. That wrapper
+       never appears in server-rendered markup, which is how an unstyled one
+       shrink-wrapped to the label and pushed every icon off-centre without a
+       markup test noticing. So the tile and the wrapper share one centred
+       column rule: identical with or without JS, and the fade still has its
+       element to animate. */
+    #wrapper .launcher > .item,
+    #wrapper .launcher > .item > .inner {
+        display: flex;
+        flex-direction: column;
         align-items: center;
+        justify-content: center;
+        gap: var(--space);
+        text-align: center;
+    }
+    #wrapper .launcher > .item > .inner {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    #wrapper .launcher > .item {
         aspect-ratio: 1;
         min-width: 0;
         margin: 0;
@@ -339,7 +379,6 @@ LAUNCHER_CSS = """
         background-color: var(--tile-fill, var(--color-surface));
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-fg) 8%, transparent);
         color: var(--tile-ink, var(--color-fg));
-        text-align: left;
         text-decoration: none;
         transition: background-color 120ms ease, transform 120ms ease;
     }
@@ -386,7 +425,7 @@ LAUNCHER_CSS = """
 
     /* Label and description */
     #wrapper .launcher > .item h3 {
-        justify-self: stretch;
+        width: 100%;
         margin: 0;
         font-family: var(--font-family);
         font-size: var(--font-size-sm);
@@ -397,12 +436,15 @@ LAUNCHER_CSS = """
         text-shadow: 0 1px 2px var(--tile-ink-shadow, transparent);
         overflow-wrap: break-word;
     }
+    #wrapper .launcher > .item h3,
+    #wrapper .launcher > .item p {
+        text-align: inherit;
+    }
     #wrapper .launcher > .item p {
         margin: 0;
         font-size: var(--font-size-sm);
         line-height: 1.5;
         color: color-mix(in srgb, var(--color-muted) 50%, var(--color-fg));
-        text-align: left;
     }
 
     /* Cards: when the apps come with descriptions, each app gets a listing
@@ -416,13 +458,22 @@ LAUNCHER_CSS = """
         justify-content: stretch;
         max-width: calc(var(--space) * 108);
     }
-    #wrapper .launcher.has-descriptions > .item {
+    #wrapper .launcher.has-descriptions > .item,
+    #wrapper .launcher.has-descriptions > .item > .inner {
+        display: grid;
         grid-template-columns: var(--icon-size) minmax(0, 1fr);
-        grid-template-rows: none;
         justify-items: stretch;
+        align-items: center;
         align-content: start;
-        aspect-ratio: auto;
         gap: calc(var(--space) * 1.5);
+        text-align: left;
+    }
+    #wrapper .launcher.has-descriptions > .item > .inner {
+        grid-column: 1 / -1;
+        height: auto;
+    }
+    #wrapper .launcher.has-descriptions > .item {
+        aspect-ratio: auto;
         padding: calc(var(--space) * 2.5);
         border: 1px solid var(--color-border);
         background-color: var(--color-surface);

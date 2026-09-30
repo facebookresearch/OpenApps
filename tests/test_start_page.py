@@ -173,3 +173,26 @@ def test_launcher_css_takes_colors_from_theme_tokens():
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b", LAUNCHER_CSS)
     assert not re.search(r"\b(rgba?|hsla?)\(", LAUNCHER_CSS)
     assert ":focus-visible" in LAUNCHER_CSS
+
+
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_wordmark_heads_the_page_without_adding_a_link(monkeypatch, layout):
+    markup = render(monkeypatch, f"apps/start_page/layout={layout}")
+    brand = markup.index('class="launcher-brand"')
+    headline = markup.index('class="launcher-title"')
+    assert brand < headline
+    header = markup[brand:headline]
+    assert 'role="img"' in header and 'aria-label="OpenApps"' in header
+    assert "<a " not in header
+
+
+def test_tile_layout_also_covers_the_wrapper_main_js_injects():
+    # main.js wraps every tile's children in <div class="inner"> at runtime;
+    # an unstyled wrapper shrink-wraps to the label and pushes icons
+    # off-centre. Markup tests never see it, so pin the CSS that handles it.
+    css = re.sub(r"\s+", " ", LAUNCHER_CSS)
+    assert "#wrapper .launcher > .item, #wrapper .launcher > .item > .inner {" in css
+    assert (
+        "#wrapper .launcher.has-descriptions > .item, "
+        "#wrapper .launcher.has-descriptions > .item > .inner {"
+    ) in css
