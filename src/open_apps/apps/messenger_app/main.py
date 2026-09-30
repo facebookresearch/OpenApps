@@ -332,13 +332,17 @@ _COMPONENT_STYLES = Style(
         background-color: var(--color-bg) !important;
     }
 
-    /* Chat bubbles */
-    .chat-bubble-primary {
+    /* Chat bubbles. `.chat` in the selector is load-bearing: `.chat
+       .chat-bubble` above also sets `color` with !important, and between two
+       !important rules the more specific one wins -- a bare
+       `.chat-bubble-primary` lost, leaving `--color-fg` (near-black) text on
+       the `--color-primary` fill of every sent message. */
+    .chat .chat-bubble-primary {
         background-color: var(--color-primary) !important;
         color: var(--color-on-primary) !important;
     }
 
-    .chat-bubble-secondary {
+    .chat .chat-bubble-secondary {
         background-color: var(--color-surface) !important;
     }
 
