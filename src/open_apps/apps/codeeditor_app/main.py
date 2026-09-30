@@ -32,7 +32,10 @@ from src.open_apps.theme import theme_asset, theme_style
 # code points, hence the raw string.
 _COMPONENT_STYLES = Style(
     r"""
-    html, body {
+    /* `:root` as well as `body`: Pico and daisyUI both paint the root from
+       their own palettes (daisyUI's follows the OS dark-mode setting), and
+       this sheet loads after both. */
+    :root, body {
         background-color: var(--color-bg);
         color: var(--color-fg);
         font-family: var(--font-family);
@@ -70,8 +73,11 @@ _COMPONENT_STYLES = Style(
         outline: 2px solid var(--color-primary);
         outline-offset: -2px;
     }
+    /* `!important`: a utility the rename script toggles on elements whose
+       own rule sets a display (Tailwind, which used to supply it, is a CDN
+       an eval node cannot reach). */
     .codeeditor-app .hidden {
-        display: none;
+        display: none !important;
     }
     .codeeditor-app .sr-only {
         position: absolute;
@@ -300,82 +306,308 @@ _COMPONENT_STYLES = Style(
         background-color: var(--color-bg);
     }
 
-    /* --- Legacy editor-pane rules ---------------------------------------- */
-    .main-content {
-        background-color: var(--color-bg);
+    .codeeditor-app .ce-editor-header {
+        display: flex;
+        flex: none;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space);
+        min-height: calc(var(--space) * 4.5);
+        padding: calc(var(--space) * 0.5) calc(var(--space) * 1.5);
+        border-bottom: 1px solid var(--color-border);
     }
-    /* The chrome here is marked `text-white` throughout -- a leftover from
-       when this app painted its panels a hard-coded blue. `.main-content` is
-       now `var(--color-bg)`, which is white in the default theme, so the file
-       tree, the "No file selected" heading and the Language/Theme labels were
-       rendering white-on-white. Point them at the theme's foreground instead.
-       Controls and rows that carry their own dark fill (the mode/theme
-       selects, the tab strip, the highlighted folder row) still need white,
-       so they are restored below. */
-    .main-content .text-white {
-        color: var(--color-fg);
-    }
-    .main-content [class*="bg-gray-"] .text-white,
-    .main-content [class*="bg-gray-"].text-white,
-    .main-content [class*="bg-blue-"] .text-white,
-    .main-content [class*="bg-blue-"].text-white {
-        color: #ffffff;
-    }
-    /* The file tree, however, must not take that restore: every row carries
-       `hover:bg-gray-700`, which the `[class*="bg-gray-"]` match above
-       catches, so tree labels went straight back to white-on-white. Its rows
-       get theme fills instead of the old hard-coded gray/blue, and its
-       folder toggles -- <button>s, which Pico paints as filled controls --
-       read as plain tree labels. */
-    .codeeditor-tree .text-white,
-    .codeeditor-tree [class*="bg-"] .text-white {
-        color: var(--color-fg) !important;
-    }
-    .codeeditor-tree [class*="hover:bg-gray-"]:hover {
-        background-color: var(--color-surface) !important;
-    }
-    .codeeditor-tree .bg-blue-800 {
-        background-color: color-mix(in srgb, var(--color-primary) 18%, transparent) !important;
-    }
-    .codeeditor-tree button {
-        background: none;
-        border: 0;
-        box-shadow: none;
+    .codeeditor-app .ce-editor-title {
+        min-width: 0;
         margin: 0;
-        padding: 0 0.25rem;
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        line-height: 1.4;
+    }
+    /* The file name carries `role="button"` (double-click renames it), which
+       Pico paints as a filled primary button; it should read as a label. */
+    .codeeditor-app .ce-title-text {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space);
         width: auto;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
         color: inherit;
         font: inherit;
+        text-align: left;
+        cursor: text;
     }
-    .styled-content {
-        font-size: var(--font-size-sm);
-        font-family: var(--font-family);
+    .codeeditor-app .ce-rename-hint {
+        color: var(--color-muted);
+        font-weight: 400;
+        opacity: 0;
+    }
+    .codeeditor-app .ce-editor-title:hover .ce-rename-hint,
+    .codeeditor-app .ce-title-text:focus-visible .ce-rename-hint {
+        opacity: 1;
+    }
+    .codeeditor-app .ce-editor-actions,
+    .codeeditor-app .ce-selects {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space);
+    }
+    .codeeditor-app .ce-editor-actions .ce-selects {
+        gap: calc(var(--space) * 1.5);
+    }
+
+    /* Tab strip. The strip's bottom rule is an inset shadow so the active
+       tab's own background can cover it and run straight into the code. */
+    .codeeditor-app .ce-tabs {
+        display: flex;
+        flex: none;
+        align-items: stretch;
+        min-height: calc(var(--space) * 4.5);
+        background-color: var(--color-surface);
+        box-shadow: inset 0 -1px 0 var(--color-border);
+    }
+    .codeeditor-app .ce-tab-list {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+    }
+    .codeeditor-app .editor-tab {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: var(--ce-gap);
+        padding: 0 calc(var(--space) * 0.75) 0 calc(var(--space) * 1.25);
+        border-right: 1px solid var(--color-border);
+        color: var(--color-muted);
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .codeeditor-app .editor-tab:hover {
         color: var(--color-fg);
     }
-    /* The code pane keeps a monospace face regardless of the theme's body
-       font -- column alignment is load-bearing in an editor. */
-    textarea, textarea.styled-content {
-        background-color: var(--color-surface);
+    .codeeditor-app .editor-tab.is-active {
+        background-color: var(--color-bg);
+        box-shadow: inset 0 2px 0 var(--color-primary);
+        color: var(--color-fg);
+    }
+    .codeeditor-app .editor-tab-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: calc(var(--space) * 2.5);
+        height: calc(var(--space) * 2.5);
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: calc(var(--radius) * 0.5);
+        background: none;
+        box-shadow: none;
+        color: inherit;
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        line-height: 1;
+        cursor: pointer;
+    }
+    .codeeditor-app .editor-tab-close:hover {
+        background-color: var(--ce-hover);
+        color: var(--color-fg);
+    }
+    .codeeditor-app .ce-tab-actions {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: calc(var(--space) * 0.75);
+        padding: 0 calc(var(--space) * 1.5);
+    }
+
+    /* The code itself. A plain <textarea> unless `highlight` loads
+       CodeMirror, which then replaces it with `.CodeMirror`. */
+    .codeeditor-app .ce-editor-body {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .codeeditor-app .ce-code {
+        flex: 1;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        margin: 0;
+        padding: var(--space) calc(var(--space) * 2);
+        border: 0;
+        border-radius: 0;
+        background-color: var(--color-bg);
+        box-shadow: none;
         color: var(--color-fg);
         font-family: var(--font-mono);
+        font-size: var(--font-size-sm);
+        line-height: 1.6;
+        resize: none;
+        tab-size: 4;
     }
-    .btn-primary {
-        background-color: var(--color-primary) !important;
-        border-color: var(--color-primary) !important;
-        color: var(--color-on-primary) !important;
-        font-family: var(--font-family) !important;
+    .codeeditor-app .ce-code:focus {
+        outline: none;
+        box-shadow: none;
     }
-    .btn-secondary {
-        background-color: var(--color-neutral) !important;
-        border-color: var(--color-neutral) !important;
-        color: var(--color-btn-fg) !important;
-        font-family: var(--font-family) !important;
+    /* Nothing open: the read-only pane reads as VS Code's empty editor group,
+       its message centred and quiet rather than sitting in the corner like
+       a one-line document. */
+    .codeeditor-app .ce-code:disabled {
+        padding-top: 28vh;
+        color: var(--color-muted);
+        font-family: var(--font-family);
+        text-align: center;
+        cursor: default;
+        opacity: 1;
     }
-    .btn-error {
-        background-color: var(--color-danger) !important;
-        border-color: var(--color-danger) !important;
-        color: var(--color-btn-fg) !important;
-        font-family: var(--font-family) !important;
+    .codeeditor-app .ce-editor-body .CodeMirror {
+        flex: 1;
+        font-family: var(--font-mono);
+        font-size: var(--font-size-sm);
+    }
+
+    /* --- Status bar ------------------------------------------------------ */
+    .codeeditor-app .ce-statusbar {
+        display: flex;
+        flex: none;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        min-height: calc(var(--space) * 3);
+        background-color: var(--color-surface);
+        border-top: 1px solid var(--color-border);
+        color: var(--color-muted);
+        font-size: calc(var(--font-size-sm) * 0.9);
+    }
+    .codeeditor-app .ce-status-group {
+        display: flex;
+        align-items: center;
+        align-self: stretch;
+    }
+    .codeeditor-app .ce-status-item {
+        display: inline-flex;
+        align-items: center;
+        align-self: stretch;
+        gap: var(--ce-gap);
+        padding: 0 var(--space);
+        color: inherit;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .codeeditor-app a.ce-status-item:hover {
+        background-color: var(--ce-hover);
+        color: var(--color-fg);
+        text-decoration: none;
+    }
+    .codeeditor-app .ce-status-item .ce-icon {
+        width: auto;
+        color: inherit;
+    }
+    /* The pickers, when they live here, shrink to status-bar items: no box
+       until hovered. */
+    .codeeditor-app .ce-statusbar .ce-selects {
+        flex-wrap: nowrap;
+        gap: 0;
+        padding: 0 calc(var(--space) * 0.5);
+    }
+    .codeeditor-app .ce-statusbar .ce-field {
+        gap: calc(var(--space) * 0.25);
+        padding: 0 calc(var(--space) * 0.5);
+    }
+    .codeeditor-app .ce-statusbar .ce-field label,
+    .codeeditor-app .ce-statusbar .ce-select {
+        color: inherit;
+        font-size: inherit;
+    }
+    .codeeditor-app .ce-statusbar .ce-select {
+        padding-top: 0;
+        padding-bottom: 0;
+        border-color: transparent;
+        background-color: transparent;
+    }
+    .codeeditor-app .ce-statusbar .ce-select:hover {
+        border-color: var(--color-border);
+        background-color: var(--color-bg);
+    }
+"""
+)
+
+# Dialogs (New Folder, errors) are built by inline scripts with daisyUI's
+# `modal` markup and appended to <body>, outside `.codeeditor-app`. daisyUI
+# comes from a CDN, so on an offline eval node they would land unstyled at
+# the foot of the page; these rules give them an overlay and token colours
+# either way, and agree with daisyUI where it does load.
+_DIALOG_STYLES = Style(
+    """
+    .modal.modal-open {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        display: grid;
+        place-items: center;
+        background-color: color-mix(in srgb, var(--color-fg) 35%, transparent);
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+    .modal-open .modal-box {
+        width: min(28rem, calc(100vw - var(--space) * 4));
+        padding: calc(var(--space) * 2.5);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+    }
+    .modal-open .modal-box h3 {
+        margin: 0 0 var(--space);
+        color: var(--color-fg);
+        font-size: var(--font-size-base);
+        font-weight: 600;
+    }
+    .modal-open .modal-box .text-error {
+        color: var(--color-danger);
+    }
+    .modal-open .modal-box input {
+        width: 100%;
+        margin: 0;
+        border: 1px solid var(--color-border);
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+        font-size: var(--font-size-sm);
+    }
+    .modal-open .modal-action {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space);
+        margin-top: calc(var(--space) * 2);
+    }
+    .modal-open .modal-action .btn {
+        width: auto;
+        margin: 0;
+        padding: calc(var(--space) * 0.5) calc(var(--space) * 1.5);
+        border: 1px solid var(--color-border);
+        border-radius: calc(var(--radius) * 0.5);
+        background-color: transparent;
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+    }
+    .modal-open .modal-action .btn-primary {
+        border-color: var(--color-primary);
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
     }
 """
 )
@@ -507,7 +739,7 @@ def set_environment(config):
     
     app.config = config
     # Update app headers by extending existing ones
-    app.hdrs = (*_base_hdrs, _ICON_STYLESHEET, _COMPONENT_STYLES)
+    app.hdrs = (*_base_hdrs, _ICON_STYLESHEET, _COMPONENT_STYLES, _DIALOG_STYLES)
 
     if config.code_editor.sort_feature:
         list_of_modes = sorted(list_of_modes)
@@ -679,12 +911,15 @@ def _file_icon(name: str) -> I:
     return _icon("far fa-file-alt")
 
 
+# Quiet status-bar items rather than filled buttons: they leave the editor,
+# they are not what you came to it for. Link text is unchanged
+# (`navigate_from_codeeditor_to_todo` starts here).
 def return_to_index():
-    return A("Code Editor Index Page", href="/codeeditor", cls="btn btn-primary")
+    return A(_icon("fas fa-code"), "Code Editor Index Page", href="/codeeditor", cls="ce-status-item")
 
 
 def return_to_home():
-    return A("Return to List of Apps", href="/", cls="btn btn-primary")
+    return A(_icon("fas fa-home"), "Return to List of Apps", href="/", cls="ce-status-item")
 
 def newfile_index(current_path):
     # files_root = os.path.join(current_dir, "files")
@@ -916,81 +1151,147 @@ def create_sidebar(current_path: str = None) -> Div:
         """)
     )
 
+# The Language / Theme pickers' change handlers. One copy for all three
+# views: the folder and file views used to omit the error report the index
+# view had, so a failed update there was silent.
+_MODE_ONCHANGE = """
+    editor.setOption('mode', this.value);
+    fetch('/codeeditor/update_config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            type: 'mode',
+            value: this.value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            showErrorModal('Failed to update mode: ' + data.error);
+        }
+    });
+"""
+
+_THEME_ONCHANGE = """
+    editor.setOption('theme', this.value);
+    fetch('/codeeditor/update_config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            type: 'theme',
+            value: this.value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            showErrorModal('Failed to update theme: ' + data.error);
+        }
+    });
+"""
+
+
+def _selects_in_status_bar() -> bool:
+    """Whether the Language / Theme pickers live in the status bar.
+
+    VS Code keeps its language picker in the status bar, and the non-default
+    layouts follow it. `default` keeps them in the top-right of the editor
+    pane: the UI questions in `tests/ui_questions/ui_questions.json` are
+    built from the default screenshot and ask where they sit.
+    """
+    return current_layout() != "default"
+
+
+def editor_selects():
+    """The Language and Theme pickers -- ids, names, labels and options as
+    they always were; only their placement and styling vary."""
+    return Div(cls="ce-selects")(
+        Div(cls="ce-field")(
+            Label("Language: "),
+            Select(id="mode-selector", cls="ce-select", onchange=_MODE_ONCHANGE)(
+                *[Option(mode, value=mode, selected=(mode == app.config.code_editor.mode)) for mode in list_of_modes]
+            ),
+        ),
+        Div(cls="ce-field")(
+            Label("Theme: "),
+            Select(id="theme-selector", cls="ce-select", onchange=_THEME_ONCHANGE)(
+                *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
+            ),
+        ),
+    )
+
+
+def editor_header(title, *actions):
+    """The row above the code: what is open on the left, actions and (in
+    `default`) the pickers on the right."""
+    selects = [] if _selects_in_status_bar() else [editor_selects()]
+    return Div(cls="ce-editor-header")(
+        title,
+        Div(cls="ce-editor-actions")(*actions, *selects),
+    )
+
+
+def status_bar(*meta):
+    """The strip along the bottom of the window.
+
+    Navigation out of the editor sits bottom-left, where VS Code keeps its
+    remote indicator; file facts (and, outside `default`, the pickers) sit
+    bottom-right.
+    """
+    selects = [editor_selects()] if _selects_in_status_bar() else []
+    return Div(cls="ce-statusbar")(
+        Div(cls="ce-status-group")(return_to_home(), return_to_index()),
+        Div(cls="ce-status-group")(
+            *[Span(item, cls="ce-status-item") for item in meta],
+            *selects,
+        ),
+    )
+
+
+def editor_script(options: str) -> Script:
+    """CodeMirror bootstrap (or, with `highlight: False`, a no-op).
+
+    `setSize("100%", "100%")`: the editor body is a flex column that already
+    fills the window, so CodeMirror takes its height from there rather than
+    from a viewport calculation that ignored the tab strip and status bar.
+    """
+    highlight = app.config.code_editor.highlight
+    return Script(f"""
+        var editor = {'CodeMirror.fromTextArea' if highlight else ''} (document.getElementById('editor'), {options});
+        {'editor.setSize("100%", "100%");' if highlight else ''}
+    """)
+
+
+_EDIT_KEYS = """
+                        extraKeys: {
+                            "Tab": function(cm) {
+                                if (cm.somethingSelected()) {
+                                    cm.indentSelection("add");
+                                } else {
+                                    cm.replaceSelection("    ", "end", "+input");
+                                }
+                            },
+                            "Shift-Tab": function(cm) {
+                                cm.indentSelection("subtract");
+                            }
+                        }"""
+
+
 @app.get("/codeeditor/")
 def index():
     side_bar = create_sidebar()
-    # files_root = f"{current_dir}/files/"
-    files_root = current_dir
-    file_tree = get_file_tree(files_root)
     # by default, the main screen should display an empty code editor
     main_screen = Div(cls="ce-editor")(
-        Div(cls="main-content p-4 rounded-lg styled-content")(
-            Div(cls="flex justify-between items-center")(
-                H2(f"No file selected", cls="text-white"),
-                Div(cls="flex space-x-4")(
-                    Div(cls="flex items-center")(
-                        Label("Language: ", cls="text-white mr-2"),
-                        Select(
-                            id="mode-selector",
-                            cls="bg-gray-800 text-white p-2 rounded",
-                            onchange="""
-                                editor.setOption('mode', this.value);
-                                fetch('/codeeditor/update_config', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        type: 'mode',
-                                        value: this.value
-                                    })
-                                })
-                                .then(r => r.json())
-                                .then(data => {
-                                    if (!data.success) {
-                                        showErrorModal('Failed to update mode: ' + data.error);
-                                    }
-                                });
-                            """
-                        )(
-                            *[Option(mode, value=mode, selected=(mode == app.config.code_editor.mode)) for mode in list_of_modes]
-                        ),
-                    ),
-                    Div(cls="flex items-center")(
-                        Label("Theme: ", cls="text-white mr-2"),
-                        Select(
-                            id="theme-selector",
-                            cls="bg-gray-800 text-white p-2 rounded",
-                            onchange="""
-                                editor.setOption('theme', this.value);
-                                fetch('/codeeditor/update_config', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        type: 'theme',
-                                        value: this.value
-                                    })
-                                })
-                            .then(r => r.json())
-                            .then(data => {
-                                if (!data.success) {
-                                    showErrorModal('Failed to update theme: ' + data.error);
-                                }
-                            });
-                            """
-                        )(
-                            *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
-                        ),
-                    ),
-                ),
+        # "No file selected" stays the header text: a UI question asks for it.
+        editor_header(H2("No file selected", cls="ce-editor-title")),
+        Div(cls="ce-editor-body")(
+            Textarea(
+                app.config.code_editor.welcome_message or "Welcome! Happy coding everyday!",
+                id="editor",
+                cls="ce-code",
+                disabled="disabled"
             ),
-            Div(cls="mt-4")(
-                Textarea(
-                    app.config.code_editor.welcome_message or "Welcome! Happy coding everyday!",
-                    id="editor",
-                    cls="w-full h-[calc(100vh-12rem)] p-4 rounded-lg styled-content",
-                    disabled="disabled"
-                ),
-                Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
+            editor_script(f"""{{
                         mode: '{app.config.code_editor.mode}',
                         theme: '{current_editor_theme()}',
                         lineNumbers: true,
@@ -998,31 +1299,11 @@ def index():
                         tabSize: 4,
                         indentWithTabs: false,
                         smartIndent: true,
-                        lineWrapping: true,
-                        extraKeys: {{
-                            "Tab": function(cm) {{
-                                if (cm.somethingSelected()) {{
-                                    cm.indentSelection("add");
-                                }} else {{
-                                    cm.replaceSelection("    ", "end", "+input");
-                                }}
-                            }},
-                            "Shift-Tab": function(cm) {{
-                                cm.indentSelection("subtract");
-                            }}
-                        }}
-                    }});
-                    {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
-                """),
-            ),
-            # make sure the buttons are not too close to each other
-            Div(cls="mt-4 flex space-x-4")(
-                return_to_index(),
-                return_to_home(),
-            ),
+                        lineWrapping: true,{_EDIT_KEYS}
+                    }}"""),
         ),
     )
-    page = editor_page(side_bar, main_screen)
+    page = editor_page(side_bar, main_screen, status_bar())
     return Div(codeeditor_theme(), logo_title_container, page)
 
 
@@ -1041,98 +1322,44 @@ def get(path: str):
 def get_folder(folder: str):
     """Handle folder view with empty editor"""
     side_bar = create_sidebar(folder)
+    delete_folder = Button(
+        "Delete Folder",
+        cls="ce-btn ce-btn-danger",
+        onclick=f"""
+            fetch('/codeeditor/delete/{folder}', {{
+                method: 'POST'
+            }})
+            .then(r => r.json())
+            .then(data => {{
+                if (data.success) {{
+                    window.location = '/codeeditor/';
+                }} else {{
+                    showErrorModal('Failed to delete folder: ' + data.error);
+                }}
+            }});
+        """
+    )
     main_screen = Div(cls="ce-editor")(
-        Div(cls="main-content  p-4 rounded-lg styled-content")(
-            Div(cls="flex justify-between items-center")(
-                H2(f"Folder: {folder}", cls="text-white"),
-                Div(cls="flex space-x-4")(
-                    Div(cls="flex items-center")(
-                        Label("Language: ", cls="text-white mr-2"),
-                        Select(
-                            id="mode-selector",
-                            cls="bg-gray-800 text-white p-2 rounded",
-                            onchange="""
-                                editor.setOption('mode', this.value);
-                                fetch('/codeeditor/update_config', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        type: 'mode',
-                                        value: this.value
-                                    })
-                                });
-                            """
-                        )(
-                            *[Option(mode, value=mode, selected=(mode == app.config.code_editor.mode)) for mode in list_of_modes]
-                        ),
-                    ),
-                    Div(cls="flex items-center")(
-                        Label("Theme: ", cls="text-white mr-2"),
-                        Select(
-                            id="theme-selector",
-                            cls="bg-gray-800 text-white p-2 rounded",
-                            onchange="""
-                                editor.setOption('theme', this.value);
-                                fetch('/codeeditor/update_config', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        type: 'theme',
-                                        value: this.value
-                                    })
-                                });
-                            """
-                        )(
-                            *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
-                        ),
-                    ),
-                ),
+        editor_header(H2(f"Folder: {folder}", cls="ce-editor-title"), delete_folder),
+        Div(cls="ce-editor-body")(
+            Textarea(
+                "Select a file to edit or create a new one.",
+                id="editor",
+                cls="ce-code",
+                disabled="disabled"
             ),
-            Div(cls="mt-4")(
-                Textarea(
-                    "Select a file to edit or create a new one.",
-                    id="editor",
-                    cls="w-full h-[calc(100vh-12rem)] p-4 rounded-lg styled-content",
-                    disabled="disabled"
-                ),
-                Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
+            editor_script(f"""{{
                         mode: '{app.config.code_editor.mode}',
                         theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         readOnly: true
-                    }});
-                    {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
-                """),
-            ),
-            Div(cls="mt-4 flex space-x-4")(
-                return_to_index(),
-                return_to_home(),
-                Button(
-                    "Delete Folder",
-                    cls="btn btn-error", # Using error class for danger/delete actions
-                    onclick=f"""
-                        fetch('/codeeditor/delete/{folder}', {{
-                            method: 'POST'
-                        }})
-                        .then(r => r.json())
-                        .then(data => {{
-                            if (data.success) {{
-                                window.location = '/codeeditor/';
-                            }} else {{
-                                showErrorModal('Failed to delete folder: ' + data.error);
-                            }}
-                        }});
-                    """
-                ),
-            ),
+                    }}"""),
         ),
     )
-    page = editor_page(side_bar, main_screen)
+    page = editor_page(side_bar, main_screen, status_bar())
     return Div(codeeditor_theme(), logo_title_container, page)
 
 def get_file(file: str):
-    side_bar = create_sidebar(file)
     # read the content of the file and display it in the editor
     try:
         # file_path = os.path.join(current_dir, "files", file)
@@ -1141,20 +1368,67 @@ def get_file(file: str):
             content = f.read()
     except FileNotFoundError:
         content = ""
-    # files_root = f"{current_dir}/files/"
-    files_root = current_dir
-    file_tree = get_file_tree(files_root)
     # same layout and sidebar as the main screen
     side_bar = create_sidebar(file)
-    tab_bar = Div(cls="flex overflow-x-auto bg-gray-800 border-b border-gray-700")(
+    file_name = file.split('/')[-1]
+    save_button = Button(
+        "Save",
+        cls="ce-btn ce-btn-primary",
+        onclick=f"""
+            const content = editor.getValue();
+            fetch('/codeeditor/save/{file}', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{content: content}})
+            }})
+            .then(r => r.json())
+            .then(data => {{
+                if (data.success) {{
+                    window.location.reload();
+                }} else {{
+                    showErrorModal('Failed to save file: ' + data.error);
+                }}
+            }});
+        """,
+    )
+    delete_button = Button(
+        "Delete",
+        cls="ce-btn ce-btn-danger",
+        onclick=f"""
+            fetch('/codeeditor/delete/{file}', {{method: 'POST'}})
+                .then(r => r.json())
+                .then(data => {{
+                    if (data.success) {{
+                        // Remove the deleted file from openedFiles array
+                        openedFiles = openedFiles.filter(f => f !== '{file}');
+                        updateOpenedFiles(openedFiles);
+                        // Navigate to the index page after deleting
+                        window.location = '/codeeditor/';
+                    }}
+                    else showErrorModal('Failed to delete file: ' + data.error);
+                }});
+        """,
+    )
+    # The tab strip. The open file's tab is rendered server-side so the strip
+    # is never empty (no-JS observers, the moment before the script runs);
+    # `renderTabs()` then replaces it with every tab from localStorage. Save
+    # and Delete sit at the strip's right end, where VS Code puts its editor
+    # actions.
+    tab_bar = Div(cls="ce-tabs")(
         Div(
             id="tab-container",
-            cls="flex"
+            cls="ce-tab-list"
         )(
+            Div(cls="editor-tab is-active")(
+                _file_icon(file_name),
+                Span(file_name),
+                Button("×", cls="editor-tab-close"),
+            ),
             Script("""
                 // Use sessionStorage to track if a session is active
                 const SESSION_KEY = 'editor_session_active';
                 const TABS_KEY = 'opened_files';
+                const CODE_EXTENSIONS = """ + json.dumps(list(_CODE_EXTENSIONS)) + """;
 
                 // Check if this is a fresh session
                 if (!sessionStorage.getItem(SESSION_KEY)) {
@@ -1198,12 +1472,17 @@ def get_file(file: str):
                     
                     openedFiles.forEach(file => {
                         const tab = document.createElement('div');
-                        tab.className = `flex items-center px-4 py-2 cursor-pointer ${
-                            file === currentFile ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`;
-                        
+                        tab.className = file === currentFile ? 'editor-tab is-active' : 'editor-tab';
+
+                        // Same glyph as the explorer row; decorative only.
+                        const name = file.split('/').pop();
+                        const icon = document.createElement('i');
+                        const isCode = CODE_EXTENSIONS.some(ext => name.toLowerCase().endsWith(ext));
+                        icon.className = isCode ? 'ce-icon far fa-file-code ce-icon-code' : 'ce-icon far fa-file-alt';
+                        icon.setAttribute('aria-hidden', 'true');
+
                         const fileName = document.createElement('span');
-                        fileName.textContent = file.split('/').pop();
+                        fileName.textContent = name;
                         fileName.onclick = () => {
                             if (file !== currentFile) {
                                 window.location = '/codeeditor/' + file;
@@ -1211,7 +1490,7 @@ def get_file(file: str):
                         };
                         
                         const closeBtn = document.createElement('button');
-                        closeBtn.className = 'ml-2 text-gray-500 hover:text-white focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0';
+                        closeBtn.className = 'editor-tab-close';
                         closeBtn.innerHTML = '×';
                         closeBtn.onclick = (e) => {
                             e.stopPropagation();
@@ -1230,6 +1509,7 @@ def get_file(file: str):
                             }
                         };
                         
+                        tab.appendChild(icon);
                         tab.appendChild(fileName);
                         tab.appendChild(closeBtn);
                         container.appendChild(tab);
@@ -1239,141 +1519,95 @@ def get_file(file: str):
                 // Initial render
                 renderTabs();
             """)
-        )
+        ),
+        Div(cls="ce-tab-actions")(save_button, delete_button),
+    )
+    title = Div(cls="ce-editor-title group")(
+        Div(
+            cls="ce-title-text",
+            ondblclick="""
+                this.nextElementSibling.classList.remove('hidden');
+                this.classList.add('hidden');
+                const input = this.nextElementSibling.querySelector('input');
+                input.focus();
+                input.select();
+            """,
+            role="button",
+            tabindex="0",
+            **{'aria-label': f"File name: {file}. Double-click to rename."}
+        )(
+            file,
+            Span(cls="ce-rename-hint")("Double-click to rename"),
+        ),
+        Div(cls="hidden")(
+            Input(
+                type="text",
+                value=file,
+                cls="ce-input",
+                onblur=f"""
+                    const newName = this.value;
+                    if (newName !== '{file}') {{
+                        // First save the current content
+                        const content = document.querySelector('textarea').value;
+                        fetch('/codeeditor/save/{file}', {{
+                            method: 'POST',
+                            headers: {{'Content-Type': 'application/json'}},
+                            body: JSON.stringify({{content: content}})
+                        }})
+                        .then(r => r.json())
+                        .then(data => {{
+                            if (data.success) {{
+                                // After successful save, proceed with rename
+                                return fetch('/codeeditor/rename/{file}?new_file=' + encodeURIComponent(newName), {{method: 'POST'}});
+                            }} else {{
+                                showErrorModal('Failed to save file: ' + data.error);
+                            }}
+                        }})
+                        .then(r => r.json())
+                        .then(data => {{
+                            if (data.success) {{
+                                // Update tab name before navigation
+                                updateTabOnRename('{file}', newName);                                            
+                                window.location = '/codeeditor/' + newName;
+                            }} else {{
+                                showErrorModal('Failed to rename: ' + data.error);
+                            }}
+                        }})
+                        .catch(error => showErrorModal(error.message));
+                    }}
+                    this.parentElement.classList.add('hidden');
+                    this.parentElement.previousElementSibling.classList.remove('hidden');
+                """,
+                onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value='"
+                + file
+                + "';this.blur();}",
+            ),
+        ),
     )
     main_screen = Div(cls="ce-editor")(
         tab_bar,
-        Div(cls="flex-grow main-content p-4 rounded-lg styled-content")(
-            Div(cls="flex justify-between items-center")(
-                Div(cls="text-white text-2xl group")(
-                    Div(
-                        cls="flex items-center",
-                        ondblclick="""
-                            this.nextElementSibling.classList.remove('hidden');
-                            this.classList.add('hidden');
-                            const input = this.nextElementSibling.querySelector('input');
-                            input.focus();
-                            input.select();
-                        """,
-                        role="button",
-                        tabindex="0",
-                        **{'aria-label': f"File name: {file}. Double-click to rename."}
-                    )(
-                        file,
-                        Span(
-                            cls="ml-2 text-sm text-gray-400 opacity-0 group-hover:opacity-100"
-                        )("Double-click to rename"),
-                    ),
-                    Div(cls="hidden")(
-                        Input(
-                            type="text",
-                            value=file,
-                            cls="bg-gray-800 text-white px-2 py-1 rounded w-full",
-                            onblur=f"""
-                                const newName = this.value;
-                                if (newName !== '{file}') {{
-                                    // First save the current content
-                                    const content = document.querySelector('textarea').value;
-                                    fetch('/codeeditor/save/{file}', {{
-                                        method: 'POST',
-                                        headers: {{'Content-Type': 'application/json'}},
-                                        body: JSON.stringify({{content: content}})
-                                    }})
-                                    .then(r => r.json())
-                                    .then(data => {{
-                                        if (data.success) {{
-                                            // After successful save, proceed with rename
-                                            return fetch('/codeeditor/rename/{file}?new_file=' + encodeURIComponent(newName), {{method: 'POST'}});
-                                        }} else {{
-                                            showErrorModal('Failed to save file: ' + data.error);
-                                        }}
-                                    }})
-                                    .then(r => r.json())
-                                    .then(data => {{
-                                        if (data.success) {{
-                                            // Update tab name before navigation
-                                            updateTabOnRename('{file}', newName);                                            
-                                            window.location = '/codeeditor/' + newName;
-                                        }} else {{
-                                            showErrorModal('Failed to rename: ' + data.error);
-                                        }}
-                                    }})
-                                    .catch(error => showErrorModal(error.message));
-                                }}
-                                this.parentElement.classList.add('hidden');
-                                this.parentElement.previousElementSibling.classList.remove('hidden');
-                            """,
-                            onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value='"
-                            + file
-                            + "';this.blur();}",
-                        ),
-                    ),
-                ),
-                Div(cls="flex space-x-4")(
-                    Div(cls="flex items-center")(
-                        Label("Language: ", cls="text-white mr-2"),
-                        Select(
-                            id="mode-selector",
-                            cls="bg-gray-800 text-white p-2 rounded",
-                            onchange="""
-                                editor.setOption('mode', this.value);
-                                fetch('/codeeditor/update_config', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        type: 'mode',
-                                        value: this.value
-                                    })
-                                });
-                            """
-                        )(
-                            *[Option(mode, value=mode, selected=(mode == app.config.code_editor.mode)) for mode in list_of_modes]
-                        ),
-                    ),
-                    Div(cls="flex items-center")(
-                        Label("Theme: ", cls="text-white mr-2"),
-                        Select(
-                            id="theme-selector",
-                            cls="bg-gray-800 text-white p-2 rounded",
-                            onchange="""
-                                editor.setOption('theme', this.value);
-                                fetch('/codeeditor/update_config', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        type: 'theme',
-                                        value: this.value
-                                    })
-                                });
-                            """
-                        )(
-                            *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
-                        ),
-                    ),
-                ),
+        editor_header(title),
+        Div(cls="ce-editor-body")(
+            Textarea(
+                content,  # or "" for index() function
+                id="editor",
+                cls="ce-code",
+                role="textbox",
+                spellcheck="false",
+                wrap="off",
+                **{
+                    "aria-label": f"Code editor - {file}",
+                    "aria-multiline": "true",
+                    "aria-describedby": "editor-description",
+                    "aria-atomic": "true",
+                    "aria-live": "off"
+                }
             ),
-            Div(cls="mt-4")(
-                Textarea(
-                    content,  # or "" for index() function
-                    id="editor",
-                    cls="w-full h-[calc(100vh-12rem)] p-4 rounded-lg styled-content",
-                    role="textbox",
-                    spellcheck="false",
-                    wrap="off",
-                    **{
-                        "aria-label": f"Code editor - {file}",
-                        "aria-multiline": "true",
-                        "aria-describedby": "editor-description",
-                        "aria-atomic": "true",
-                        "aria-live": "off"
-                    }
-                ),
-                Div(
-                    id="editor-description",
-                    cls="sr-only"
-                )(f"Code editor for editing {file}"),
-                Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
+            Div(
+                id="editor-description",
+                cls="sr-only"
+            )(f"Code editor for editing {file}"),
+            editor_script(f"""{{
                         mode: '{app.config.code_editor.mode}',
                         theme: '{current_editor_theme()}',
                         lineNumbers: true,
@@ -1388,70 +1622,14 @@ def get_file(file: str):
                         'aria-multiline': true,
                         'aria-atomic': true,
                         'aria-live': 'off',
-                        announceMultiline: true,
-                        extraKeys: {{
-                            "Tab": function(cm) {{
-                                if (cm.somethingSelected()) {{
-                                    cm.indentSelection("add");
-                                }} else {{
-                                    cm.replaceSelection("    ", "end", "+input");
-                                }}
-                            }},
-                            "Shift-Tab": function(cm) {{
-                                cm.indentSelection("subtract");
-                            }}
-                        }}
-                    }});
-                    {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
-                """),
-            ),
-            # refresh the page after saving the file
-            # return to the index page after deleting the file
-            Div(cls="mt-4 flex space-x-4")(
-                Button(
-                    "Save",
-                    cls="btn btn-primary",
-                    onclick=f"""
-                        const content = editor.getValue();
-                        fetch('/codeeditor/save/{file}', {{
-                            method: 'POST',
-                            headers: {{'Content-Type': 'application/json'}},
-                            body: JSON.stringify({{content: content}})
-                        }})
-                        .then(r => r.json())
-                        .then(data => {{
-                            if (data.success) {{
-                                window.location.reload();
-                            }} else {{
-                                showErrorModal('Failed to save file: ' + data.error);
-                            }}
-                        }});
-                    """,
-                ),
-                Button(
-                    "Delete",
-                    cls="btn btn-error",
-                    onclick=f"""
-                        fetch('/codeeditor/delete/{file}', {{method: 'POST'}})
-                            .then(r => r.json())
-                            .then(data => {{
-                                if (data.success) {{
-                                    // Remove the deleted file from openedFiles array
-                                    openedFiles = openedFiles.filter(f => f !== '{file}');
-                                    updateOpenedFiles(openedFiles);
-                                    // Navigate to the index page after deleting
-                                    window.location = '/codeeditor/';
-                                }}
-                                else showErrorModal('Failed to delete file: ' + data.error);
-                            }});
-                    """,
-                ),
-                return_to_index(),
-                return_to_home(),
-            ),
+                        announceMultiline: true,{_EDIT_KEYS}
+                    }}"""),
         ),
     )
-    page = editor_page(side_bar, main_screen)
+    # Facts, not decoration: CodeMirror is configured with `indentUnit: 4`,
+    # and files are read and written in the platform default text encoding,
+    # UTF-8 on the hosts this runs on.
+    page = editor_page(side_bar, main_screen, status_bar("Spaces: 4", "UTF-8"))
     return Div(codeeditor_theme(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")
