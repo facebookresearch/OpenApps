@@ -163,6 +163,40 @@ class TestLayoutsAreDistinct:
         assert len(bodies) == len(LAYOUTS)
 
 
+def css_rule(html: str, selector: str) -> str:
+    """Declarations of the first rule in the page's own CSS for `selector`."""
+    css = re.search(r"<style>(.*?)</style>", html, re.S).group(1)
+    rule = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", css)
+    assert rule, selector
+    return rule.group(1)
+
+
+class TestReturnButton:
+    """Navigation tasks rely on screenshot agents finding "Return to List of
+    Apps", so default keeps it a prominent filled bar; the realistic layouts
+    demote it to a quiet header control."""
+
+    def test_default_is_a_full_width_filled_bar(self, pages):
+        rule = css_rule(pages["default"], "body.layout-default #returnButton")
+        assert "width: 100%" in rule
+        assert "background-color: var(--color-neutral)" in rule
+        assert "color: var(--color-btn-fg)" in rule
+        assert "font-size: var(--font-size-base)" in rule
+
+    def test_default_bar_opens_the_right_hand_panel(self, pages):
+        body = markup(pages["default"])
+        sidebar, ret, title = positions(body, 'id="sidebar"', 'id="returnButton"', "<h2>")
+        assert sidebar < ret < title
+        assert "panel-header" not in body
+
+    @pytest.mark.parametrize("layout", ["sidebar_left", "bottom_sheet"])
+    def test_other_layouts_keep_it_in_the_quiet_header(self, pages, layout):
+        body = markup(pages[layout])
+        header = re.search(r'<div class="panel-header">(.*?)</div>', body, re.S)
+        assert header and 'id="returnButton"' in header.group(1)
+        assert "background: transparent" in css_rule(pages[layout], "#returnButton")
+
+
 class TestLayerControl:
 
     def test_default_keeps_the_basemap_list_open(self, pages):

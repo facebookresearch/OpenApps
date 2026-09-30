@@ -79,8 +79,8 @@
         }
 
         /* "Return to List of Apps" is app-switching chrome, not a map
-           action, so it reads as a quiet text control rather than the
-           heaviest block on the page. */
+           action, so the realistic layouts render it as a quiet header
+           control. The default layout overrides this below. */
         #returnButton {
             display: inline-flex;
             align-items: center;
@@ -98,6 +98,31 @@
         #returnButton:hover {
             color: var(--color-fg);
             background-color: color-mix(in srgb, var(--color-fg) 8%, transparent);
+        }
+
+        /* default keeps the original prominent bar: a full-width filled
+           button at the top of the right-hand panel. The navigation tasks
+           (config/tasks/original_tasks.yaml) rely on screenshot agents
+           spotting it, and the UI questions built from default/maps.png ask
+           about it. The glyph is dropped to match that screenshot. */
+        body.layout-default #returnButton {
+            display: block;
+            width: 100%;
+            padding: calc(var(--space) * 1.25);
+            margin: 0 0 calc(var(--space) * 2);
+            background-color: var(--color-neutral);
+            color: var(--color-btn-fg);
+            font-size: var(--font-size-base);
+            font-weight: normal;
+        }
+
+        body.layout-default #returnButton:hover {
+            background-color: var(--color-primary-hover);
+            color: var(--color-on-primary);
+        }
+
+        body.layout-default #returnButton i {
+            display: none;
         }
 
         /* --- Search: a rounded field with a leading search glyph, the way
