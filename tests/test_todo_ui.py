@@ -107,6 +107,26 @@ class TestListLayout:
 
 
 class TestBoardLayout:
+    def test_column_counts_match_cards(self, board_client):
+        html = _markup(board_client.get("/todo").text)
+        columns = html.split('<div class="kanban-column">')[1:]
+        assert len(columns) == len(todo_main.kanban_columns)
+        for col in columns:
+            count = int(re.search(r'<span class="kanban-count">(\d+)</span>', col).group(1))
+            assert count == col.count('class="kanban-card"')
+
+    def test_column_heading_text_is_only_the_title(self, board_client):
+        """The count sits beside the <h3>, so renaming/reading a column is unchanged."""
+        html = _markup(board_client.get("/todo").text)
+        headings = re.findall(r'<h3[^>]*class="kanban-column-title"[^>]*>([^<]*)</h3>', html)
+        assert headings == [todo_main.kanban_titles[c] for c in todo_main.kanban_columns]
+
+    def test_count_updates_after_add(self, board_client):
+        before = _markup(board_client.get("/todo").text)
+        first = int(re.search(r'kanban-count">(\d+)<', before).group(1))
+        after = _markup(board_client.post("/todo/kanban/add/todo", data={"title": "Pay rent"}).text)
+        assert int(re.search(r'kanban-count">(\d+)<', after).group(1)) == first + 1
+
     def test_no_list_markup(self, board_client):
         html = _markup(board_client.get("/todo").text)
         assert 'id="todo-list"' not in html

@@ -285,47 +285,98 @@ styles = Style("""
     }
     .kanban-columns {
         display: flex;
-        gap: 1rem;
+        gap: calc(var(--space) * 1.5);
         align-items: flex-start;
-        margin-top: 1rem;
         overflow-x: auto;
-        padding-bottom: 0.5rem;
+        padding-bottom: var(--space);
     }
     .kanban-column {
-        flex: 0 0 450px;
-        min-width: 450px;
+        flex: 0 0 300px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space);
         background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        padding: 0.5rem 0.75rem;
+        padding: calc(var(--space) * 1.25);
         min-height: 120px;
     }
+    .kanban-column-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space);
+        padding: calc(var(--space) * 0.25) calc(var(--space) * 0.25) calc(var(--space) * 0.5);
+    }
     .kanban-column-title {
-        margin-top: 0.25rem;
+        margin: 0;
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        color: var(--color-fg);
+    }
+    h3.kanban-column-title:hover {
+        text-decoration: underline;
+        text-decoration-color: var(--color-muted);
+    }
+    .kanban-count {
+        min-width: 1.5em;
+        padding: 0 calc(var(--space) * 0.75);
+        border-radius: 999px;
+        background-color: color-mix(in srgb, var(--color-fg) 10%, transparent);
+        color: var(--color-muted);
+        font-size: var(--font-size-sm);
+        line-height: 1.6;
+        text-align: center;
     }
     .kanban-card {
         background-color: var(--color-bg);
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        padding: 0.5rem 0.75rem;
-        margin-bottom: 0.5rem;
+        box-shadow: 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent);
+        padding: var(--space) calc(var(--space) * 1.25);
+        margin: 0;
+    }
+    .kanban-card:hover, .kanban-card:focus-within {
+        border-color: color-mix(in srgb, var(--color-fg) 30%, var(--color-border));
     }
     .kanban-card-title {
-        margin-bottom: 0.4rem;
+        margin-bottom: var(--space);
+        overflow-wrap: anywhere;
     }
     .kanban-card-controls {
         display: flex;
-        gap: 0.25rem;
+        gap: calc(var(--space) * 0.5);
         flex-wrap: wrap;
     }
-    .kanban-edit input {
-        margin-bottom: 0.4rem;
+    .kanban-card-controls .todo-btn:not(:hover):not(:focus-visible) {
+        color: var(--color-muted);
     }
-    .kanban-add {
-        margin-top: 0.5rem;
+    .kanban-card:hover .kanban-card-controls .todo-btn:not(:hover):not(:focus-visible),
+    .kanban-card:focus-within .kanban-card-controls .todo-btn:not(:hover):not(:focus-visible) {
+        color: var(--color-fg);
+    }
+    .kanban-edit input:not([type=checkbox]) {
+        margin-bottom: var(--space);
+    }
+    .kanban-edit label {
+        margin-bottom: var(--space);
+    }
+    .kanban-add, .kanban-add fieldset {
+        margin: 0;
+    }
+    .kanban-add input, .kanban-add .add-btn {
+        padding-top: calc(var(--space) * 0.75);
+        padding-bottom: calc(var(--space) * 0.75);
+        font-size: var(--font-size-sm);
     }
     .kanban-header-edit {
         display: flex;
-        gap: 0.25rem;
+        gap: calc(var(--space) * 0.5);
+        flex: 1;
+        margin: 0;
+    }
+    .kanban-header-edit input {
+        margin: 0;
     }
 
     /* ---- Chrome ------------------------------------------------------- */
@@ -516,7 +567,7 @@ def kanban_edit_form(todo):
     )
 
 
-def kanban_column_header(col, editing):
+def kanban_column_header(col, editing, count):
     if editing:
         return Form(
             Input(name="title", value=kanban_titles[col]),
@@ -526,7 +577,7 @@ def kanban_column_header(col, editing):
             hx_swap="outerHTML",
             cls="kanban-column-title kanban-header-edit",
         )
-    return H3(
+    title = H3(
         kanban_titles[col],
         hx_get=f"/todo/kanban/header/{col}",
         target_id="todo-board",
@@ -534,6 +585,9 @@ def kanban_column_header(col, editing):
         cls="kanban-column-title",
         style="cursor: pointer;",
     )
+    # The count lives beside the <h3>, not inside it, so the heading's text
+    # (the column name agents read and rename) is unchanged.
+    return Div(title, Span(str(count), cls="kanban-count"), cls="kanban-column-header")
 
 
 def kanban_add_form(col):
@@ -551,7 +605,7 @@ def kanban_add_form(col):
 
 def kanban_column(col, cards, edit_header):
     return Div(
-        kanban_column_header(col, editing=(edit_header == col)),
+        kanban_column_header(col, editing=(edit_header == col), count=len(cards)),
         *cards,
         kanban_add_form(col),
         cls="kanban-column",
