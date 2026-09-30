@@ -500,35 +500,84 @@ def current_layout():
     return getattr(config.messenger, "layout", "default")
 
 
-# Layout rules. `compact_list` overrides daisyUI's chat classes, so it needs
-# the extra specificity of the layout class rather than a bare selector.
+# Layout rules. Both variants override daisyUI's chat classes *and* the
+# `!important` token rules in `_COMPONENT_STYLES`, so every override here is
+# scoped under the layout class for specificity and carries `!important`
+# where the rule it replaces does.
 _LAYOUT_STYLES = Style("""
-    /* split_inbox: conversation list and open thread side by side. The body
-       cap has to lift first -- `max-w-lg` is a utility class, so the
-       element+class selector here outranks it without !important. The thread
-       pane's <main> is centred by Pico, which would re-narrow it inside the
-       pane, hence the reset. */
-    body.layout-split_inbox { max-width: 76rem; }
-    .messenger-split { display: flex; align-items: flex-start; gap: 1rem; }
-    .messenger-split > .msg-list-pane { flex: 0 0 22rem; max-width: 22rem; }
-    .messenger-split > .msg-thread-pane { flex: 1; min-width: 0; }
-    .messenger-split > .msg-thread-pane > main { max-width: none; margin: 0; width: 100%; }
-
-    /* compact_list: strip the avatars and tighten the rows, then flatten the
-       thread from chat bubbles into left-aligned rows. */
-    .layout-compact_list .msg-avatar { display: none; }
-    .layout-compact_list .msg-row { padding: 0.25rem 0.5rem; }
-    .layout-compact_list .msg-row .ml-4 { margin-left: 0; padding-bottom: 0.4rem; }
-    .layout-compact_list .chat.chat-end { place-items: start; text-align: left; }
-    .layout-compact_list .chat .chat-bubble {
-        max-width: 100%;
-        width: 100%;
-        border-radius: 0;
-        background-color: transparent;
-        color: var(--color-fg);
-        border-bottom: 1px solid var(--color-border);
-        padding-left: 0;
+    /* The open conversation, in whichever pane shows the list. daisyUI's
+       base-100/base-200 both map to --color-surface (see _COMPONENT_STYLES),
+       so the old `bg-base-200` highlight was the same colour as the rows
+       around it. A tint of the primary colour survives every theme. */
+    .msg-row.is-selected {
+        background-color: color-mix(in srgb, var(--color-primary) 16%, var(--color-surface)) !important;
     }
+
+    /* split_inbox -- Messenger/Slack desktop: the chat list is a fixed-width
+       column that scrolls on its own, and the open thread fills the rest at
+       the same height. The body cap has to lift first -- `max-w-lg` is a
+       utility class, so the element+class selector outranks it without
+       !important. Pico centres <main>, which would re-narrow the thread
+       inside its pane, hence the reset. */
+    body.layout-split_inbox { max-width: 76rem; }
+    .messenger-split { display: flex; align-items: stretch; gap: 1rem; height: 80vh; }
+    .messenger-split > .msg-list-pane {
+        flex: 0 0 22rem;
+        max-width: 22rem;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .messenger-split .msg-list-heading { margin: 0 0 0.75rem; font-weight: 700; }
+    .messenger-split .msg-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+    .messenger-split > .msg-thread-pane { flex: 1; min-width: 0; display: flex; }
+    .messenger-split > .msg-thread-pane > main { max-width: none; margin: 0; width: 100%; height: 100%; }
+    /* The list is already on screen, so the thread's back arrow -- which
+       only leads to that same list -- goes, as it does on desktop clients. */
+    .messenger-split .thread-back { display: none; }
+    /* Too narrow for two panes: stack them, list first, like a phone. */
+    @media (max-width: 48rem) {
+        .messenger-split { flex-direction: column; height: auto; }
+        .messenger-split > .msg-list-pane { flex-basis: auto; max-width: none; }
+        .messenger-split > .msg-thread-pane > main { height: 80vh; }
+    }
+
+    /* compact_list -- Slack's compact mode: no avatars, dense rows, and a
+       thread of flat lines (sender + time on one row, text beneath) instead
+       of left/right bubbles. Sender is carried by the label, not by side. */
+    .layout-compact_list .msg-avatar { display: none; }
+    .layout-compact_list .msg-row { padding: 0.375rem 0.75rem; border-radius: 0; }
+    .layout-compact_list .msg-row .ml-4 { margin-left: 0; padding-bottom: 0; border-bottom: 0; }
+    .layout-compact_list #chatlist { gap: 0; }
+    .layout-compact_list .chat {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-areas: "header footer" "bubble bubble";
+        column-gap: 0.5rem;
+        align-items: baseline;
+        justify-items: start;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+    .layout-compact_list .chat .chat-header {
+        grid-area: header;
+        margin: 0;
+        font-weight: 700;
+        color: var(--color-fg) !important;
+    }
+    .layout-compact_list .chat.chat-end .chat-header { color: var(--color-primary) !important; }
+    .layout-compact_list .chat .chat-footer { grid-area: footer; }
+    .layout-compact_list .chat .chat-bubble {
+        grid-area: bubble;
+        max-width: none;
+        min-height: 0;
+        padding: 0.125rem 0 0;
+        border-radius: 0 !important;
+        background-color: transparent !important;
+        color: var(--color-fg) !important;
+    }
+    /* daisyUI draws the bubble tail as a pseudo-element. */
+    .layout-compact_list .chat .chat-bubble::before { display: none; }
 """)
 
 
@@ -586,11 +635,14 @@ def conversation_list(selected: str = None):
                 cls=(
                     "msg-row flex items-center p-2 hover:bg-base-200 rounded-lg "
                     "transition-colors w-full"
-                    + (" bg-base-200" if chat['user'] == selected else "")
+                    + (" is-selected" if chat['user'] == selected else "")
                 ),
             ),
             href=f"/messages/{chat['user']}",
             cls="no-underline text-current",
+            # Exposes the open chat to the accessibility tree, not just as a
+            # background tint an agent reading the axtree would never see.
+            aria_current="page" if chat['user'] == selected else None,
         )
         for chat in chats
     ]
@@ -633,9 +685,9 @@ def index(user_id: str):
         # Header with return button and search icon
         Div(cls="flex justify-between items-center p-2.5 border-b shadow-sm")(
             Div(cls="flex items-center gap-3")(
-                A(I(cls="fas fa-arrow-left text-xl"), href="/messages", cls="btn btn-ghost btn-circle"),
+                A(I(cls="fas fa-arrow-left text-xl"), href="/messages", cls="thread-back btn btn-ghost btn-circle"),
                 # Placeholder for Avatar
-                Div(user_logo if 'group' not in user_id.lower() else group_logo, cls="h-10 mr-3"),
+                Div(user_logo if 'group' not in user_id.lower() else group_logo, cls="msg-avatar h-10 mr-3"),
                 H1(user_id, cls="text-lg font-bold")
             ),
             Button(
@@ -730,7 +782,8 @@ def index(user_id: str):
         # its own URL, so every existing link and task navigation still works.
         body = Div(
             Div(
-                conversation_list(selected=user_id),
+                H2("Chats", cls="msg-list-heading text-2xl"),
+                Div(conversation_list(selected=user_id), cls="msg-list-scroll"),
                 A(
                     "Return to List of Apps",
                     href="/",
