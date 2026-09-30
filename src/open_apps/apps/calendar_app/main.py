@@ -225,6 +225,18 @@ _VIEW_CSS = """
         color: var(--color-fg);
         background-color: color-mix(in srgb, var(--color-fg) 6%, var(--color-bg));
     }
+    /* default layout: the original outlined Pico button's size, padding,
+       weight and colours, so cross-app navigation stays easy to spot. */
+    .footer-container a.calendar-return.calendar-return-prominent[role="button"] {
+        padding: var(--layout-button-padding);
+        font-size: var(--font-size-base); font-weight: 400;
+        background-color: var(--color-bg); border: 1px solid var(--color-border);
+        color: var(--color-primary);
+    }
+    .footer-container a.calendar-return.calendar-return-prominent[role="button"]:hover {
+        color: var(--color-primary-hover);
+        background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
+    }
 
     /* ---- Month grid ------------------------------------------------- */
     .calendar-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0; }
@@ -542,12 +554,15 @@ def add_event_button():
 def create_footer(hide_add_button=False):
     add_button = add_event_button() if not hide_add_button else ""
 
-    # Leaving the app is chrome, not a calendar action: it keeps its label and
-    # its bottom-right spot but drops to a quiet text button so it no longer
-    # competes with "Add Event".
-    return_to_apps = A(
-        "Return to List of Apps", href="/", role="button", cls="outline calendar-return"
-    )
+    # Leaving the app is chrome, not a calendar action, so the variant layouts
+    # shrink it to a quiet unfilled button beside "Add Event". The default
+    # layout keeps it full-size and outlined: the click-only cross-app
+    # navigation tasks (`config/tasks/original_tasks.yaml`) start here and
+    # need a screenshot agent to find it at a glance.
+    return_cls = "outline calendar-return"
+    if current_layout() == "default":
+        return_cls += " calendar-return-prominent"
+    return_to_apps = A("Return to List of Apps", href="/", role="button", cls=return_cls)
 
     footer_buttons = Div(
         add_button, return_to_apps, cls="button-container"

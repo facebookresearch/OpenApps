@@ -161,6 +161,21 @@ def test_unknown_view_falls_back_to_the_layout_default(
     assert texts(soup.select(".view-toggle a.active")) == [expected_view]
 
 
+@pytest.mark.parametrize(
+    "layout, prominent",
+    [("default", True), ("agenda_first", False), ("sidebar_nav", False)],
+)
+def test_return_to_apps_is_prominent_only_in_default(render, layout, prominent):
+    """Cross-app navigation tasks rely on screenshot agents spotting
+    "Return to List of Apps" in the default layout; variants demote it."""
+    for view in ("calendar", "agenda"):
+        back = render(layout, path=f"/calendar?view={view}").find(
+            "a", string="Return to List of Apps"
+        )
+        assert back.find_parent(class_="footer-container") is not None
+        assert ("calendar-return-prominent" in back["class"]) is prominent
+
+
 class TestAgenda:
 
     def test_grouped_by_day_with_all_day_rows(self, render):
