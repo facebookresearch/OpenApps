@@ -3,8 +3,9 @@
 # (`config/apps/theme/`). Select with `apps/calendar/layout=sidebar_nav`.
 #
 # The month nav and the view toggle move out of the horizontal bar above the
-# grid and into a left rail beside it, stacked vertically. `.calendar-table`
-# and `.agenda-list` are untouched.
+# grid and into a left rail beside it, stacked vertically under a primary
+# "Add Event" and above a (decorative, aria-hidden) mini-month.
+# `.calendar-table` and `.agenda-list` are untouched.
 defaults:
   - default
 

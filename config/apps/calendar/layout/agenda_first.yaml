@@ -4,7 +4,9 @@
 #
 # The agenda, not the month grid, is what a request without an explicit
 # `?view=` lands on, and the view toggle leads with it. Both views remain
-# reachable, so any task that navigates to the month grid still works.
+# reachable, so any task that navigates to the month grid still works. The
+# header is a centred masthead (month between prev/next, Today and the toggle
+# beneath) rather than the default's single left-aligned toolbar.
 defaults:
   - default
 
