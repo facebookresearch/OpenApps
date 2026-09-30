@@ -40,7 +40,7 @@ REQUIRED_IDS = [
 ]
 
 
-def render(layout: str = "default", theme: str = "default") -> str:
+def render(layout: str = "default", theme: str = "default", extra: tuple[str, ...] = ()) -> str:
     """Full HTML of ``/maps`` for one layout/theme composition.
 
     Only the page route is exercised, which reads config but never the
@@ -51,7 +51,7 @@ def render(layout: str = "default", theme: str = "default") -> str:
     with initialize(version_base=None, config_path="../config/"):
         config = compose(
             config_name="config",
-            overrides=[f"apps/maps/layout={layout}", f"apps/theme={theme}"],
+            overrides=[f"apps/maps/layout={layout}", f"apps/theme={theme}", *extra],
         )
     map_main.app.config = config.apps
     response = TestClient(map_main.app).get("/maps")
@@ -181,6 +181,28 @@ class TestLayerControl:
 
     def test_unknown_layout_falls_back_to_default_controls(self):
         assert map_main.map_controls("nope") == map_main.map_controls("default")
+
+
+class TestBottomSheetDropdowns:
+    """The sheet scrolls, so an absolutely positioned dropdown inside it is
+    clipped at its edge; in bottom_sheet the dropdowns must flow inline."""
+
+    def test_route_dropdowns_render_inside_the_sheet(self):
+        body = markup(render("bottom_sheet", extra=("apps.maps.allow_planning=true",)))
+        sidebar, from_results, options = positions(
+            body, 'id="sidebar"', 'id="fromLocationResults"', 'class="custom-select-options"'
+        )
+        assert sidebar < from_results < options
+
+    def test_dropdowns_are_static_in_the_sheet(self, pages):
+        css = re.search(r"<style>(.*?)</style>", pages["bottom_sheet"], re.S).group(1)
+        rule = re.search(
+            r"body\.layout-bottom_sheet \.search-results-mini,\s*"
+            r"body\.layout-bottom_sheet \.custom-select-options\s*\{([^}]*)\}",
+            css,
+        )
+        assert rule and "position: static" in rule.group(1)
+        assert "body.layout-bottom_sheet #sidebar:has(" in css
 
 
 @pytest.mark.parametrize("theme", THEMES)

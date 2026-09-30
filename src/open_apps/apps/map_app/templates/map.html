@@ -597,6 +597,27 @@
         body.layout-bottom_sheet .delete-btn {
             font-size: var(--font-size-base);
         }
+
+        /* The sheet is a short scroll container, so the route planner's
+           absolutely positioned dropdowns would be clipped at its edge. In
+           the sheet they flow inline under their input instead (the
+           container wraps so they drop below the input and its Search
+           button), and the sheet rises while any result list is open so
+           the results are not left scrolled out of view. */
+        body.layout-bottom_sheet .location-input-container {
+            flex-wrap: wrap;
+        }
+
+        body.layout-bottom_sheet .search-results-mini,
+        body.layout-bottom_sheet .custom-select-options {
+            position: static;
+            flex-basis: 100%;
+            max-height: none;
+        }
+
+        body.layout-bottom_sheet #sidebar:has(#searchResults:not(:empty), .search-results-mini:not(:empty), .custom-select-options[style*="block"]) {
+            max-height: 75vh;
+        }
     </style>
     <!-- Shared design tokens (open_apps.theme). Every color and font above
          is a var() into this block. -->
