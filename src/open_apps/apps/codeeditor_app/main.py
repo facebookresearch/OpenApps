@@ -476,6 +476,30 @@ _COMPONENT_STYLES = Style(
         font-size: var(--font-size-sm);
     }
 
+    /* `default` only: the ways out as full buttons under the code. */
+    .codeeditor-app .ce-editor-footer {
+        display: flex;
+        flex: none;
+        flex-wrap: wrap;
+        gap: calc(var(--space) * 1.5);
+        padding: calc(var(--space) * 1.5);
+        border-top: 1px solid var(--color-border);
+    }
+    .codeeditor-app .ce-btn-nav {
+        padding: var(--space) calc(var(--space) * 2);
+        border-color: var(--color-border);
+        border-radius: var(--radius);
+        background-color: var(--color-surface);
+        color: var(--color-fg);
+        font-size: var(--font-size-base);
+        font-weight: 600;
+    }
+    .codeeditor-app .ce-btn-nav:hover {
+        background-color: color-mix(in srgb, var(--color-fg) 10%, var(--color-surface));
+        color: var(--color-fg);
+        text-decoration: none;
+    }
+
     /* --- Status bar ------------------------------------------------------ */
     .codeeditor-app .ce-statusbar {
         display: flex;
@@ -912,15 +936,36 @@ def _file_icon(name: str) -> I:
     return _icon("far fa-file-alt")
 
 
-# Quiet status-bar items rather than filled buttons: they leave the editor,
-# they are not what you came to it for. Link text is unchanged
-# (`navigate_from_codeeditor_to_todo` starts here).
-def return_to_index():
+def _nav_in_status_bar() -> bool:
+    """Whether the ways out of the editor are quiet status-bar items.
+
+    Outside `default` they are, as in VS Code: they leave the editor, they
+    are not what you came to it for. `default` keeps them as full buttons
+    under the editor, where they always were: the navigation tasks
+    (`navigate_from_codeeditor_to_todo` and its variants) are run by
+    screenshot agents that have to find "Return to List of Apps".
+    """
+    return current_layout() != "default"
+
+
+def return_to_index(prominent: bool = False):
+    if prominent:
+        return A("Code Editor Index Page", href="/codeeditor", cls="ce-btn ce-btn-nav")
     return A(_icon("fas fa-code"), "Code Editor Index Page", href="/codeeditor", cls="ce-status-item")
 
 
-def return_to_home():
+def return_to_home(prominent: bool = False):
+    if prominent:
+        return A("Return to List of Apps", href="/", cls="ce-btn ce-btn-nav")
     return A(_icon("fas fa-home"), "Return to List of Apps", href="/", cls="ce-status-item")
+
+
+def editor_footer() -> list:
+    """`default` only: the two navigation buttons, bottom-left of the editor
+    pane directly under the code, in their original order."""
+    if _nav_in_status_bar():
+        return []
+    return [Div(cls="ce-editor-footer")(return_to_index(prominent=True), return_to_home(prominent=True))]
 
 def newfile_index(current_path):
     # files_root = os.path.join(current_dir, "files")
@@ -1235,13 +1280,14 @@ def editor_header(title, *actions):
 def status_bar(*meta):
     """The strip along the bottom of the window.
 
-    Navigation out of the editor sits bottom-left, where VS Code keeps its
-    remote indicator; file facts (and, outside `default`, the pickers) sit
+    Outside `default`, navigation out of the editor sits bottom-left, where
+    VS Code keeps its remote indicator, and the pickers join the file facts
     bottom-right.
     """
     selects = [editor_selects()] if _selects_in_status_bar() else []
+    nav = [return_to_home(), return_to_index()] if _nav_in_status_bar() else []
     return Div(cls="ce-statusbar")(
-        Div(cls="ce-status-group")(return_to_home(), return_to_index()),
+        Div(cls="ce-status-group")(*nav),
         Div(cls="ce-status-group")(
             *[Span(item, cls="ce-status-item") for item in meta],
             *selects,
@@ -1303,6 +1349,7 @@ def index():
                         lineWrapping: true,{_EDIT_KEYS}
                     }}"""),
         ),
+        *editor_footer(),
     )
     page = editor_page(side_bar, main_screen, status_bar())
     return Div(codeeditor_theme(), logo_title_container, page)
@@ -1356,6 +1403,7 @@ def get_folder(folder: str):
                         readOnly: true
                     }}"""),
         ),
+        *editor_footer(),
     )
     page = editor_page(side_bar, main_screen, status_bar())
     return Div(codeeditor_theme(), logo_title_container, page)
@@ -1627,6 +1675,7 @@ def get_file(file: str):
                         announceMultiline: true,{_EDIT_KEYS}
                     }}"""),
         ),
+        *editor_footer(),
     )
     # Facts, not decoration: CodeMirror is configured with `indentUnit: 4`,
     # and files are read and written in the platform default text encoding,

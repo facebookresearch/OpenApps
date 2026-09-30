@@ -186,11 +186,33 @@ class TestEditorGroup:
 
 class TestStatusBar:
 
-    @pytest.mark.parametrize("layout", LAYOUTS)
-    def test_navigation_links(self, client, layout):
-        status = render(client, layout=layout).select_one(".ce-statusbar")
+    @pytest.mark.parametrize("layout", ["sidebar_right", "top_tree"])
+    @pytest.mark.parametrize("path", ["/codeeditor/", "/codeeditor/developing", "/codeeditor/script.py"])
+    def test_other_layouts_demote_navigation_to_status_bar(self, client, layout, path):
+        body = render(client, path, layout=layout)
+        status = body.select_one(".ce-statusbar")
         links = {a.get_text(): a["href"] for a in status.select("a")}
         assert links == {"Return to List of Apps": "/", "Code Editor Index Page": "/codeeditor"}
+        assert all("ce-status-item" in a["class"] for a in status.select("a"))
+        assert body.select_one(".ce-editor-footer") is None
+
+    @pytest.mark.parametrize("path", ["/codeeditor/", "/codeeditor/developing", "/codeeditor/script.py"])
+    def test_default_keeps_navigation_prominent_under_editor(self, client, path):
+        # Screenshot agents on the navigation tasks have to find "Return to
+        # List of Apps": in default it stays a full button, bottom-left of the
+        # editor pane directly under the code, in its original order.
+        body = render(client, path, layout="default")
+        editor = body.select_one(".ce-editor")
+        footer = editor.find_all(recursive=False)[-1]
+        assert "ce-editor-footer" in footer["class"]
+        assert position(body, editor.select_one("#editor")) < position(body, footer)
+        buttons = footer.select("a")
+        assert [(a.get_text(), a["href"]) for a in buttons] == [
+            ("Code Editor Index Page", "/codeeditor"),
+            ("Return to List of Apps", "/"),
+        ]
+        assert all({"ce-btn", "ce-btn-nav"} <= set(a["class"]) for a in buttons)
+        assert body.select_one(".ce-statusbar a") is None
 
     def test_default_keeps_pickers_top_right(self, client):
         # UI questions built from the default screenshot place the Language /
