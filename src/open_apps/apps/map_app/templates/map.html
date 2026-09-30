@@ -9,6 +9,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
     <style>
+        /* Every color, font, radius and spacing below is a var() into the
+           shared theme block further down, so each theme restyles the panel,
+           the search field and Leaflet's own controls together. Shadows are
+           mixed from --color-fg rather than a fixed black so they stay
+           visible, but soft, on dark themes. */
         body,
         html {
             font-family: var(--font-family);
@@ -24,6 +29,7 @@
         button, input, textarea, select {
             font-family: inherit;
             font-size: inherit;
+            color: inherit;
         }
 
         .container {
@@ -31,152 +37,270 @@
             height: 100vh;
         }
 
+        /* Leaflet's panes carry z-indexes up to 1000; the stacking context
+           here keeps them under the panel's shadow and the bottom sheet. */
         #map {
-            flex: 0.8;
+            flex: 1 1 auto;
+            min-width: 0;
             height: 100%;
+            position: relative;
+            z-index: 0;
         }
 
         #sidebar {
-            flex: 0.2;
-            padding: 20px;
+            flex: 0 0 calc(var(--space) * 48);
+            box-sizing: border-box;
+            padding: calc(var(--space) * 2);
             background: var(--color-surface);
-            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 calc(var(--space) * 1.5) color-mix(in srgb, var(--color-fg) 18%, transparent);
             overflow-y: auto;
+            position: relative;
+            z-index: 1;
         }
 
         #sidebar h2 {
+            font-family: var(--font-heading);
+            font-size: var(--font-size-heading);
             color: var(--color-fg);
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--color-primary);
-            padding-bottom: 10px;
+            margin: var(--space) 0 calc(var(--space) * 2);
         }
 
         #sidebar h3 {
+            font-family: var(--font-heading);
+            font-size: var(--font-size-base);
+            font-weight: 600;
             color: var(--color-fg);
-            margin: 20px 0 10px 0;
+            margin: calc(var(--space) * 3) 0 var(--space);
+        }
+
+        #sidebar :focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+        /* "Return to List of Apps" is app-switching chrome, not a map
+           action, so it reads as a quiet text control rather than the
+           heaviest block on the page. */
+        #returnButton {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space);
+            padding: calc(var(--space) * 0.5) var(--space);
+            margin-left: calc(var(--space) * -1);
+            background: transparent;
+            color: var(--color-muted);
+            border: none;
+            border-radius: var(--radius);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+        }
+
+        #returnButton:hover {
+            color: var(--color-fg);
+            background-color: color-mix(in srgb, var(--color-fg) 8%, transparent);
+        }
+
+        /* --- Search: a rounded field with a leading search glyph, the way
+           every maps product presents it. */
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: var(--space);
+            padding: calc(var(--space) * 0.5) calc(var(--space) * 0.5) calc(var(--space) * 0.5) calc(var(--space) * 2);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: calc(var(--radius) * 3);
+            box-shadow: 0 1px calc(var(--space) * 0.75) color-mix(in srgb, var(--color-fg) 16%, transparent);
+        }
+
+        .search-container:focus-within {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 1px var(--color-primary), 0 1px calc(var(--space) * 0.75) color-mix(in srgb, var(--color-fg) 16%, transparent);
+        }
+
+        .search-icon {
+            color: var(--color-muted);
+        }
+
+        #searchInput {
+            flex: 1;
+            min-width: 0;
+            padding: var(--space) 0;
+            border: none;
+            background: transparent;
+            color: var(--color-fg);
+        }
+
+        /* The pill's focus ring stands in for the input's own. */
+        #sidebar #searchInput:focus-visible {
+            outline: none;
+        }
+
+        #searchInput::placeholder {
+            color: var(--color-muted);
+        }
+
+        #searchBtn {
+            padding: var(--space) calc(var(--space) * 2);
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
+            border: none;
+            border-radius: calc(var(--radius) * 3);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        #searchBtn:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        #searchResults:not(:empty) {
+            margin-top: var(--space);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .search-result-item {
+            cursor: pointer;
+            padding: var(--space) calc(var(--space) * 1.5);
+            background-color: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            font-size: var(--font-size-sm);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item:hover {
+            background-color: var(--color-surface);
+        }
+
+        /* The save button's colors are set inline by displaySearchResults();
+           !important is the only way to hand them back to the theme without
+           touching that script. */
+        #searchResults .search-result-item button {
+            background-color: var(--color-accent) !important;
+            color: var(--color-btn-fg) !important;
+            border-radius: var(--radius) !important;
+        }
+
+        /* --- Current Location Info: a quiet hint until the map is clicked,
+           then a place card. */
+        .info-box {
+            background: var(--color-bg);
+            padding: calc(var(--space) * 1.5);
+            border-radius: var(--radius);
+            border: 1px solid var(--color-border);
+            margin: var(--space) 0;
+            font-size: var(--font-size-sm);
+            line-height: 1.5;
+        }
+
+        .info-box:empty {
+            display: none;
+        }
+
+        .info-box:has(> .info-empty) {
+            background: transparent;
+            border-style: dashed;
+        }
+
+        .info-empty {
+            display: flex;
+            align-items: center;
+            gap: var(--space);
+            margin: 0;
+            color: var(--color-muted);
+        }
+
+        /* --- Saved Locations: list rows with a place glyph, the name, and a
+           quiet remove control that only turns red on hover. */
+        #popupList {
+            display: flex;
+            flex-direction: column;
+            gap: calc(var(--space) * 0.5);
         }
 
         .popup-list-item {
             cursor: pointer;
-            padding: 10px;
-            margin: 5px 0;
+            padding: var(--space);
             background-color: var(--color-bg);
-            border-radius: 5px;
+            border-radius: var(--radius);
             border: 1px solid var(--color-border);
-            transition: all 0.2s;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: calc(var(--space) * 1.5);
         }
 
         .popup-list-item:hover {
-            background-color: var(--color-surface);
-            transform: translateX(5px);
+            border-color: var(--color-primary);
+        }
+
+        /* `--radius * 99` renders a circle, except in themes that set
+           --radius to 0 (mono), where it stays square like everything else. */
+        .place-icon {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: calc(var(--space) * 4);
+            height: calc(var(--space) * 4);
+            border-radius: calc(var(--radius) * 99);
+            background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+            color: var(--color-primary);
+            font-size: var(--font-size-sm);
+        }
+
+        .place-name {
+            flex: 1;
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
 
         .delete-btn {
-            color: var(--color-danger);
+            flex: 0 0 auto;
+            width: calc(var(--space) * 4);
+            height: calc(var(--space) * 4);
+            color: var(--color-muted);
             cursor: pointer;
-            font-size: 18px;
-            padding: 0 5px;
-            border-radius: 3px;
+            font-size: var(--font-size-heading);
+            line-height: 1;
+            padding: 0;
+            border-radius: calc(var(--radius) * 99);
             background: transparent;
             border: none;
         }
 
         .delete-btn:hover {
-            background-color: var(--color-surface)
+            color: var(--color-danger);
+            background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);
         }
 
-        .search-container {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-        }
-
-        #searchInput {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid var(--color-border);
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        #searchBtn {
-            padding: 8px 15px;
-            background-color: var(--color-primary);
-            color: var(--color-on-primary);
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        #searchBtn:hover {
-            background-color: var(--color-primary-hover)
-        }
-
-        #searchResults {
-            margin-bottom: 20px;
-        }
-
-        .search-result-item {
-            cursor: pointer;
-            padding: 10px;
-            margin: 5px 0;
-            background-color: var(--color-bg);
-            border-radius: 5px;
-            border: 1px solid var(--color-border);
-            transition: all 0.2s;
-        }
-
-        .search-result-item:hover {
-            background-color: var(--color-surface);
-            transform: translateX(5px);
-        }
-
-        .info-box {
-            background: var(--color-bg);
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid var(--color-border);
-            margin: 10px 0;
-            font-size: 14px;
-        }
-
+        /* --- Route planning (allow_planning only). */
         .route-container {
             width: 100%;
         }
 
         .location-input-container {
             position: relative;
-            margin-bottom: 15px;
+            margin-bottom: calc(var(--space) * 1.5);
             display: flex;
             flex-direction: row;
-            gap: 10px;
+            gap: var(--space);
             width: 100%;
         }
 
         .location-input-container input {
             flex: 1;
-            padding: 8px;
+            padding: var(--space) calc(var(--space) * 1.5);
+            background: var(--color-bg);
             border: 1px solid var(--color-border);
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        .location-input-container .search-btn {
-            padding: 8px 15px;
-            background-color: var(--color-primary);
-            color: var(--color-on-primary);
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .location-input-container .search-btn:hover {
-            background-color: var(--color-primary-hover)
+            border-radius: var(--radius);
+            font-size: var(--font-size-sm);
         }
 
         .search-results-mini {
@@ -184,70 +308,57 @@
             top: 100%;
             left: 0;
             width: 100%;
-            max-height: 100px;
+            max-height: calc(var(--space) * 13);
             overflow-y: auto;
-            margin: 5px 0;
+            margin: calc(var(--space) * 0.5) 0;
             background: var(--color-bg);
             border: 1px solid var(--color-border);
+            border-radius: var(--radius);
             z-index: 1000;
+        }
+
+        .search-results-mini:empty {
+            display: none;
         }
 
         #calculateRouteBtn {
             width: 100%;
-            padding: 8px;
+            padding: var(--space);
             background-color: var(--color-primary);
             color: var(--color-on-primary);
             border: none;
-            border-radius: 5px;
+            border-radius: var(--radius);
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: var(--space);
         }
 
         #calculateRouteBtn:hover {
             background-color: var(--color-primary-hover);
-        } */
+        }
 
         .search-btn {
-            padding: 8px 15px;
+            padding: var(--space) calc(var(--space) * 2);
             background-color: var(--color-primary);
             color: var(--color-on-primary);
             border: none;
-            border-radius: 5px;
+            border-radius: var(--radius);
             cursor: pointer;
-            transition: background-color 0.3s;
-            margin-top: 5px;
         }
 
         .search-btn:hover {
             background-color: var(--color-primary-hover);
         }
 
-        #returnButton {
-            width: 100%;
-            padding: 10px;
-            background-color: var(--color-neutral);
-            color: var(--color-on-primary);
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 15px;
-            transition: background-color 0.3s;
-        }
-
-        #returnButton:hover {
-            background-color: var(--color-primary-hover);
-        }
-
         .custom-select-container {
             position: relative;
             width: 100%;
-            margin-top: 10px;
+            margin-top: var(--space);
         }
 
         .custom-select-header {
-            padding: 8px;
+            padding: var(--space);
             border: 1px solid var(--color-border);
-            border-radius: 5px;
+            border-radius: var(--radius);
             background: var(--color-bg);
             cursor: pointer;
             display: flex;
@@ -262,78 +373,229 @@
             right: 0;
             background: var(--color-bg);
             border: 1px solid var(--color-border);
-            border-radius: 5px;
-            margin-top: 5px;
-            max-height: 200px;
+            border-radius: var(--radius);
+            margin-top: calc(var(--space) * 0.5);
+            max-height: calc(var(--space) * 25);
             overflow-y: auto;
             z-index: 1000;
             display: none;
         }
 
         .custom-select-option {
-            padding: 8px;
+            padding: var(--space);
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: calc(var(--space) * 0.5);
         }
 
-        .custom-select-option:hover {
-            background-color: var(--color-surface);
-        }
-
-        .custom-select-option i {
-            margin-right: 5px;
-        }
-
+        .custom-select-option:hover,
         .custom-select-option.selected {
             background-color: var(--color-surface);
+        }
+
+        /* --- Leaflet's own chrome, restyled as floating map buttons so the
+           zoom bar, layer switcher and popups follow the theme too. */
+        .leaflet-container {
+            font-family: var(--font-family);
+        }
+
+        .leaflet-container .leaflet-bar,
+        .leaflet-container .leaflet-control-layers {
+            border: none;
+            border-radius: var(--radius);
+            background: var(--color-bg);
+            color: var(--color-fg);
+            box-shadow: 0 1px calc(var(--space) * 0.75) color-mix(in srgb, var(--color-fg) 30%, transparent);
+        }
+
+        .leaflet-container .leaflet-bar a {
+            background-color: var(--color-bg);
+            color: var(--color-fg);
+            border-bottom-color: var(--color-border);
+        }
+
+        .leaflet-container .leaflet-bar a:hover {
+            background-color: var(--color-surface);
+        }
+
+        .leaflet-container .leaflet-bar a:first-child {
+            border-top-left-radius: var(--radius);
+            border-top-right-radius: var(--radius);
+        }
+
+        .leaflet-container .leaflet-bar a:last-child {
+            border-bottom-left-radius: var(--radius);
+            border-bottom-right-radius: var(--radius);
+        }
+
+        /* The collapsed layers button: Leaflet's stock icon is a dark PNG
+           that vanishes on a dark theme, so draw Font Awesome's layer glyph
+           in --color-fg instead. The "/ ''" keeps the glyph out of the
+           accessible name, which stays Leaflet's "Layers" title. */
+        .leaflet-container .leaflet-control-layers-toggle {
+            background-image: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-fg);
+            text-decoration: none;
+        }
+
+        .leaflet-control-layers-toggle::before {
+            content: "\f5fd";
+            content: "\f5fd" / "";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            font-size: var(--font-size-base);
+        }
+
+        .leaflet-container .leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+            display: none;
+        }
+
+        .leaflet-container .leaflet-control-layers-expanded {
+            padding: var(--space) calc(var(--space) * 1.5);
+            font-size: var(--font-size-sm);
+        }
+
+        .leaflet-control-layers-base label {
+            margin: calc(var(--space) * 0.25) 0;
+            cursor: pointer;
+        }
+
+        .leaflet-control-layers-selector {
+            accent-color: var(--color-primary);
+        }
+
+        .leaflet-container .leaflet-popup-content-wrapper,
+        .leaflet-container .leaflet-popup-tip {
+            background: var(--color-bg);
+            color: var(--color-fg);
+        }
+
+        .leaflet-container .leaflet-popup-content-wrapper {
+            border-radius: var(--radius);
         }
 
         /* --- Layout variants ---------------------------------------------
            Structure only; colors still come from the shared theme. The active
            layout arrives as a `layout-<name>` class on <body> (set in
-           main.py), so a variant is pure CSS: none of the JS below has to
-           know which layout is active, and #map / #sidebar / #popupList keep
-           their ids so tasks and screenshot selectors still resolve. */
+           main.py). Where a layout reorders content, the markup below is
+           emitted in that order server-side so the accessibility tree reads
+           the way the page looks; the ids never change. */
 
-        /* sidebar_left: search, Saved Locations and route planning move to
-           the left of the map. The shadow has to flip with the panel,
-           otherwise it falls away from the map instead of onto it. */
-        body.layout-sidebar_left .container {
-            flex-direction: row-reverse;
-        }
-
+        /* sidebar_left: a Google Maps-style desktop side panel. The panel
+           comes first in the DOM; the search field stays pinned to its top
+           while the rest scrolls, and the shadow falls onto the map. */
         body.layout-sidebar_left #sidebar {
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            flex-basis: calc(var(--space) * 51);
+            padding-top: 0;
         }
 
-        /* bottom_sheet: the sidebar becomes a full-width panel beneath the
-           map. Saved Locations becomes a horizontal scroller -- in a short
-           panel a vertical list would push every landmark below the fold. */
+        body.layout-sidebar_left .panel-top {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            margin: 0 calc(var(--space) * -2);
+            padding: var(--space) calc(var(--space) * 2) calc(var(--space) * 1.5);
+            background: var(--color-surface);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space);
+            margin-bottom: var(--space);
+        }
+
+        #sidebar .panel-header h2 {
+            font-size: calc(var(--font-size-heading) * 0.8);
+            margin: 0;
+        }
+
+        body:not(.layout-default) .panel-header #returnButton {
+            margin-left: 0;
+            margin-right: calc(var(--space) * -1);
+        }
+
+        /* bottom_sheet: a mobile maps sheet. The map fills the viewport and
+           the sheet rides up over its bottom edge with rounded top corners
+           and a grab handle; Saved Locations become a row of chips so the
+           short sheet still shows every landmark. */
         body.layout-bottom_sheet .container {
             flex-direction: column;
         }
 
         body.layout-bottom_sheet #map {
-            flex: 0.65;
+            flex: 1 1 auto;
             width: 100%;
+            min-height: 0;
+        }
+
+        /* Leaflet's bottom controls (attribution) would sit under the
+           sheet's overlap. */
+        body.layout-bottom_sheet .leaflet-bottom {
+            bottom: calc(var(--space) * 3);
         }
 
         body.layout-bottom_sheet #sidebar {
-            flex: 0.35;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+            flex: 0 0 auto;
+            max-height: 42vh;
+            margin-top: calc(var(--space) * -3);
+            padding-top: var(--space);
+            border-radius: calc(var(--radius) * 2) calc(var(--radius) * 2) 0 0;
+            box-shadow: 0 calc(var(--space) * -0.5) calc(var(--space) * 2) color-mix(in srgb, var(--color-fg) 20%, transparent);
+        }
+
+        body.layout-bottom_sheet .sheet-body {
+            max-width: calc(var(--space) * 110);
+            margin: 0 auto;
+        }
+
+        .sheet-handle {
+            width: calc(var(--space) * 5);
+            height: calc(var(--space) * 0.5);
+            margin: 0 auto calc(var(--space) * 1.5);
+            border-radius: calc(var(--radius) * 99);
+            background: var(--color-border);
+        }
+
+        body.layout-bottom_sheet #sidebar h3 {
+            margin-top: calc(var(--space) * 2);
         }
 
         body.layout-bottom_sheet #popupList {
-            display: flex;
-            gap: 10px;
+            flex-direction: row;
+            gap: var(--space);
             overflow-x: auto;
+            padding-bottom: calc(var(--space) * 0.5);
         }
 
         body.layout-bottom_sheet #popupList .popup-list-item {
             flex: 0 0 auto;
-            min-width: 220px;
+            max-width: calc(var(--space) * 36);
+            padding: calc(var(--space) * 0.5) calc(var(--space) * 0.5) calc(var(--space) * 0.5) var(--space);
+            gap: var(--space);
+            border-radius: calc(var(--radius) * 3);
+        }
+
+        body.layout-bottom_sheet .place-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        body.layout-bottom_sheet .place-icon,
+        body.layout-bottom_sheet .delete-btn {
+            width: calc(var(--space) * 3);
+            height: calc(var(--space) * 3);
+            font-size: var(--font-size-sm);
+        }
+
+        body.layout-bottom_sheet .delete-btn {
+            font-size: var(--font-size-base);
         }
     </style>
     <!-- Shared design tokens (open_apps.theme). Every color and font above
@@ -341,19 +603,27 @@
     <style>{{ theme_css|safe }}</style>
 </head>
 
-<body class="layout-{{ layout }}">
-    <div class="container">
-        <div id="map"></div>
-        <div id="sidebar">
-            <button id="returnButton" onclick="window.location.href='/'">Return to List of Apps</button>
-            <h2>{{ title }}</h2>
-            <div class="search-container">
+{# Panel pieces, assembled per layout below so that DOM order always
+   matches visual order. Ids, names and visible labels are identical in
+   every layout. #}
+{% macro return_button() -%}
+<button id="returnButton" onclick="window.location.href='/'"><i class="fas fa-arrow-left" aria-hidden="true"></i> Return to List of Apps</button>
+{%- endmacro %}
+
+{% macro search_box() -%}
+<div class="search-container">
+                <i class="fas fa-search search-icon" aria-hidden="true"></i>
                 <input type="text" id="searchInput" placeholder="Search location...">
                 <button id="searchBtn">Search</button>
             </div>
             <div id="searchResults"></div>
-            <h3>Current Location Info</h3>
-            <div id="currentLocationInfo" class="info-box"></div>
+{%- endmacro %}
+
+{% macro panel_body() -%}
+<section class="panel-section">
+                <h3>Current Location Info</h3>
+                <div id="currentLocationInfo" class="info-box"><p class="info-empty"><i class="fas fa-map-pin" aria-hidden="true"></i> Click anywhere on the map to see its address and coordinates.</p></div>
+            </section>
             {% if allow_planning %}
             <h3>Route Planning</h3>
             <div class="route-container">
@@ -379,9 +649,48 @@
                 </div>
             </div>
             {% endif %}
-            <h3>Saved Locations</h3>
-            <div id="popupList"></div>
+            <section class="panel-section">
+                <h3>Saved Locations</h3>
+                <div id="popupList"></div>
+            </section>
+{%- endmacro %}
+
+<body class="layout-{{ layout }}">
+    <div class="container">
+        {% if layout == 'sidebar_left' %}
+        <div id="sidebar">
+            <div class="panel-top">
+                <div class="panel-header">
+                    <h2>{{ title }}</h2>
+                    {{ return_button() }}
+                </div>
+                {{ search_box() }}
+            </div>
+            {{ panel_body() }}
         </div>
+        <div id="map"></div>
+        {% elif layout == 'bottom_sheet' %}
+        <div id="map"></div>
+        <div id="sidebar">
+            <div class="sheet-handle" aria-hidden="true"></div>
+            <div class="sheet-body">
+                <div class="panel-header">
+                    <h2>{{ title }}</h2>
+                    {{ return_button() }}
+                </div>
+                {{ search_box() }}
+                {{ panel_body() }}
+            </div>
+        </div>
+        {% else %}
+        <div id="map"></div>
+        <div id="sidebar">
+            {{ return_button() }}
+            <h2>{{ title }}</h2>
+            {{ search_box() }}
+            {{ panel_body() }}
+        </div>
+        {% endif %}
     </div>
     <script>
 
@@ -557,11 +866,15 @@
         // with no landmarks and no sidebar wiring.
         (layers['{{ default_layer }}'] || layers['OpenStreetMap']).addTo(map);
 
+        // Control placement per layout (see map_controls() in main.py): the
+        // default keeps the basemap list open, the other layouts fold it into
+        // a layers button the way real maps do.
+        map.zoomControl.setPosition('{{ controls.zoom_position }}');
         {% if enable_layer_control %}
         // Add layer control only if enabled
         L.control.layers(layers, {}, {
-            position: 'topright',
-            collapsed: false
+            position: '{{ controls.layers_position }}',
+            collapsed: {{ 'true' if controls.layers_collapsed else 'false' }}
         }).addTo(map);
         {% endif %}
 
@@ -731,7 +1044,8 @@
                 const item = document.createElement('div');
                 item.className = 'popup-list-item';
                 item.innerHTML = `
-                    ${name}
+                    <span class="place-icon" aria-hidden="true"><i class="fas fa-map-marker-alt"></i></span>
+                    <span class="place-name">${name}</span>
                     <button class="delete-btn" onclick="deletePopup('${name}')" aria-label="Delete ${name}">×</button>
                 `;
                 item.addEventListener('click', function (e) {

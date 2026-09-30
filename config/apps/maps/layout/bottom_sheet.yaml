@@ -2,9 +2,10 @@
 # Structure only -- colors and fonts come from the shared theme
 # (`config/apps/theme/`). Select with `apps/maps/layout=bottom_sheet`.
 #
-# Mobile-style arrangement: the sidebar becomes a full-width panel beneath
-# the map and Saved Locations becomes a horizontal scroller. Purely a CSS
-# change in map.html, so every id and route is unchanged.
+# Mobile maps sheet: the map fills the page and the panel rides up over its
+# bottom edge with rounded corners and a grab handle; Saved Locations become a
+# row of chips and the layer switcher folds into a button. Ids, labels and
+# routes are unchanged (see map.html / map_controls in main.py).
 defaults:
   - default
 
