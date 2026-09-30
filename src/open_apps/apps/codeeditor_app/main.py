@@ -1423,7 +1423,7 @@ def get_file(file: str):
             Div(cls="editor-tab is-active")(
                 _file_icon(file_name),
                 Span(file_name),
-                Button("×", cls="editor-tab-close"),
+                Button("×", cls="editor-tab-close", aria_label=f"Close {file_name}"),
             ),
             Script("""
                 // Use sessionStorage to track if a session is active
@@ -1493,6 +1493,7 @@ def get_file(file: str):
                         const closeBtn = document.createElement('button');
                         closeBtn.className = 'editor-tab-close';
                         closeBtn.innerHTML = '×';
+                        closeBtn.setAttribute('aria-label', 'Close ' + name);
                         closeBtn.onclick = (e) => {
                             e.stopPropagation();
                             openedFiles = openedFiles.filter(f => f !== file);
