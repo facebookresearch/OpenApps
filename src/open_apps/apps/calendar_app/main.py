@@ -145,7 +145,7 @@ _COMPONENT_CSS = """
     }
 
     .error-message {
-        background-color: rgba(220, 53, 69, 0.1);
+        background-color: color-mix(in srgb, var(--color-danger) 10%, var(--color-bg));
         color: var(--color-danger);
         padding: var(--layout-spacing);
         margin-bottom: var(--layout-spacing);
@@ -725,7 +725,7 @@ def show_main_layout(year, month, view="calendar", event_id=None):
             Div(
                 H3(event.title),
                 P(f"Date: {event.date}"),
-                P(f"Location: {event.location}"),
+                P(f"Location: {event.location}") if event.location else "",
                 P(event.description),
                 A(
                     "Back to Calendar",
@@ -1112,7 +1112,7 @@ def get(id: int):
             Article(
                 H3(event.title),
                 P(f"Date: {event.date}"),
-                P(f"Location: {event.location}"),
+                P(f"Location: {event.location}") if event.location else "",
                 recurring_info,
                 Div(event.description, cls="marked"),
                 event_url,
