@@ -116,9 +116,11 @@
             font-weight: normal;
         }
 
+        /* Darken the neutral fill rather than switch to primary-hover: the
+           dark theme pairs a near-black hover fill with black on-primary text. */
         body.layout-default #returnButton:hover {
-            background-color: var(--color-primary-hover);
-            color: var(--color-on-primary);
+            background-color: color-mix(in srgb, var(--color-neutral) 85%, var(--color-fg));
+            color: var(--color-btn-fg);
         }
 
         body.layout-default #returnButton i {
