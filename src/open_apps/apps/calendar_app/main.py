@@ -253,6 +253,19 @@ def default_view():
     return "agenda" if current_layout() == "agenda_first" else "calendar"
 
 
+_VIEWS = ("calendar", "agenda")
+
+
+def resolve_view(view: str | None) -> str:
+    """Normalise a `?view=` value, falling back to the layout's default.
+
+    `get_calendar_content` renders anything that is not "calendar" as the
+    agenda, so a typo'd or agent-constructed `?view=` used to land on the
+    agenda with neither toggle button highlighted.
+    """
+    return view if view in _VIEWS else default_view()
+
+
 def update_db_from_hydra():
 
     for event in app.config.calendar.events:
@@ -298,19 +311,20 @@ def generate_rss_feed():
 
     return fg.rss_str(pretty=True)
 
-def create_footer(hide_add_button=False):
-    # Add event button
-    add_button = (
-        A(
-            "Add Event",
-            href="/calendar/create_event/",
-            target="_blank",
-            role="button",
-            cls="outline"
-        )
-        if not hide_add_button
-        else ""
+def add_event_button(cls="outline"):
+    """The "Add Event" link. The footer shows it unless `sidebar_nav` has
+    promoted it to the top of the rail, so there is only ever one on a page."""
+    return A(
+        "Add Event",
+        href="/calendar/create_event/",
+        target="_blank",
+        role="button",
+        cls=cls,
     )
+
+
+def create_footer(hide_add_button=False):
+    add_button = add_event_button() if not hide_add_button else ""
 
     
     # Add "Return to List of Apps" button
@@ -504,21 +518,18 @@ def show_main_layout(year, month, view="calendar", event_id=None):
             ),
         )
 
-    nav = Div(
-        A(
-            "< Prev",
-            href=f"/calendar/calendar_content/{year}/{month}?direction=prev&view={view}",
-            role="button",
-            cls="outline",
-        ),
-        H2(f"{calendar.month_name[month]} {year}", id="current-month-year"),
-        A(
-            "Next >",
-            href=f"/calendar/calendar_content/{year}/{month}?direction=next&view={view}",
-            role="button",
-            cls="outline",
-        ),
-        cls="calendar-nav",
+    prev_link = A(
+        "< Prev",
+        href=f"/calendar/calendar_content/{year}/{month}?direction=prev&view={view}",
+        role="button",
+        cls="outline",
+    )
+    month_title = H2(f"{calendar.month_name[month]} {year}", id="current-month-year")
+    next_link = A(
+        "Next >",
+        href=f"/calendar/calendar_content/{year}/{month}?direction=next&view={view}",
+        role="button",
+        cls="outline",
     )
 
     calendar_link = A(
@@ -544,11 +555,24 @@ def show_main_layout(year, month, view="calendar", event_id=None):
     )
     view_toggle = Div(*toggle_links, cls="view-toggle")
 
-    header = Div(
-        nav,
-        view_toggle,
-        cls="calendar-header",
-    )
+    if layout == "sidebar_nav":
+        # A calendar app's left rail: "Add Event" leads as the filled primary
+        # action, then the month title with prev/next as a pair beneath it --
+        # a real DOM order, not a CSS reshuffle, so the accessibility tree
+        # reads in the order the rail is drawn.
+        header = Div(
+            add_event_button(cls="calendar-create"),
+            month_title,
+            Div(prev_link, next_link, cls="calendar-nav"),
+            view_toggle,
+            cls="calendar-header calendar-rail",
+        )
+    else:
+        header = Div(
+            Div(prev_link, month_title, next_link, cls="calendar-nav"),
+            view_toggle,
+            cls="calendar-header",
+        )
 
     cal, _ = get_month_calendar(year, month)
     month_events = get_events_for_month(year, month)
@@ -568,7 +592,7 @@ def show_main_layout(year, month, view="calendar", event_id=None):
     calendar_container = Div(
         logo_title_container,  # Add logo and title container here
         *body,
-        create_footer(),
+        create_footer(hide_add_button=layout == "sidebar_nav"),
         id="calendar-container",
     )
 
@@ -605,14 +629,23 @@ def show_main_layout(year, month, view="calendar", event_id=None):
         /* Layout variants (`config/apps/calendar/layout/`). Structure only --
            every color and font still comes from the shared theme. */
 
-        /* sidebar_nav: the month nav and view toggle leave the horizontal bar
-           above the grid and become a left rail beside it. Both stack
-           vertically once they are in a narrow column. */
-        .calendar-body-sidebar { display: flex; gap: var(--layout-spacing); align-items: flex-start; }
-        .calendar-body-sidebar > .calendar-header { flex: 0 0 12rem; }
+        /* sidebar_nav: "Add Event", the month and its prev/next, and the view
+           toggle leave the bar above the grid and become a left rail that
+           stays in view while the grid scrolls. */
+        .calendar-body-sidebar { display: flex; gap: calc(var(--layout-spacing) * 1.5); align-items: flex-start; }
         .calendar-body-sidebar > .calendar-content { flex: 1; min-width: 0; }
-        .calendar-body-sidebar .calendar-nav { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-        .calendar-body-sidebar .view-toggle { flex-direction: column; gap: 0.5rem; }
+        .calendar-rail { flex: 0 0 13rem; display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 1rem; }
+        .calendar-rail > * { margin: 0; }
+        .calendar-rail .calendar-create { width: 100%; }
+        .calendar-rail #current-month-year { font-size: 1.25rem; white-space: nowrap; margin-top: 0.5rem; }
+        .calendar-rail .calendar-nav { gap: 0.5rem; }
+        .calendar-rail .calendar-nav > a { flex: 1; padding-inline: 0.5rem; }
+        .calendar-rail .view-toggle { flex-direction: column; justify-content: flex-start; gap: 0.5rem; }
+        /* Too narrow for a rail beside a seven-column grid: stack it on top. */
+        @media (max-width: 48rem) {
+            .calendar-body-sidebar { flex-direction: column; align-items: stretch; }
+            .calendar-rail { position: static; flex-basis: auto; }
+        }
         """
     )
     
@@ -630,7 +663,7 @@ def show_main_layout(year, month, view="calendar", event_id=None):
 @rt("/calendar")
 def get(req):
     today = datetime.now()
-    view = req.query_params.get("view") or default_view()
+    view = resolve_view(req.query_params.get("view"))
     # Get error message if present
     error_message = req.query_params.get("error")
     error_div = Div(error_message, cls="error-message") if error_message else ""
@@ -663,7 +696,7 @@ def get(
     # Empty rather than "calendar" so the layout decides the default; the
     # nav/toggle links always pass an explicit view, so this only applies to
     # a hand-typed or agent-constructed URL.
-    view = view or default_view()
+    view = resolve_view(view)
 
     if direction == "prev":
         date = datetime(year, month, 1) - timedelta(days=1)
