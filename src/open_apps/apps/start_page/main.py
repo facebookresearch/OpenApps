@@ -153,6 +153,37 @@ def reset_all_apps(config: DictConfig):
             print(f"Warning: failed to reset {app_name}: {e}")
 
 
+def shuffle_icons(apps_cfg, rng=random) -> None:
+    """Detach each icon from its app so the picture stops identifying the tile.
+
+    This is the `broken_logos` perturbation. Both icon sets are permuted the
+    same way, otherwise selecting a `bw` theme would quietly undo the shuffle.
+    """
+    order = list(apps_cfg)
+    shuffled = order[:]
+    rng.shuffle(shuffled)
+    icons = {name: apps_cfg[name].get("icon") for name in order}
+    bw_icons = {name: apps_cfg[name].get("bw_icon") for name in order}
+    for name, source in zip(order, shuffled):
+        apps_cfg[name].icon = icons[source]
+        if bw_icons[source] is not None:
+            apps_cfg[name].bw_icon = bw_icons[source]
+
+
+def light_glyphs() -> bool:
+    """Whether the tile icons need drawing light-on-dark.
+
+    The `bw` icon set is black line art. Under a non-light tone the tiles
+    collapse to one dark fill (`tile_fill_by_tone`), where black glyphs all but
+    vanish; a real launcher in dark or monochrome mode draws its glyphs light.
+    The fill still collapses -- that is the perturbation -- only the glyph ink
+    flips.
+    """
+    tone = theme_asset(app.config, "start_page", "tone", "light")
+    icon_set = theme_asset(app.config, "start_page", "icon_set", "color")
+    return icon_set == "bw" and tone != "light"
+
+
 def get_start_page_routes():
     return app.routes
 
@@ -198,19 +229,7 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
             print(f"Failed to find route getter for {app_name}: {e}")
 
     if getattr(app.config.start_page, "shuffle_icons", False):
-        # Detach each icon from its app so the picture stops identifying the
-        # tile. Both sets are permuted the same way, otherwise selecting a
-        # `bw` theme would quietly undo the shuffle.
-        apps_cfg = app.config.start_page.apps
-        order = list(apps_cfg)
-        shuffled = order[:]
-        random.shuffle(shuffled)
-        icons = {name: apps_cfg[name].get("icon") for name in order}
-        bw_icons = {name: apps_cfg[name].get("bw_icon") for name in order}
-        for name, source in zip(order, shuffled):
-            apps_cfg[name].icon = icons[source]
-            if bw_icons[source] is not None:
-                apps_cfg[name].bw_icon = bw_icons[source]
+        shuffle_icons(app.config.start_page.apps)
 
     return app
 
@@ -340,13 +359,18 @@ def get():
                 )
 
     # Create the gallery with configuration
+    has_descriptions = any(
+        (app_config.get('description') or "").strip()
+        for app_config in (config.apps.values() if hasattr(config, 'apps') else [])
+        if app_config.get('enabled', True)
+    )
     gallery = Gallery(
         items,
-        style=config.get('style', 1),
         size=config.get('size', 'small'),
         random_tile_reoder=config.get('random_tile_reoder', False),
         fade_in=config.get('fade_in', True),
-        lightbox=config.get('lightbox', False),
+        has_descriptions=has_descriptions,
+        light_glyphs=light_glyphs(),
         config=config,
     )
 
