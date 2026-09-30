@@ -280,25 +280,60 @@ def current_layout():
 # the `w-1/6` / `w-5/6` utility classes the sidebar and editor carry, hence
 # the `> *` width rule.
 _LAYOUT_STYLES = Style("""
-    .codeeditor-page.layout-top_tree {
-        flex-direction: column;
-    }
-
     .codeeditor-page.layout-top_tree > * {
         width: 100%;
     }
 
-    /* A short, full-width strip: the tree flows horizontally instead of
-       stacking, so it reads as a file bar above the editor rather than a
-       squashed sidebar. */
+    /* top_tree -- a single-row file bar above the editor, in the manner of an
+       editor's tab strip: New File / New Folder lead, then every tree entry
+       in one scrolling row. `!important` on max-height because the sidebar
+       carries an inline `max-height: calc(100vh - 2rem)` for the column
+       layouts. */
     .codeeditor-page.layout-top_tree .codeeditor-sidebar {
-        max-height: 12rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        max-height: none !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-border);
+    }
+
+    .codeeditor-page.layout-top_tree .codeeditor-sidebar > .mb-4 {
+        flex: none;
+        margin: 0;
     }
 
     .codeeditor-page.layout-top_tree .codeeditor-tree {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* An expanded folder's children join the row right after it rather than
+       opening a block underneath, which would make the bar grow downwards
+       over the editor. `display: contents` keeps the DOM -- and so the
+       accessibility tree -- exactly as the other layouts have it. Collapsed
+       folders keep their inline `display: none`; only the expanded state
+       (set inline by the folder toggle) is matched. */
+    .codeeditor-page.layout-top_tree .folder-container,
+    .codeeditor-page.layout-top_tree .folder-content[style*="block"] {
+        display: contents !important;
+    }
+
+    .codeeditor-page.layout-top_tree .tree-row {
+        flex: none;
+        white-space: nowrap;
+        padding: 0.25rem 0.625rem;
+        border-radius: var(--radius);
+    }
+
+    /* Files inside an expanded folder: a leading rule marks them as nested,
+       the one hierarchy cue a flat row can still give. */
+    .codeeditor-page.layout-top_tree .folder-content > .tree-row {
+        border-left: 2px solid var(--color-border);
+        border-radius: 0;
     }
 """)
 
@@ -317,7 +352,10 @@ def editor_page(side_bar, main_screen):
     * `top_tree`      -- tree as a horizontal strip above the editor
     """
     layout = current_layout()
-    cls = f"codeeditor-page layout-{layout} flex space-x-2"
+    # `space-x-*` is a margin-left on every child after the first -- right for
+    # a row, but in `top_tree`'s column it would indent the editor.
+    spacing = "flex-col gap-2" if layout == "top_tree" else "space-x-2"
+    cls = f"codeeditor-page layout-{layout} flex {spacing}"
     if layout == "sidebar_right":
         return Div(_LAYOUT_STYLES, Div(cls=cls)(main_screen, side_bar))
     return Div(_LAYOUT_STYLES, Div(cls=cls)(side_bar, main_screen))
@@ -376,7 +414,7 @@ def create_sidebar(current_path: str = None) -> Div:
             file_path = item['path']
             is_current = current_path == file_path
             return Div(
-                cls=f"pl-4 py-1 hover:bg-gray-700 cursor-pointer {'bg-blue-800' if is_current else ''}"
+                cls=f"tree-row pl-4 py-1 hover:bg-gray-700 cursor-pointer {'bg-blue-800' if is_current else ''}"
             )(
                 A(
                     item['name'],
@@ -394,7 +432,7 @@ def create_sidebar(current_path: str = None) -> Div:
             return Div(cls="folder-container")(
                 # Merge span elements into a single clickable div
                 Div(
-                    cls=f"flex items-center pl-2 py-1 hover:bg-gray-700 cursor-pointer {('bg-blue-800' if is_current else '')}",
+                    cls=f"tree-row flex items-center pl-2 py-1 hover:bg-gray-700 cursor-pointer {('bg-blue-800' if is_current else '')}",
                     **{
                         "data-path": folder_path,
                         "onclick": f"""
