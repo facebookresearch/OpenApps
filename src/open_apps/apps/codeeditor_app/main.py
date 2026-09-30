@@ -40,6 +40,32 @@ _COMPONENT_STYLES = Style(
     .main-content [class*="bg-blue-"].text-white {
         color: #ffffff;
     }
+    /* The file tree, however, must not take that restore: every row carries
+       `hover:bg-gray-700`, which the `[class*="bg-gray-"]` match above
+       catches, so tree labels went straight back to white-on-white. Its rows
+       get theme fills instead of the old hard-coded gray/blue, and its
+       folder toggles -- <button>s, which Pico paints as filled controls --
+       read as plain tree labels. */
+    .codeeditor-tree .text-white,
+    .codeeditor-tree [class*="bg-"] .text-white {
+        color: var(--color-fg) !important;
+    }
+    .codeeditor-tree [class*="hover:bg-gray-"]:hover {
+        background-color: var(--color-surface) !important;
+    }
+    .codeeditor-tree .bg-blue-800 {
+        background-color: color-mix(in srgb, var(--color-primary) 18%, transparent) !important;
+    }
+    .codeeditor-tree button {
+        background: none;
+        border: 0;
+        box-shadow: none;
+        margin: 0;
+        padding: 0 0.25rem;
+        width: auto;
+        color: inherit;
+        font: inherit;
+    }
     .styled-content {
         font-size: var(--font-size-sm);
         font-family: var(--font-family);
