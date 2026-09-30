@@ -4,7 +4,8 @@
 #
 # Mirrors the default arrangement: the file tree sits to the right of the
 # editor pane. A real DOM reorder in `editor_page`, so the accessibility tree
-# an agent reads matches what is rendered.
+# an agent reads matches what is rendered. The Language / Theme pickers sit
+# in the status bar, as VS Code's language picker does.
 defaults:
   - default
 

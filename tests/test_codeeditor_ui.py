@@ -3,9 +3,7 @@ Copyright (c) Meta Platforms, Inc. and affiliates.
 All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
-"""
 
-"""
 Markup tests for the code editor's chrome, per layout and theme.
 
 Chromium does not run everywhere these tests do, so they assert on the

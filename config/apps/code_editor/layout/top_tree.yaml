@@ -4,7 +4,8 @@
 #
 # No side column at all: the file tree becomes a short horizontal strip above
 # the editor, so the editor gets the full page width and file targets sit in
-# a row rather than a column.
+# a row rather than a column. The Language / Theme pickers sit in the status
+# bar.
 defaults:
   - default
 

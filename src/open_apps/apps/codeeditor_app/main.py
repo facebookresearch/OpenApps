@@ -783,9 +783,10 @@ def current_editor_theme():
 def current_layout():
     """The active structure variant from `config/apps/code_editor/layout/`.
 
-    Consumed only by :func:`editor_page`. Every variant rearranges the file
-    tree relative to the editor and nothing else, so routes, ids and the
-    `/codeeditor_all` tree are identical across layouts.
+    Consumed by :func:`editor_page` (where the explorer sits) and
+    :func:`_selects_in_status_bar` (where the Language / Theme pickers sit).
+    Nothing else varies, so routes, ids and the `/codeeditor_all` tree are
+    identical across layouts.
     """
     config = getattr(app, "config", None)
     if config is None:
