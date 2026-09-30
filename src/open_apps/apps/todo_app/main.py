@@ -90,9 +90,11 @@ styles = Style("""
         color: var(--color-on-primary);
         font-weight: 600;
     }
+    /* Mixed toward the foreground rather than `--color-primary-hover`: the
+       dark theme pairs a near-black hover fill with black on-primary text. */
     .add-btn:hover, .add-btn:focus-visible {
-        background-color: var(--color-primary-hover);
-        border-color: var(--color-primary-hover);
+        background-color: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
+        border-color: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
         color: var(--color-on-primary);
     }
     /* Secondary row actions are quiet outlines at rest and take their
