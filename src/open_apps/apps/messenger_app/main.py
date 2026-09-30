@@ -755,10 +755,10 @@ _LAYOUT_STYLES = Style("""
 
     /* ---------- List page + "Return to List of Apps" ---------- */
     .msg-list-page { padding: var(--space) 0; }
-    /* Still reads as a button (the UI question bank calls it one and asks
-       for it below the list), but a small tonal one instead of a full-width
-       outlined slab. Pico styles [role=button] as a primary button, hence
-       the !important resets. */
+    /* Base: a small tonal button, which split_inbox and compact_list quiet
+       further below. `default` renders `.is-prominent` instead (see
+       `return_to_apps_link`). Pico styles [role=button] as a primary
+       button, hence the !important resets. */
     a.msg-apps-link[role="button"] {
         display: inline-flex;
         align-items: center;
@@ -782,6 +782,24 @@ _LAYOUT_STYLES = Style("""
     }
     a.msg-apps-link[role="button"]:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
     .msg-apps-link .fa-chevron-left { font-size: 0.75em; color: var(--color-muted); }
+    /* default: full-width outlined button directly under the list, at body
+       size, so a screenshot agent finds the way home at a glance. */
+    a.msg-apps-link.is-prominent[role="button"] {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin: calc(var(--space) * 2) 0 0;
+        padding: calc(var(--space) * 1.25) calc(var(--space) * 2);
+        border: 1px solid var(--color-fg) !important;
+        border-radius: var(--radius);
+        background: transparent !important;
+        color: var(--color-fg) !important;
+        font-size: var(--font-size-base) !important;
+        font-weight: 600;
+    }
+    a.msg-apps-link.is-prominent[role="button"]:hover {
+        background: color-mix(in srgb, var(--color-fg) 6%, var(--color-bg)) !important;
+    }
 
     /* ---------- Thread frame ---------- */
     main.msg-thread {
@@ -1254,12 +1272,20 @@ def list_pane(selected: str = None):
 
 
 def return_to_apps_link():
-    """Quiet navigation chrome under the chat list.
+    """The way home, under the chat list: same text, href and role everywhere.
 
-    Same text, href and role as the big outlined button it replaces (the UI
-    question bank asks for this label and its position below the list); it
-    just no longer outweighs the conversations.
+    In `default` it stays a full-width outlined button: the navigation tasks
+    (`config/tasks/original_tasks.yaml`) have screenshot agents find it, and
+    the UI question bank asks for this label below the list. The other
+    layouts demote it to quiet chrome, as a desktop or compact client would.
     """
+    if current_layout() == "default":
+        return A(
+            "Return to List of Apps",
+            href="/",
+            role="button",
+            cls="msg-apps-link is-prominent",
+        )
     return A(
         I(cls="fas fa-chevron-left", aria_hidden="true"),
         "Return to List of Apps",

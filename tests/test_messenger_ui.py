@@ -135,11 +135,19 @@ class TestListPage:
     def test_return_link_keeps_text_href_role(self, layout_client):
         _, client = layout_client
         html = strip_assets(client.get("/messages").text)
-        link = re.search(r'<a [^>]*class="msg-apps-link"[^>]*>.*?</a>', html, flags=re.S).group(0)
+        link = re.search(r'<a [^>]*class="msg-apps-link[^"]*"[^>]*>.*?</a>', html, flags=re.S).group(0)
         assert 'href="/"' in link and 'role="button"' in link
         assert re.sub(r"<[^>]+>", "", link).strip() == "Return to List of Apps"
         # Still below the list (UI question: "Below the conversation list").
         assert html.index("msg-apps-link") > html.rindex("msg-row-preview")
+
+    def test_return_button_is_prominent_only_in_default(self, layout_client):
+        # Navigation tasks rely on screenshot agents spotting it in default.
+        layout, client = layout_client
+        html = strip_assets(client.get("/messages").text)
+        link = find_tag(html, "a", href="/", role="button")
+        assert "msg-apps-link" in link
+        assert ("is-prominent" in link) == (layout == "default")
 
     def test_list_time_is_short_and_preview_is_capped(self, tmp_path):
         client = build_client(tmp_path)
