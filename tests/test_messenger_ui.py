@@ -240,12 +240,25 @@ class TestThread:
     def test_send_continues_a_run_of_your_own(self, tmp_path):
         client = build_client(tmp_path)
         messenger.add_new_message_to_history("Charlie", "earlier", "you", "Feb 25, 4:50PM")
-        html = strip_assets(client.post("/messages/send", data={"msg": "hi", "interlocutor": "Charlie"}).text)
+        raw = client.post("/messages/send", data={"msg": "hi", "interlocutor": "Charlie"}).text
+        html = strip_assets(raw)
         classes = re.findall(r'<div class="(chat chat-(?:start|end)[^"]*)"', html)
         assert classes == ["chat chat-end msg-last", "chat chat-start msg-first msg-last"]
+        # The bubble that ended the run is on the page already; the response
+        # carries the script that drops its `msg-last`.
+        script = re.search(r'<script class="msg-close-run">(.*?)</script>', raw, flags=re.S)
+        assert script and "classList.remove('msg-last')" in script.group(1)
         state = client.get("/messages_all").json()
         charlie = next(c for c in state if c["user"] == "Charlie")
         assert [m[1] for m in charlie["messages"][-2:]] == ["you", "Charlie"]
+
+
+    def test_send_after_a_reply_needs_no_run_fix(self, tmp_path):
+        client = build_client(tmp_path)
+        html = client.post("/messages/send", data={"msg": "hi", "interlocutor": "Alice"}).text
+        assert "msg-close-run" not in html
+        classes = re.findall(r'<div class="(chat chat-(?:start|end)[^"]*)"', html)
+        assert classes[0] == "chat chat-end msg-first msg-last"
 
 
 class TestStyles:

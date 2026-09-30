@@ -1415,6 +1415,28 @@ def index(user_id: str):
     )
 
 
+# When a sent message continues your own run, the bubble that used to end
+# that run is already on the page with `msg-last` (time shown, rounded end
+# corner). The run grouping is CSS-only, so demoting it is one class. htmx
+# runs inline scripts in swapped content; the script sits inside the
+# response wrapper, so the new outgoing message is the wrapper's first
+# `.chat` and the bubble to demote is the `.chat` just before it. The
+# previous bubble has no stable id to target with an out-of-band swap (the
+# search script reassigns `.chat` ids), hence a script rather than hx-swap-oob.
+_CLOSE_PREVIOUS_RUN_END = Script("""
+    (function () {
+        var wrapper = document.currentScript && document.currentScript.parentElement;
+        var sent = wrapper && wrapper.querySelector('.chat');
+        if (!sent) return;
+        var chats = Array.prototype.slice.call(document.querySelectorAll('#chatlist .chat'));
+        var previous = chats[chats.indexOf(sent) - 1];
+        if (previous && previous.classList.contains('chat-end')) {
+            previous.classList.remove('msg-last');
+        }
+    })();
+""", cls="msg-close-run")
+
+
 # Handle the form submission
 @app.post("/messages/send")
 def send(msg: str, interlocutor: str, messages: list[str] = None):
@@ -1439,6 +1461,7 @@ def send(msg: str, interlocutor: str, messages: list[str] = None):
         Div(
             ChatMessage(msg, "you", current_time, first_in_run=not continues_run),
             ChatMessage(r.rstrip(), interlocutor, current_time),
+            _CLOSE_PREVIOUS_RUN_END if continues_run else None,
             _="on load call scrollToBottom()",
         ),
         ChatInput(),
