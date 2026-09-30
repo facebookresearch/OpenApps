@@ -14,12 +14,293 @@ from src.open_apps.apps.start_page.helper import create_logo_header
 from src.open_apps.frontend import local_hdrs
 from src.open_apps.theme import theme_asset, theme_style
 
-# Static, theme-agnostic component styles. Colors and fonts are design tokens
-# from the shared theme (`config/apps/theme/`), emitted per-request by
-# `codeeditor_theme()`. `!important` throughout because daisyUI ships utility
-# classes on these same elements.
+# Static, theme-agnostic component styles. Colors, fonts, radii and spacing
+# are design tokens from the shared theme (`config/apps/theme/`), emitted
+# per-request by `codeeditor_theme()`.
+#
+# The chrome is modelled on VS Code / github.dev: an explorer with a section
+# header, compact rows and indentation guides; an editor group with a tab
+# strip and a header row; a status bar along the bottom of the window.
+#
+# Every rule is scoped under `.codeeditor-app` and names its own classes
+# rather than leaning on Tailwind utilities. Tailwind and daisyUI arrive from
+# CDNs that an eval node cannot reach, and Pico (vendored, always present)
+# paints every <button>, <select> and <h2> as a full-size form control, so
+# these rules set each property they care about explicitly. Two-class
+# selectors keep them above Pico's `select:not([multiple],[size])` and
+# Tailwind preflight's `[type=button]`. `\f...` escapes are Font Awesome 5
+# code points, hence the raw string.
 _COMPONENT_STYLES = Style(
-    """
+    r"""
+    html, body {
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+        font-family: var(--font-family);
+    }
+    body {
+        padding: calc(var(--space) * 2);
+    }
+
+    /* --- Window ---------------------------------------------------------- */
+    .codeeditor-app {
+        --ce-row: calc(var(--space) * 2.75);
+        --ce-chevron: calc(var(--space) * 2);
+        --ce-gap: calc(var(--space) * 0.5);
+        --ce-hover: color-mix(in srgb, var(--color-fg) 7%, transparent);
+        --ce-selected: color-mix(in srgb, var(--color-primary) 16%, transparent);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 6rem);
+        min-height: 24rem;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+        line-height: 1.4;
+    }
+    .codeeditor-app .codeeditor-page {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+    }
+    .codeeditor-app :focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -2px;
+    }
+    .codeeditor-app .hidden {
+        display: none;
+    }
+    .codeeditor-app .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    /* --- Buttons and fields ---------------------------------------------- */
+    .codeeditor-app .ce-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--ce-gap);
+        width: auto;
+        margin: 0;
+        padding: calc(var(--space) * 0.25) var(--space);
+        border: 1px solid transparent;
+        border-radius: calc(var(--radius) * 0.5);
+        background-color: transparent;
+        background-image: none;
+        box-shadow: none;
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+        font-weight: 500;
+        line-height: 1.4;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .codeeditor-app .ce-btn:hover {
+        background-color: var(--ce-hover);
+    }
+    .codeeditor-app .ce-btn i {
+        color: var(--color-muted);
+    }
+    .codeeditor-app .ce-btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+    .codeeditor-app .ce-btn-primary i {
+        color: var(--color-on-primary);
+    }
+    /* Mixed toward the foreground rather than `--color-primary-hover`: that
+       token is a darker shade in every light theme but also in `dark`, where
+       it puts black `on-primary` text on deep purple. */
+    .codeeditor-app .ce-btn-primary:hover {
+        background-color: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
+        border-color: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
+    }
+    .codeeditor-app .ce-btn-danger,
+    .codeeditor-app .ce-btn-danger i {
+        color: var(--color-danger);
+    }
+    .codeeditor-app .ce-btn-danger {
+        border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+    }
+    .codeeditor-app .ce-btn-danger:hover {
+        background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+    }
+    .codeeditor-app .ce-field {
+        display: flex;
+        align-items: center;
+        gap: var(--ce-gap);
+    }
+    .codeeditor-app .ce-field label {
+        display: inline;
+        margin: 0;
+        color: var(--color-muted);
+        font-size: var(--font-size-sm);
+    }
+    .codeeditor-app .ce-select,
+    .codeeditor-app .ce-input {
+        width: auto;
+        height: auto;
+        margin: 0;
+        padding: calc(var(--space) * 0.25) var(--space);
+        border: 1px solid var(--color-border);
+        border-radius: calc(var(--radius) * 0.5);
+        background-color: var(--color-bg);
+        box-shadow: none;
+        color: var(--color-fg);
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+        line-height: 1.4;
+    }
+    /* Pico draws the select chevron as a background image; keep it, just
+       make room for it at this smaller size. */
+    .codeeditor-app .ce-select {
+        padding-right: calc(var(--space) * 3.5);
+        background-position: center right calc(var(--space) * 0.75);
+        background-size: calc(var(--space) * 1.75) auto;
+    }
+    .codeeditor-app .ce-input {
+        width: 100%;
+    }
+
+    /* --- Explorer -------------------------------------------------------- */
+    .codeeditor-app .codeeditor-sidebar {
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 16rem;
+        min-width: 0;
+        overflow-y: auto;
+        background-color: var(--color-surface);
+        border-right: 1px solid var(--color-border);
+    }
+    .codeeditor-app .ce-pane-title {
+        margin: 0;
+        padding: var(--space) calc(var(--space) * 1.5) calc(var(--space) * 0.5);
+        color: var(--color-muted);
+        font-family: var(--font-family);
+        font-size: calc(var(--font-size-sm) * 0.8);
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        line-height: 1.4;
+        text-transform: uppercase;
+    }
+    .codeeditor-app .ce-explorer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: calc(var(--space) * 0.25);
+        padding: 0 var(--space) calc(var(--space) * 0.75);
+    }
+    .codeeditor-app .ce-explorer-actions .ce-btn {
+        padding: calc(var(--space) * 0.25) calc(var(--space) * 0.5);
+        font-weight: 400;
+    }
+    .codeeditor-app .codeeditor-tree {
+        padding-bottom: var(--space);
+        font-size: var(--font-size-sm);
+    }
+    .codeeditor-app .tree-row {
+        display: flex;
+        align-items: center;
+        gap: var(--ce-gap);
+        min-height: var(--ce-row);
+        padding: 0 var(--space);
+        color: var(--color-fg);
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .codeeditor-app .tree-row:hover {
+        background-color: var(--ce-hover);
+    }
+    .codeeditor-app .tree-row.is-selected {
+        background-color: var(--ce-selected);
+    }
+    /* Files have no chevron; indent them by its width so their icons line up
+       with the folder icons above, as in VS Code. */
+    .codeeditor-app .ce-file {
+        padding-left: calc(var(--space) + var(--ce-chevron) + var(--ce-gap));
+    }
+    .codeeditor-app .ce-row-link {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        gap: var(--ce-gap);
+        min-width: 0;
+        min-height: var(--ce-row);
+        color: inherit;
+        text-decoration: none;
+    }
+    .codeeditor-app .ce-row-link:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+    /* The chevron and the name are <button>s (their handlers live on the
+       row); strip Pico's filled-control look so they read as tree labels. */
+    .codeeditor-app .tree-row button {
+        width: auto;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        color: inherit;
+        font: inherit;
+        line-height: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+    .codeeditor-app .tree-row .folder-icon {
+        flex: none;
+        width: var(--ce-chevron);
+        color: var(--color-muted);
+        font-size: 0.6em;
+        text-align: center;
+    }
+    .codeeditor-app .tree-row .folder-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .codeeditor-app .ce-icon {
+        flex: none;
+        width: calc(var(--space) * 2);
+        color: var(--color-muted);
+        text-align: center;
+    }
+    .codeeditor-app .ce-icon-code {
+        color: var(--color-primary);
+    }
+    .codeeditor-app .ce-icon-folder {
+        color: var(--color-accent);
+    }
+    .codeeditor-app .folder-container.is-open > .tree-row .ce-icon-folder::before {
+        content: "\f07c";
+    }
+    /* Indentation guide: a hairline under each open folder's chevron. */
+    .codeeditor-app .folder-content {
+        margin-left: calc(var(--space) + var(--ce-chevron) / 2);
+        border-left: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    }
+    /* --- Editor group ---------------------------------------------------- */
+    .codeeditor-app .ce-editor {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        background-color: var(--color-bg);
+    }
+
+    /* --- Legacy editor-pane rules ---------------------------------------- */
     .main-content {
         background-color: var(--color-bg);
     }
@@ -98,6 +379,11 @@ _COMPONENT_STYLES = Style(
     }
 """
 )
+
+# Font Awesome 5, vendored under apps/assets (no CDN) -- explorer, tab and
+# status-bar icons. Every icon is `aria-hidden`, so the accessibility tree an
+# agent reads is unchanged by it.
+_ICON_STYLESHEET = Link(rel="stylesheet", href="/assets/css/fontawesome-all.min.css")
 
 # Set by the in-page theme dropdown; None means "follow the shared theme".
 _editor_theme_override = None
@@ -221,7 +507,7 @@ def set_environment(config):
     
     app.config = config
     # Update app headers by extending existing ones
-    app.hdrs = (*_base_hdrs, _COMPONENT_STYLES)
+    app.hdrs = (*_base_hdrs, _ICON_STYLESHEET, _COMPONENT_STYLES)
 
     if config.code_editor.sort_feature:
         list_of_modes = sorted(list_of_modes)
@@ -276,89 +562,121 @@ def current_layout():
 
 
 # Layout rules live here rather than in `_COMPONENT_STYLES` so that the
-# structural variants stay readable as a group. `top_tree` has to override
-# the `w-1/6` / `w-5/6` utility classes the sidebar and editor carry, hence
-# the `> *` width rule.
+# structural variants stay readable as a group. `default` needs none: the
+# base styles are the VS Code arrangement, explorer left of the editor.
 _LAYOUT_STYLES = Style("""
-    .codeeditor-page.layout-top_tree > * {
-        width: 100%;
+    /* sidebar_right -- the explorer comes after the editor in the DOM (see
+       `editor_page`), so only its dividing border has to swap sides. */
+    .codeeditor-app.layout-sidebar_right .codeeditor-sidebar {
+        border-right: 0;
+        border-left: 1px solid var(--color-border);
     }
 
-    /* top_tree -- a single-row file bar above the editor, in the manner of an
-       editor's tab strip: New File / New Folder lead, then every tree entry
-       in one scrolling row. `!important` on max-height because the sidebar
-       carries an inline `max-height: calc(100vh - 2rem)` for the column
-       layouts. */
-    .codeeditor-page.layout-top_tree .codeeditor-sidebar {
-        display: flex;
+    /* top_tree -- no side column: the explorer becomes a single-row file bar
+       above the editor, in the manner of an editor's tab strip. The section
+       title and New File / New Folder lead, then every tree entry in one
+       scrolling row. */
+    .codeeditor-app.layout-top_tree .codeeditor-page {
+        flex-direction: column;
+    }
+    .codeeditor-app.layout-top_tree .codeeditor-sidebar {
+        flex: none;
+        flex-direction: row;
         align-items: center;
-        gap: 1rem;
-        max-height: none !important;
+        gap: var(--space);
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 0.5rem 0.75rem;
-        border: 1px solid var(--color-border);
+        padding: calc(var(--space) * 0.5) var(--space);
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border);
     }
-
-    .codeeditor-page.layout-top_tree .codeeditor-sidebar > .mb-4 {
+    .codeeditor-app.layout-top_tree .ce-pane-title {
         flex: none;
-        margin: 0;
+        padding: 0 calc(var(--space) * 0.5);
     }
-
-    .codeeditor-page.layout-top_tree .codeeditor-tree {
+    .codeeditor-app.layout-top_tree .ce-explorer-actions {
+        flex: none;
+        flex-wrap: nowrap;
+        padding: 0 var(--space) 0 0;
+        border-right: 1px solid var(--color-border);
+    }
+    .codeeditor-app.layout-top_tree .codeeditor-tree {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: calc(var(--space) * 0.25);
+        padding: 0;
     }
 
     /* An expanded folder's children join the row right after it rather than
        opening a block underneath, which would make the bar grow downwards
        over the editor. `display: contents` keeps the DOM -- and so the
        accessibility tree -- exactly as the other layouts have it. Collapsed
-       folders keep their inline `display: none`; only the expanded state
-       (set inline by the folder toggle) is matched. */
-    .codeeditor-page.layout-top_tree .folder-container,
-    .codeeditor-page.layout-top_tree .folder-content[style*="block"] {
+       folders keep their inline `display: none`; only an open folder's
+       content (`is-open`, set by the folder toggle alongside the inline
+       display) is matched, and `!important` beats that inline value. */
+    .codeeditor-app.layout-top_tree .folder-container,
+    .codeeditor-app.layout-top_tree .folder-container.is-open > .folder-content {
         display: contents !important;
     }
-
-    .codeeditor-page.layout-top_tree .tree-row {
+    .codeeditor-app.layout-top_tree .tree-row {
         flex: none;
-        white-space: nowrap;
-        padding: 0.25rem 0.625rem;
-        border-radius: var(--radius);
+        padding: 0 var(--space);
+        border-radius: calc(var(--radius) * 0.5);
     }
 
-    /* Files inside an expanded folder: a leading rule marks them as nested,
-       the one hierarchy cue a flat row can still give. */
-    .codeeditor-page.layout-top_tree .folder-content > .tree-row {
+    /* Entries inside an expanded folder: a leading rule marks them as
+       nested, the one hierarchy cue a flat row can still give. */
+    .codeeditor-app.layout-top_tree .folder-content .tree-row {
         border-left: 2px solid var(--color-border);
         border-radius: 0;
     }
 """)
 
 
-def editor_page(side_bar, main_screen):
-    """Assemble the file tree and the editor pane per the active layout.
+def editor_page(side_bar, main_screen, status_bar=None):
+    """Assemble the explorer, the editor group and the status bar per layout.
 
     The three page handlers (`/codeeditor/`, the folder view and the file
-    view) all built `Div(cls="flex space-x-2")(side_bar, main_screen)`; this
-    is that same call with the layout branch folded in, so a new variant is
-    added in one place instead of three.
+    view) all compose their page through here, so a new variant is added in
+    one place instead of three.
 
-    * `default`       -- tree left of the editor
-    * `sidebar_right` -- tree right of the editor (real DOM reorder, so the
-      accessibility tree matches what is rendered)
-    * `top_tree`      -- tree as a horizontal strip above the editor
+    * `default`       -- explorer left of the editor
+    * `sidebar_right` -- explorer right of the editor (real DOM reorder, so
+      the accessibility tree matches what is rendered)
+    * `top_tree`      -- explorer as a horizontal file bar above the editor
+
+    The status bar spans the whole window in every layout, as in VS Code.
     """
     layout = current_layout()
-    # `space-x-*` is a margin-left on every child after the first -- right for
-    # a row, but in `top_tree`'s column it would indent the editor.
-    spacing = "flex-col gap-2" if layout == "top_tree" else "space-x-2"
-    cls = f"codeeditor-page layout-{layout} flex {spacing}"
     if layout == "sidebar_right":
-        return Div(_LAYOUT_STYLES, Div(cls=cls)(main_screen, side_bar))
-    return Div(_LAYOUT_STYLES, Div(cls=cls)(side_bar, main_screen))
+        panes = (main_screen, side_bar)
+    else:
+        panes = (side_bar, main_screen)
+    return Div(cls=f"codeeditor-app layout-{layout}")(
+        _LAYOUT_STYLES,
+        Div(cls=f"codeeditor-page layout-{layout}")(*panes),
+        *([status_bar] if status_bar is not None else []),
+    )
+
+
+def _icon(cls: str) -> I:
+    """A decorative Font Awesome glyph, hidden from the accessibility tree."""
+    return I(cls=f"ce-icon {cls}", **{"aria-hidden": "true"})
+
+
+# Extensions that get the code-file glyph in the explorer and the tab strip;
+# anything else gets a plain document. One glyph per kind rather than a logo
+# per language: FA5 Free has no marks for most of these.
+_CODE_EXTENSIONS = (
+    ".c", ".cc", ".cpp", ".css", ".go", ".h", ".html", ".java", ".js",
+    ".json", ".py", ".rs", ".sh", ".ts", ".yaml", ".yml",
+)
+
+
+def _file_icon(name: str) -> I:
+    if name.lower().endswith(_CODE_EXTENSIONS):
+        return _icon("far fa-file-code ce-icon-code")
+    return _icon("far fa-file-alt")
 
 
 def return_to_index():
@@ -410,29 +728,34 @@ def create_sidebar(current_path: str = None) -> Div:
     file_tree = get_file_tree(files_root)
 
     def render_tree_item(item, path=''):
+        # Only the open item is selected, as in VS Code. (Ancestor folders of
+        # the open file used to share the highlight, which lit up a whole
+        # branch of the tree.)
         if item['type'] == 'file':
             file_path = item['path']
             is_current = current_path == file_path
             return Div(
-                cls=f"tree-row pl-4 py-1 hover:bg-gray-700 cursor-pointer {'bg-blue-800' if is_current else ''}"
+                cls=f"tree-row ce-file{' is-selected' if is_current else ''}"
             )(
                 A(
+                    _file_icon(item['name']),
                     item['name'],
                     href=f"/codeeditor/{file_path}",
-                    cls="text-white hover:text-white no-underline"
+                    cls="ce-row-link",
+                    **({"aria-current": "page"} if is_current else {}),
                 )
             )
         else:
             folder_path = os.path.join(path, item['name'])
-            # is_current = current_path and current_path.startswith(folder_path)
-            is_current = (current_path and (
-                current_path == folder_path or
-                current_path.startswith(folder_path + '/')
-            ))
+            is_current = current_path == folder_path
             return Div(cls="folder-container")(
-                # Merge span elements into a single clickable div
+                # Merge span elements into a single clickable div. `flex`
+                # stays: the DOMContentLoaded script below finds this row with
+                # `container.querySelector('.flex')`. The toggle mirrors its
+                # state onto an `is-open` class and `aria-expanded`, which the
+                # styles select on instead of the inline display value.
                 Div(
-                    cls=f"tree-row flex items-center pl-2 py-1 hover:bg-gray-700 cursor-pointer {('bg-blue-800' if is_current else '')}",
+                    cls=f"tree-row ce-folder flex{' is-selected' if is_current else ''}",
                     **{
                         "data-path": folder_path,
                         "onclick": f"""
@@ -442,19 +765,22 @@ def create_sidebar(current_path: str = None) -> Div:
                             const isVisible = content.style.display === 'block';
                             content.style.display = isVisible ? 'none' : 'block';
                             icon.textContent = isVisible ? '▶' : '▼';
-                            
+                            icon.setAttribute('aria-expanded', (!isVisible).toString());
+                            container.classList.toggle('is-open', !isVisible);
+
                             const storageKey = getStorageKey('{folder_path}');
                             localStorage.setItem(storageKey, (!isVisible).toString());
-                            
+
                             window.location = '/codeeditor/{folder_path}';
                         """
                     }
                 )(
-                    Button(cls="folder-icon mr-1", onclick="")(Span("▶")),
-                    Button(item['name'], cls="folder-name text-white", onclick=""),
+                    Button(cls="folder-icon", onclick="", **{"aria-expanded": "false"})(Span("▶")),
+                    _icon("far fa-folder ce-icon-folder"),
+                    Button(item['name'], cls="folder-name", onclick=""),
                 ),
                 Div(
-                    cls="folder-content ml-2",
+                    cls="folder-content",
                     style="display: none"
                 )(
                     *[render_tree_item(child, folder_path) for child in item['children']]
@@ -476,82 +802,82 @@ def create_sidebar(current_path: str = None) -> Div:
     else:
         folder_path = current_path
     return Div(
-        # `codeeditor-sidebar` distinguishes this panel from the editor pane,
-        # which also carries `main-content`; the layout rules target it.
-        cls="codeeditor-sidebar main-content w-1/6 p-4 rounded-lg overflow-y-auto",
-        style="max-height: calc(100vh - 2rem)"
+        # `codeeditor-sidebar` distinguishes this panel from the editor pane;
+        # the layout rules target it.
+        cls="codeeditor-sidebar",
     )(
-        Div(cls="mb-4")(
-            Div(
-                cls="flex justify-center gap-2",
-                style="width: 100%"
-            )(
-                Button(
-                    "New File",
-                    cls="btn btn-sm btn-secondary",
-                    onclick=f"""
-                        const path = '{folder_path or ""}';
-                        // Check if current path is already an unsaved Untitled file
-                        if (path.includes('Untitled-') && !path.includes('/')) {{
-                            showErrorModal('Please save the current new file first');
-                            return;
-                        }}
-                        const newPath = path ? path + '/Untitled-{next_index}' : 'Untitled-{next_index}';
-                        window.location = '/codeeditor/' + newPath;
-                    """
-                ),
-                Button(
-                    "New Folder",
-                    cls="btn btn-sm btn-secondary",
-                    onclick=f"""
-                        const path = '{folder_path or ""}';
-                        // Create a modal dynamically
-                        const modal = document.createElement('div');
-                        modal.className = 'modal modal-open'; // daisyUI classes to open the modal
-                        modal.innerHTML = `
-                            <div class="modal-box">
-                                <h3 class="font-bold text-lg">Enter Folder Name</h3>
-                                <input type="text" id="folderNameInput" class="input input-bordered w-full max-w-xs" placeholder="Folder Name">
-                                <div class="modal-action">
-                                    <button class="btn btn-primary" onclick="createFolder(this.closest('.modal'))">Create</button>
-                                    <button class="btn" onclick="this.closest('.modal').remove()">Cancel</button>
-                                </div>
+        H2("Explorer", cls="ce-pane-title"),
+        # New File / New Folder keep their visible labels: the UI questions
+        # (tests/ui_questions) ask for "two buttons labeled 'New File' and
+        # 'New Folder' at the top of the sidebar".
+        Div(cls="ce-explorer-actions")(
+            Button(
+                _icon("far fa-file"),
+                "New File",
+                cls="ce-btn",
+                onclick=f"""
+                    const path = '{folder_path or ""}';
+                    // Check if current path is already an unsaved Untitled file
+                    if (path.includes('Untitled-') && !path.includes('/')) {{
+                        showErrorModal('Please save the current new file first');
+                        return;
+                    }}
+                    const newPath = path ? path + '/Untitled-{next_index}' : 'Untitled-{next_index}';
+                    window.location = '/codeeditor/' + newPath;
+                """
+            ),
+            Button(
+                _icon("far fa-folder"),
+                "New Folder",
+                cls="ce-btn",
+                onclick=f"""
+                    const path = '{folder_path or ""}';
+                    // Create a modal dynamically
+                    const modal = document.createElement('div');
+                    modal.className = 'modal modal-open'; // daisyUI classes to open the modal
+                    modal.innerHTML = `
+                        <div class="modal-box">
+                            <h3 class="font-bold text-lg">Enter Folder Name</h3>
+                            <input type="text" id="folderNameInput" class="input input-bordered w-full max-w-xs" placeholder="Folder Name">
+                            <div class="modal-action">
+                                <button class="btn btn-primary" onclick="createFolder(this.closest('.modal'))">Create</button>
+                                <button class="btn" onclick="this.closest('.modal').remove()">Cancel</button>
                             </div>
-                        `;
-                        document.body.appendChild(modal);
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
 
-                        // Function to handle folder creation
-                        window.createFolder = (modalElement) => {{
-                            const folderNameInput = modalElement.querySelector('#folderNameInput');
-                            const folderName = folderNameInput.value;
+                    // Function to handle folder creation
+                    window.createFolder = (modalElement) => {{
+                        const folderNameInput = modalElement.querySelector('#folderNameInput');
+                        const folderName = folderNameInput.value;
 
-                            if (folderName) {{
-                                if (folderName.includes('Untitled-')) {{
-                                    modalElement.remove();
-                                    showErrorModal('Cannot create folders with "Untitled-" in the name. This prefix is reserved for new files.');
-                                    return;
-                                }}
-                                const newPath = path ? path + '/' + folderName : folderName;
-                                fetch('/codeeditor/create_folder/' + newPath, {{
-                                    method: 'POST'
-                                }})
-                                .then(r => r.json())
-                                .then(data => {{
-                                    modalElement.remove(); // Close the modal
-                                    if (data.success) window.location.reload();
-                                    else {{
-                                        showErrorModal('Failed to create folder: ' + data.error);
-                                    }};
-                                }});
-                            }} else {{
+                        if (folderName) {{
+                            if (folderName.includes('Untitled-')) {{
                                 modalElement.remove();
+                                showErrorModal('Cannot create folders with "Untitled-" in the name. This prefix is reserved for new files.');
+                                return;
                             }}
-                        }};
-                    """
-                )
+                            const newPath = path ? path + '/' + folderName : folderName;
+                            fetch('/codeeditor/create_folder/' + newPath, {{
+                                method: 'POST'
+                            }})
+                            .then(r => r.json())
+                            .then(data => {{
+                                modalElement.remove(); // Close the modal
+                                if (data.success) window.location.reload();
+                                else {{
+                                    showErrorModal('Failed to create folder: ' + data.error);
+                                }};
+                            }});
+                        }} else {{
+                            modalElement.remove();
+                        }}
+                    }};
+                """
             )
         ),
-        Div(cls="codeeditor-tree text-white")(
+        Div(cls="codeeditor-tree")(
             *[render_tree_item(child) for child in file_tree['children']]
         ),
         Script("""
@@ -569,6 +895,8 @@ def create_sidebar(current_path: str = None) -> Div:
                     // Always start collapsed unless explicitly set to expanded in localStorage
                     content.style.display = isExpanded ? 'block' : 'none';
                     icon.textContent = isExpanded ? '▼' : '▶';
+                    icon.setAttribute('aria-expanded', isExpanded.toString());
+                    container.classList.toggle('is-open', isExpanded);
                 });
             });
             function showErrorModal(message) {
@@ -595,7 +923,7 @@ def index():
     files_root = current_dir
     file_tree = get_file_tree(files_root)
     # by default, the main screen should display an empty code editor
-    main_screen = Div(cls="w-5/6")(
+    main_screen = Div(cls="ce-editor")(
         Div(cls="main-content p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
                 H2(f"No file selected", cls="text-white"),
@@ -713,7 +1041,7 @@ def get(path: str):
 def get_folder(folder: str):
     """Handle folder view with empty editor"""
     side_bar = create_sidebar(folder)
-    main_screen = Div(cls="w-5/6")(
+    main_screen = Div(cls="ce-editor")(
         Div(cls="main-content  p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
                 H2(f"Folder: {folder}", cls="text-white"),
@@ -913,7 +1241,7 @@ def get_file(file: str):
             """)
         )
     )
-    main_screen = Div(cls="w-5/6 flex flex-col")(
+    main_screen = Div(cls="ce-editor")(
         tab_bar,
         Div(cls="flex-grow main-content p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
