@@ -8,14 +8,11 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 
 from agentlab.llm.llm_utils import ParseError
 
 from .base import ActionParser, ActionParserResult
-
-# The model is prompted with a fictional 1000x1000 screen, so all coordinates
-# and scroll deltas it emits are in [0, 1000).
-_COORD_SPACE = 1000
 
 # Closing tag may be absent on truncation; json.loads decides well-formedness.
 _TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*(?:</tool_call>|$)", re.DOTALL)
@@ -23,7 +20,12 @@ _THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL | re.IGNORECASE)
 _ACTION_LINE_RE = re.compile(r"^\s*Action:\s*(.+?)\s*$", re.MULTILINE | re.IGNORECASE)
 
 
+@dataclass
 class Qwen3VLActionParser(ActionParser):
+    # The model is prompted with a fictional 1000x1000 screen, so all
+    # coordinates and scroll deltas it emits are in [0, 1000).
+    coord_scale: int | None = 1000
+
     def parse(self, response: str, viewport: tuple[int, int]) -> ActionParserResult:
         response = (response or "").strip()
         if not response:
@@ -83,7 +85,7 @@ class Qwen3VLActionParser(ActionParser):
                 raise ParseError(
                     f"scroll 'delta' must be a [dx, dy] list, got {delta!r}."
                 )
-            dx, dy = self._rescale(delta, viewport)
+            dx, dy = self.rescale(delta[0], delta[1], viewport)
             return f"scroll({dx}, {dy})"
 
         if action_name == "wait":
@@ -103,11 +105,4 @@ class Qwen3VLActionParser(ActionParser):
         coord = args.get("coordinate")
         if not (isinstance(coord, (list, tuple)) and len(coord) == 2):
             raise ParseError(f"'coordinate' must be a [x, y] list, got {coord!r}.")
-        return self._rescale(coord, viewport)
-
-    def _rescale(self, xy, viewport: tuple[int, int]) -> tuple[int, int]:
-        vw, vh = viewport
-        return (
-            int(round(float(xy[0]) * vw / _COORD_SPACE)),
-            int(round(float(xy[1]) * vh / _COORD_SPACE)),
-        )
+        return self.rescale(coord[0], coord[1], viewport)
