@@ -22,6 +22,16 @@ from open_apps.theme import (
 )
 from open_apps.icons import Icon, icon
 
+# The editor fills the window rather than sitting at its content height. The
+# textarea gets there through the flex column in `env_styles` (see
+# "Fill the window"); this calc is for CodeMirror, whose setSize() wants an
+# explicit height. It used to live only in Tailwind's `h-[calc(100vh-12rem)]`,
+# and Tailwind is a CDN script: on a host with no egress -- every eval node --
+# that class is never generated and the editor collapsed to two rows. The
+# `--oa-*` terms subtract the window chrome's title bar and dock when it is on
+# (open_apps.ui.chrome) and are 0 when it is off.
+EDITOR_HEIGHT = "calc(100vh - 12rem - var(--oa-titlebar-h, 0px) - var(--oa-dock-space, 0px))"
+
 # Global variables
 _base_hdrs_no_highlight = (
     # Pico + htmx from apps/assets/vendor, not jsdelivr (see frontend.py).
@@ -336,6 +346,30 @@ def set_environment(config):
         .rounded-lg {{ border-radius: 0.5rem; }}
         .overflow-y-auto {{ overflow-y: auto; }}
         .cursor-pointer {{ cursor: pointer; }}
+        /* ---- Fill the window -----------------------------------------
+           A flex column from <html> down to the textarea, so the editor
+           takes whatever height the header and buttons leave. <html> is
+           border-box, so with the window chrome on, its padding (the title
+           bar and dock) comes off the top; with it off, this is 100vh. The
+           12rem floor keeps a short window scrolling rather than crushing
+           the editor to nothing. */
+        html {{ height: 100%; box-sizing: border-box; }}
+        body {{ height: 100%; box-sizing: border-box; }}
+        .editor-page {{ height: 100%; display: flex; flex-direction: column; }}
+        .editor-body {{ flex: 1; min-height: 0; }}
+        .editor-main {{ display: flex; flex-direction: column; min-height: 0; }}
+        .editor-panel {{ flex: 1; display: flex; flex-direction: column; min-height: 0; }}
+        .editor-slot {{ flex: 1; display: flex; flex-direction: column; min-height: 12rem; }}
+        .editor-fill {{ flex: 1; min-height: 12rem; }}
+        /* Tailwind's, reproduced for the same reason: without it the
+           editor's screen-reader description renders as a visible caption. */
+        .sr-only {{
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+        }}
+        /* Pico paints :root, so a body background stops where the content
+           does and the rest of the window shows Pico's white underneath. */
+        html {{ background-color: var(--main-bg-color); }}
         body {{
             background-color: var(--main-bg-color);
             color: var(--custom-font-color);
@@ -640,7 +674,6 @@ def create_sidebar(current_path: str = None) -> Div:
         folder_path = current_path
     return Div(
         cls="sidebar main-content w-1/6 p-4 rounded-lg overflow-y-auto",
-        style="max-height: calc(100vh - 2rem)"
     )(
         Div(cls="mb-4")(
             Div(
@@ -778,8 +811,8 @@ def index():
                         }}
                     }}"""
     # by default, the main screen should display an empty code editor
-    main_screen = Div(cls="w-5/6")(
-        Div(cls="main-content p-4 rounded-lg styled-content")(
+    main_screen = Div(cls="w-5/6 editor-main")(
+        Div(cls="main-content editor-panel p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
                 H2(f"No file selected", cls="text-white"),
                 Div(cls="flex space-x-4")(
@@ -838,16 +871,16 @@ def index():
                     ),
                 ),
             ),
-            Div(cls="mt-4")(
+            Div(cls="mt-4 editor-slot")(
                 Textarea(
                     app.config.code_editor.welcome_message or "Welcome! Happy coding everyday!",
                     id="editor",
-                    cls="w-full h-[calc(100vh-12rem)] p-4 rounded-lg styled-content",
+                    cls="editor-fill w-full p-4 rounded-lg styled-content",
                     disabled="disabled"
                 ),
                 Script(f"""
                     {editor_binding(editor_options)}
-                    {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
+                    {f'editor.setSize("100%", "{EDITOR_HEIGHT}");' if app.config.code_editor.highlight else ''}
                 """),
             ),
             # make sure the buttons are not too close to each other
@@ -857,8 +890,8 @@ def index():
             ),
         ),
     )
-    page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(live_theme_style(), logo_title_container, page)
+    page = Div(cls="flex space-x-2 editor-body")(side_bar, main_screen)
+    return Div(live_theme_style(), logo_title_container, page, cls="editor-page")
 
 
 @app.get("/codeeditor/{path:path}")
@@ -882,8 +915,8 @@ def get_folder(folder: str):
                         lineNumbers: true,
                         readOnly: true
                     }}"""
-    main_screen = Div(cls="w-5/6")(
-        Div(cls="main-content  p-4 rounded-lg styled-content")(
+    main_screen = Div(cls="w-5/6 editor-main")(
+        Div(cls="main-content editor-panel p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
                 H2(f"Folder: {folder}", cls="text-white"),
                 Div(cls="flex space-x-4")(
@@ -930,16 +963,16 @@ def get_folder(folder: str):
                     ),
                 ),
             ),
-            Div(cls="mt-4")(
+            Div(cls="mt-4 editor-slot")(
                 Textarea(
                     "Select a file to edit or create a new one.",
                     id="editor",
-                    cls="w-full h-[calc(100vh-12rem)] p-4 rounded-lg styled-content",
+                    cls="editor-fill w-full p-4 rounded-lg styled-content",
                     disabled="disabled"
                 ),
                 Script(f"""
                     {editor_binding(editor_options)}
-                    {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
+                    {f'editor.setSize("100%", "{EDITOR_HEIGHT}");' if app.config.code_editor.highlight else ''}
                 """),
             ),
             Div(cls="mt-4 flex space-x-4")(
@@ -965,8 +998,8 @@ def get_folder(folder: str):
             ),
         ),
     )
-    page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(live_theme_style(), logo_title_container, page)
+    page = Div(cls="flex space-x-2 editor-body")(side_bar, main_screen)
+    return Div(live_theme_style(), logo_title_container, page, cls="editor-page")
 
 def get_file(file: str):
     side_bar = create_sidebar(file)
@@ -1107,9 +1140,9 @@ def get_file(file: str):
             """)
         )
     )
-    main_screen = Div(cls="w-5/6 flex flex-col")(
+    main_screen = Div(cls="w-5/6 flex flex-col editor-main")(
         tab_bar,
-        Div(cls="flex-grow main-content p-4 rounded-lg styled-content")(
+        Div(cls="flex-grow main-content editor-panel p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
                 Div(cls="text-white text-2xl group")(
                     Div(
@@ -1219,11 +1252,11 @@ def get_file(file: str):
                     ),
                 ),
             ),
-            Div(cls="mt-4")(
+            Div(cls="mt-4 editor-slot")(
                 Textarea(
                     content,  # or "" for index() function
                     id="editor",
-                    cls="w-full h-[calc(100vh-12rem)] p-4 rounded-lg styled-content",
+                    cls="editor-fill w-full p-4 rounded-lg styled-content",
                     role="textbox",
                     spellcheck="false",
                     wrap="off",
@@ -1241,7 +1274,7 @@ def get_file(file: str):
                 )(f"Code editor for editing {file}"),
                 Script(f"""
                     {editor_binding(editor_options)}
-                    {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
+                    {f'editor.setSize("100%", "{EDITOR_HEIGHT}");' if app.config.code_editor.highlight else ''}
                 """),
             ),
             # refresh the page after saving the file
@@ -1290,8 +1323,8 @@ def get_file(file: str):
             ),
         ),
     )
-    page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(live_theme_style(), logo_title_container, page)
+    page = Div(cls="flex space-x-2 editor-body")(side_bar, main_screen)
+    return Div(live_theme_style(), logo_title_container, page, cls="editor-page")
 
 @app.post("/codeeditor/create_folder/{folder:path}")
 def create_folder(folder: str):
