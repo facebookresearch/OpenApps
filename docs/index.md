@@ -361,15 +361,37 @@ uv run launch_agent.py browsergym_env_args.headless=False
 
 To record the full episode as a video instead:
 ```
-uv run launch_agent.py agent=dummy record_video_dir=recordings
+uv run launch_agent.py agent=dummy record_video=True
 ```
 
-Each episode is saved as `recordings/<time>_<task>_<pass|fail>[_job<N>].webm`,
-at the device's viewport size, with the window chrome and the agent cursor in
-frame (the cursor is parked mid-screen until the agent's first move). It works
-the same with `launch_parallel_agents.py`, one file per job, and with
-`use_wandb=True` each video is also logged to the run as `episode_video`. The
-original stays in the experiment directory under `task_video/`.
+Each episode is saved as `<time>_<task>_<agent>_<pass|fail>[_job<N>].webm`, at
+the device's viewport size, with the window chrome and the agent cursor in
+frame (the cursor is parked mid-screen until the agent's first move). The
+original also stays in the experiment directory under `task_video/`.
+
+Where it goes is `record_video_dir`, which defaults to `<logs_dir>/recordings`:
+
+| Launched with | Recordings land in |
+| --- | --- |
+| `launch_agent.py` | `log_outputs/<run>/recordings/` |
+| `launch_parallel_agents.py` (local) | `<sweep logs_dir>/recordings/` — one folder for every job |
+| `launch_parallel_agents.py mode=slurm_cluster` | the same, on the cluster's shared `logs_dir` |
+| `scripts/conduct.sh record_video=True` / `conduct_slurm.sh` | each run's own `logs_dir` (point them at one folder with `record_video_dir=`) |
+
+The destination is resolved once, in the process you launched, and handed to
+every job as an absolute path. A relative `record_video_dir=videos` therefore
+means `./videos` from where you ran the command, even for SLURM jobs that
+start on a compute node in another directory. Set an absolute path to collect
+recordings across launches:
+
+```
+uv run launch_parallel_agents.py mode=slurm_cluster record_video=True \
+    record_video_dir=/path/on/shared/storage/recordings
+```
+
+With `use_wandb=True` each video is also logged to its run as
+`episode_video`, which is usually the easiest way to watch cluster episodes
+from a laptop.
 
 ### Devices
 

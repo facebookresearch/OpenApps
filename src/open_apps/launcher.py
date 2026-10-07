@@ -12,6 +12,7 @@ task, and agent.
 
 import os
 import random
+import re
 import shutil
 import signal
 import socket
@@ -64,6 +65,34 @@ def _absolute_path(value) -> Path:
     return Path(str(value)).expanduser().resolve()
 
 
+def _filename_safe(text: str) -> str:
+    """Keep a recording's file name portable: no slashes, spaces or shell
+    metacharacters from a task or model name (``Qwen/Qwen3-VL``)."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")
+
+
+def freeze_recording_dir(config: DictConfig) -> None:
+    """Pin ``record_video_dir`` to an absolute path, in place.
+
+    Call once, in the process the user launched, before any job config is
+    derived from ``config``. It matters for two reasons:
+
+    * ``record_video_dir`` defaults to ``${logs_dir}/recordings``, and a local
+      sweep rewrites each job's ``logs_dir`` to ``<logs_dir>/<job>``. Left as an
+      interpolation, every job would record into its own folder; frozen, a
+      sweep's videos share one.
+    * SLURM jobs are unpickled on a compute node with no Hydra context, in
+      whatever directory Hydra had changed into. A relative path resolved
+      there means nothing the user typed.
+
+    A no-op when recording is off or the key is absent.
+    """
+    if not config.get("record_video") or "record_video_dir" not in config:
+        return
+    value = config.record_video_dir or Path(config.logs_dir) / "recordings"
+    config.record_video_dir = str(_absolute_path(value))
+
+
 class OpenAppsLauncher:
     def __init__(self, config: DictConfig):
         self.config = config
@@ -81,6 +110,8 @@ class OpenAppsLauncher:
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
         print("Web app hostname is: ", self.web_app_url)
         self.config.logs_dir = str(_absolute_path(self.config.logs_dir))
+        # After logs_dir, which the default destination interpolates.
+        freeze_recording_dir(self.config)
 
         if self.config.get("apps"):
             for app_name, app_config in self.config.apps.items():
@@ -357,24 +388,36 @@ class AgentLauncher(OpenAppsLauncher):
         return hydra.utils.instantiate(self.config.browsergym_env_args)
 
     def _recording_dir(self) -> Optional[Path]:
-        """Where ``record_video_dir`` asks for episode videos, or ``None``.
+        """Where this episode's video goes, or ``None`` when not recording.
 
-        Setting it turns on BrowserGym's own recording, the same Playwright
-        screencast the demo script uses, at the device's viewport size.
+        Recording is on when ``browsergym_env_args.record_video`` is, which
+        follows the top-level ``record_video`` switch. The destination was
+        frozen to an absolute path by :func:`freeze_recording_dir` in the
+        process that was launched; resolving it again here is a no-op then,
+        and a fallback for a launcher constructed some other way.
         """
-        value = self.config.get("record_video_dir")
-        return _absolute_path(value) if value else None
+        env_args = self.config.get("browsergym_env_args") or {}
+        if not env_args.get("record_video", False):
+            return None
+        value = self.config.get("record_video_dir") or Path(self.config.logs_dir) / "recordings"
+        return _absolute_path(value)
 
     def _save_recording(self, exp_dir: Path, exp_record: dict) -> Optional[Path]:
-        """Copy the episode's video out of the experiment dir into ``record_video_dir``.
+        """Copy the episode's video out of the experiment dir into the recordings dir.
 
         BrowserGym writes it to ``<exp_dir>/task_video/<random>.webm``, three
         levels into a timestamped tree and named by a hash. The copy is named
-        for what it shows -- when, which task, whether it passed, which job --
-        so a folder of recordings can be skimmed without opening run logs.
-        The original stays where AgentLab's tooling expects it. Hard-linked
-        when the two are on one filesystem, so a sweep does not store every
-        video twice.
+        for what it shows -- when, which task, which agent, whether it passed,
+        which job -- so a folder of recordings can be skimmed without opening
+        run logs. The original stays where AgentLab's tooling expects it.
+        Hard-linked when the two are on one filesystem, so a sweep does not
+        store every video twice; copied otherwise (node-local disk to a shared
+        one, say).
+
+        The name is claimed with an exclusive create, not an exists() check:
+        `conduct.sh` runs several episodes of the same task concurrently with
+        no job id, and two finishing in the same second must not overwrite
+        each other.
 
         Runs for failed episodes too: a recording of the failure is usually
         the reason anyone wanted the recording.
@@ -384,39 +427,48 @@ class AgentLauncher(OpenAppsLauncher):
             return None
         videos = sorted((Path(exp_dir) / "task_video").glob("*.webm"))
         if not videos:
-            print(f"record_video_dir is set but no video was written under {exp_dir}")
+            print(f"record_video is on but no video was written under {exp_dir}")
             return None
+        source = videos[-1]
 
         outcome = "pass" if float(exp_record.get("cum_reward") or 0.0) >= 1.0 else "fail"
+        agent_cfg = self.config.get("agent") or {}
+        agent = agent_cfg.get("model_pretty_name") or agent_cfg.get("model_name") or ""
         job = self.config.get("job_id")
         stem = "_".join(
-            part
+            _filename_safe(str(part))
             for part in (
                 time.strftime("%Y-%m-%d_%H-%M-%S"),
-                str(self.config.task_name),
+                self.config.task_name,
+                agent,
                 outcome,
                 f"job{job}" if job is not None else "",
             )
             if part
         )
         target_dir.mkdir(parents=True, exist_ok=True)
-        target = target_dir / f"{stem}.webm"
-        n = 1
-        while target.exists():  # two jobs finishing the same task in the same second
-            target = target_dir / f"{stem}-{n}.webm"
-            n += 1
-        try:
-            os.link(videos[-1], target)
-        except OSError:
-            shutil.copy2(videos[-1], target)
-        print(f"Recording saved to {target}")
-        return target
+        for n in range(1000):
+            target = target_dir / (f"{stem}.webm" if n == 0 else f"{stem}-{n}.webm")
+            try:
+                os.link(source, target)
+            except FileExistsError:
+                continue
+            except OSError:
+                # Different filesystems, or links not supported: copy into a
+                # file we created exclusively, so the name is still ours alone.
+                try:
+                    with open(source, "rb") as src, open(target, "xb") as dst:
+                        shutil.copyfileobj(src, dst)
+                except FileExistsError:
+                    continue
+            print(f"Recording saved to {target}")
+            return target
+        print(f"Could not find a free name for the recording in {target_dir}")
+        return None
 
     def launch_agent(self):
         """Launches the agent to perform the task in the OpenApps environment."""
         self.agent_args = hydra.utils.instantiate(self.config.agent)
-        if self._recording_dir() is not None:
-            self.config.browsergym_env_args.record_video = True
         self.browser_gym_task = self.setup_browsergym_task()
 
         # Runs agent in BrowserGym environment on task
