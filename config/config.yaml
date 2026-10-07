@@ -47,6 +47,15 @@ headless: False
 # useful to debug configs without launching jobs
 use_wandb: False
 
+# Record each agent episode as a .webm and save it here, named
+# <time>_<task>_<pass|fail>[_job<N>].webm. null = no recording. Relative paths
+# are resolved from where you launched, not from the Hydra run dir. Uses
+# BrowserGym's Playwright screencast at the device's viewport size, so the
+# window chrome and the agent cursor are in the video. Logged to W&B as
+# `episode_video` when use_wandb is on.
+#   uv run launch_agent.py agent=dummy record_video_dir=recordings
+record_video_dir: null
+
 # seed for the random package
 seed: 233
 

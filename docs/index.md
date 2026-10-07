@@ -359,6 +359,18 @@ uv run launch_agent.py browsergym_env_args.headless=False
 
 ![Live Agent](images/gif.gif)
 
+To record the full episode as a video instead:
+```
+uv run launch_agent.py agent=dummy record_video_dir=recordings
+```
+
+Each episode is saved as `recordings/<time>_<task>_<pass|fail>[_job<N>].webm`,
+at the device's viewport size, with the window chrome and the agent cursor in
+frame (the cursor is parked mid-screen until the agent's first move). It works
+the same with `launch_parallel_agents.py`, one file per job, and with
+`use_wandb=True` each video is also logged to the run as `episode_video`. The
+original stays in the experiment directory under `task_video/`.
+
 ### Devices
 
 The device is a variation axis of its own, alongside theme, layout, content and

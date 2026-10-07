@@ -51,6 +51,19 @@ from open_apps.utils import merge_plus_keys
 # Hydra's and never actually ran.)
 
 
+def _absolute_path(value) -> Path:
+    """Resolve a path from config the way the user meant it.
+
+    Hydra ``chdir``s into the run directory before any of this executes, so a
+    relative path typed on the command line has to be resolved against the
+    directory the command was launched from, not the one we are in now.
+    Outside a Hydra context (tests, direct instantiation) cwd is still right.
+    """
+    if hydra.core.hydra_config.HydraConfig.initialized():
+        return Path(hydra.utils.to_absolute_path(str(value))).expanduser().resolve()
+    return Path(str(value)).expanduser().resolve()
+
+
 class OpenAppsLauncher:
     def __init__(self, config: DictConfig):
         self.config = config
@@ -67,18 +80,7 @@ class OpenAppsLauncher:
         print(f"Using port {self.web_app_port} for the web app")
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
         print("Web app hostname is: ", self.web_app_url)
-        current_logs_dir_value = self.config.logs_dir
-
-        if hydra.core.hydra_config.HydraConfig.initialized():
-            # In a Hydra context, to_absolute_path resolves relative to Hydra's original working directory.
-            absolute_logs_dir = str(
-                Path(hydra.utils.to_absolute_path(current_logs_dir_value)).resolve()
-            )
-        else:
-            # Outside a Hydra context (e.g., direct instantiation for tests), resolve relative to the current working directory.
-            absolute_logs_dir = str(Path(current_logs_dir_value).resolve())
-
-        self.config.logs_dir = absolute_logs_dir
+        self.config.logs_dir = str(_absolute_path(self.config.logs_dir))
 
         if self.config.get("apps"):
             for app_name, app_config in self.config.apps.items():
@@ -354,9 +356,67 @@ class AgentLauncher(OpenAppsLauncher):
         # instantiate browsergym task
         return hydra.utils.instantiate(self.config.browsergym_env_args)
 
+    def _recording_dir(self) -> Optional[Path]:
+        """Where ``record_video_dir`` asks for episode videos, or ``None``.
+
+        Setting it turns on BrowserGym's own recording, the same Playwright
+        screencast the demo script uses, at the device's viewport size.
+        """
+        value = self.config.get("record_video_dir")
+        return _absolute_path(value) if value else None
+
+    def _save_recording(self, exp_dir: Path, exp_record: dict) -> Optional[Path]:
+        """Copy the episode's video out of the experiment dir into ``record_video_dir``.
+
+        BrowserGym writes it to ``<exp_dir>/task_video/<random>.webm``, three
+        levels into a timestamped tree and named by a hash. The copy is named
+        for what it shows -- when, which task, whether it passed, which job --
+        so a folder of recordings can be skimmed without opening run logs.
+        The original stays where AgentLab's tooling expects it. Hard-linked
+        when the two are on one filesystem, so a sweep does not store every
+        video twice.
+
+        Runs for failed episodes too: a recording of the failure is usually
+        the reason anyone wanted the recording.
+        """
+        target_dir = self._recording_dir()
+        if target_dir is None:
+            return None
+        videos = sorted((Path(exp_dir) / "task_video").glob("*.webm"))
+        if not videos:
+            print(f"record_video_dir is set but no video was written under {exp_dir}")
+            return None
+
+        outcome = "pass" if float(exp_record.get("cum_reward") or 0.0) >= 1.0 else "fail"
+        job = self.config.get("job_id")
+        stem = "_".join(
+            part
+            for part in (
+                time.strftime("%Y-%m-%d_%H-%M-%S"),
+                str(self.config.task_name),
+                outcome,
+                f"job{job}" if job is not None else "",
+            )
+            if part
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / f"{stem}.webm"
+        n = 1
+        while target.exists():  # two jobs finishing the same task in the same second
+            target = target_dir / f"{stem}-{n}.webm"
+            n += 1
+        try:
+            os.link(videos[-1], target)
+        except OSError:
+            shutil.copy2(videos[-1], target)
+        print(f"Recording saved to {target}")
+        return target
+
     def launch_agent(self):
         """Launches the agent to perform the task in the OpenApps environment."""
         self.agent_args = hydra.utils.instantiate(self.config.agent)
+        if self._recording_dir() is not None:
+            self.config.browsergym_env_args.record_video = True
         self.browser_gym_task = self.setup_browsergym_task()
 
         # Runs agent in BrowserGym environment on task
@@ -378,8 +438,13 @@ class AgentLauncher(OpenAppsLauncher):
         for key, val in exp_record.items():
             print(f"{key}: {val}")
 
+        recording = self._save_recording(exp_args.exp_dir, exp_record)
+
         if self.config.use_wandb:
             self._log_agent_results_to_wandb(exp_record, exp_result)
+            if recording is not None:
+                wandb.log({"episode_video": wandb.Video(str(recording), format="webm")})
+                wandb.run.summary["video_path"] = str(recording)
 
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:
