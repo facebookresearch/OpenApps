@@ -375,13 +375,14 @@ def test_folder_icons_are_not_buttons(editor_html):
     to read past."""
     import re as _re
 
-    buttons = _re.findall(r"<button[^>]*>(.*?)</button>", editor_html, _re.S)
-    for body in buttons:
+    buttons = _re.findall(r"<button([^>]*)>(.*?)</button>", editor_html, _re.S)
+    for attrs, body in buttons:
         if "<svg" in body:
             assert body.strip() != "", "icon-only button found in the tree"
-            # An icon-only button has no accessible name at all.
+            # An icon-only button has no accessible name unless it carries an
+            # aria-label -- the window chrome's caption buttons do.
             text = _re.sub(r"<[^>]+>", "", body).strip()
-            assert text, "button whose only content is an icon has no name"
+            assert text or "aria-label=" in attrs, "button whose only content is an icon has no name"
 
 
 def test_file_icon_does_not_change_the_links_accessible_name(editor_html):
@@ -409,8 +410,11 @@ def test_theme_choice_survives_navigation(client, live_bg):
     """
     def tokens_of(path):
         html = client.get(path).text
-        # The last :root block wins, and that is the per-request one.
-        return html.rsplit("--color-bg:", 1)[1].split(";")[0].strip()
+        # The last :root block wins, and that is the per-request one. Only
+        # :root blocks: the window chrome scopes the shell theme's tokens to
+        # #oa-chrome, later in the page, and those are not the app's.
+        block = re.findall(r":root\s*\{([^}]*)\}", html)[-1]
+        return block.split("--color-bg:", 1)[1].split(";")[0].strip()
 
     assert tokens_of("/codeeditor/") == live_bg
 
