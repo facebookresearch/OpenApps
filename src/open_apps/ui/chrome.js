@@ -18,6 +18,7 @@
   // wherever it last was, so a recording shows a hand moving rather than a
   // sequence of things lighting up.
   //
+  // With no position yet it parks at the viewport centre (`start: center`).
   // The position survives navigation through sessionStorage -- a click on a
   // link loads a new document, and a cursor that vanished on every page load
   // would be absent from exactly the screenshots that follow a click. The
@@ -80,13 +81,21 @@
       if (!frame) frame = requestAnimationFrame(step);
     };
 
+    let saved = null;
     try {
-      const saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || "null");
-      if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-        current = { x: saved.x, y: saved.y };
-        draw(current);
-      }
-    } catch (_) { /* corrupt or unavailable: start hidden, show on first move */ }
+      saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || "null");
+    } catch (_) { /* corrupt or unavailable: treat as no saved position */ }
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+      current = { x: saved.x, y: saved.y };
+      draw(current);
+    } else if (root.dataset.start === "center") {
+      // Visible from the first frame, not from the first mouse event: an
+      // episode's opening screenshot and the start of its recording should
+      // already show where the pointer is. Parked, not stored -- the first
+      // real move glides out from here, and only that position persists.
+      current = { x: innerWidth / 2, y: innerHeight / 2 };
+      draw(current);
+    }
 
     const onPointer = (event) => {
       lastPointerAt = performance.now();

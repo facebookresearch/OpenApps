@@ -86,6 +86,11 @@ cursor:
   # Glide to an element focused without a pointer move -- Playwright's fill()
   # focuses a field directly -- so typing into a field is visible too.
   follow_focus: true
+  # Where the cursor sits before the agent's first mouse event:
+  # center   parked mid-viewport, so the first screenshot and the start of a
+  #          recording already show it, and the first move glides out from it
+  # hidden   appears at the first pointer event instead
+  start: center
   # Optional name tag beside the cursor, multiplayer-style: "Agent", a model
   # name. null for none. It covers a few dozen pixels next to the pointer, so
   # leave it off for scored runs.

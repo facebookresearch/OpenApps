@@ -337,8 +337,12 @@ def AgentCursor(
     click_ripple: bool = True,
     follow_focus: bool = True,
     label: str | None = None,
+    start: str = "center",
 ):
-    """The rendered agent pointer. Hidden until chrome.js has a position for it.
+    """The rendered agent pointer. Hidden until chrome.js places it.
+
+    ``start``: ``center`` parks it mid-viewport until the first pointer event,
+    so it is on screen from the first frame; ``hidden`` waits for that event.
 
     Configuration travels as data attributes for the script to read, rather
     than as a second inline ``<script>`` with values interpolated into it --
@@ -346,6 +350,7 @@ def AgentCursor(
     """
     style = style if style in ("glow", "classic") else "glow"
     show = show if show in ("auto", "always", "never") else "auto"
+    start = start if start in ("center", "hidden") else "center"
     return Div(
         Div(cls="oa-cursor-halo"),
         NotStr(_ARROW_SVG),
@@ -358,6 +363,7 @@ def AgentCursor(
         data_glide=str(max(0, int(glide_ms))),
         data_ripple=str(bool(click_ripple)).lower(),
         data_follow_focus=str(bool(follow_focus)).lower(),
+        data_start=start,
         data_testid="agent-cursor",
     )
 
@@ -435,6 +441,7 @@ def chrome_parts(
             click_ripple=bool(cursor_cfg.get("click_ripple", True)),
             follow_focus=bool(cursor_cfg.get("follow_focus", True)),
             label=cursor_cfg.get("label"),
+            start=str(cursor_cfg.get("start", "center")),
         )
         if show_cursor
         else None

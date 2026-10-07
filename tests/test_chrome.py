@@ -216,8 +216,13 @@ class TestCursor:
         assert 'data-ripple="false"' in markup and "Agent" in markup
 
     def test_unknown_values_fall_back(self):
-        markup = to_xml(AgentCursor(show="sometimes", style="neon", glide_ms=-5))
+        markup = to_xml(AgentCursor(show="sometimes", style="neon", glide_ms=-5, start="left"))
         assert 'data-show="auto"' in markup and "is-glow" in markup and 'data-glide="0"' in markup
+        assert 'data-start="center"' in markup
+
+    def test_start_position_comes_from_config(self):
+        assert 'data-start="center"' in parts().body
+        assert 'data-start="hidden"' in parts(compose_chrome("apps.chrome.cursor.start=hidden")).body
 
 
 class TestChromeParts:
