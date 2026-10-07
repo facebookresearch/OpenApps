@@ -35,8 +35,14 @@ except ImportError:
         get_java_version,
         generate_random_colors,
     )
+from urllib.parse import urlsplit
+
 from omegaconf import DictConfig, OmegaConf
+from starlette.responses import RedirectResponse
+
+from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts
 from open_apps.theme import render_theme_css, resolve_theme, theme_asset
+from open_apps.ui.chrome import ChromeApp, chrome_parts
 
 
 def icon_for(app_config, app_name):
@@ -206,6 +212,25 @@ def reset_desktop_state(start_page_cfg=None, variant: str = "shell") -> None:
     _desktop_state["mode"] = cfg.get("mode", "light")
     _desktop_state["pinned"] = resolve_pinned(cfg, start_page_cfg, variant)
     _desktop_state["units"] = cfg.get("units", "celsius")
+    reset_chrome_state()
+
+
+# ---------------------------------------------------------------------------
+# Window chrome state
+#
+# Which apps have been opened (the dock's running dots) and which windows are
+# maximized. Transient UI in the same sense as `launcher_open`: it is a record
+# of where the agent has been, not of anything it did, so it is deliberately
+# absent from /desktop_all and from every reward. Reset alongside the shell.
+# ---------------------------------------------------------------------------
+_chrome_state: dict[str, list[str]] = {"running": [], "maximized": []}
+
+
+def reset_chrome_state() -> None:
+    # Fresh lists, not a shallow copy of a defaults dict: these are mutated in
+    # place, and a shared list would carry one episode's dots into the next.
+    _chrome_state["running"] = []
+    _chrome_state["maximized"] = []
 
 # Define available apps and their route getters
 AVAILABLE_APPS = {
@@ -661,6 +686,18 @@ def _desktop_composition(*, toolbar, widget, dock_row):
     )
 
 
+def _shell_theme_config():
+    """The config to resolve the desktop's theme from.
+
+    The mode toggle picks which theme resolves, so the tokens change with it.
+    Falls back to the app's configured theme when the two Meta themes are not
+    the ones in play. Shared with the window chrome, whose dock belongs to the
+    desktop rather than to whichever app it is drawn over.
+    """
+    theme_name = {"light": "meta", "dark": "meta_dark"}.get(_desktop_state["mode"])
+    return OmegaConf.create({"theme": theme_name}) if theme_name else app.config
+
+
 def render_desktop_shell(config):
     """The whole desktop, as one swappable element.
 
@@ -678,12 +715,7 @@ def render_desktop_shell(config):
     weather = desktop_cfg.get("weather", {}) or {}
     mode = _desktop_state["mode"]
     pinned = _desktop_state["pinned"]
-
-    # The mode toggle picks which theme resolves, so the tokens in this block
-    # change with it. Falls back to the app's configured theme when the two
-    # Meta themes are not the ones in play.
-    theme_name = {"light": "meta", "dark": "meta_dark"}.get(mode)
-    theme_cfg = OmegaConf.create({"theme": theme_name}) if theme_name else app.config
+    theme_cfg = _shell_theme_config()
 
     # Resolve the wallpaper. Returns None if every backend failed, in which
     # case we set no custom property and the CSS gradient fallback applies.
@@ -851,6 +883,149 @@ def toggle_launcher():
     """Open/close the launcher panel. Not scoreable -- transient UI."""
     _desktop_state["launcher_open"] = not _desktop_state["launcher_open"]
     return render_desktop_shell(app.config.start_page)
+
+
+# ---------------------------------------------------------------------------
+# Window chrome: title bar, dock, agent cursor on every page
+#
+# Rendered here because this module owns everything it needs -- the app
+# inventory, the pins, the shell's light/dark mode -- and injected into every
+# full page by ChromeMiddleware, registered at the bottom of this section.
+# The components themselves are in open_apps.ui.chrome.
+# ---------------------------------------------------------------------------
+
+
+def _chrome_apps() -> list[ChromeApp]:
+    """Every app the desktop would show, in configured order, as the chrome
+    draws it. Same source as the desktop's own tiles, so the dock can never
+    offer an app the server has no routes for (the shop, without Java 21)."""
+    config = app.config.start_page
+    return [
+        ChromeApp(
+            key=key,
+            title=cfg.get("title", key.capitalize()),
+            href=f"/{key}",
+            icon=icon_for(cfg, key),
+        )
+        for key, cfg in _enabled_apps(config)
+    ]
+
+
+def _app_for_path(path: str, apps: list[ChromeApp]) -> str | None:
+    """The app a request path belongs to, by first segment; ``None`` for the
+    desktop or anything that is not an app page."""
+    first = path.strip("/").split("/", 1)[0]
+    return first if any(a.key == first for a in apps) else None
+
+
+def _docked_keys(dock_cfg: dict, apps: list[ChromeApp]) -> list[str]:
+    """Which apps get a permanent dock slot, in inventory order.
+
+    ``show: pinned`` reads the desktop's pins -- pinning on the desktop docks
+    the app too -- but only when the desktop layout is the one rendering.
+    Under the gallery layout nothing can be pinned, and an empty dock would be
+    a regression rather than a configuration.
+    """
+    keys = [a.key for a in apps]
+    use_pins = (
+        dock_cfg.get("show", "pinned") != "all"
+        and app.config.start_page.get("layout") == "desktop"
+    )
+    if use_pins:
+        keys = [k for k in keys if k in _desktop_state["pinned"]]
+    excluded = set(dock_cfg.get("exclude") or [])
+    return [k for k in keys if k not in excluded]
+
+
+def render_chrome(path: str) -> ChromeParts | None:
+    """The chrome for one page. Called by ChromeMiddleware on every full-page GET.
+
+    Opening an app page marks it running -- the only side effect, and the
+    reason this is not a pure function of config.
+    """
+    chrome_cfg = getattr(getattr(app, "config", None), "chrome", None)
+    if chrome_cfg is None:
+        return None
+    cfg = OmegaConf.to_container(chrome_cfg, resolve=True) if OmegaConf.is_config(chrome_cfg) else dict(chrome_cfg)
+    if not cfg.get("enabled", True):
+        return None
+
+    apps = _chrome_apps()
+    current = _app_for_path(path, apps)
+    running = _chrome_state["running"]
+    if current is not None and current not in running:
+        running.append(current)
+
+    # On the desktop shell the dock floats over the wallpaper -- except on a
+    # phone home screen, which already has a dock of its own in that spot.
+    on_shell = current is None and app.config.start_page.get("layout") == "desktop"
+    if on_shell and _configured_variant(app.config) == "home_screen":
+        cfg["dock"] = {**(cfg.get("dock") or {}), "on_start_page": False}
+
+    return chrome_parts(
+        cfg,
+        apps=apps,
+        current=current,
+        docked=_docked_keys(cfg.get("dock") or {}, apps),
+        running=list(running),
+        maximized=current in _chrome_state["maximized"],
+        form_factor=device.form_factor(app.config),
+        shell_tokens_css=render_theme_css(
+            resolve_theme(_shell_theme_config(), "start_page"), selector="#oa-chrome"
+        ),
+        dock_overlay=on_shell,
+    )
+
+
+@rt("/chrome/{action}/{app_key}", methods=["POST"])
+def window_action(action: str, app_key: str, req):
+    """Title-bar controls. Not scoreable -- see `_chrome_state`.
+
+    * close     forget the app was running; back to the desktop
+    * minimize  keep it running (its dock dot stays); back to the desktop
+    * maximize  toggle the window between maximized and restored, in place
+
+    Answers with a 303 so the controls are plain form posts: they work on
+    every page, including the template-rendered ones that never load htmx.
+    Unknown actions and apps fall through to the desktop rather than 404 --
+    the same reasoning as the pin toggle: a stale control must not strand the
+    page.
+    """
+    known = {a.key for a in _chrome_apps()}
+    if app_key not in known:
+        return RedirectResponse("/", status_code=303)
+    running, maximized = _chrome_state["running"], _chrome_state["maximized"]
+
+    if action == "close":
+        if app_key in running:
+            running.remove(app_key)
+        if app_key in maximized:
+            maximized.remove(app_key)
+        return RedirectResponse("/", status_code=303)
+    if action == "minimize":
+        if app_key not in running:
+            running.append(app_key)
+        return RedirectResponse("/", status_code=303)
+    if action == "maximize":
+        if app_key in maximized:
+            maximized.remove(app_key)
+        else:
+            maximized.append(app_key)
+        # Back to the page the button was on -- a maximized calendar should
+        # still be showing the week it was on -- but only within this app, so
+        # a forged Referer cannot turn the button into an open redirect. A
+        # prefix test, not a segment test: "//todo" has "todo" as its first
+        # segment and is a protocol-relative URL to a host called todo.
+        referer = urlsplit(req.headers.get("referer", ""))
+        back = referer.path + (f"?{referer.query}" if referer.query else "")
+        root = f"/{app_key}"
+        if not (back == root or back.startswith((f"{root}/", f"{root}?"))):
+            back = root
+        return RedirectResponse(back, status_code=303)
+    return RedirectResponse("/", status_code=303)
+
+
+app.add_middleware(ChromeMiddleware, render=render_chrome)
 
 
 @app.get("/desktop_all")

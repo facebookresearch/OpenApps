@@ -22,6 +22,7 @@ defaults:
   - apps/onlineshop: default
   - apps/ui_library: default
   - apps/pop_ups: default
+  - apps/chrome: default
   - _self_
 
 apps:
