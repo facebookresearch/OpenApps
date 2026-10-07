@@ -351,7 +351,7 @@ def set_environment(config):
            takes whatever height the header and buttons leave. <html> is
            border-box, so with the window chrome on, its padding (the title
            bar and dock) comes off the top; with it off, this is 100vh. The
-           12rem floor keeps a short window scrolling rather than crushing
+           6rem floor keeps a very short window scrolling rather than crushing
            the editor to nothing. */
         html {{ height: 100%; box-sizing: border-box; }}
         body {{ height: 100%; box-sizing: border-box; }}
@@ -359,8 +359,25 @@ def set_environment(config):
         .editor-body {{ flex: 1; min-height: 0; }}
         .editor-main {{ display: flex; flex-direction: column; min-height: 0; }}
         .editor-panel {{ flex: 1; display: flex; flex-direction: column; min-height: 0; }}
-        .editor-slot {{ flex: 1; display: flex; flex-direction: column; min-height: 12rem; }}
-        .editor-fill {{ flex: 1; min-height: 12rem; }}
+        .editor-slot {{ flex: 1; display: flex; flex-direction: column; min-height: 6rem; }}
+        .editor-fill {{ flex: 1; min-height: 6rem; }}
+        /* Columns: a sidebar with a floor and a ceiling, the editor takes the
+           rest. Tailwind's w-1/6 made the sidebar shrink with the window
+           while its buttons did not, so below ~1600px wide New File and New
+           Folder spilled out of it. min-width: 0 is what lets each column
+           shrink past its content instead of pushing the page sideways. */
+        .editor-body > .sidebar {{ flex: 0 0 clamp(13rem, 18%, 18rem); width: auto; min-width: 0; }}
+        .editor-body > .editor-main {{ flex: 1 1 0; width: auto; min-width: 0; }}
+        /* Both buttons keep their visible labels -- tests/ui_questions asks
+           for "two buttons labeled 'New File' and 'New Folder'" -- on one line
+           each, and wrap to a second row rather than overflow when the
+           sidebar is narrow. */
+        .explorer-actions {{ flex-wrap: wrap; gap: 0.25rem; }}
+        .explorer-actions .btn {{
+            flex: 1 1 auto; white-space: nowrap; padding: 0.35rem 0.6rem; font-size: 0.85em;
+        }}
+        /* The editor header (title, Language, Theme) wraps too. */
+        .editor-panel > .flex.justify-between {{ flex-wrap: wrap; gap: 0.5rem; }}
         /* Tailwind's, reproduced for the same reason: without it the
            editor's screen-reader description renders as a visible caption. */
         .sr-only {{
@@ -677,7 +694,7 @@ def create_sidebar(current_path: str = None) -> Div:
     )(
         Div(cls="mb-4")(
             Div(
-                cls="flex justify-center gap-2",
+                cls="flex justify-center gap-2 explorer-actions",
                 style="width: 100%"
             )(
                 Button(
