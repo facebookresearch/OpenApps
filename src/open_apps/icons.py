@@ -47,6 +47,11 @@ class Icon(str, Enum):
     APPS = "apps"
     CLOCK = "clock"
     CLOSE = "close"
+    # Window chrome
+    HOME = "home"
+    MINIMIZE = "minimize"
+    MAXIMIZE = "maximize"
+    RESTORE = "restore"
     # Light/dark mode toggle
     SUN = "sun"
     MOON = "moon"
@@ -102,6 +107,22 @@ _GEOMETRY: dict[Icon, str] = {
         '<path d="M12 7.5V12l3 2"/>'
     ),
     Icon.CLOSE: '<path d="M6 6l12 12M18 6L6 18"/>',
+    # --- Window chrome ------------------------------------------------------
+    # The dock's "back to the desktop" item. A house rather than the brand
+    # mark: the mark already means "OpenApps", and this has to read as a place.
+    Icon.HOME: (
+        '<path d="M4 11.5 12 5l8 6.5"/>'
+        '<path d="M6.5 10v8.5a1 1 0 0 0 1 1h3v-5h3v5h3a1 1 0 0 0 1-1V10"/>'
+    ),
+    # Windows-style caption glyphs. Drawn on the same 24px grid as everything
+    # else so they inherit the stroke width rather than looking borrowed.
+    Icon.MINIMIZE: '<path d="M6 12h12"/>',
+    Icon.MAXIMIZE: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
+    # Two offset squares: the "restore down" glyph shown while maximized.
+    Icon.RESTORE: (
+        '<rect x="5.5" y="8.5" width="10" height="10" rx="1"/>'
+        '<path d="M8.5 8.5V6.5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2"/>'
+    ),
     # --- Light/dark toggle --------------------------------------------------
     Icon.SUN: (
         '<circle cx="12" cy="12" r="4"/>'
