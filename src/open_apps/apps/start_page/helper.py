@@ -192,26 +192,26 @@ scripts = [
 
 def Modal(content, id="modal", title="Notice", button_title="Close", link_button=None, link_url=None, cls=None):
     modal_classes = f"modal {cls or ''}".strip()
-    
+
     # Create footer buttons with improved styling
-    footer_buttons = [Button(button_title, cls="close-modal", 
+    footer_buttons = [Button(button_title, cls="close-modal",
                            onclick="closeModal()",
                            style="min-width: 100px; padding: 8px 16px; margin: 5px; white-space: nowrap;")]
-    
+
     # Add link button if specified
     if link_button and link_url:
         footer_buttons.append(
-            Button(link_button, cls="link-button", 
+            Button(link_button, cls="link-button",
                   onclick=f"window.location.href='{link_url}'",
                   style="min-width: 100px; padding: 8px 16px; margin: 5px; white-space: nowrap;")
         )
-    
+
     # Wrap content in a scrollable div
     content_wrapper = Div(
         content,
         style="max-height: 60vh; overflow-y: auto; padding-right: 16px;"
     )
-    
+
     return Div(
         Div(
             Div(
@@ -233,7 +233,7 @@ def Modal(content, id="modal", title="Notice", button_title="Close", link_button
 class Raw:
     def __init__(self, content):
         self.content = content
-    
+
     def __str__(self):
         return self.content
 
@@ -313,6 +313,18 @@ LAUNCHER_CSS = """
         width: auto;
         margin: calc(var(--space) * 6) auto 0;
         padding: 0;
+
+        .item {
+            &:hover {
+                opacity: 100%;
+            }
+            opacity: 80%;
+            .inner {
+                display: flex;
+                align-items: center;
+                flex-direction: column;
+            }
+        }
     }
     #wrapper .launcher.medium {
         --tile-width: calc(var(--space) * 23);
@@ -341,13 +353,11 @@ LAUNCHER_CSS = """
         color: var(--tile-ink, var(--color-fg));
         text-align: left;
         text-decoration: none;
-        transition: background-color 120ms ease, transform 120ms ease;
+        transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    /* Mixing toward the ink token darkens a fill on a light theme and lifts
-       it on a dark one. `--tile-fill` lives on the tile itself, so the mix has
-       to be written here rather than hoisted into a variable on the grid. */
+    /* Hover is signalled by the opacity lift on `.item` above, not a fill
+       shift, so the tile keeps its theme colour. */
     #wrapper .launcher > .item:hover {
-        background-color: color-mix(in srgb, var(--tile-fill, var(--color-surface)) 86%, var(--color-fg));
         color: var(--tile-ink, var(--color-fg));
         text-decoration: none;
     }
@@ -680,9 +690,9 @@ def create_logo_header(app_config, base_url: str, current_file_path: str):
     """
     current_dir = os.path.dirname(os.path.abspath(current_file_path))
     parent_dir = os.path.dirname(current_dir)
-    
+
     file_path = os.path.join(parent_dir, app_config.icon.lstrip('/'))
-    
+
     logo = ""
     if os.path.exists(file_path):
         # logo = Img(src=app_config.icon, cls="h-10 mr-3")
@@ -711,7 +721,7 @@ def DelayedContent(content, delay_ms=2000):
     """
     spinner_id = "loading-spinner-container"
     content_id = "delayed-page-content"
-    
+
     return Div(
         # The loading spinner, shown by default
         Div(
