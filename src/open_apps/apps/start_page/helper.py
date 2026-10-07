@@ -594,6 +594,11 @@ def get_app(hdrs=None, *args, **kwargs):
     # from jsdelivr; default_hdrs=False is what stops FastHTML prepending the
     # CDN copies. See src/open_apps/frontend.py for why that matters.
     hdrs = local_hdrs() + hdrs
+    # The tab title of every page that does not set its own. FastHTML reads it
+    # from the *serving* app -- this one -- so it covers every mounted app's
+    # routes, not just the start page's. The default is "FastHTML page", which
+    # BrowserGym puts in the agent's observation as the name of every tab.
+    kwargs.setdefault("title", "OpenApps")
     app = FastHTML(hdrs=hdrs, *args, default_hdrs=False, **kwargs)
 
     @app.get("/{fname:path}.{ext:static}")

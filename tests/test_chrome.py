@@ -358,3 +358,12 @@ def test_dock_follows_desktop_pins_and_exclusions(client, chrome_state):
         assert "dock-calendar" in dock and "dock-todo" not in dock
     finally:
         start_page._desktop_state["pinned"] = saved
+
+
+@pytest.mark.parametrize("route", ["/", *APP_PAGES, "/codeeditor/script.py"])
+def test_no_page_falls_back_to_fastHTML_page_title(client, route):
+    # Not chrome, but checked here because this module already stands up the
+    # whole server. BrowserGym reports every tab by its <title>, so the default
+    # used to reach the agent's observation as the name of every page.
+    titles = re.findall(r"<title>(.*?)</title>", client.get(route).text)
+    assert titles and "FastHTML page" not in titles and "main-page" not in titles

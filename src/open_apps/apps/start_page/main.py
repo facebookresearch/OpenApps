@@ -448,7 +448,7 @@ def get():
     # html5up tile grid so existing tasks, prompts and the reference screenshot
     # are untouched; `desktop` renders the shell instead.
     if config.get("layout") == "desktop":
-        return PageWrapper("main-page", render_desktop_shell(config), config=config)
+        return PageWrapper("OpenApps", render_desktop_shell(config), config=config)
     
     colors = tile_colors(config)
 
@@ -588,7 +588,7 @@ def get():
     
     # Return the page with configuration
     return PageWrapper(
-        "main-page",
+        "OpenApps",
         wrapper,
         footer(),
         config=config,
