@@ -1,6 +1,9 @@
 # @package apps.onlineshop
+# On top of `webshop`, not `default`: this pack varies the chrome and keeps
+# the catalog. `default` is chrome only (`products: []`), and an empty
+# catalog hides the shop.
 defaults:
-  - default
+  - webshop
 
 
 description: |

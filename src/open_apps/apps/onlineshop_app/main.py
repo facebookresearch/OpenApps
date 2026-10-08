@@ -8,7 +8,7 @@ LICENSE file in the root directory of this source tree.
 
 A rewrite of the original port of Princeton's WebShop (Yao et al., 2022). The
 previous implementation needed a native search index and a product dataset
-pulled from Google Drive by ``setup.sh`` at install time, neither of which is
+pulled from Google Drive at install time, neither of which is
 reachable on an offline eval node, so the app shipped disabled.
 
 What replaced it:
@@ -33,9 +33,11 @@ order history as plain JSON for ``open_apps.state.get_current_state``.
 """
 import json
 import re
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from urllib.parse import quote
 
 from fasthtml.common import *
 # Svg/Rect/Text are not re-exported by fasthtml.common.
@@ -298,6 +300,9 @@ styles = Style("""
 
     .cart-line { display: flex; gap: 0.8rem; align-items: center; }
     .cart-line .product-thumb { flex: 0 0 72px; }
+    .checkout-line { padding: 0.4rem 0; border-bottom: 1px solid var(--color-border); }
+    .checkout-line .product-thumb { flex: 0 0 56px; }
+    .checkout-total { margin: 0.6rem 0 0.3rem 0; }
     .cart-line-body { flex: 1 1 auto; }
     /* Three separate forms (update / remove / toggle), so they cannot share a
        row without a wrapper. Stacked and end-aligned with a shared button
@@ -435,7 +440,11 @@ def _build_fts():
     db.execute("DROP TABLE IF EXISTS products_fts")
     db.execute(
         "CREATE VIRTUAL TABLE products_fts USING fts5("
-        "sku UNINDEXED, title, bullets, description, options)"
+        "sku UNINDEXED, title, bullets, description, options, "
+        # Fold diacritics on the index side so "creme" finds "Crème";
+        # `_fts_match_query` folds the query side to match. `2` rather than
+        # the default `1` also folds letters carrying several marks.
+        "tokenize = 'unicode61 remove_diacritics 2')"
     )
     for product in products():
         # Option values are indexed as well, matching the document the
@@ -597,6 +606,12 @@ def set_environment(config):
 # Search
 # --------------------------------------------------------------------------
 
+def _fold(text: str) -> str:
+    """Lowercase and strip diacritics: ``"Crème"`` -> ``"creme"``."""
+    decomposed = unicodedata.normalize("NFKD", (text or "").lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
 def _fts_match_query(text: str) -> str | None:
     """Turn free text into an FTS5 MATCH expression.
 
@@ -604,8 +619,12 @@ def _fts_match_query(text: str) -> str | None:
     (``*``, ``NEAR``, an unbalanced quote) from being interpreted or raising,
     and OR rather than AND matches how the original behaved -- a query returns
     its best partial matches instead of nothing.
+
+    The text is accent-folded first, and tokens are runs of any Unicode
+    letter or digit. An ASCII-only ``[0-9a-z]+`` split "crème" into "cr" and
+    "me", so accented queries never matched.
     """
-    tokens = re.findall(r"[0-9a-z]+", (text or "").lower())
+    tokens = re.findall(r"[^\W_]+", _fold(text))
     if not tokens:
         return None
     return " OR ".join(f'"{token}"' for token in tokens)
@@ -931,8 +950,18 @@ def stars(rating: float) -> str:
     return f"★ {rating:.1f}"
 
 
+def _url_keywords(keywords: str) -> str:
+    """Percent-encode search keywords for a URL path segment or query value.
+
+    Queries are free text, so a raw ``/`` added a path segment and ``?``
+    started a query string -- either way the search route 404'd. Encoded,
+    Starlette decodes them back into the ``{keywords:path}`` parameter.
+    """
+    return quote(keywords, safe=",")
+
+
 def item_href(product, keywords: str = "") -> str:
-    suffix = f"?keywords={keywords}" if keywords else ""
+    suffix = f"?keywords={_url_keywords(keywords)}" if keywords else ""
     return f"/onlineshop/item/{product.sku}{suffix}"
 
 
@@ -1085,10 +1114,13 @@ def get():
 @rt("/onlineshop/search")
 def post(search_query: str = ""):
     keywords = ",".join(search_query.lower().split()) or "all"
-    return RedirectResponse(url=f"/onlineshop/search/{keywords}/1", status_code=303)
+    return RedirectResponse(url=f"/onlineshop/search/{_url_keywords(keywords)}/1",
+                            status_code=303)
 
 
-@rt("/onlineshop/search/{keywords}/{page}")
+# `path` rather than the default `str` convertor, so a decoded `/` inside the
+# keywords stays part of them instead of failing to route.
+@rt("/onlineshop/search/{keywords:path}/{page}")
 def get(keywords: str, page: int):
     terms = keywords.replace(",", " ")
     matched = search_products("" if keywords == "all" else terms)
@@ -1100,7 +1132,7 @@ def get(keywords: str, page: int):
         ),
         H3(f'Search Results for "{terms}"'),
         product_listing(paginate(matched, page), keywords),
-        pagination(f"/onlineshop/search/{keywords}", page, len(matched)),
+        pagination(f"/onlineshop/search/{_url_keywords(keywords)}", page, len(matched)),
     )
 
 
@@ -1236,25 +1268,33 @@ async def post(req, sku: str):
     return RedirectResponse(url="/onlineshop/cart", status_code=303)
 
 
+def option_chips(options_key: str):
+    """A cart or checkout line's chosen options, as chips.
+
+    Chips rather than a muted caption: two lines of the same product differ
+    *only* by their options, so that difference has to be the most visible
+    thing on the line or the cart reads as duplicated.
+    """
+    chosen = json.loads(options_key)
+    if not chosen:
+        return ""
+    return Div(
+        *[Span(f"{name}: {value}", cls="option-chip") for name, value in chosen.items()],
+        cls="option-chips",
+    )
+
+
 def cart_line(row):
     product = _row(products, row.sku)
     if product is None:
         return ""
-    chosen = json.loads(row.options)
-    # Options render as chips rather than a muted caption: two lines of the
-    # same product differ *only* by their options, so that difference has to
-    # be the most visible thing on the line or the cart reads as duplicated.
-    option_chips = Div(
-        *[Span(f"{name}: {value}", cls="option-chip") for name, value in chosen.items()],
-        cls="option-chips",
-    ) if chosen else ""
     line_total = product.price * row.quantity
     return Div(
         Div(
             product_image(product, 72),
             Div(
                 H4(A(product.title, href=item_href(product)), cls="card-title"),
-                option_chips,
+                option_chips(row.options),
                 Div(
                     Span(f"{money(product.price)} each", cls="muted"),
                     Span(" x ", cls="muted"),
@@ -1344,6 +1384,28 @@ def post(item_id: int):
 # Checkout and orders
 # --------------------------------------------------------------------------
 
+def checkout_line(row):
+    """One line of the checkout summary: what is about to be bought.
+
+    Read-only -- quantities and selection are edited in the cart, which the
+    summary links back to.
+    """
+    product = _row(products, row.sku)
+    if product is None:
+        return ""
+    return Div(
+        product_image(product, 56),
+        Div(
+            Div(product.title, cls="card-title"),
+            option_chips(row.options),
+            Span(f"{row.quantity} x {money(product.price)}", cls="muted"),
+            cls="cart-line-body",
+        ),
+        Span(money(product.price * row.quantity), cls="card-price"),
+        cls="cart-line checkout-line",
+    )
+
+
 def _allowed_cards() -> list:
     return [str(c) for c in (_plain(getattr(_cfg(), "allowed_credit_cards", [])) or [])]
 
@@ -1371,9 +1433,16 @@ def get(error: str = ""):
     return page_shell(
         search_bar(),
         H3("Checkout"),
-        P(f"{len(selected)} item(s) selected.", cls="muted"),
-        Div(Span("Order total: ", cls="muted"),
-            Span(money(_cart_total()), cls="cart-total"), cls="card"),
+        # The lines being bought, not just a count: with only "N item(s)
+        # selected" and a total, the cart's contents seemed to vanish between
+        # the cart and the confirmation.
+        Div(
+            *[checkout_line(row) for row in selected],
+            Div(Span("Order total: ", cls="muted"),
+                Span(money(_cart_total()), cls="cart-total"), cls="checkout-total"),
+            A("Edit cart", href="/onlineshop/cart"),
+            cls="card",
+        ),
         P(error, style="color: var(--color-danger);") if error else "",
         Form(
             Div(Label("Full Name", _for="name"),

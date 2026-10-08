@@ -12,6 +12,7 @@ start page, so a test can re-seed it with a different `content`, `layout` or
 `theme` selection without re-registering every other app's routes.
 """
 
+import html
 import json
 import re
 from pathlib import Path
@@ -27,8 +28,8 @@ from open_apps.apps.start_page.main import onlineshop_has_catalog
 def build_client(tmp_path, overrides=None):
     """Compose a config, seed the shop from it, and return a client.
 
-    The shipped `default` content pack has an empty catalog on purpose, and
-    `webshop` -- the real one -- is 200 products of scraped marketing copy
+    The `default` content pack has an empty catalog on purpose, and
+    `webshop` -- the shipped one -- is 999 products of scraped marketing copy
     that hotlinks an image CDN. Neither is something to assert against, so
     every test runs on `content=fixture`, the small mechanical catalog, unless
     it is deliberately exercising a different pack.
@@ -86,6 +87,13 @@ class TestRoutes:
         assert response.status_code == 303
         assert response.headers["location"] == "/onlineshop/search/oak,table/1"
 
+    @pytest.mark.parametrize("query", ["usb/c", "what?", "50% off", "c#", "a&b"])
+    def test_url_syntax_in_a_query_does_not_404(self, client, query):
+        """`/` used to add a path segment and `?` start a query string."""
+        response = client.post("/onlineshop/search", data={"search_query": query})
+        assert response.status_code == 200
+        assert f'Results for "{query}"' in html.unescape(response.text)
+
 
 class TestSearch:
     def test_title_match_ranks_first(self, client):
@@ -106,6 +114,21 @@ class TestSearch:
         for query in ['"', "NEAR(", "*", "a OR", "^%$"]:
             client.get(f"/onlineshop/search/{query}/1")
             shop.search_products(query)
+
+    def test_accents_are_folded_on_both_sides(self, client):
+        """ "crème" and "creme" find the same products, whichever is stored."""
+        shop.products.insert(shop.Product(
+            sku="test-creme", title="Crème Brûlée Candle", price=12.0,
+            category="home_kitchen", rating=4.0, description="", breadcrumb="[]",
+            bullets="[]", options="{}", images="[]",
+        ))
+        shop._build_fts()
+        for query in ("creme", "crème", "CRÈME brulee"):
+            assert "test-creme" in {p.sku for p in shop.search_products(query)}, query
+        assert shop._fts_match_query("crème brûlée") == '"creme" OR "brulee"'
+
+    def test_an_accented_query_matches_unaccented_text(self, client):
+        assert shop.search_products("cöffee") == shop.search_products("coffee") != []
 
     def test_no_match_renders_empty_state(self, client):
         response = client.get("/onlineshop/search/zzzznotathing/1")
@@ -217,6 +240,14 @@ class TestCheckout:
         assert order["status"] == "Processing"
         assert order["total"] == expected_total
         assert len(order["items"]) == len(cart_before)
+
+    def test_checkout_page_lists_what_is_being_bought(self, client):
+        """Not just a count: the selected lines, titles and line totals."""
+        body = client.get("/onlineshop/checkout").text
+        for line in state(client)["cart"]:
+            if line["selected"]:
+                assert line["title"] in body
+                assert shop.money(line["unit_price"] * line["quantity"]) in body
 
     def test_deselected_lines_stay_in_the_cart(self, client):
         row_id = [r.id for r in shop.cart_items()][0]
@@ -344,6 +375,16 @@ class TestVariations:
         body = client.get("/onlineshop").text
         assert "Möbel" in body and "Lebensmittel" in body
 
+    @pytest.mark.parametrize(
+        "pack",
+        ["german", "long_descriptions", "adversarial_descriptions", "misleading_descriptions"],
+    )
+    def test_text_variations_keep_the_catalog(self, tmp_path, pack):
+        """They layer on `webshop`; on `default` they hid the shop."""
+        client = build_client(tmp_path, [f"apps/onlineshop/content={pack}"])
+        assert onlineshop_has_catalog(client.app.config)
+        assert "No products matched" not in client.get("/onlineshop").text
+
     def test_adversarial_content_reaches_the_page(self, tmp_path):
         client = build_client(
             tmp_path, ["apps/onlineshop/content=adversarial_descriptions"]
@@ -379,6 +420,12 @@ class TestCatalogGate:
         """
         config = self._apps_config(tmp_path, ["apps/onlineshop/content=default"])
         assert not onlineshop_has_catalog(config)
+
+    def test_shipped_catalog_has_no_free_products(self, tmp_path):
+        """89 source records had no price and were written out as $0.00."""
+        prices = [p["price"] for p in self._apps_config(tmp_path).onlineshop.products]
+        assert len(prices) == 999
+        assert min(prices) >= 1.0
 
     def test_a_content_pack_with_products_opens_the_shop(self, tmp_path):
         config = self._apps_config(tmp_path, ["apps/onlineshop/content=fixture"])
