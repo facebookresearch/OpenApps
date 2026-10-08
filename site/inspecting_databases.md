@@ -4,6 +4,24 @@ Every app keeps its state in a SQLite file. This page is about finding those
 files, reading them, and pointing a client at them without fighting the running
 app.
 
+## Usually you want the grading state, not the database
+
+If the question is "what will the task grader see?", skip SQLite entirely.
+`open_apps.state.get_current_state(url)` fetches every app's `/<app>_all`
+endpoint from a running server and returns one dict keyed by app name -- the
+exact snapshot tasks diff against to score a run:
+
+```python
+from open_apps.state import get_current_state
+
+state = get_current_state("http://localhost:5001")  # the port the launcher printed
+state["openbanking"]["accounts"]
+```
+
+Or one app at a time: `curl -s localhost:5001/openbanking_all | jq`. Reach for
+the database itself only when you need to edit rows, query across tables, or
+look at a run after the server has stopped.
+
 ## Two layers: the config seeds, the database serves
 
 It is worth being precise about this, because the two disagree the moment
@@ -147,10 +165,6 @@ sqlite3 -readonly -box "$DB" \
    FROM "transaction" WHERE account_id = 0 ORDER BY position LIMIT 10;'
 ```
 
-Useful `sqlite3` dot-commands: `-box` / `-table` / `-json` / `-csv` pick the
-output format, `.headers on` and `.mode column` do the same inside the shell,
-and `.dump` writes the whole database back out as SQL.
-
 ## Connecting a client
 
 Any SQLite client works — the file is a plain database with no extensions.
@@ -170,23 +184,10 @@ then connect to `./current-dbs/openbanking.db`.
 WAL mode. Reads never conflict, but a client that starts an interactive write
 transaction and then sits on it will block the app's writes.
 
-Options, roughly in order of least setup:
-
-- **DB Browser for SQLite** (`brew install --cask db-browser-for-sqlite`) —
-  free, opens a file with no configuration. Tick "Open Read Only" in the file
-  dialog.
-- **The VS Code / Cursor SQLite extensions** — convenient if you are already in
-  the editor; right-click the `.db` file and open the database explorer.
-- **TablePlus / DBeaver** — heavier, but worth it if you are already using one
-  for other work. Both take a file path as the whole connection string.
-- **Datasette**, if you want to browse in a browser and facet/filter without
-  writing SQL. It is not a project dependency; run it without installing:
-
-  ```shell
-  uvx datasette "$(ls -td log_outputs/*/databases | head -1)/openbanking.db"
-  ```
-
-  Pick a port other than the app's if you have both up.
+Any GUI that takes a file path works (DB Browser for SQLite, TablePlus,
+DBeaver, the VS Code SQLite extensions); tick its read-only option. For
+browsing in a browser without writing SQL, `uvx datasette <path>` runs Datasette
+without adding a dependency -- pick a port other than the app's.
 
 ### Do not use Python's `sqlite3` module in the app's process
 
