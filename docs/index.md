@@ -285,7 +285,7 @@ Our apps are built on top of several excellent frameworks:
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
 - [Open Street Maps](https://www.openstreetmap.org/copyright): for our Maps apps.
-- our online shop descends from [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md), developed by Princeton University. The application has been rewritten and shares none of WebShop's code. Its catalog, `config/apps/onlineshop/content/webshop.yaml`, is a 999-product subset of WebShop's item dump (the whole of `items_shuffle_1000.json`, less one record with an empty title) converted into our own schema and checked in here; the records originate as scraped Amazon listings, and the pack also carries links to Amazon's image CDN. `scripts/fetch_webshop.py` regenerates it from the [source mirror](https://huggingface.co/datasets/YWZBrandon/webshop-data).
+- (for the online shop) [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md), developed by Princeton University: our shop is a rewrite, and its catalog is converted from WebShop's item dump.
 
 Some icons are have been designed using resources from Flaticon.com
 
