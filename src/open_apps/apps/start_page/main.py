@@ -17,7 +17,6 @@ try:
         footer,
         serve,
         Modal,
-        get_java_version,
         generate_random_colors,
     )
 except ImportError:
@@ -30,7 +29,6 @@ except ImportError:
         footer,
         serve,
         Modal,
-        get_java_version,
         generate_random_colors,
     )
 from omegaconf import DictConfig, OmegaConf
@@ -70,11 +68,10 @@ APP_MODULE_TO_NAME = {
 def onlineshop_has_catalog(apps_cfg) -> bool:
     """Whether the shop has any products configured.
 
-    The shipped `content` pack is chrome only: the catalog is the WebShop item
-    dump, which is scraped Amazon data and so is downloaded by
-    `scripts/fetch_webshop.py` rather than committed. Read off the config
-    rather than importing the shop module, which would pull in its FastHTML
-    app at start-page import time.
+    The catalog belongs to the selected `content` pack, not the app: the
+    default `webshop` pack has 999 products and the chrome-only `default`
+    pack has none. Read off the config rather than importing the shop module,
+    which would pull in its FastHTML app at start-page import time.
     """
     shop_cfg = getattr(apps_cfg, "onlineshop", None)
     if shop_cfg is None:
@@ -146,8 +143,6 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     # Hydra should handle the config loading, see launch_experiment.py
     app.config = config  # Update the global app config
 
-    java_version_high_enough = get_java_version().startswith("21")
-
     # A `content` pack with no products leaves the shop unregistered rather
     # than served as an empty storefront: an app that is absent is a clearer
     # signal than one that renders zero products. The default pack is
@@ -164,11 +159,6 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
             "open_apps.apps.onlineshop_app",
             "get_onlineshop_routes",
         )
-    if java_version_high_enough:
-        if app.config.maps.allow_planning:
-            print("---> Map planning is not available without Java 21 or higher.")
-            print("Turning off the planning feature for now...")
-            app.config.maps.allow_planning = False
 
     for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
         try:

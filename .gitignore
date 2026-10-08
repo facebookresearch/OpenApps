@@ -184,9 +184,6 @@ outputs/*
 log_outputs/*
 artifacts/*
 
-# java config (map app's OpenTripPlanner server; installed by setup.sh)
-src/open_apps/apps/map_app/java
-
 .vscode/*
 .vscode/settings.json
 
