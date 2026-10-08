@@ -84,41 +84,7 @@ you get a snapshot missing every write still sitting in the write-ahead log.
 Copying just the `.db` of a *stopped* app is fine — the WAL is checkpointed back
 into it on a clean shutdown.
 
-## The OpenBanking schema
-
-```sql
-CREATE TABLE [account] (
-   [id] INTEGER PRIMARY KEY,
-   [name] TEXT,
-   [holder] TEXT,
-   [kind] TEXT,                  -- 'deposit' | 'credit_card'
-   [account_number] TEXT,
-   [routing_number] TEXT,
-   [available_balance] FLOAT,
-   [present_balance] FLOAT,
-   [available_credit] FLOAT,
-   [credit_limit] FLOAT,
-   [card_brand] TEXT,
-   [card_expiration] TEXT,
-   [statement_balance] FLOAT,
-   [statement_close_date] TEXT,
-   [minimum_payment] FLOAT,
-   [payment_due_date] TEXT
-);
-
-CREATE TABLE [transaction] (
-   [id] INTEGER PRIMARY KEY,
-   [account_id] INTEGER,
-   [position] INTEGER,           -- ledger order; 0 is newest
-   [date] TEXT,                  -- display string, format varies by content variant
-   [description] TEXT,
-   [type] TEXT,
-   [amount] FLOAT,               -- signed: negative is money out
-   [balance] FLOAT               -- NULL means the posting is still pending
-);
-```
-
-Two things that surprise people:
+## Two schema quirks
 
 - A credit card's `available_balance` is `0.00` by design. The figures that mean
   something on a card are `present_balance`, `statement_balance`, and
@@ -126,6 +92,9 @@ Two things that surprise people:
   fields from a deposit account.
 - `transaction` is a SQL keyword, so it has to be quoted in every query:
   `SELECT ... FROM "transaction"`.
+- In `transaction`, `amount` is signed (negative is money out), `position` is
+  ledger order with 0 newest, and a `NULL` `balance` means the posting is still
+  pending.
 
 ## Reading it from the command line
 
@@ -136,7 +105,7 @@ do not want to take a write lock on a database an app is serving from.
 DB=$(ls -td log_outputs/*/databases | head -1)/openbanking.db
 
 sqlite3 -readonly "$DB" ".tables"
-sqlite3 -readonly "$DB" ".schema account"
+sqlite3 -readonly "$DB" ".schema"
 ```
 
 Balances across every account:
@@ -145,16 +114,6 @@ Balances across every account:
 sqlite3 -readonly -box "$DB" \
   "SELECT id, name, kind, available_balance, present_balance, statement_balance
    FROM account ORDER BY id;"
-```
-
-```
-┌────┬──────────────────────────────┬─────────────┬───────────────────┬─────────────────┬───────────────────┐
-│ id │             name             │    kind     │ available_balance │ present_balance │ statement_balance │
-├────┼──────────────────────────────┼─────────────┼───────────────────┼─────────────────┼───────────────────┤
-│ 0  │ BUS COMPLETE CHK (...5555)   │ deposit     │ 6102.8            │ 6102.8          │                   │
-│ 1  │ BUS SELECT SAVINGS (...8891) │ deposit     │ 24310.55          │ 24310.55        │                   │
-│ 2  │ INK BUSINESS CARD (...2043)  │ credit_card │ 0.0               │ -1284.19        │ 872.19            │
-└────┴──────────────────────────────┴─────────────┴───────────────────┴─────────────────┴───────────────────┘
 ```
 
 One account's ledger, in the order the page shows it:

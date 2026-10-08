@@ -560,39 +560,7 @@ That matters if you copy a database somewhere to poke at it: copy all three, or
 you get a snapshot missing every write still sitting in the write-ahead log.
 Copying just the <code>.db</code> of a <em>stopped</em> app is fine — the WAL is checkpointed back
 into it on a clean shutdown.</p>
-<h2 id="the-openbanking-schema">The OpenBanking schema</h2>
-<div class="codehilite"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="p">[</span><span class="n">account</span><span class="p">]</span><span class="w"> </span><span class="p">(</span>
-<span class="w">   </span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">holder</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">kind</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                  </span><span class="c1">-- &#39;deposit&#39; | &#39;credit_card&#39;</span>
-<span class="w">   </span><span class="p">[</span><span class="n">account_number</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">routing_number</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">available_balance</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">present_balance</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">available_credit</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">credit_limit</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">card_brand</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">card_expiration</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">statement_balance</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">statement_close_date</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">minimum_payment</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">payment_due_date</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span>
-<span class="p">);</span>
-
-<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="p">[</span><span class="k">transaction</span><span class="p">]</span><span class="w"> </span><span class="p">(</span>
-<span class="w">   </span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">account_id</span><span class="p">]</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="k">position</span><span class="p">]</span><span class="w"> </span><span class="nb">INTEGER</span><span class="p">,</span><span class="w">           </span><span class="c1">-- ledger order; 0 is newest</span>
-<span class="w">   </span><span class="p">[</span><span class="nb">date</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span><span class="w">                  </span><span class="c1">-- display string, format varies by content variant</span>
-<span class="w">   </span><span class="p">[</span><span class="n">description</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="k">type</span><span class="p">]</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
-<span class="w">   </span><span class="p">[</span><span class="n">amount</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="p">,</span><span class="w">               </span><span class="c1">-- signed: negative is money out</span>
-<span class="w">   </span><span class="p">[</span><span class="n">balance</span><span class="p">]</span><span class="w"> </span><span class="nb">FLOAT</span><span class="w">               </span><span class="c1">-- NULL means the posting is still pending</span>
-<span class="p">);</span>
-</code></pre></div>
-
-<p>Two things that surprise people:</p>
+<h2 id="two-schema-quirks">Two schema quirks</h2>
 <ul>
 <li>A credit card's <code>available_balance</code> is <code>0.00</code> by design. The figures that mean
   something on a card are <code>present_balance</code>, <code>statement_balance</code>, and
@@ -600,6 +568,9 @@ into it on a clean shutdown.</p>
   fields from a deposit account.</li>
 <li><code>transaction</code> is a SQL keyword, so it has to be quoted in every query:
   <code>SELECT ... FROM "transaction"</code>.</li>
+<li>In <code>transaction</code>, <code>amount</code> is signed (negative is money out), <code>position</code> is
+  ledger order with 0 newest, and a <code>NULL</code> <code>balance</code> means the posting is still
+  pending.</li>
 </ul>
 <h2 id="reading-it-from-the-command-line">Reading it from the command line</h2>
 <p><code>sqlite3</code> ships with macOS and most Linux distributions. Use <code>-readonly</code> — you
@@ -607,22 +578,13 @@ do not want to take a write lock on a database an app is serving from.</p>
 <div class="codehilite"><pre><span></span><code><span class="nv">DB</span><span class="o">=</span><span class="k">$(</span>ls<span class="w"> </span>-td<span class="w"> </span>log_outputs/*/databases<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="k">)</span>/openbanking.db
 
 sqlite3<span class="w"> </span>-readonly<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DB</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;.tables&quot;</span>
-sqlite3<span class="w"> </span>-readonly<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DB</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;.schema account&quot;</span>
+sqlite3<span class="w"> </span>-readonly<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DB</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;.schema&quot;</span>
 </code></pre></div>
 
 <p>Balances across every account:</p>
 <div class="codehilite"><pre><span></span><code>sqlite3<span class="w"> </span>-readonly<span class="w"> </span>-box<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DB</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span><span class="s2">&quot;SELECT id, name, kind, available_balance, present_balance, statement_balance</span>
 <span class="s2">   FROM account ORDER BY id;&quot;</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code>┌────┬──────────────────────────────┬─────────────┬───────────────────┬─────────────────┬───────────────────┐
-│ id │             name             │    kind     │ available_balance │ present_balance │ statement_balance │
-├────┼──────────────────────────────┼─────────────┼───────────────────┼─────────────────┼───────────────────┤
-│ 0  │ BUS COMPLETE CHK (...5555)   │ deposit     │ 6102.8            │ 6102.8          │                   │
-│ 1  │ BUS SELECT SAVINGS (...8891) │ deposit     │ 24310.55          │ 24310.55        │                   │
-│ 2  │ INK BUSINESS CARD (...2043)  │ credit_card │ 0.0               │ -1284.19        │ 872.19            │
-└────┴──────────────────────────────┴─────────────┴───────────────────┴─────────────────┴───────────────────┘
 </code></pre></div>
 
 <p>One account's ledger, in the order the page shows it:</p>
@@ -797,10 +759,10 @@ away and the config seed comes back. There is no HTTP route for this.</p>
         
 
         
-        <a href="#the-openbanking-schema"
+        <a href="#two-schema-quirks"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
-            The OpenBanking schema
+            Two schema quirks
         </a>
         
 
