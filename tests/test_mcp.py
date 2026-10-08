@@ -103,9 +103,14 @@ class TestRegistry:
         assert registry.config_dir_for("todo") == "todo"
 
     def test_list_variants_default_first(self):
-        variants = registry.list_variants("todo", "appearance")
-        assert variants[0] == "default"
-        assert "dark_theme" in variants
+        # Per-app structure group.
+        layouts = registry.list_variants("todo", "layout")
+        assert layouts[0] == "default"
+        assert "kanban_board" in layouts
+        # Shared design-token theme group (app_name ignored).
+        themes = registry.list_variants("todo", "theme")
+        assert themes[0] == "default"
+        assert "solarized" in themes
 
 
 def _browsergym_calls(fn, *args):

@@ -193,3 +193,9 @@ navigate_to_messenger:
   goal: Navigate to the Messenger app.
   source_app: start_page
   target_app: messages
+
+navigate_to_onlineshop:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Navigate to the Online Shop app.
+  source_app: start_page
+  target_app: onlineshop

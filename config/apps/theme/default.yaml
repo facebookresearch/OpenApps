@@ -16,7 +16,11 @@ tokens:
   color-danger: "#b22222"      # remove / destructive
   color-neutral: "#36454f"     # edit / secondary
   color-btn-fg: "#ffffff"      # text on edit/remove/save buttons
-  font-family: "'Times New Roman', serif"
+  # Matches the sans-serif the appearance-based apps have always used
+  # (`font_family: 'Arial'`), so the `default` theme looks like the app did
+  # before it was migrated to tokens rather than falling back to the browser's
+  # serif. Pick `mono` or `challenging_font` to vary this deliberately.
+  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
   font-heading: "inherit"
   font-size-base: "16px"
   radius: "8px"

@@ -10,8 +10,9 @@ import shutil
 from typing import Dict
 import json
 from starlette.responses import Response
-from src.open_apps.apps.start_page.helper import create_logo_header
-from src.open_apps.frontend import local_hdrs
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import legacy_theme_style
 
 # Global variables
 _base_hdrs_no_highlight = (
@@ -184,6 +185,16 @@ def set_environment(config):
         base_url="/codeeditor",
         current_file_path=__file__
     )
+
+def codeeditor_theme():
+    """The active theme, mapped onto this app's `appearance` CSS variables.
+
+    Empty on the default theme. Rendered into the page body (not `app.hdrs`)
+    so it lands after `env_styles`, which it has to override, and so live
+    `reconfigure` theme swaps take effect.
+    """
+    return legacy_theme_style(app.config, "code_editor")
+
 
 def return_to_index():
     return A("Code Editor Index Page", href="/codeeditor", cls="btn btn-primary")
@@ -517,7 +528,7 @@ def index():
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(codeeditor_theme(), logo_title_container, page)
 
 
 @app.get("/codeeditor/{path:path}")
@@ -623,7 +634,7 @@ def get_folder(folder: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(codeeditor_theme(), logo_title_container, page)
 
 def get_file(file: str):
     side_bar = create_sidebar(file)
@@ -946,7 +957,7 @@ def get_file(file: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(codeeditor_theme(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")
 def create_folder(folder: str):

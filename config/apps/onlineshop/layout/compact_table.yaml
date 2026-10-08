@@ -1,0 +1,8 @@
+# @package apps.onlineshop
+# Structure only -- colors/fonts come from the shared theme. Select with
+# `apps/onlineshop/layout=compact_table`.
+#
+# Products as a dense table with no imagery. The hardest of the three for a
+# vision-only agent: rows are visually near-identical, so the target has to be
+# picked out by reading the text rather than by spotting a thumbnail.
+layout: compact_table

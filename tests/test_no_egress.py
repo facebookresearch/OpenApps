@@ -37,7 +37,8 @@ from open_apps.apps.start_page.main import (
 from open_apps.frontend import HTMX_URL, PICO_URL
 
 # Every route a browser (or an agent) actually lands on.
-ROUTES = ["/", "/todo", "/calendar", "/messages", "/codeeditor/", "/maps"]
+ROUTES = ["/", "/todo", "/calendar", "/messages", "/codeeditor/", "/maps",
+          "/onlineshop"]
 
 # External origins each route is still allowed to reference, by hostname.
 #
@@ -55,6 +56,12 @@ ALLOWED_EXTERNAL_HOSTS = {
     "/messages": {"cdn.jsdelivr.net", "cdn.tailwindcss.com", "cdnjs.cloudflare.com"},
     "/codeeditor/": {"cdn.jsdelivr.net", "cdn.tailwindcss.com"},
     "/maps": {"cdnjs.cloudflare.com", "unpkg.com"},          # leaflet + awesome-markers
+    # Unlike every other entry here, this is content rather than a styling
+    # dependency: the default `content=webshop` pack sets
+    # `product_images: hotlink`, so each product renders its own Amazon photo.
+    # Drops out under `apps.onlineshop.product_images=glyphs`, which is what
+    # an eval node without egress should pass.
+    "/onlineshop": {"m.media-amazon.com"},
 }
 
 _URL_RE = re.compile(r'(?:src|href)="(https?://[^"]+)"')

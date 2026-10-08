@@ -16,6 +16,7 @@ repo_url: https://github.com/facebookresearch/OpenApps
 nav:
   - Start: index.md
   - Manual Installation: installation.md
+  - Online Shop: onlineshop.md
   - "Intro to UI Agents": Intro to UI Agents.md
   - Agents: agents.md
   - Tasks: tasks.md

@@ -14,8 +14,9 @@ apps consume via ``var(--token)``. This decouples *look* (theme) from
 
 Selection is done with Hydra overrides:
 
-* ``apps/theme=solarized``      -> global default for every app
-* ``apps.todo.theme=solarized`` -> override a single app (falls back to
+* ``apps/theme=solarized``       -> global default for every app (the
+  ``apps/theme`` group is in ``config/config.yaml``'s defaults list)
+* ``apps.todo.theme=solarized``  -> override a single app (falls back to
   the global theme when the app's ``theme`` field is null/unset)
 
 A theme file looks like::
@@ -34,6 +35,11 @@ A theme file looks like::
 The ``tokens`` mapping is open-ended: every ``key: value`` becomes the CSS
 custom property ``--key: value``, so apps can introduce new tokens without
 touching this module.
+
+Apps that have not been migrated to design tokens yet (everything except
+todo) still build their stylesheet from ``config/apps/<app>/appearance/``.
+:func:`legacy_theme_css` bridges the two worlds — see the comment on
+``_LEGACY_ALIASES`` below.
 """
 from __future__ import annotations
 
@@ -90,6 +96,10 @@ def resolve_theme(apps_config, app_name: str) -> dict:
 
     global_theme = getattr(apps_config, "theme", None)
     if global_theme is not None:
+        # Allow global theme to be provided either as a composed config node
+        # (apps/theme=<name>) or as a plain string override (apps.theme=<name>). 
+        if isinstance(global_theme, str):
+            return load_theme(global_theme)
         theme = _as_plain(global_theme)
         theme.setdefault("tokens", {})
         theme["tokens"] = _as_plain(theme["tokens"])
@@ -98,17 +108,39 @@ def resolve_theme(apps_config, app_name: str) -> dict:
     return load_theme(_DEFAULT_THEME)
 
 
-def render_theme_tokens(theme: dict) -> Style:
+def render_theme_css(theme: dict) -> str:
     """Build the ``:root`` CSS-variable block (plus optional import) for a theme.
 
     ``theme`` is the dict returned by :func:`resolve_theme` / :func:`load_theme`.
     """
     tokens = _as_plain(theme.get("tokens", {}))
-    lines = "\n".join(f"  --{key}: {value};" for key, value in tokens.items())
+
+    safe_lines: list[str] = []
+    for key, value in tokens.items():
+        key = str(key)
+        # Allow only simple custom-property names to avoid broken CSS/injection.
+        if (not key) or any(not (c.isalnum() or c in "-_") for c in key):
+            continue
+        val = str(value).replace("\n", " ").replace("\r", " ")
+        # Prevent breaking out of <style> tags if a theme value contains HTML.
+        if "<" in val or ">" in val:
+            continue
+        safe_lines.append(f"  --{key}: {val};")
+
+    lines = "\n".join(safe_lines)
+
     import_url = (theme.get("import_url") or "").strip()
+    # Avoid breaking out of the quoted @import string.
+    if any(c in import_url for c in ('"', "'", "\n", "\r")):
+        import_url = ""
+
     import_rule = f'@import url("{import_url}");\n' if import_url else ""
-    css = f"{import_rule}:root {{\n{lines}\n}}"
-    return Style(css)
+    return f"{import_rule}:root {{\n{lines}\n}}"
+
+
+def render_theme_tokens(theme: dict) -> Style:
+    """:func:`render_theme_css` wrapped in a FastHTML ``Style`` element."""
+    return Style(render_theme_css(theme))
 
 
 def theme_style(apps_config, app_name: str) -> Style:
@@ -117,3 +149,113 @@ def theme_style(apps_config, app_name: str) -> Style:
     Call this per-request so live ``reconfigure`` theme swaps take effect.
     """
     return render_theme_tokens(resolve_theme(apps_config, app_name))
+
+
+# --------------------------------------------------------------------------
+# Bridge for apps that still render `config/apps/<app>/appearance/*.yaml`
+# --------------------------------------------------------------------------
+#
+# Only the todo app has been rewritten against design tokens. The other apps
+# build a `:root` block of their own from their `appearance` config and read
+# those names throughout their stylesheets, so a theme selection was invisible
+# to them. Rewriting five stylesheets is a much larger change than this one;
+# until then, re-point the legacy custom properties at the shared tokens.
+#
+# Keys are the legacy custom-property names those apps declare; values are the
+# token they should follow. `--font-family` needs no entry: the theme declares
+# that name itself, and the bridge block is emitted after the app's own
+# stylesheet, so the token value already wins.
+_LEGACY_ALIASES: dict[str, str] = {
+    # calendar
+    "primary": "color-primary",
+    "primary-hover": "color-accent",
+    "secondary": "color-neutral",
+    "background": "color-bg",
+    "text": "color-fg",
+    "error": "color-danger",
+    "border": "color-border",
+    "heading-font": "font-heading",
+    "base-font-size": "font-size-base",
+    "button-border-radius": "radius",
+    # messenger + code editor
+    "custom-font-family": "font-family",
+    "custom-font-size": "font-size-base",
+    "custom-font-color": "color-fg",
+    "custom-background-color": "color-bg",
+    "chat-font-family": "font-family",
+    "chat-font-size": "font-size-base",
+    "chat-font-color": "color-fg",
+    "chat-header-font-color": "color-muted",
+    "chat-primary-bubble-color": "color-primary",
+    "chat-secondary-bubble-color": "color-surface",
+    "chat-display-background-color": "color-bg",
+    "main-bg-color": "color-surface",
+}
+
+# The page chrome every app shares. Aliasing alone is not enough: an app only
+# picks up a token where its own CSS happens to use a variable, and several
+# paint the page from hard-coded values.
+_LEGACY_BASE_CSS = """
+html, body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family);
+}
+"""
+
+# Per-app selectors whose colors are hard-coded in the app's stylesheet (so no
+# alias can reach them) but which cover enough of the page that leaving them
+# unthemed reads as "the theme did nothing".
+_LEGACY_APP_CSS: dict[str, str] = {
+    "maps": """
+#sidebar { background: var(--color-surface); }
+#sidebar h2, #sidebar h3 { color: var(--color-fg); }
+.popup-list-item, .route-result, .saved-place { background: var(--color-surface); }
+""",
+    "code_editor": """
+.main-content { background-color: var(--color-surface); }
+textarea, textarea.styled-content { background-color: var(--color-surface); }
+""",
+    "messenger": """
+.bg-base-100, .bg-base-200 { background-color: var(--color-surface); }
+""",
+    "start_page": """
+#wrapper > .wrapper { background-color: var(--color-bg); }
+""",
+}
+
+
+def legacy_theme_css(apps_config, app_name: str) -> str:
+    """CSS that makes the active theme visible in an app built on ``appearance``.
+
+    Emits the theme's token block, the legacy-variable aliases, and the shared
+    page chrome. Returns ``""`` for the ``default`` theme: unmigrated apps are
+    still described entirely by their ``appearance`` config, so a deployment
+    that never selects a theme must render exactly as it did before.
+
+    Emit the result *after* the app's own stylesheet — the bridge relies on
+    document order, not specificity, to win.
+    """
+    theme = resolve_theme(apps_config, app_name)
+    if str(theme.get("name", _DEFAULT_THEME)) == _DEFAULT_THEME:
+        return ""
+
+    tokens = _as_plain(theme.get("tokens", {}))
+    aliases = "\n".join(
+        f"  --{legacy}: var(--{token});"
+        for legacy, token in _LEGACY_ALIASES.items()
+        if token in tokens
+    )
+    return "\n".join(
+        [
+            render_theme_css(theme),
+            f":root {{\n{aliases}\n}}",
+            _LEGACY_BASE_CSS,
+            _LEGACY_APP_CSS.get(app_name, ""),
+        ]
+    )
+
+
+def legacy_theme_style(apps_config, app_name: str) -> Style:
+    """:func:`legacy_theme_css` as a FastHTML ``Style`` (empty on the default theme)."""
+    return Style(legacy_theme_css(apps_config, app_name))

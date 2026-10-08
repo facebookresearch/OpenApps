@@ -112,9 +112,6 @@ uv sync
 uv run playwright install chromium
 uv run playwright install-deps chromium   # system deps (may need sudo/module)
 
-# App setup (OpenJDK 21 for onlineshop, dataset via gdown, spaCy en_core_web_lg)
-./setup.sh
-
 # Secrets — do NOT commit this file
 cat > .env <<'EOF'
 OPENAI_API_KEY=sk-...
