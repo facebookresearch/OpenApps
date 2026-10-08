@@ -30,6 +30,10 @@ def safe_get_json(url: str, retries: int = 3, backoff: float = 0.5):
     ``2 * backoff``, ... seconds). The fallback is logged as a warning --
     callers that score reward diffs off this state should treat a logged
     fallback as "probe failed", not "app is empty".
+
+    A 4xx is not retried: it means the route is not mounted (e.g. a disabled
+    app such as the online shop), and retrying would only add the full
+    backoff to every state probe.
     """
     last_exc: Exception | None = None
     for attempt in range(retries):
@@ -38,6 +42,10 @@ def safe_get_json(url: str, retries: int = 3, backoff: float = 0.5):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as exc:
+            status = getattr(exc.response, "status_code", None)
+            if status is not None and status < 500:
+                logger.debug("GET %s returned %s; returning []", url, status)
+                return []
             last_exc = exc
             if attempt < retries - 1:
                 time.sleep(backoff * (2**attempt))
