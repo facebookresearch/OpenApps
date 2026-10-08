@@ -122,8 +122,8 @@ note_pending_transfer_in_calendar_and_todo:
 reconcile_the_largest_account:
   _target_: open_apps.tasks.tasks.CompositeTask
   _convert_: all
-  goal: The OpenBanking app lists three accounts. Work out which one has the
-    highest available balance. Send Alice a message containing that account's
+  goal: Look through the accounts listed in the OpenBanking app and work out
+    which one has the highest available balance. Send Alice a message containing that account's
     name exactly as OpenBanking shows it, and nothing else. Then add a todo
     named 'Reconcile NAME', using the same account name.
   subtasks:

@@ -6,33 +6,35 @@ defaults:
 # Appends a fourth, noisier account (`+` merge key -> open_apps.utils.merge_plus_keys).
 # The three seeded accounts are left untouched so every task's expected answer
 # still holds; this variant only lengthens what the agent has to read past.
+# Its balance must stay below BUS SELECT SAVINGS (24310.55), or it becomes the
+# answer to `reconcile_the_largest_account`.
 # Descriptions carry the full ACH/wire addenda a real statement prints.
 +accounts:
   - name: "BUS ANALYSIS CHK (...7712)"
     holder: "Acme Industries, Inc — Operations Division, Accounts Payable Desk"
     account_number: "447109257712"
     routing_number: "123456789"
-    available_balance: 41288.06
-    present_balance: 41288.06
+    available_balance: 16288.06
+    present_balance: 16288.06
     available_credit: 0.00
     transactions:
       - date: "Aug 26, 2026"
         description: "ORIG CO NAME:GLOBAL LOGISTICS PARTNERS INTERNATIONAL ORIG ID:9987654321 DESC DATE:260826 CO ENTRY DESCR:SETTLEMENT REMITTANCE BATCH 0044 SEC:CCD TRACE#:021000029987654 EED:260826 IND ID:AP-INV-2026-0844-REV-02 IND NAME:ACME INDUSTRIES INCORPORATED OPERATIONS TRN: 4421887766ABC BREF: 887766 ADDENDA: RMR*IV*INV-2026-0844**11250.00\\ORIGINATING DEPOSITORY FINANCIAL INSTITUTION REF 021000021"
         type: "ACH credit"
         amount: 11250.00
-        balance: 41288.06
+        balance: 16288.06
       - date: "Aug 26, 2026"
         description: "WIRE TYPE:BOOK OUT DATE:260826 TIME:1432 ET TRN:2026082600412288 SERVICE REF:004122 BNF:MERIDIAN FACILITIES MANAGEMENT GROUP LLC ID:0000998877 BNF BK:CONTR BNK-123 ID:021000021 PMT DET:FACILITIES RETAINER Q3 2026 CONTRACT MFM-2024-118 SCHEDULE B LINE 4 REMIT ADVICE SENT SEPARATELY BY EMAIL TO AP@ACMEIND.EXAMPLE"
         type: "Wire"
         amount: -6740.19
-        balance: 30038.06
+        balance: 5038.06
       - date: "Aug 25, 2026"
         description: "ORIG CO NAME:STATE DEPT OF REVENUE ELECTRONIC FUNDS TRANSFER UNIT ORIG ID:1746000101 DESC DATE:260825 CO ENTRY DESCR:QUARTERLY WITHHOLDING REMITTANCE PERIOD ENDING 06/30/2026 SEC:CCD TRACE#:074000109988776 EED:260825 IND ID:EIN-XX-XXX4412-Q2 IND NAME:ACME INDUSTRIES INC TRN: 9988776655ABC"
         type: "ACH debit"
         amount: -2884.53
-        balance: 36778.25
+        balance: 11778.25
       - date: "Aug 21, 2026"
         description: "DEPOSIT REMOTE CAPTURE BATCH 00219 ITEM COUNT 014 LOCATION:CORPORATE LOCKBOX 4471 PROCESSED 08/21 17:04:22 CT AVAILABILITY SCHEDULE 2 STANDARD HOLD APPLIED TO ITEMS EXCEEDING 5525.00 PER REGULATION CC SEE DISCLOSURE"
         type: "Deposit"
         amount: 8412.77
-        balance: 39662.78
+        balance: 14662.78
