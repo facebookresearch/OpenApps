@@ -528,8 +528,8 @@
 <p>Or one app only, leaving the rest on the global theme:
 <code>uv run launch.py apps.calendar.theme=$THEME</code>.</p>
 <p>Shipped themes: <code>default</code>, <code>dark</code>, <code>mono</code>, <code>challenging_font</code>, <code>colorblind</code>,
-<code>solarized</code>, <code>material</code>, <code>bootstrap</code>, <code>openbanking</code>. Adding one means adding a
-yaml file to <code>config/apps/theme/</code> -- no app code changes.</p>
+<code>solarized</code>, <code>material</code>, <code>bootstrap</code>. Adding one means adding a yaml file to
+<code>config/apps/theme/</code> -- no app code changes.</p>
 <p>A theme file is a set of design tokens plus a small <code>assets</code> block:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># config/apps/theme/dark.yaml</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span>
@@ -548,11 +548,10 @@ choices a CSS variable cannot reach -- the start page's raster icons, the
 Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
 app-agnostic: the theme says <code>tone: dark</code> and each app picks its own dark
 asset, so a theme file never has to know which apps exist.</p>
-<p>The <code>tokens</code> mapping is open-ended, so an app can introduce tokens of its own
-without touching any shared code -- <code>openbanking</code> is the worked example, with a
-<code>--color-header-bg</code> and friends sampled from a real retail-banking stylesheet.
-Consume those through a fallback, <code>var(--color-header-bg, var(--color-primary))</code>,
-so the app stays legible under the themes that do not define them.</p>
+<p>Apps consume only the shared vocabulary in <code>config/apps/theme/default.yaml</code>.
+There are no app-specific themes or tokens: a token only one theme defines is
+undefined under every other, and a palette only one app reads would not restyle
+with the rest of the environment.</p>
 <p>One caveat worth knowing before adding a dark theme: Pico ships its own palette
 in <code>--pico-*</code> properties and applies it to elements an app rarely restyles --
 table cells, form fields and every heading. Tokens cannot reach those, so a

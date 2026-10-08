@@ -64,10 +64,8 @@ ALLOWED_EXTERNAL_HOSTS = {
     "/messages": {"cdn.jsdelivr.net", "cdn.tailwindcss.com", "cdnjs.cloudflare.com"},
     "/codeeditor/": {"cdn.jsdelivr.net", "cdn.tailwindcss.com"},
     "/maps": {"cdnjs.cloudflare.com", "unpkg.com"},          # leaflet + awesome-markers
-    # Styled entirely from theme tokens and one inline stylesheet, so it starts
-    # in the goal state. Keep it there: the bank's face comes from
-    # config/apps/theme/openbanking.yaml, which deliberately ships no
-    # `import_url` webfont for exactly this reason.
+    # Styled entirely from shared theme tokens and one inline stylesheet, so it
+    # starts in the goal state. Keep it there.
     "/openbanking": set(),
     "/openbanking/accounts/0": set(),
 }

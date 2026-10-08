@@ -113,7 +113,6 @@ class TestRegistry:
         themes = registry.list_variants("todo", "theme")
         assert themes[0] == "default"
         assert "solarized" in themes
-        assert "openbanking" in themes
         # openbanking is theme+layout native: it has no `appearance` group, and
         # the same shared theme list is visible through it.
         assert registry.list_variants("openbanking", "theme") == themes
