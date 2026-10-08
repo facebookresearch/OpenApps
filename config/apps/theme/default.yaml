@@ -2,6 +2,10 @@
 # Shared design tokens. Selected globally with `apps/theme=<name>` or per app
 # with `apps.<app>.theme=<name>`. Every `tokens` entry becomes a CSS custom
 # property (`color-primary` -> `--color-primary`) consumed via `var(--...)`.
+#
+# This file is the canonical token vocabulary: every other theme declares the
+# same keys, so an app can use any of them without checking which theme is
+# active. `assets` covers the choices no CSS variable can reach.
 name: default
 import_url: ""
 tokens:
@@ -10,14 +14,28 @@ tokens:
   color-fg: "#1a1a1a"
   color-muted: "#6b7280"
   color-border: "#dfe1e6"
-  color-primary: "#2563eb"     # add / primary action
+  color-primary: "#2563eb"        # add / primary action
+  color-primary-hover: "#1d4ed8"
   color-on-primary: "#ffffff"
-  color-accent: "#2563eb"      # save action
-  color-danger: "#b22222"      # remove / destructive
-  color-neutral: "#36454f"     # edit / secondary
-  color-btn-fg: "#ffffff"      # text on edit/remove/save buttons
-  font-family: "'Times New Roman', serif"
+  color-accent: "#2563eb"         # save action
+  color-danger: "#b22222"         # remove / destructive
+  color-neutral: "#36454f"        # edit / secondary
+  color-btn-fg: "#ffffff"         # text on edit/remove/save buttons
+  # Matches the sans-serif the appearance-based apps have always used
+  # (`font_family: 'Arial'`), so the `default` theme looks like the app did
+  # before it was migrated to tokens rather than falling back to the browser's
+  # serif. Pick `mono` or `challenging_font` to vary this deliberately.
+  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
   font-heading: "inherit"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
   font-size-base: "16px"
+  font-size-sm: "14px"            # chat bubbles, editor gutter, dense lists
+  font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+# Non-CSS choices. `tone` is app-agnostic: each app maps it onto its own
+# concrete asset (maps -> Leaflet tile layer, code editor -> CodeMirror
+# stylesheet, start page -> tile fill). `icon_set` picks a raster icon dir.
+assets:
+  tone: light
+  icon_set: color

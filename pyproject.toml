@@ -41,6 +41,7 @@ dependencies = [
 
 [project.scripts]
 open-apps-mcp = "open_apps.mcp.__main__:main"
+openbanking-gen-txns = "open_apps.apps.openbanking_app.generate_transactions:main"
 
 [project.optional-dependencies]
 dev = [

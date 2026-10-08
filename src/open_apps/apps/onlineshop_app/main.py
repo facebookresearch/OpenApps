@@ -50,7 +50,7 @@ def set_environment(config):
     app.config = config
     if not os.path.exists(config.onlineshop.database_path):
         os.makedirs(config.onlineshop.database_path)
-    global_state.update_config(config.onlineshop)
+    global_state.update_config(config.onlineshop, apps_config=config)
     update_db_from_hydra(global_state)
 
 def generate_search_results(products: List[Dict], keywords: str, page: int, total: int) -> str:

@@ -373,6 +373,25 @@
 </li>
                 
                 
+                
+                <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="/OpenApps/inspecting_databases/"
+        class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
+
+        
+        Inspecting the Databases
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+                
+                
             </ul>
         </div>
     </div>
@@ -436,6 +455,31 @@
           </a>
            
           
+          <a
+            data-slot="button"
+            id="next-button"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 extend-touch-target size-8 shadow-none md:size-7"
+            href="/OpenApps/inspecting_databases/"
+          >
+            <span class="sr-only">Next</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="tabler-icon tabler-icon-arrow-right"
+            >
+              <path d="M5 12l14 0"></path>
+              <path d="M13 18l6 -6"></path>
+              <path d="M13 6l6 6"></path>
+            </svg>
+          </a>
+          
         </div>
       </div>
       
@@ -490,6 +534,34 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
 </code></pre></div>
 
 <p>Finally, ask your agent to solve the task by specifying <code>task_name=my_custom_task</code>.</p>
+<h2 id="goal-variations">Goal Variations</h2>
+<p>Tasks come with <strong>goal variations</strong>: the same task with its goal reworded in a
+different style, so you can study how robust an agent is to phrasing. There are
+three styles — <code>casual</code>, <code>formal</code>, and <code>unrelated_context</code> (the instruction
+embedded in unrelated chit-chat) — with 9 variations per task.</p>
+<p>Tasks are split across two files, both composed into <code>all_tasks.yaml</code>:</p>
+<ul>
+<li><code>config/tasks/original_tasks.yaml</code> — the base tasks.</li>
+<li><code>config/tasks/user_goal_variations.yaml</code> — the variations, keyed
+  <code>&lt;original_task&gt;__&lt;style&gt;_&lt;n&gt;</code> (e.g. <code>mark_water_plants_as_done__casual_2</code>).</li>
+</ul>
+<p>Every variation copies its original's fields verbatim — only the <code>goal</code> is
+reworded, and an optional <code>goal_style</code> field records the style — so the reward
+logic is identical to the base task:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">mark_water_plants_as_done__casual_2</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">_target_</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">open_apps.tasks.tasks.MarkToDoDoneTask</span>
+<span class="w">  </span><span class="nt">goal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">can you check off &#39;Water plants&#39; in my to-do list?</span>
+<span class="w">  </span><span class="nt">todo_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Water</span><span class="nv"> </span><span class="s">plants&quot;</span>
+<span class="w">  </span><span class="nt">goal_style</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">casual</span>
+</code></pre></div>
+
+<p>Run a single variation like any other task:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>GPT-5-1<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>mark_water_plants_as_done__casual_2
+</code></pre></div>
+
+<p>To run agents across <strong>all</strong> tasks and their goal variations in parallel, use
+the <code>config_parallel_tasks_across_goal_variations.yaml</code> config — see
+<a href="../#launch-agents-across-multiple-tasks">Launch Agent(s) Across Multiple Tasks</a>.</p>
   </div>
 </article>
                                 <div class="mx-auto flex flex-wrap h-16 w-full max-w-2xl items-center gap-2 px-4 md:px-0">
@@ -507,6 +579,19 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
         <span class="max-[500px]:hidden">Agents</span>
     </a>
     
+    
+    <a data-slot="button"
+        class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-secondary text-secondary-foreground hover:bg-secondary/80 h-8 rounded-md gap-1.5 px-3 has-[&gt;svg]:px-2.5 ml-auto shadow-none"
+        href="/OpenApps/inspecting_databases/">
+        <span class="max-[500px]:hidden">Inspecting the Databases</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            class="tabler-icon tabler-icon-arrow-right ">
+            <path d="M5 12l14 0"></path>
+            <path d="M13 18l6 -6"></path>
+            <path d="M13 6l6 6"></path>
+        </svg>
+    </a>
     
 </div>
                                 <dialog id="bottom-sidebar" onclick="onBottomSidebarDialogClick(event)" class="bg-transparent"
@@ -555,6 +640,12 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
                         
                     </a>
                     
+                    <a class="text-2xl font-medium" href="../inspecting_databases/">
+                        
+                        Inspecting the Databases
+                        
+                    </a>
+                    
                 </div>
             </div>
             
@@ -576,10 +667,26 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
         
         
         
-        <a href="#new-custom-tasks"
+        <a href="#adding-new-tasks"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
+            Adding New Tasks
+        </a>
+        
+        
+        <a href="#new-custom-tasks"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
             New custom tasks
+        </a>
+        
+        
+
+        
+        <a href="#goal-variations"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Goal Variations
         </a>
         
 

@@ -33,10 +33,12 @@ from open_apps.apps.start_page.helper import (
 @pytest.fixture(scope="module")
 def client(tmpdir_factory):
     logs_dir = str(tmpdir_factory.getbasetemp())
+    # Exercise a non-default selection on every axis: the shared theme
+    # (global), a per-app theme override, and per-app content.
     alt_config = [
-        "apps/messenger/appearance=challenging_font",
+        "apps/theme=challenging_font",
         "apps/messenger/content=misleading_descriptions",
-        "apps/calendar/appearance=dark_theme",
+        "apps.calendar.theme=dark",
     ]
     standard_overrides = [f"logs_dir={logs_dir}"]
 
@@ -85,6 +87,24 @@ class TestApps:
     def test_map(self, client):
         response = client.get("/maps")
         assert response.status_code == 200
+
+    def test_openbanking(self, client):
+        response = client.get("/openbanking")
+        assert response.status_code == 200
+
+    def test_openbanking_account(self, client):
+        response = client.get("/openbanking/accounts/0")
+        assert response.status_code == 200
+
+    def test_openbanking_all(self, client):
+        """checks url used for rewards"""
+        response = client.get("/openbanking_all")
+        assert response.status_code == 200
+
+        response_json = response.json()
+        assert set(response_json) == {"accounts", "transactions"}
+        assert response_json["accounts"]
+        assert response_json["transactions"]
 
     def test_onlineshop(self, client):
         if get_java_version().startswith("21"):

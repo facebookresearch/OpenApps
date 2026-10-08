@@ -86,14 +86,32 @@ async def reset(seed: int | None = None):
 
 @mcp.tool()
 async def reconfigure(
-    appearance: str | None = None,
+    theme: str | None = None,
+    layout: str | None = None,
     content: str | None = None,
     seed: int | None = None,
     extras: dict | None = None,
+    appearance: str | None = None,
 ) -> str:
-    """Swap appearance/content variant and seed (live) and re-seed app state."""
+    """Swap theme/layout/content variant and seed (live) and re-seed app state.
+
+    `theme` is the shared design-token theme and applies to every app;
+    `layout` and `content` are per-app.
+
+    `appearance` is DEPRECATED: it names a stem from the removed `appearance`
+    group and is translated onto `theme`/`layout` (`dark_theme` -> `dark`,
+    `black_and_white` -> `mono`, `colorblind_access` -> `colorblind`,
+    `kanban_board`/`broken_logos`/`clickable_logos` -> the same `layout`).
+    Passing it alongside a conflicting `theme`/`layout` is an error. New
+    callers should use `theme`/`layout`; it will be removed in a later release.
+    """
     await _require().reconfigure(
-        appearance=appearance, content=content, seed=seed, extras=extras
+        theme=theme,
+        layout=layout,
+        content=content,
+        seed=seed,
+        extras=extras,
+        appearance=appearance,
     )
     return "reconfigured"
 
@@ -190,7 +208,7 @@ async def list_apps() -> list[str]:
 
 @mcp.tool()
 async def list_variants(app: str, group: str) -> list[str]:
-    """Variant stems for an app's ``appearance`` or ``content`` group."""
+    """Variant stems for a group: ``theme`` (shared), ``layout`` or ``content``."""
     return _list_variants(app, group)
 
 

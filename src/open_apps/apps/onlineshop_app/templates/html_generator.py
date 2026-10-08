@@ -4,18 +4,16 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 """
+from open_apps.theme import render_theme_css, resolve_theme
+
 from ..models.global_state import global_state
 
 # HTML Templates
 def generate_base_html(content: str) -> str:
     cart_count = global_state.cart.get_total_quantity() if hasattr(global_state, 'cart') else 0
-    bg_color = global_state.config.background_color
-    font_family = global_state.config.font_family
-    base_font_size = global_state.config.base_font_size
-    font_color = global_state.config.font_color
-    button_background_color = getattr(global_state.config, 'button_background_color', '#0d6efd')
-    button_font_color = getattr(global_state.config, 'button_font_color', '#FFFFFF')
-    highlight_font_color = getattr(global_state.config, 'highlight_font_color', '#0d6efd')
+    # Every color and font below is a var() into this block. Resolved
+    # per-request so live `reconfigure` theme swaps take effect.
+    theme_css = render_theme_css(resolve_theme(global_state.apps_config, "onlineshop"))
     return f"""
     <!DOCTYPE html>
     <html>
@@ -24,17 +22,18 @@ def generate_base_html(content: str) -> str:
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
             <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
             <style>
+                {theme_css}
                 body {{
-                    font-family: "{font_family}";
-                    font-size: {base_font_size};
-                    background-color: {bg_color};
-                    color: {font_color};
+                    font-family: var(--font-family);
+                    font-size: var(--font-size-base);
+                    background-color: var(--color-bg);
+                    color: var(--color-fg);
                 }}
                 button, input, textarea, select {{
                     font-family: inherit;
                 }}
                 h1, h2, h3, h4, h5, h6 {{
-                    font-family: inherit;
+                    font-family: var(--font-heading);
                 }}
                 .result-img {{
                     max-width: 100%;
@@ -51,49 +50,55 @@ def generate_base_html(content: str) -> str:
                     margin: 2px;
                 }}
                 .option-btn.active {{
-                    background-color: #0d6efd;
-                    color: white;
-                }}
-                .review-item {{
-                    border-bottom: 1px solid #ddd;
-                    padding: 10px 0;
+                    background-color: var(--color-primary);
+                    color: var(--color-on-primary);
                 }}
                 .hover-shadow:hover {{
                     transform: translateY(-3px);
                     box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
                     transition: all 0.3s ease;
                 }}
+                /* Bootstrap paints its own navbar/card surfaces, which no
+                   token can reach from the outside. */
+                .navbar.bg-light, .card {{
+                    background-color: var(--color-surface) !important;
+                    color: var(--color-fg);
+                }}
+                .card {{
+                    border-color: var(--color-border);
+                }}
                 .nav-tabs .nav-link {{
-                    color: #666;
+                    color: var(--color-muted);
                     border: none;
                     padding: 1rem 1.5rem;
                 }}
                 .nav-tabs .nav-link.active {{
-                    color: #0d6efd;
-                    border-bottom: 2px solid #0d6efd;
+                    color: var(--color-primary);
+                    border-bottom: 2px solid var(--color-primary);
                     background: none;
                 }}
                 .review-item {{
-                    border-bottom: 1px solid #eee;
+                    border-bottom: 1px solid var(--color-border);
                     padding: 1rem 0;
                 }}
                 .review-item:last-child {{
                     border-bottom: none;
                 }}
                 .btn-primary, .btn-outline-primary {{
-                    background-color: {button_background_color} !important;
-                    color: {button_font_color} !important;
+                    background-color: var(--color-primary) !important;
+                    border-color: var(--color-primary) !important;
+                    color: var(--color-on-primary) !important;
                 }}
                 .text-primary {{
-                    color: {highlight_font_color} !important;
+                    color: var(--color-primary) !important;
                 }}
                 .breadcrumb-item,
                 .breadcrumb-item a,
                 .breadcrumb-item.active {{
-                    color: {highlight_font_color} !important;
+                    color: var(--color-primary) !important;
                 }}
                 .breadcrumb-item + .breadcrumb-item::before {{
-                    color: {highlight_font_color} !important;
+                    color: var(--color-primary) !important;
                 }}
             </style>
         </head>

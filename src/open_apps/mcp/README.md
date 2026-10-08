@@ -45,10 +45,36 @@ the server is then ready for tool calls.
 | `load_task(key)` | Bind a task for scoring; returns its goal. Call `reset` after. |
 | `get_reward()` | Reward for the bound task (1.0 if complete, else 0.0). |
 | `set_goal(goal)` | Free-form goal, no automatic scoring. |
-| `reconfigure(appearance, content, seed, extras)` | Live variant/seed change. |
+| `reconfigure(theme, layout, content, seed, extras, appearance)` | Live variant/seed change. `theme` is the shared global design-token theme; `layout` and `content` are per-app. `appearance` is deprecated — see below. |
 | `list_apps()` | App keys actually registered (Java-aware). |
-| `list_variants(app, group)` | Variant stems for `appearance`/`content`. |
+| `list_variants(app, group)` | Variant stems for a group (`theme`/`layout`/`content`). |
 | `app_url(app=None)` | Absolute URL of an app's landing page. |
+
+### Deprecated: `appearance`
+
+`reconfigure` used to take a per-app `appearance` stem. That group was split
+into a shared `theme` (look) and a per-app `layout` (structure). The parameter
+still exists so existing clients keep binding, and is translated:
+
+| `appearance=` | becomes |
+| --- | --- |
+| `default` | `theme="default"` |
+| `dark_theme` | `theme="dark"` |
+| `black_and_white` | `theme="mono"` |
+| `challenging_font` | `theme="challenging_font"` |
+| `colorblind_access` | `theme="colorblind"` |
+| `kanban_board` | `layout="kanban_board"` |
+| `broken_logos` | `layout="broken_logos"` |
+| `clickable_logos` | `layout="clickable_logos"` |
+
+Each call raises a `DeprecationWarning`; passing `appearance` together with a
+`theme`/`layout` it disagrees with raises `ValueError` rather than silently
+picking one. `list_variants(app, "appearance")` raises too — the group's
+directory is gone, and the missing-dir fallback would otherwise answer
+`["default"]` and quietly drop every variation from a sweep. Two renderings
+shift slightly under the new axes (`mono` polarity, `colorblind` scope); the
+[docs](https://facebookresearch.github.io/OpenApps/) migration table has the
+detail. `appearance` will be removed in a later release.
 
 **Actions** are BrowserGym action strings (full-resolution pixels):
 

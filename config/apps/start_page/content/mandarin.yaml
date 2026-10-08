@@ -21,3 +21,6 @@ apps:
   onlineshop:
     title: "线上商店" # translated from wiki amazon
     description: "拥有广泛产品种类的在线零售商。是互联网贸易的市场领导者，拥有全球最大的图书、CD 和视频选择。通过集成的销售平台，个人或其他公司也可以在网上销售新旧商品。"
+  openbanking:
+    title: "网上银行"
+    description: "通过互联网办理银行业务的平台，可以查看账户余额和交易记录。"

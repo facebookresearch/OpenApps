@@ -26,6 +26,7 @@ defaults:
   - apps/start_page: default
   - apps/calendar: default
   - apps/todo: default
+  - apps/openbanking: default
   - apps/onlineshop: default
   - apps/pop_ups: default
   - _self_

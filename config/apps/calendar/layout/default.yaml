@@ -1,0 +1,13 @@
+# @package apps.calendar
+# Structure only -- colors, fonts and radii come from the shared theme
+# (`config/apps/theme/`). Select with `apps/calendar/layout=<name>`.
+layout: default
+
+# Width of #calendar-container. Narrower values letterbox the month grid,
+# which changes how much of it fits above the fold for an agent.
+container_width: '100%'
+# Vertical rhythm between the nav, grid and agenda blocks.
+spacing: '1rem'
+# Button hit area. Kept out of the theme because it changes click targets,
+# not appearance.
+button_padding: '0.5rem 1rem'

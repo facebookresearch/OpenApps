@@ -1,0 +1,267 @@
+# @package apps.openbanking
+title: ${apps.start_page.apps.openbanking.title}
+description: ${apps.start_page.apps.openbanking.description}
+
+# --- Masthead / chrome ------------------------------------------------------
+# The masthead holds the wordmark and these CTAs and nothing else -- the bar's
+# inert glyphs (menu/search/help/profile) and the "Sign out" caption were
+# removed rather than left as controls that swallow a click.
+nav_actions: ["Open an account"]
+# Clicking a CTA opens this dialog. Read-only, like everything else here: the
+# app cannot open an account, so it says who can.
+open_account_heading: "Open a new account"
+open_account_body: "New accounts are opened over the phone. Call us and a business banker will set yours up."
+open_account_phone: "1-800-555-5555"
+close_label: "Close"
+accounts_heading: "Your accounts"
+back_to_accounts_label: "Back to accounts"
+
+# --- Account summary --------------------------------------------------------
+available_balance_label: "Available balance"
+present_balance_label: "Present balance"
+available_credit_label: "Available credit"
+available_plus_credit_label: "Available plus credit"
+# The two click-to-reveal figures in the account summary. The figure itself is
+# the control, so the show/hide strings are tooltips, not button captions.
+account_number_label: "Account number"
+routing_number_label: "Routing number"
+show_number_label: "Show full number"
+hide_number_label: "Hide number"
+
+# --- Credit card summary ----------------------------------------------------
+# A card account renders a different summary from a deposit account: the number
+# lives on a card graphic rather than in the figures column, there is no routing
+# number to disclose, and the headline figures are the ones a cardholder acts on
+# (what is owed, the least they can pay, and by when) rather than a balance.
+card_number_label: "Card number"
+card_expires_label: "Expires"
+payment_heading: "Payment"
+statement_balance_label: "Statement balance"
+minimum_payment_label: "Minimum payment due"
+payment_due_label: "Payment due date"
+statement_close_label: "Statement closed"
+# The card's spending headroom. Same underlying figure as `available_credit` on
+# a deposit account, but a cardholder reads it as "what is left", so it gets its
+# own label rather than reusing "Available credit".
+available_to_spend_label: "Available to spend"
+current_balance_label: "Current balance"
+credit_limit_label: "Credit limit"
+
+# --- Transactions panel -----------------------------------------------------
+transactions_heading: "Transactions"
+showing_label: "Showing"
+# The first entry is the unfiltered default. `filter_*` keys below map the
+# remaining entries onto the predicate the app applies, so a translated
+# content variant can rename the options without the filter logic caring.
+showing_options:
+  - "All transactions"
+  - "Deposits"
+  - "Withdrawals"
+search_placeholder: "Search transactions"
+search_label: "Search"
+# The ledger shows `apps.openbanking.visible_transactions` rows (a layout key)
+# and hides the rest behind this toggle, which swaps to `see_less_label` once
+# the full ledger is open.
+see_more_label: "See more activity"
+see_less_label: "See less activity"
+pending_label: "Pending"
+no_results_label: "No transactions match your search."
+column_labels:
+  date: "Date"
+  description: "Description"
+  type: "Type"
+  amount: "Amount"
+  balance: "Balance"
+
+# --- Seed data --------------------------------------------------------------
+# Balances are the ledger's own running balance as captured, not recomputed
+# from the amounts -- a real statement's running balance reflects postings the
+# visible window doesn't include, and inventing a self-consistent one would
+# make the app less representative, not more.
+#
+# `balance: null` renders as an em dash (pending items have no posted balance).
+#
+# The three accounts belong to three different businesses, so an agent cannot
+# assume one holder and must read the one it was asked about.
+#
+# `account_number` is masked in the UI down to its last four digits, which
+# match the digits in the account's display name -- revealing it should confirm
+# what the name already implied, not contradict it. `routing_number` is a
+# property of the bank, so all deposit accounts share one. Both are quoted: they
+# are digit strings, not integers, and unquoted leading zeros would be eaten.
+#
+# `kind` selects the summary the app renders: `deposit` (the balance hero and
+# the account/routing disclosure) or `credit_card` (the card graphic and the
+# payment panel). Omitted means `deposit`, so the noise variants can append a
+# plain checking account without restating it.
+accounts:
+  - name: "BUS COMPLETE CHK (...5555)"
+    kind: deposit
+    holder: "Acme Industries, Inc"
+    account_number: "447109255555"
+    routing_number: "123456789"
+    available_balance: 6102.80
+    present_balance: 6102.80
+    available_credit: 0.00
+    transactions:
+      - date: null              # null date => rendered under `pending_label`
+        description: "REAL TIME TRANSFER RECD FROM ABA/CONTR BNK-123 FROM: PART CORP INC REF: 12345 INFO: TEXT-123 IID: 555 RECD: 12:19:04 TRN: 123ABC BREF: 123ABC"
+        type: "Other"
+        amount: 5000.00
+        balance: null
+      - date: "Aug 25, 2026"
+        description: "ORIG CO NAME:VENMO ORIG ID:123 DESC DATE:260824 CO ENTRY DESCR:CASHOUT SEC:PPD TRACE#:123 EED:123 IND ID: IND NAME:ACMEIND TRN: 123ABC"
+        type: "ACH credit"
+        amount: 632.67
+        balance: 1102.80
+      - date: "Aug 24, 2026"
+        description: "BUSINESS TOOL BIZTOOL.COM TX 08/23 (...5432)"
+        type: "Card"
+        amount: -323.36
+        balance: 470.13
+      - date: "Aug 24, 2026"
+        description: "COOL APPS INC. COOLAPP.COM MD 08/22 (...4321)"
+        type: "Card"
+        amount: -1078.81
+        balance: 793.49
+      # From here down the rows sit behind "See more activity" under the
+      # default `visible_transactions: 4`. Nothing a task reads lives past the
+      # cut -- the largest Card charge is still the -1078.81 above, and the
+      # -64.20 below is deliberately well under it.
+      - date: "Aug 23, 2026"
+        description: "ORIG CO NAME:PAYROLL PARTNERS ORIG ID:456 DESC DATE:260822 CO ENTRY DESCR:PAYROLL SEC:CCD TRACE#:456 EED:260823 IND ID: IND NAME:ACMEIND TRN: 456DEF"
+        type: "ACH debit"
+        amount: -1500.00
+        balance: 1872.30
+      - date: "Aug 22, 2026"
+        description: "DEPOSIT REMOTE CAPTURE BATCH 00187 ITEM COUNT 003 PROCESSED 08/22 09:41:12 CT"
+        type: "Deposit"
+        amount: 2450.00
+        balance: 3372.30
+      - date: "Aug 20, 2026"
+        description: "PRINT SHOP 44 PRINTSHOP44.COM TX 08/19 (...5432)"
+        type: "Card"
+        amount: -64.20
+        balance: 922.30
+
+  - name: "BUS SELECT SAVINGS (...8891)"
+    kind: deposit
+    holder: "Northgate Supply Co"
+    account_number: "620833148891"
+    routing_number: "123456789"
+    available_balance: 24310.55
+    present_balance: 24310.55
+    available_credit: 0.00
+    transactions:
+      - date: "Aug 22, 2026"
+        description: "TRANSFER FROM CHK ...5555"
+        type: "Transfer"
+        amount: 2000.00
+        balance: 24310.55
+      - date: "Aug 01, 2026"
+        description: "INTEREST PAYMENT"
+        type: "Interest"
+        amount: 18.42
+        balance: 22310.55
+      - date: "Jul 15, 2026"
+        description: "TRANSFER FROM CHK ...5555"
+        type: "Transfer"
+        amount: 3500.00
+        balance: 22292.13
+      # Behind "See more activity". The available balance the task reads is an
+      # account-level figure, not the ledger's, so none of this moves it.
+      - date: "Jul 01, 2026"
+        description: "INTEREST PAYMENT"
+        type: "Interest"
+        amount: 15.88
+        balance: 18792.13
+      - date: "Jun 18, 2026"
+        description: "TRANSFER TO CHK ...5555"
+        type: "Transfer"
+        amount: -1200.00
+        balance: 18776.25
+      - date: "Jun 01, 2026"
+        description: "TRANSFER FROM CHK ...5555"
+        type: "Transfer"
+        amount: 2500.00
+        balance: 19976.25
+
+  # The card. `account_number` is the 16-digit PAN rather than a deposit
+  # account number, so the card graphic can print it in 4-4-4-4 groups; its
+  # tail still matches the display name. Two deliberate safeguards make it
+  # unmistakably synthetic: the leading 9 is not an assigned card-network
+  # prefix (3/4/5/6 and 2221-2720 are), and the number fails a Luhn check, so
+  # anything that validates card numbers will reject it rather than treat it
+  # as live.
+  #
+  # `routing_number: null` is the point of the `kind` split -- a card has no
+  # routing number, so the app omits the row rather than rendering it blank.
+  #
+  # The payment figures are a coherent statement cycle, not three unrelated
+  # numbers: the cycle closed Aug 21 at 872.19 (the running balance after the
+  # Aug 20 charge), the Aug 23 charge of 412.00 landed after the close, and
+  # 872.19 + 412.00 = 1284.19 is today's `present_balance`. So the statement
+  # balance and the current balance genuinely differ, which is what makes
+  # "read the statement balance" a task with one right answer instead of two.
+  # `credit_limit` = present_balance + available_credit = 10000.00.
+  - name: "INK BUSINESS CARD (...2043)"
+    kind: credit_card
+    holder: "Cardinal Freight LLC"
+    account_number: "9024007155992043"
+    routing_number: null
+    card_brand: "Meridian"
+    card_expiration: "09/29"
+    available_balance: 0.00
+    present_balance: -1284.19
+    available_credit: 8715.81
+    credit_limit: 10000.00
+    statement_balance: 872.19
+    statement_close_date: "Aug 21, 2026"
+    minimum_payment: 35.00
+    payment_due_date: "Sep 15, 2026"
+    transactions:
+      - date: "Aug 23, 2026"
+        description: "CLOUD HOST LLC CLOUDHOST.IO WA 08/22 (...2043)"
+        type: "Card"
+        amount: -412.00
+        balance: -1284.19
+      - date: "Aug 20, 2026"
+        description: "OFFICE SUPPLY CO OFFICESUP.COM NY 08/19 (...2043)"
+        type: "Card"
+        amount: -212.44
+        balance: -872.19
+      - date: "Aug 18, 2026"
+        description: "PAYMENT THANK YOU"
+        type: "Payment"
+        amount: 900.00
+        balance: -659.75
+      # Behind "See more activity", and deliberately none of them type `Card`:
+      # `log_business_card_charges_as_todos` tells the agent this account has
+      # exactly two Card transactions, so a third would make the task
+      # unsolvable rather than harder. These are the prior cycle's postings,
+      # all before the Aug 21 statement close.
+      - date: "Aug 12, 2026"
+        description: "ANNUAL MEMBERSHIP FEE"
+        type: "Fee"
+        amount: -95.00
+        balance: -1559.75
+      - date: "Aug 08, 2026"
+        description: "INTEREST CHARGE ON PURCHASES"
+        type: "Interest"
+        amount: -18.32
+        balance: -1464.75
+      - date: "Aug 05, 2026"
+        description: "RETURN CREDIT FLEET UNIFORM SUPPLY (...2043)"
+        type: "Refund"
+        amount: 146.55
+        balance: -1446.43
+      - date: "Aug 01, 2026"
+        description: "INTEREST CHARGE ON PURCHASES"
+        type: "Interest"
+        amount: -4.77
+        balance: -1592.98
+      - date: "Jul 31, 2026"
+        description: "INTEREST CHARGE ON PURCHASES"
+        type: "Interest"
+        amount: -79.00
+        balance: -1588.21

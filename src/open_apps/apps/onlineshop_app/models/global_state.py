@@ -21,6 +21,9 @@ class GlobalState:
         self.SHOW_ATTRS_TAB = False
         self.cart = Cart()
         self.config = None
+        # The whole `config.apps` node, not just this app's slice: resolving
+        # the shared theme needs the sibling `apps.theme` group.
+        self.apps_config = None
         self.orders = []
 
     def initialize(self):
@@ -31,8 +34,9 @@ class GlobalState:
             num_products=DEBUG_PROD_SIZE
         )
         self.search_engine = init_search_engine(num_products=DEBUG_PROD_SIZE)
-    def update_config(self, config):
+    def update_config(self, config, apps_config=None):
         self.config = config
+        self.apps_config = apps_config
     def load_state_from_config(self):
         cart, orders = self.config.cart, self.config.orders
         if isinstance(cart, ListConfig) or isinstance(cart, DictConfig):

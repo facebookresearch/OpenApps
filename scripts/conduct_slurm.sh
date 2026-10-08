@@ -12,14 +12,20 @@
 #   AGENTS="gemma-4-computer-use" COUNT=20 MAX_PARALLEL=4 sbatch scripts/conduct_slurm.sh
 #
 # Override discovery by pinning the node explicitly:
-#   VLLM_HOST=h200-000-026 AGENTS=gemma-4-e2b-it COUNT=1 sbatch scripts/conduct_slurm.sh
+#   VLLM_HOST=node-001 AGENTS=gemma-4-e2b-it COUNT=1 sbatch scripts/conduct_slurm.sh
 #
 # Any extra CLI args are forwarded verbatim to conduct.sh -> launch_agent.py.
 #
+# The account, QOS and partition below are placeholders — sbatch will reject the
+# job until they name a real allocation. Edit them for your cluster, or leave
+# them and override at submit time, which takes precedence over these lines:
+#
+#   sbatch --account=... --qos=... --partition=... scripts/conduct_slurm.sh
+#
 #SBATCH --job-name=openapps-eval
-#SBATCH --account=memorization
-#SBATCH --qos=h200_memorization_high
-#SBATCH --partition=h200
+#SBATCH --account=example_replace_me
+#SBATCH --qos=qos_example_replace_me
+#SBATCH --partition=partition_example_replace_me
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2

@@ -126,3 +126,44 @@ def test_create_configs_count_all_longer_horizon(monkeypatch):
     configs = cfg.create_configs(_fake_default_config(task_names))
 
     assert len(configs) == len(task_names) * len(app_variations)
+
+
+class TestVariationOverridesCompose:
+    """The variation grids are raw Hydra override strings -- data, not code.
+
+    A renamed config group here raises at *launch* time, not import time, so
+    nothing catches it until a sweep is already holding an allocation. These
+    tests compose for real (no ``_stub_compose``), which is slower but is the
+    only thing that actually exercises the strings.
+    """
+
+    @staticmethod
+    def _compose(overrides: list[str]) -> None:
+        from hydra import compose, initialize_config_dir
+        from hydra.core.global_hydra import GlobalHydra
+
+        GlobalHydra.instance().clear()
+        with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+            compose(config_name="config_parallel_tasks", overrides=overrides)
+
+    def test_app_variations_in_config_parallel_tasks(self):
+        raw = OmegaConf.load(config_dir() / "config_parallel_tasks.yaml")
+        variations = OmegaConf.to_container(raw.parallel_tasks.app_variations)
+        assert variations, "no app_variations to check"
+        for overrides in variations:
+            try:
+                self._compose(list(overrides))
+            except Exception as e:
+                pytest.fail(f"app_variations entry {overrides} no longer composes: {e}")
+
+    def test_save_screenshots_variation_grid(self):
+        """Same guard for the visual-regression grid in save_screenshots.py."""
+        from tests.save_screenshots import build_variation_overrides
+
+        grid = build_variation_overrides(include_onlineshop=False)
+        assert grid, "no screenshot variations to check"
+        for name, overrides in grid.items():
+            try:
+                self._compose(list(overrides))
+            except Exception as e:
+                pytest.fail(f"screenshot variation {name!r} no longer composes: {e}")

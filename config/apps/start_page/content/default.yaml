@@ -22,3 +22,6 @@ apps:
   onlineshop:
     title: "OpenShop"
     description: # "Browse and purchase items online"
+  openbanking:
+    title: "OpenBanking"
+    description: # "Review your accounts and transactions"

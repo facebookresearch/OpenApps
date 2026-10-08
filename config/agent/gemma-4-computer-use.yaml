@@ -9,7 +9,7 @@ api_version: null
 client_type: "vllm"
 # For client_type=vllm the URL is built as http://${hostname}:${port}/v1
 # (base_url is ignored). The vLLM node changes every SLURM allocation, so pass it
-# at launch, e.g.: uv run launch_agent.py agent=gemma-4-e2b-it agent.hostname=h200-000-026
+# at launch, e.g.: uv run launch_agent.py agent=gemma-4-e2b-it agent.hostname=node-001
 hostname: null
 port: "8000"
 # vLLM does not check the key, but the OpenAI client requires a non-empty string.

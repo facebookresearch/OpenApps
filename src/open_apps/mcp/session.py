@@ -208,18 +208,24 @@ class Session:
     async def reconfigure(
         self,
         *,
-        appearance: str | None = None,
+        theme: str | None = None,
+        layout: str | None = None,
         content: str | None = None,
         seed: int | None = None,
         extras: dict | None = None,
+        appearance: str | None = None,
     ) -> None:
+        # ``appearance`` is the removed group, kept as a deprecated alias and
+        # translated onto theme/layout in AppServer.reconfigure.
         self._require_started()
         await asyncio.to_thread(
             self.appserver.reconfigure,
-            appearance=appearance,
+            theme=theme,
+            layout=layout,
             content=content,
             seed=seed,
             extras=extras,
+            appearance=appearance,
         )
 
     # -- action ------------------------------------------------------------

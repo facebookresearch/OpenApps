@@ -11,10 +11,64 @@ from typing import Dict
 import json
 from starlette.responses import Response
 from src.open_apps.apps.start_page.helper import create_logo_header
+from src.open_apps.frontend import local_hdrs
+from src.open_apps.theme import theme_asset, theme_style
+
+# Static, theme-agnostic component styles. Colors and fonts are design tokens
+# from the shared theme (`config/apps/theme/`), emitted per-request by
+# `codeeditor_theme()`. `!important` throughout because daisyUI ships utility
+# classes on these same elements.
+_COMPONENT_STYLES = Style(
+    """
+    .main-content {
+        background-color: var(--color-bg);
+    }
+    .styled-content {
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family);
+        color: var(--color-fg);
+    }
+    /* The code pane keeps a monospace face regardless of the theme's body
+       font -- column alignment is load-bearing in an editor. */
+    textarea, textarea.styled-content {
+        background-color: var(--color-surface);
+        color: var(--color-fg);
+        font-family: var(--font-mono);
+    }
+    .btn-primary {
+        background-color: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        color: var(--color-on-primary) !important;
+        font-family: var(--font-family) !important;
+    }
+    .btn-secondary {
+        background-color: var(--color-neutral) !important;
+        border-color: var(--color-neutral) !important;
+        color: var(--color-btn-fg) !important;
+        font-family: var(--font-family) !important;
+    }
+    .btn-error {
+        background-color: var(--color-danger) !important;
+        border-color: var(--color-danger) !important;
+        color: var(--color-btn-fg) !important;
+        font-family: var(--font-family) !important;
+    }
+"""
+)
+
+# Set by the in-page theme dropdown; None means "follow the shared theme".
+_editor_theme_override = None
+
+
+def _as_dict(node):
+    """Coerce an OmegaConf node (or None) to a plain dict."""
+    return {k: v for k, v in node.items()} if node is not None else {}
+
 
 # Global variables
 _base_hdrs_no_highlight = (
-    picolink,
+    # Pico + htmx from apps/assets/vendor, not jsdelivr (see frontend.py).
+    *local_hdrs(),
     Script(src="https://cdn.tailwindcss.com"),
     Link(
         rel="stylesheet",
@@ -33,7 +87,7 @@ opened_files = {}
 logo_title_container = None
 
 # Initialize app with default headers
-app = FastHTML(hdrs=_base_hdrs, cls="p-4")
+app = FastHTML(hdrs=[*local_hdrs(), *_base_hdrs], cls="p-4", default_hdrs=False)
 
 import yaml
 import os
@@ -91,12 +145,19 @@ def set_environment(config):
     update_db_from_hydra(config)
     print(f"- Code editor filesystem created under {current_dir}")
     _base_hdrs_with_highlight = (
-        picolink,
+        # Pico + htmx from apps/assets/vendor, not jsdelivr (see frontend.py).
+        *local_hdrs(),
         Script(src="https://cdn.tailwindcss.com"),
         Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css"),
     )
-    for theme_name in list_of_themes:
+    # Every stylesheet the page could ask for, loaded up front: the dropdown
+    # switches themes client-side, and a shared-theme swap can select one by
+    # tone. Include the tone-mapped names even if `list_of_themes` was trimmed,
+    # otherwise `apps/theme=dark` asks CodeMirror for a stylesheet that is not
+    # on the page and the editor silently renders unstyled.
+    tone_themes = list(_as_dict(getattr(config.code_editor, "editor_theme_by_tone", None)).values())
+    for theme_name in dict.fromkeys([*list_of_themes, *tone_themes, config.code_editor.editor_theme]):
         _base_hdrs_with_highlight += (
             Link(rel="stylesheet", href=f"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/{theme_name}.min.css"),
         )
@@ -115,62 +176,9 @@ def set_environment(config):
     """),)
     _base_hdrs = _base_hdrs_with_highlight if config.code_editor.highlight else _base_hdrs_no_highlight
     
-    primary_color = getattr(config.code_editor, 'primary_button_color', '#4A90E2')
-    secondary_color = getattr(config.code_editor, 'secondary_button_color', '#50E3C2')
-    danger_color = getattr(config.code_editor, 'danger_button_color', '#D0021B')
-    # grey 800 background as default
-    textarea_background_color = getattr(config.code_editor, 'textarea_background_color', '#2d2d2d')
-    # grey 900 background as default
-    main_background_color = getattr(config.code_editor, 'main_background_color', '#1a202c')
-
-    env_styles = Style(
-        f"""
-        :root {{
-            --custom-font-size: {config.code_editor.font_size}px;
-            --custom-font-family: {config.code_editor.font};
-            --custom-font-color: {config.code_editor.fontcolor};
-            --main-bg-color: {main_background_color};
-        }}
-        .main-content {{
-            background-color: var(--main-bg-color);
-        }}
-        .styled-content {{
-            font-size: var(--custom-font-size);
-            font-family: var(--custom-font-family);
-            color: var(--custom-font-color);
-        }}
-        textarea.styled-content {{
-            font-family: var(--custom-font-family), monospace;
-            color: var(--custom-font-color);
-        }}
-        textarea {{
-            background-color: {textarea_background_color};
-            color: var(--custom-font-color);
-            font-family: var(--custom-font-family);
-        }}
-        .btn-primary {{
-            background-color: {primary_color} !important;
-            border-color: {primary_color} !important;
-            color: var(--custom-font-color) !important;
-            font-family: var(--custom-font-family); !important;
-        }}
-        .btn-secondary {{
-            background-color: {secondary_color} !important;
-            border-color: {secondary_color} !important;
-            color: var(--custom-font-color) !important;
-            font-family: var(--custom-font-family); !important;
-        }}
-        .btn-error {{
-            background-color: {danger_color} !important;
-            border-color: {danger_color} !important;
-            color: var(--custom-font-color) !important;
-            font-family: var(--custom-font-family); !important;
-        }}
-    """
-    )
     app.config = config
     # Update app headers by extending existing ones
-    app.hdrs = (*_base_hdrs, env_styles)
+    app.hdrs = (*_base_hdrs, _COMPONENT_STYLES)
 
     if config.code_editor.sort_feature:
         list_of_modes = sorted(list_of_modes)
@@ -181,6 +189,35 @@ def set_environment(config):
         base_url="/codeeditor",
         current_file_path=__file__
     )
+
+def codeeditor_theme():
+    """The active theme's `:root` token block.
+
+    Rendered into the page body (not `app.hdrs`) so live `reconfigure` theme
+    swaps take effect without rebuilding the headers.
+    """
+    return theme_style(app.config, "code_editor")
+
+
+def current_editor_theme():
+    """CodeMirror's syntax-highlighting stylesheet name.
+
+    Not the shared design-token theme -- CodeMirror ships a whole stylesheet
+    per theme, which no CSS variable can substitute for. The shared theme
+    therefore picks one indirectly via its `tone` asset, so `apps/theme=dark`
+    darkens the editor pane and not just the chrome around it.
+
+    An in-page selection from the dropdown wins over the tone mapping: the
+    user (or agent) just asked for that theme explicitly.
+    """
+    if _editor_theme_override is not None:
+        return _editor_theme_override
+    cfg = app.config.code_editor
+    tone = theme_asset(app.config, "code_editor", "tone", "light")
+    return _as_dict(getattr(cfg, "editor_theme_by_tone", None)).get(
+        tone, cfg.editor_theme
+    )
+
 
 def return_to_index():
     return A("Code Editor Index Page", href="/codeeditor", cls="btn btn-primary")
@@ -468,7 +505,7 @@ def index():
                             });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -483,7 +520,7 @@ def index():
                 Script(f"""
                     var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
                         mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
+                        theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         indentUnit: 4,
                         tabSize: 4,
@@ -514,7 +551,7 @@ def index():
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(codeeditor_theme(), logo_title_container, page)
 
 
 @app.get("/codeeditor/{path:path}")
@@ -574,7 +611,7 @@ def get_folder(folder: str):
                                 });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -589,7 +626,7 @@ def get_folder(folder: str):
                 Script(f"""
                     var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
                         mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
+                        theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         readOnly: true
                     }});
@@ -620,7 +657,7 @@ def get_folder(folder: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(codeeditor_theme(), logo_title_container, page)
 
 def get_file(file: str):
     side_bar = create_sidebar(file)
@@ -838,7 +875,7 @@ def get_file(file: str):
                                 });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -866,7 +903,7 @@ def get_file(file: str):
                 Script(f"""
                     var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
                         mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
+                        theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         indentUnit: 4,
                         tabSize: 4,
@@ -943,7 +980,7 @@ def get_file(file: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(logo_title_container, page)
+    return Div(codeeditor_theme(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")
 def create_folder(folder: str):
@@ -1028,7 +1065,10 @@ async def update_config(request):
         if data["type"] == "mode":
             app.config.code_editor.mode = data["value"]
         elif data["type"] == "theme":
-            app.config.code_editor.theme = data["value"]
+            # CodeMirror's stylesheet, not the shared design-token theme.
+            # Recorded as an override so it survives a later theme swap.
+            global _editor_theme_override
+            _editor_theme_override = data["value"]
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}

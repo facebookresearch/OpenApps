@@ -1,5 +1,20 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
 
 database_path: ${databases_dir}/onlineshop
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.onlineshop.theme=solarized`.
+theme: null
+
+# --- Behaviour -------------------------------------------------------------
+
+# Off by default: the shop needs OpenJDK 21 and a downloaded dataset
+# (see setup.sh), so it is opt-in with `apps.onlineshop.enable=True`.
+enable: False
+allowed_credit_cards:
+  - 'Visa'
+  - 'MasterCard'
+  # - 'Amex'
+enable_credit_card_check: false

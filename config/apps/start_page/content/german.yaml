@@ -21,3 +21,6 @@ apps:
   onlineshop:
     title: "Versandhändler " # wiki: amazon
     description: "Onlineversandhändler mit einer breit gefächerten Produktpalette. Marktführer des Handels im Internet mit der weltweit größten Auswahl an Büchern, CDs und Videos. Über die integrierte Verkaufsplattform können auch Privatpersonen oder andere Unternehmen im Rahmen des Onlinehandels neue und gebrauchte Produkte anbieten."
+  openbanking:
+    title: "Onlinebanking" # wiki: online banking
+    description: "Abwicklung von Bankgeschäften über das Internet, einschließlich der Einsicht in Kontostände und Kontoumsätze."

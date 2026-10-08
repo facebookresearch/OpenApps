@@ -9,6 +9,8 @@ from dataclasses import dataclass
 import json
 from typing import List
 from src.open_apps.apps.start_page.helper import create_logo_header
+from src.open_apps.frontend import local_hdrs
+from src.open_apps.theme import theme_style
 
 
 @dataclass
@@ -18,13 +20,111 @@ class Todo:
     done: bool
 
 
-app, rt = fast_app()
+app, rt = fast_app(default_hdrs=False, hdrs=local_hdrs())
 logo_title_container = None
-styles = Style("")
+
+# Static, theme-agnostic component styles. All colors/fonts are design tokens
+# resolved per-request via `theme_style()` (see the `:root` block it emits), so
+# this block never needs rebuilding when the theme or app config changes.
+styles = Style("""
+    body {
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        color: var(--color-fg);
+        background-color: var(--color-bg);
+    }
+    .todo, .card, .group, .add-btn {
+        color: var(--color-fg);
+    }
+    a {
+        color: var(--color-fg);
+        text-decoration: none;
+    }
+    .todo-item, .todo-controls {
+        list-style-type: none;
+        color: var(--color-fg);
+    }
+    .todo-general {
+        background-color: var(--color-surface);
+    }
+    .todo-controls {
+        margin-left: 12px;
+    }
+    .todo-btn {
+        transform: scale(.7);
+        color: var(--color-fg);
+    }
+    .edit-btn {
+        background-color: var(--color-neutral);
+        border: 1px solid var(--color-neutral);
+        color: var(--color-btn-fg);
+    }
+    .remove-btn {
+        background-color: var(--color-danger);
+        border: 1px solid var(--color-danger);
+        color: var(--color-btn-fg);
+    }
+    .add-btn {
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+    .save-btn {
+        background-color: var(--color-accent);
+        border: 1px solid var(--color-accent);
+        color: var(--color-btn-fg);
+    }
+    .kanban-board {
+        width: 100%;
+    }
+    .kanban-columns {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-top: 1rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+    .kanban-column {
+        flex: 0 0 450px;
+        min-width: 450px;
+        background-color: var(--color-surface);
+        border-radius: var(--radius);
+        padding: 0.5rem 0.75rem;
+        min-height: 120px;
+    }
+    .kanban-column-title {
+        margin-top: 0.25rem;
+    }
+    .kanban-card {
+        background-color: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .kanban-card-title {
+        margin-bottom: 0.4rem;
+    }
+    .kanban-card-controls {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+    }
+    .kanban-edit input {
+        margin-bottom: 0.4rem;
+    }
+    .kanban-add {
+        margin-top: 0.5rem;
+    }
+    .kanban-header-edit {
+        display: flex;
+        gap: 0.25rem;
+    }
+""")
 
 def set_environment(config):
     """Set environment variables for the todo app"""
-    global app, logo_title_container, styles
+    global app, logo_title_container
     app.config = config
     db = database(config.todo.database_path)
     global todos, kanban_status
@@ -48,111 +148,12 @@ def set_environment(config):
         current_file_path=__file__
     )
 
-    font_family = app.config.todo.font_family
-    font_size = app.config.todo.base_font_size
-    font_color = getattr(app.config.todo, "font_color", "blue")
-    edit_remove_save_button_font_color = getattr(app.config.todo, "edit_remove_save_button_font_color", "")
-    edit_button_color = app.config.todo.edit_button_color
-    remove_button_color = app.config.todo.remove_button_color
-    add_button_color = app.config.todo.add_button_color
-    save_button_color = app.config.todo.save_button_color
-    background_color = getattr(app.config.todo, "background_color", "")
-    form_background_color = getattr(app.config.todo, "form_background_color", "")
-    styles.children = [f"""
-        body {{
-            font-family: {font_family};
-            font-size: {font_size};
-            color: {font_color};
-            background-color: {background_color}
-        }}
-        .todo, .card, .group, .add-btn {{
-            background-color: {background_color}
-            color: {font_color};
-        }}
-        a {{
-            color: {font_color};
-            text-decoration: none;
-        }}
-        .todo-item, .todo-controls {{
-            list-style-type: none;
-            color: {font_color};
-        }}
-        .todo-general {{
-            background-color: {form_background_color}
-        }}
-        .todo-controls {{
-            margin-left: 12px;
-        }}
-        .todo-btn {{
-            transform: scale(.7);
-            color: {font_color};
-        }}
-        .edit-btn {{
-            background-color: {edit_button_color};
-            border: 1px solid {edit_button_color};
-            color: {edit_remove_save_button_font_color};
-        }}
-        .remove-btn {{
-            background-color: {remove_button_color};
-            border: 1px solid {remove_button_color};
-            color: {edit_remove_save_button_font_color};
-        }}
-        .add-btn {{
-            background-color: {add_button_color};
-        }}
-        .save-btn {{
-            background-color: {save_button_color};
-            border: 1px solid {save_button_color};
-            color: {edit_remove_save_button_font_color};
-        }}
-        .kanban-board {{
-            width: 100%;
-        }}
-        .kanban-columns {{
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-            margin-top: 1rem;
-            overflow-x: auto;
-            padding-bottom: 0.5rem;
-        }}
-        .kanban-column {{
-            flex: 0 0 450px;
-            min-width: 450px;
-            background-color: {form_background_color};
-            border-radius: 8px;
-            padding: 0.5rem 0.75rem;
-            min-height: 120px;
-        }}
-        .kanban-column-title {{
-            margin-top: 0.25rem;
-        }}
-        .kanban-card {{
-            background-color: {background_color};
-            border: 1px solid {edit_button_color};
-            border-radius: 6px;
-            padding: 0.5rem 0.75rem;
-            margin-bottom: 0.5rem;
-        }}
-        .kanban-card-title {{
-            margin-bottom: 0.4rem;
-        }}
-        .kanban-card-controls {{
-            display: flex;
-            gap: 0.25rem;
-            flex-wrap: wrap;
-        }}
-        .kanban-edit input {{
-            margin-bottom: 0.4rem;
-        }}
-        .kanban-add {{
-            margin-top: 0.5rem;
-        }}
-        .kanban-header-edit {{
-            display: flex;
-            gap: 0.25rem;
-        }}
-    """]
+
+def todo_theme():
+    """The active theme's `:root` token block, resolved per-request so live
+    `reconfigure` theme swaps take effect."""
+    return theme_style(app.config, "todo")
+
 
 id_curr = "current-todo"
 
@@ -339,7 +340,7 @@ def get():
             cls="contrast",
             style="margin-top: 1rem;",
         )
-        return Div(styles, logo_title_container, render_kanban_board(), home_button)
+        return Div(todo_theme(), styles, logo_title_container, render_kanban_board(), home_button)
     add = Form(
         Group(
             mk_input(),
@@ -348,11 +349,11 @@ def get():
         hx_post="/todo",  # Update this path
         target_id="todo-list",
         hx_swap="beforeend",
-        data_theme=app.config.todo.form_background_color,
     )
     card = (Card(Ul(*todos(), id="todo-list"), header=add, footer=Div(id=id_curr), cls="todo-general"),)
     home_button = A("Return to List of Apps", href="/", role="button", cls="contrast", style="margin-top: 1rem;")
     return Div(
+        todo_theme(),
         styles,
         logo_title_container,
         card,

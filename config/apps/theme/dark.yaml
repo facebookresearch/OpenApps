@@ -1,21 +1,36 @@
 # @package apps.theme
-# Faithful port of the former todo `dark_theme` appearance variant.
+# Dark theme. The palette is the one the `dark_theme` appearance variant used
+# in calendar, messenger, maps and the code editor (Material dark: #121212
+# surface, #bb86fc primary, #03dac6 accent) -- that was four of the six apps,
+# so it is the reading that survives becoming a *shared* theme.
+#
+# It is deliberately not the old todo `dark_theme`, which was a white page with
+# a black card. That worked as one app's local variant but is not a dark theme:
+# its `color-bg` and `color-fg` were both white, which only rendered because
+# nothing outside todo consumed the tokens.
 name: dark
 import_url: ""
 tokens:
-  color-bg: "#ffffff"
-  color-surface: "#000000"
+  color-bg: "#121212"
+  color-surface: "#1e1e1e"
   color-fg: "#ffffff"
   color-muted: "#9ca3af"
-  color-border: "#ffffff"
-  color-primary: "#000000"
-  color-on-primary: "#ffffff"
-  color-accent: "#ffffff"
-  color-danger: "#ffffff"
-  color-neutral: "#ffffff"
-  color-btn-fg: "#000000"
-  font-family: "'Times New Roman', serif"
+  color-border: "#2d2d2d"
+  color-primary: "#bb86fc"
+  color-primary-hover: "#3700b3"
+  color-on-primary: "#000000"
+  color-accent: "#03dac6"
+  color-danger: "#cf6679"
+  color-neutral: "#4a4a4a"
+  color-btn-fg: "#ffffff"
+  font-family: "'Inter', system-ui, -apple-system, sans-serif"
   font-heading: "inherit"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
   font-size-base: "16px"
-  radius: "8px"
+  font-size-sm: "14px"
+  font-size-heading: "1.75rem"
+  radius: "4px"
   space: "8px"
+assets:
+  tone: dark
+  icon_set: bw

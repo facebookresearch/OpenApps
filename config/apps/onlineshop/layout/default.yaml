@@ -1,0 +1,4 @@
+# @package apps.onlineshop
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/onlineshop/layout=<name>`.
+layout: default

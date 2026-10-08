@@ -11,6 +11,8 @@ import random
 import ast
 import json
 from src.open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import theme_style
 
 
 @dataclass
@@ -253,8 +255,11 @@ _base_chat_script = (
     """)
 )
 _base_hdrs = (
-    picolink,
-    Script(src="https://unpkg.com/htmx.org@1.9.10"),  # Add this line if not present
+    # Pico and htmx served from apps/assets/vendor rather than a CDN. This app
+    # previously loaded picolink (Pico from jsdelivr) plus htmx 1.9.10 from
+    # unpkg, on top of the htmx 2.0.4 FastHTML injects by default -- two htmx
+    # versions racing on a page, both of which vanish on an offline host.
+    *local_hdrs(),
     Script(src="https://cdn.tailwindcss.com"),
     Link(
         rel="stylesheet",
@@ -266,7 +271,79 @@ _base_hdrs = (
     ),
     _base_chat_script,
 )
-app = FastHTML(hdrs=_base_hdrs, cls="p-4 max-w-lg mx-auto")
+app = FastHTML(hdrs=_base_hdrs, cls="p-4 max-w-lg mx-auto", default_hdrs=False)
+
+# Static, theme-agnostic component styles. Colors and fonts are design tokens
+# from the shared theme (`config/apps/theme/`), emitted per-request by
+# `messenger_theme()`.
+#
+# The chat surface maps onto generic tokens rather than bubble-specific ones:
+# the outgoing bubble is the primary action color, the incoming bubble is the
+# surface color, and the transcript sits on the page background. Keeping the
+# vocabulary generic is what lets a theme file stay app-agnostic -- no theme
+# has to know this app has bubbles.
+#
+# `!important` throughout: daisyUI ships utility classes on these same
+# elements and would otherwise win.
+_COMPONENT_STYLES = Style(
+    """
+    body {
+        background-color: var(--color-bg);
+    }
+    /* Global text styling */
+    h1, h2, h3, p, div {
+        font-family: var(--font-family) !important;
+        color: var(--color-fg) !important;
+    }
+
+    /* Message list specific styling */
+    .text-2xl {
+        font-size: calc(var(--font-size-base) * 1.5) !important;
+    }
+
+    .text-sm {
+        font-size: var(--font-size-sm) !important;
+    }
+
+    /* Chat specific styling */
+    .chat .chat-header {
+        font-family: var(--font-family) !important;
+        color: var(--color-muted) !important;
+        margin-bottom: calc(var(--font-size-sm) * 0.5);
+    }
+
+    .chat .chat-bubble {
+        font-family: var(--font-family) !important;
+        font-size: var(--font-size-sm) !important;
+        color: var(--color-fg) !important;
+        padding: calc(var(--font-size-sm) * 0.75) var(--font-size-sm);
+        min-height: calc(var(--font-size-sm) * 2);
+        display: flex;
+        align-items: center;
+    }
+    .input {
+        font-family: var(--font-family) !important;
+        font-size: var(--font-size-sm) !important;
+        color: var(--color-fg) !important;
+        background-color: var(--color-bg) !important;
+    }
+
+    /* Chat bubbles */
+    .chat-bubble-primary {
+        background-color: var(--color-primary) !important;
+        color: var(--color-on-primary) !important;
+    }
+
+    .chat-bubble-secondary {
+        background-color: var(--color-surface) !important;
+    }
+
+    /* daisyUI paints these from its own palette, which no token can reach. */
+    .bg-base-100, .bg-base-200 {
+        background-color: var(--color-surface) !important;
+    }
+"""
+)
 
 
 def set_environment(config):
@@ -287,77 +364,9 @@ def set_environment(config):
     #         current_file_path=__file__
     #     )
     #     return
-    # Create styles with environment variables
-    env_styles = Style(
-        f"""
-        :root {{
-            --custom-font-size: {config.messenger.font_size}px;
-            --custom-font-family: {config.messenger.font};
-            --custom-font-color: {config.messenger.fontcolor};
-            --custom-background-color: {config.messenger.background_color};
-            --chat-font-size: {config.messenger.chat_font_size}px;
-            --chat-font-family: {config.messenger.chat_font};
-            --chat-font-color: {config.messenger.chat_fontcolor};
-            --chat-header-font-color: {config.messenger.chat_header_fontcolor};
-            --chat-primary-bubble-color: {config.messenger.chat_primary_bubble_color};
-            --chat-secondary-bubble-color: {config.messenger.chat_secondary_bubble_color};
-            --chat-display-background-color: {config.messenger.chat_display_background_color};
-        }}
-        body {{
-            background-color: var(--custom-background-color);
-        }}
-        /* Global text styling */
-        h1, h2, h3, p, div {{
-            font-family: var(--custom-font-family) !important;
-            color: var(--custom-font-color) !important;
-        }}
-
-        /* Message list specific styling */
-        .text-2xl {{
-            font-size: calc(var(--custom-font-size) * 1.5) !important;
-        }}
-
-        .text-sm {{
-            font-size: calc(var(--custom-font-size) * 0.875) !important;
-        }}
-        
-        /* Chat specific styling */
-        .chat .chat-header {{
-            font-family: var(--chat-font-family) !important;
-            color: var(--chat-header-font-color) !important;
-            margin-bottom: calc(var(--chat-font-size) * 0.5);
-        }}
-        
-        .chat .chat-bubble {{
-            font-family: var(--chat-font-family) !important;
-            font-size: var(--chat-font-size) !important;
-            color: var(--chat-font-color) !important;
-            padding: calc(var(--chat-font-size) * 0.75) calc(var(--chat-font-size) * 1);
-            min-height: calc(var(--chat-font-size) * 2);
-            display: flex;
-            align-items: center;
-        }}
-        .input {{
-            font-family: var(--chat-font-family) !important;
-            font-size: var(--chat-font-size) !important;
-            color: var(--chat-font-color) !important;
-        }}
-
-        # Add these new styles for chat bubbles
-        .chat-bubble-primary {{
-            background-color: var(--chat-primary-bubble-color) !important;
-        }}
-        
-        .chat-bubble-secondary {{
-            background-color: var(--chat-secondary-bubble-color) !important;
-        }}
-    """
-    )
-
-    # Update app headers by extending existing ones
     # Note: in future implementations, we might need to preserve
     # the order of the style files, scripts and links to prevent conflicts
-    app.hdrs = (*_base_hdrs, env_styles)
+    app.hdrs = (*_base_hdrs, _COMPONENT_STYLES)
     app.config = config
     # create database
     db = database(app.config.messenger.database_path)
@@ -372,6 +381,15 @@ def set_environment(config):
         base_url="/messages",
         current_file_path=__file__
     )
+
+def messenger_theme():
+    """The active theme's `:root` token block.
+
+    Rendered into the page body (not `app.hdrs`) so live `reconfigure` theme
+    swaps take effect without rebuilding the headers.
+    """
+    return theme_style(app.config, "messenger")
+
 
 def populate_database(config, db):
     """Adds chat history to database"""
@@ -403,7 +421,7 @@ def add_new_message_to_history(user, message, sender, timestamp):
 # Chat message component (renders a chat bubble)
 def ChatMessage(message, sender, timestamp=None):
     if sender == "you":
-        bubble_class = "chat-bubble-primary custom-primary-bubble bg-[var(--chat-primary-bubble-color)] text-[var(--chat-font-color)]"
+        bubble_class = "chat-bubble-primary custom-primary-bubble bg-[var(--color-primary)] text-[var(--color-on-primary)]"
         chat_class = "chat-end"
     else:
         bubble_class = "chat-bubble-secondary"
@@ -523,6 +541,7 @@ def index():
     )
 
     return Div(
+        messenger_theme(),
         logo_title_container,
         page
     )
@@ -583,7 +602,7 @@ def index(user_id: str):
         ),
         Style("""
             .chat-bg {
-                background-color: var(--chat-display-background-color);
+                background-color: var(--color-bg);
             }
             .chat-bubble {
                 border-radius: 12px;
@@ -612,7 +631,7 @@ def index(user_id: str):
                 transition: background-color 0.2s ease;
             }
             .search-result-item:hover {
-                background-color: #e5e7eb;
+                background-color: var(--color-surface);
             }
         """),
         # Add debugging script
@@ -629,6 +648,7 @@ def index(user_id: str):
     )
 
     return Div(
+        messenger_theme(),
         logo_title_container,
         page
     )
