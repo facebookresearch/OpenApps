@@ -88,8 +88,8 @@ Or one app only, leaving the rest on the global theme:
 `uv run launch.py apps.calendar.theme=$THEME`.
 
 Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
-`solarized`, `material`, `bootstrap`, `openbanking`, `openbanking_dark`. Adding
-one means adding a yaml file to `config/apps/theme/` -- no app code changes.
+`solarized`, `material`, `bootstrap`, `openbanking`. Adding one means adding a
+yaml file to `config/apps/theme/` -- no app code changes.
 
 A theme file is a set of design tokens plus a small `assets` block:
 

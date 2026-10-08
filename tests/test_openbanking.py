@@ -226,10 +226,10 @@ class TestTheme:
         "color-rule",
     ]
 
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_theme_defines_the_shared_contract_and_the_extras(self, name):
+    def test_theme_defines_the_shared_contract_and_the_extras(self):
         from open_apps.theme import load_theme
 
+        name = "openbanking"
         default_tokens = set(load_theme("default")["tokens"])
         theme = load_theme(name)
         tokens = theme["tokens"]
@@ -238,25 +238,16 @@ class TestTheme:
         for extra in self.BANKING_EXTRAS:
             assert extra in tokens
 
-    def test_light_and_dark_declare_the_same_tokens(self):
-        from open_apps.theme import load_theme
-
-        assert set(load_theme("openbanking")["tokens"]) == set(
-            load_theme("openbanking_dark")["tokens"]
-        )
-
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_theme_ships_no_webfont_import(self, name):
+    def test_theme_ships_no_webfont_import(self):
         """An `@import` would put a CDN back in the request path."""
         from open_apps.theme import load_theme
 
-        assert not load_theme(name)["import_url"]
+        assert not load_theme("openbanking")["import_url"]
 
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_theme_renders_into_a_root_block(self, name):
+    def test_theme_renders_into_a_root_block(self):
         from open_apps.theme import load_theme, render_theme_tokens
 
-        css = str(render_theme_tokens(load_theme(name)))
+        css = str(render_theme_tokens(load_theme("openbanking")))
         assert "--color-header-bg" in css
         assert ":root" in css
 
@@ -871,7 +862,7 @@ class TestPicoBridge:
 
         original = app.config.openbanking.theme
         try:
-            app.config.openbanking.theme = "openbanking_dark"
+            app.config.openbanking.theme = "dark"
             assert pico_theme() == "dark"
             assert 'data-theme="dark"' in client.get("/openbanking").text
             app.config.openbanking.theme = "openbanking"
@@ -918,11 +909,10 @@ class TestPicoBridge:
         html = client.get("/openbanking").text
         assert ".ob-masthead h1" in html
 
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_both_banking_themes_declare_a_tone(self, name):
+    def test_the_banking_theme_declares_a_tone(self):
         from open_apps.theme import load_theme
 
-        assert load_theme(name)["assets"]["tone"] in {"light", "dark"}
+        assert load_theme("openbanking")["assets"]["tone"] == "light"
 
 
 # ---------------------------------------------------------------------------

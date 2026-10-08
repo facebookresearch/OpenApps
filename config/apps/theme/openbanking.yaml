@@ -44,10 +44,11 @@ tokens:
   color-debit: "#0f171f"       # money out, rendered as bold body text
   color-rule: "#0f171f"        # the dark rule under the table head
 
-# Spelled out rather than left to the light/color defaults so this file and
-# `openbanking_dark` differ in exactly one place. The openbanking app maps
-# `tone` onto Pico's `data-theme`, which is what decides the polarity of the
-# chrome a design token cannot reach (table cells, form fields, headings).
+# Light only: for a dark bank, use the shared `dark` theme -- the extras above
+# fall back to its primary/accent/fg tokens. Per-theme light/dark variants are
+# a separate change. The openbanking app maps `tone` onto Pico's `data-theme`,
+# which is what decides the polarity of the chrome a design token cannot reach
+# (table cells, form fields, headings).
 assets:
   tone: light
   icon_set: color
