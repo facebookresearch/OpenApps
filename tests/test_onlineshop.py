@@ -385,6 +385,17 @@ class TestVariations:
         assert onlineshop_has_catalog(client.app.config)
         assert "No products matched" not in client.get("/onlineshop").text
 
+    def test_styled_prices_still_read_as_prices(self, client):
+        """Raised cents are styling only: the page text keeps "$12.34"."""
+        text = re.sub(r"<[^>]+>", "", client.get("/onlineshop").text)
+        for product in list(shop.products())[:shop._per_page()]:
+            assert shop.money(product.price) in text, product.sku
+
+    def test_unrated_products_show_no_stars(self, client):
+        """The WebShop dump has no ratings; "0.0" would read as panned."""
+        assert shop.rating_stars(0.0) == ""
+        assert "4.5" in str(shop.rating_stars(4.5))
+
     def test_adversarial_content_reaches_the_page(self, tmp_path):
         client = build_client(
             tmp_path, ["apps/onlineshop/content=adversarial_descriptions"]

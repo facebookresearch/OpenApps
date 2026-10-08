@@ -120,129 +120,368 @@ order_items = None
 # resolved per-request via `theme_style()`, so this block never needs
 # rebuilding when the theme or app config changes.
 styles = Style("""
+    /* Page frame. Pico paints <html> itself, so without this the canvas
+       below short content stays white under a dark theme. */
+    html, body { background-color: var(--color-bg); }
     body {
         font-family: var(--font-family);
         font-size: var(--font-size-base);
         color: var(--color-fg);
-        background-color: var(--color-bg);
     }
-    a { color: var(--color-primary); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--color-fg); }
+    /* Bridge Pico's own variables onto the theme tokens inside the app, as
+       todo does, so headings, form fields and focus rings stop using Pico's
+       fixed palette. `--font-size-sm` and `--color-primary-hover` are newer
+       tokens; the fallbacks keep themes that predate them rendering. */
+    .shop-page {
+        --shop-sm: var(--font-size-sm, 14px);
+        --pico-color: var(--color-fg);
+        --pico-muted-color: var(--color-muted);
+        --pico-h1-color: var(--color-fg);
+        --pico-h2-color: var(--color-fg);
+        --pico-h3-color: var(--color-fg);
+        --pico-h4-color: var(--color-fg);
+        --pico-font-family: var(--font-family);
+        --pico-border-radius: var(--radius);
+        --pico-primary: var(--color-primary);
+        --pico-primary-background: var(--color-primary);
+        --pico-primary-border: var(--color-primary);
+        --pico-primary-focus: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-form-element-background-color: var(--color-bg);
+        --pico-form-element-selected-background-color: var(--color-bg);
+        --pico-form-element-border-color: var(--color-border);
+        --pico-form-element-color: var(--color-fg);
+        --pico-form-element-placeholder-color: var(--color-muted);
+        --pico-form-element-active-background-color: var(--color-bg);
+        --pico-form-element-active-border-color: var(--color-primary);
+        --pico-form-element-focus-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        /* Pico's controls are sized for a marketing form (~62px tall); a
+           store's search field, selects and quantity boxes are compact. */
+        --pico-form-element-spacing-vertical: calc(var(--space) * 0.875);
+        --pico-form-element-spacing-horizontal: calc(var(--space) * 1.5);
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: calc(var(--space) * 3) calc(var(--space) * 3) calc(var(--space) * 4);
+        color: var(--color-fg);
+    }
+    .shop-page h1, .shop-page h2, .shop-page h3 {
+        font-family: var(--font-heading);
+        color: var(--color-fg);
+    }
+    /* Links read as text, as product titles do in a real store; Pico would
+       otherwise paint every one of them in the primary colour. */
+    .shop-page :where(a:not([role="button"]):not(.btn)) {
+        color: inherit;
+        text-decoration: none;
+    }
+    .shop-page a.text-link { color: var(--color-primary); }
+    .shop-page a.text-link:hover, .card-title a:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
+    }
+    .muted { color: var(--color-muted); }
+    .page-title {
+        font-size: var(--font-size-heading, 1.5rem);
+        margin: calc(var(--space) * 1.5) 0 calc(var(--space) * 2.5);
+    }
 
+    /* ---- Buttons ------------------------------------------------------ */
+    /* One filled primary action per screen; everything else is a quiet
+       outline, the convention the todo and calendar apps follow. */
+    .shop-page .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: calc(var(--space) * 0.5);
+        width: auto;
+        margin: 0;
+        padding: calc(var(--space) * 0.625) calc(var(--space) * 1.5);
+        font-size: var(--shop-sm);
+        font-weight: 500;
+        line-height: 1.25;
+        border-radius: var(--radius);
+        border: 1px solid var(--color-border);
+        background-color: transparent;
+        color: var(--color-fg);
+        box-shadow: none;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .shop-page .btn:hover {
+        background-color: color-mix(in srgb, var(--color-fg) 6%, var(--color-bg));
+        color: var(--color-fg);
+    }
+    .shop-page .btn:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 1px;
+        box-shadow: none;
+    }
+    .shop-page .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-on-primary);
+        font-weight: 600;
+    }
+    /* Mixed toward the foreground rather than a fixed hover token: the dark
+       theme pairs a near-black hover fill with black on-primary text. */
+    .shop-page .btn-primary:hover {
+        background-color: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
+        border-color: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
+        color: var(--color-on-primary);
+    }
+    .shop-page .btn-danger:hover {
+        background-color: var(--color-danger);
+        border-color: var(--color-danger);
+        color: var(--color-btn-fg);
+    }
+    .shop-page .btn-lg {
+        padding: calc(var(--space) * 1.25) calc(var(--space) * 3);
+        font-size: var(--font-size-base);
+    }
+    .shop-page .btn-block { width: 100%; }
+
+    /* ---- Store bar ---------------------------------------------------- */
     .shop-bar {
         display: flex;
-        gap: var(--space);
-        align-items: center;
-        flex-wrap: wrap;
-        margin: 0 auto 1rem auto;
+        align-items: stretch;
+        gap: calc(var(--space) * 1.5);
+        margin-bottom: calc(var(--space) * 1.5);
     }
-    .shop-bar form {
+    /* Search is the store's main control, so it takes the free width; the
+       field and its button join into one control. */
+    .shop-search {
         display: flex;
-        gap: var(--space);
-        /* Grow into the space between the nav links and the cart, but stop
-           before the field turns into a full-width banner on a wide viewport. */
         flex: 1 1 320px;
-        max-width: 34rem;
+        max-width: 40rem;
         margin: 0;
     }
-    /* Without `flex: 1` the field keeps its intrinsic ~150px and the form's
-       grown width becomes dead space between "Search" and "Cart".
-       `min-width: 0` lets it shrink below that intrinsic size when the bar is
-       narrow, instead of forcing a wrap. */
-    .shop-bar input[type="search"], .shop-bar input[type="text"] {
-        margin: 0;
+    .shop-page .shop-search input[type="search"] {
         flex: 1 1 auto;
         min-width: 0;
+        height: auto;
+        margin: 0;
+        border-radius: var(--radius) 0 0 var(--radius);
+        font-size: var(--font-size-base);
     }
-    /* Cart and orders sit together at the far end, so the gap the form does
-       not claim opens between the search and the cart rather than inside the
-       form. */
-    .shop-bar > a.btn + form + a.btn { margin-left: auto; }
-    .shop-promo {
-        background-color: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 0.6rem 0.9rem;
-        margin-bottom: 1rem;
+    .shop-page .shop-search .btn {
+        border-radius: 0 var(--radius) var(--radius) 0;
+        padding-inline: calc(var(--space) * 2.5);
     }
-    .shop-categories { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    .shop-category {
-        background-color: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 0.25rem 0.7rem;
-        color: var(--color-fg);
-    }
-    .shop-category.active {
+    .shop-bar-links { display: flex; gap: var(--space); margin-left: auto; }
+    .cart-count {
+        min-width: 1.35rem;
+        padding: 0 0.35rem;
+        border-radius: 999px;
         background-color: var(--color-primary);
         color: var(--color-on-primary);
-        border-color: var(--color-primary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.35rem;
+        text-align: center;
     }
 
-    .card {
+    /* Departments: a text nav with the current one underlined, rather than
+       a row of pills. */
+    .shop-departments {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 0 calc(var(--space) * 3);
+        margin-bottom: calc(var(--space) * 3);
+        border-bottom: 1px solid var(--color-border);
+    }
+    .shop-departments a {
+        padding: var(--space) 0;
+        margin-bottom: -1px;
+        border-bottom: 2px solid transparent;
+        font-size: var(--shop-sm);
+        color: var(--color-muted);
+    }
+    .shop-page .shop-departments a:hover { color: var(--color-fg); }
+    .shop-page .shop-departments a[aria-current="page"] {
+        color: var(--color-fg);
+        font-weight: 600;
+        border-bottom-color: var(--color-primary);
+    }
+
+    .shop-promo {
+        margin-bottom: calc(var(--space) * 1.5);
+        padding: calc(var(--space) * 1.25) calc(var(--space) * 2);
         background-color: var(--color-surface);
         border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        padding: 0.9rem;
-        margin-bottom: 0.9rem;
+        font-weight: 500;
     }
-    .card-title { margin: 0 0 0.3rem 0; font-size: 1.05rem; }
-    .card-price { color: var(--color-primary); font-weight: 700; font-size: 1.1rem; }
-    .card-rating { color: var(--color-muted); margin-left: 0.5rem; }
-    .card-desc { color: var(--color-muted); margin: 0.4rem 0; }
-
-    /* default layout: image left, details right */
-    .product-row { display: flex; gap: 0.9rem; align-items: flex-start; }
-    .product-row .product-thumb { flex: 0 0 120px; }
-    .product-row .product-body { flex: 1 1 auto; }
-
-    /* grid layout */
-    .product-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-        gap: 0.9rem;
+    .shop-intro {
+        max-width: 72ch;
+        margin: 0 0 calc(var(--space) * 3);
+        color: var(--color-muted);
+        white-space: pre-line;
     }
-    .product-grid .card { display: flex; flex-direction: column; margin-bottom: 0; }
-    .product-grid .product-thumb { align-self: center; }
-
-    /* compact_table layout */
-    .product-table { width: 100%; border-collapse: collapse; }
-    .product-table th, .product-table td {
-        text-align: left;
-        padding: 0.45rem 0.6rem;
-        border-bottom: 1px solid var(--color-border);
+    .breadcrumb {
+        margin-bottom: calc(var(--space) * 2);
+        font-size: var(--shop-sm);
+        color: var(--color-muted);
     }
-    .product-table thead th { color: var(--color-muted); font-weight: 600; }
-
-    .btn {
-        display: inline-block;
-        border-radius: var(--radius);
-        padding: 0.35rem 0.8rem;
-        border: 1px solid transparent;
-        cursor: pointer;
-        font-size: 0.95rem;
-        width: auto;
+    .shop-page .breadcrumb a:hover { color: var(--color-fg); text-decoration: underline; }
+    .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space);
+        margin-bottom: calc(var(--space) * 1.5);
     }
-    .btn-primary { background-color: var(--color-primary); color: var(--color-on-primary); }
-    .btn-accent { background-color: var(--color-accent); color: var(--color-btn-fg); border-color: var(--color-accent); }
-    .btn-danger { background-color: var(--color-danger); color: var(--color-btn-fg); border-color: var(--color-danger); }
-    .btn-neutral { background-color: var(--color-neutral); color: var(--color-btn-fg); border-color: var(--color-neutral); }
+    .section-head h2 { font-size: 1.25rem; margin: 0; }
 
-    .breadcrumb { color: var(--color-muted); margin-bottom: 0.8rem; font-size: 0.9rem; }
-    .option-group { margin-bottom: 0.7rem; }
-    .option-group label { font-weight: 600; display: block; margin-bottom: 0.25rem; }
-    .option-values { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-
-    .option-chips { display: flex; gap: 0.3rem; flex-wrap: wrap; margin: 0.25rem 0 0.4rem 0; }
-    .option-chip {
-        background-color: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 0.05rem 0.45rem;
-        font-size: 0.85rem;
+    /* ---- Prices and ratings ------------------------------------------- */
+    /* Small currency sign, large whole units, raised cents. The decimal
+       point is in the DOM but has no width, so the text is still "$19.99". */
+    .price {
+        display: inline-flex;
+        align-items: flex-start;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        line-height: 1;
         color: var(--color-fg);
     }
+    .price-symbol, .price-fraction { font-size: 0.55em; margin-top: 0.12em; }
+    .price-symbol { margin-right: 0.05em; }
+    .price-dot { font-size: 0; }
+    .price--md { font-size: 1.375rem; }
+    .price--lg { font-size: 2rem; }
+    .rating {
+        font-size: var(--shop-sm);
+        letter-spacing: 0.04em;
+        color: var(--color-fg);
+        white-space: nowrap;
+    }
+    .rating-value { color: var(--color-muted); letter-spacing: 0; }
+    .option-summary { font-size: var(--shop-sm); color: var(--color-muted); }
+
+    /* ---- Listings ----------------------------------------------------- */
+    .card-title {
+        margin: 0;
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+    .card-desc { margin: 0; font-size: var(--shop-sm); color: var(--color-muted); }
+    .product-body {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: calc(var(--space) * 0.75);
+    }
+
+    /* default layout: one bordered list divided by hairlines, the way the
+       todo list is, rather than a stack of separate cards. */
+    .product-list { border: 1px solid var(--color-border); border-radius: var(--radius); }
+    .product-list > .card {
+        padding: calc(var(--space) * 2);
+        border-bottom: 1px solid var(--color-border);
+    }
+    .product-list > .card:last-child { border-bottom: 0; }
+    .product-row { display: flex; gap: calc(var(--space) * 2.5); align-items: flex-start; }
+    .product-row .product-thumb { flex: 0 0 auto; }
+
+    /* grid layout: borderless tiles, image over text, as on a store's
+       category page. Two-line titles keep the rows level. */
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: calc(var(--space) * 4) calc(var(--space) * 2.5);
+    }
+    .product-grid .card { display: flex; flex-direction: column; gap: var(--space); }
+    .product-grid .product-thumb, .product-grid .product-media {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+        margin-bottom: calc(var(--space) * 0.5);
+    }
+    .product-grid .card-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* compact_table layout */
+    .product-table { width: 100%; border-collapse: collapse; font-size: var(--shop-sm); }
+    .product-table th, .product-table td {
+        padding: calc(var(--space) * 0.875) var(--space);
+        text-align: left;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--color-border);
+        background-color: transparent;
+    }
+    .product-table thead th { color: var(--color-muted); font-weight: 600; }
+    .product-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: calc(var(--space) * 2);
+        margin-top: calc(var(--space) * 3);
+        font-size: var(--shop-sm);
+    }
+    .pagination .is-disabled { opacity: 0.45; pointer-events: none; }
+    .empty-state {
+        padding: calc(var(--space) * 6) calc(var(--space) * 2);
+        text-align: center;
+        color: var(--color-muted);
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius);
+    }
+    .empty-state p { margin-bottom: calc(var(--space) * 2); }
+
+    /* ---- Product page ------------------------------------------------- */
+    .product-detail {
+        display: grid;
+        grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+        gap: calc(var(--space) * 5);
+        align-items: start;
+    }
+    .product-gallery {
+        display: flex;
+        justify-content: center;
+        padding: calc(var(--space) * 3);
+        background-color: var(--color-surface);
+        border-radius: var(--radius);
+    }
+    .buy-box { display: flex; flex-direction: column; gap: calc(var(--space) * 1.5); }
+    /* Retailer titles run to three lines; a medium weight keeps them from
+       shouting over the price. */
+    .buy-box h1 {
+        font-size: calc(var(--font-size-base) * 1.5);
+        font-weight: 500;
+        line-height: 1.3;
+        margin: 0;
+    }
+    .buy-box form { margin: calc(var(--space) * 1) 0 0; }
+    .option-group { margin-bottom: calc(var(--space) * 1.5); }
+    .option-group label {
+        display: block;
+        margin-bottom: calc(var(--space) * 0.5);
+        font-size: var(--shop-sm);
+        font-weight: 600;
+    }
+    .option-group select, .option-group input { margin-bottom: 0; }
+    .option-values select { width: auto; min-width: 14rem; max-width: 100%; }
+    .product-buy { display: flex; align-items: stretch; gap: var(--space); margin-top: calc(var(--space) * 2); }
+    .shop-page .product-buy input[type="number"] { width: 5rem; margin: 0; }
+    .about-item {
+        margin-top: calc(var(--space) * 2);
+        padding-top: calc(var(--space) * 2.5);
+        border-top: 1px solid var(--color-border);
+        max-width: 72ch;
+    }
+    .about-item h2 { font-size: 1.125rem; margin-bottom: var(--space); }
+    .about-item li { margin-bottom: calc(var(--space) * 0.5); }
+
     /* Hotlinked product imagery (apps.onlineshop.product_images=hotlink).
        A CSS-only carousel: one radio per slide, one label per dot, so the
        controls are real clickable elements without any JavaScript. The glyph
@@ -267,7 +506,7 @@ styles = Style("""
     /* The glyph sits underneath and only shows if every image failed. */
     .product-media > svg { display: none; }
     .product-media.images-failed .carousel-slide { display: none !important; }
-    .product-media.images-failed > svg { display: block; }
+    .product-media.images-failed > svg { display: block; width: 100%; height: 100%; }
     .product-media.images-failed .carousel-dots { display: none; }
     .carousel-dots {
         position: absolute;
@@ -298,49 +537,174 @@ styles = Style("""
         border-color: var(--color-primary);
     }
 
-    .cart-line { display: flex; gap: 0.8rem; align-items: center; }
-    .cart-line .product-thumb { flex: 0 0 72px; }
-    .checkout-line { padding: 0.4rem 0; border-bottom: 1px solid var(--color-border); }
-    .checkout-line .product-thumb { flex: 0 0 56px; }
-    .checkout-total { margin: 0.6rem 0 0.3rem 0; }
-    .cart-line-body { flex: 1 1 auto; }
-    /* Three separate forms (update / remove / toggle), so they cannot share a
-       row without a wrapper. Stacked and end-aligned with a shared button
-       width they read as one control group instead of three ragged blocks. */
-    .cart-actions {
+    /* ---- Cart, checkout and orders ------------------------------------ */
+    .cart-layout, .checkout-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: calc(var(--space) * 4);
+        align-items: start;
+    }
+    .cart-lines { border: 1px solid var(--color-border); border-radius: var(--radius); }
+    .cart-lines > .card {
+        padding: calc(var(--space) * 2);
+        border-bottom: 1px solid var(--color-border);
+    }
+    .cart-lines > .card:last-child { border-bottom: 0; }
+    .cart-lines > .card.is-deselected .cart-line > :not(.cart-line-body) { opacity: 0.5; }
+    .cart-line { display: flex; gap: calc(var(--space) * 2); align-items: flex-start; }
+    .cart-line .product-thumb { flex: 0 0 auto; }
+    .cart-line-body {
+        flex: 1 1 auto;
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
-        gap: 0.4rem;
-        flex: 0 0 auto;
+        gap: calc(var(--space) * 0.5);
     }
-    /* `stretch`, not `center`: a number input is ~9px shorter than a .btn at
-       the same font size, so centring them leaves two different-sized boxes
-       on one row. Stretching pins the input to the button's height whatever
-       the theme does to font metrics. */
-    .cart-actions form { display: flex; align-items: stretch; gap: 0.4rem; margin: 0; }
-    .cart-actions .btn { min-width: 7rem; }
-    .cart-actions input[type="number"] { margin: 0; width: 4.5rem; }
-    /* The item page's buy row: quantity and the primary CTA on one line,
-       sized to their content rather than to the form's full width. */
-    .product-buy {
+    .line-total { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .line-note { font-size: var(--shop-sm); color: var(--color-muted); }
+    /* Row actions sit beneath the item, quiet, like todo's Edit/Remove. */
+    .cart-actions {
         display: flex;
+        flex-wrap: wrap;
         align-items: stretch;
-        gap: 0.5rem;
-        margin-top: 0.8rem;
+        gap: var(--space);
+        margin-top: calc(var(--space) * 0.75);
     }
-    .product-buy input[type="number"] { margin: 0; width: 4.5rem; }
-    .shop-footer { margin-top: 1rem; }
-    .cart-total { font-size: 1.2rem; font-weight: 700; color: var(--color-fg); }
-    .muted { color: var(--color-muted); }
-    .pagination { display: flex; gap: 0.6rem; align-items: center; margin-top: 1rem; }
-    .order-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
-    .status-pill {
-        background-color: var(--color-primary);
-        color: var(--color-on-primary);
+    .cart-actions form { display: flex; align-items: stretch; gap: calc(var(--space) * 0.5); margin: 0; }
+    .shop-page .cart-actions input[type="number"] {
+        width: 4.5rem;
+        height: auto;
+        margin: 0;
+        padding-block: calc(var(--space) * 0.5);
+        font-size: var(--shop-sm);
+    }
+    .option-chips { display: flex; flex-wrap: wrap; gap: calc(var(--space) * 0.5); }
+    .option-chip {
+        padding: 0.05rem 0.5rem;
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
         border-radius: var(--radius);
-        padding: 0.1rem 0.55rem;
-        font-size: 0.85rem;
+        font-size: var(--shop-sm);
+        color: var(--color-fg);
+    }
+
+    /* The order summary: the one place totals and the next step live. */
+    .summary {
+        position: sticky;
+        top: calc(var(--space) * 2);
+        padding: calc(var(--space) * 2.5);
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+    }
+    .summary h2 { font-size: 1.125rem; margin: 0 0 calc(var(--space) * 1.5); }
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space);
+        margin-bottom: var(--space);
+        font-size: var(--shop-sm);
+        font-variant-numeric: tabular-nums;
+    }
+    .summary-total {
+        margin: calc(var(--space) * 1.5) 0 calc(var(--space) * 2);
+        padding-top: calc(var(--space) * 1.5);
+        border-top: 1px solid var(--color-border);
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+    .summary .cart-total { font-size: inherit; }
+    .checkout-line {
+        display: flex;
+        gap: calc(var(--space) * 1.5);
+        align-items: flex-start;
+        padding: var(--space) 0;
+        border-bottom: 1px solid var(--color-border);
+        font-size: var(--shop-sm);
+    }
+    .checkout-line .card-title { font-size: var(--shop-sm); }
+    .checkout-line > .product-thumb, .checkout-line > .product-media { flex: 0 0 auto; }
+    /* The summary column is narrow; full retailer titles would run to six
+       lines. The order history below has the room and keeps them whole. */
+    .summary .checkout-line .card-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .checkout-form {
+        padding: calc(var(--space) * 3);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+    }
+    .checkout-form h2 { font-size: 1.125rem; margin-bottom: calc(var(--space) * 2); }
+    .form-error {
+        margin-bottom: calc(var(--space) * 2);
+        padding: calc(var(--space) * 1.25) calc(var(--space) * 2);
+        border: 1px solid var(--color-danger);
+        border-radius: var(--radius);
+        background-color: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg));
+        color: var(--color-fg);
+    }
+
+    .order-card {
+        margin-bottom: calc(var(--space) * 2.5);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        overflow: hidden;
+    }
+    /* The order header: when, how much, to whom, and which order. */
+    .order-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: calc(var(--space) * 1.5) calc(var(--space) * 4);
+        padding: calc(var(--space) * 1.5) calc(var(--space) * 2);
+        background-color: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        font-size: var(--shop-sm);
+    }
+    .order-head > div { display: flex; flex-direction: column; gap: 0.15rem; }
+    .order-head .order-id { margin-left: auto; text-align: right; }
+    .order-label { color: var(--color-muted); }
+    .order-lines { padding: calc(var(--space) * 0.5) calc(var(--space) * 2); }
+    .order-lines .checkout-line:last-child { border-bottom: 0; }
+    .status-pill {
+        align-self: flex-start;
+        padding: 0.05rem 0.55rem;
+        border-radius: 999px;
+        background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg));
+        color: var(--color-fg);
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+    .order-id .status-pill { align-self: flex-end; }
+
+    /* default layout keeps "Return to List of Apps" a full-size outlined
+       button, as the other apps do: the cross-app navigation tasks need a
+       screenshot agent to find it at a glance. */
+    .shop-footer { margin-top: calc(var(--space) * 5); }
+    .shop-page a.shop-return[role="button"] {
+        width: auto;
+        padding: calc(var(--space) * 1.25) calc(var(--space) * 3);
+        font-size: var(--font-size-base);
+        font-weight: 400;
+        background-color: var(--color-bg);
+        border: 1px solid var(--color-border);
+        color: var(--color-primary);
+        box-shadow: none;
+    }
+    .shop-page a.shop-return[role="button"]:hover {
+        background-color: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
+        color: var(--color-primary);
+    }
+
+    @media (max-width: 48rem) {
+        .shop-page { padding: calc(var(--space) * 2); }
+        .shop-bar { flex-wrap: wrap; }
+        .shop-search { order: 3; flex-basis: 100%; max-width: none; }
+        .product-detail, .cart-layout, .checkout-layout { grid-template-columns: 1fr; }
+        .summary { position: static; }
+        .product-row .product-thumb, .product-row .product-media { width: 88px; height: 88px; }
     }
 """)
 
@@ -946,8 +1310,59 @@ def _image_carousel(product, urls: list[str], size: int):
     )
 
 
-def stars(rating: float) -> str:
-    return f"★ {rating:.1f}"
+def price_tag(amount: float, size: str = "md"):
+    """A listing price, set the way storefronts set it.
+
+    Small currency sign, large whole units, raised cents. The decimal point
+    stays in the DOM -- zero width, not removed -- so the text an agent reads
+    off the page or the accessibility tree is still ``$19.99``, not
+    ``$1999``. Totals in the cart and at checkout use plain `money` instead.
+    """
+    whole, cents = f"{amount:,.2f}".split(".")
+    return Span(
+        Span(_currency(), cls="price-symbol"),
+        Span(whole, cls="price-whole"),
+        Span(".", cls="price-dot"),
+        Span(cents, cls="price-fraction"),
+        cls=f"price price--{size}",
+    )
+
+
+def rating_stars(rating: float):
+    """Five stars and the score, or nothing for an unrated product.
+
+    The WebShop dump carries no ratings, so every product would otherwise
+    show "0.0" -- which reads as universally panned rather than unreviewed.
+    A real store simply omits the stars until there are reviews.
+    """
+    if not rating:
+        return ""
+    filled = max(0, min(5, round(rating)))
+    return Span(
+        Span("★" * filled + "☆" * (5 - filled), aria_hidden="true"),
+        Span(f" {rating:.1f}", cls="rating-value"),
+        cls="rating",
+        title=f"{rating:.1f} out of 5 stars",
+    )
+
+
+def _plural(word: str) -> str:
+    return word if word.endswith("s") else f"{word}s"
+
+
+def option_summary(product):
+    """``"6 colors, 4 sizes"`` -- what a listing says about a product's options.
+
+    Only options with a real choice are counted; a single-value option is
+    a spec, not a choice.
+    """
+    available = json.loads(product.options)
+    parts = [
+        f"{len(values)} {_plural(name.replace('_', ' ').lower())}"
+        for name, values in available.items()
+        if len(values) > 1
+    ]
+    return Span(", ".join(parts), cls="option-summary") if parts else ""
 
 
 def _url_keywords(keywords: str) -> str:
@@ -970,18 +1385,18 @@ def page_shell(*content):
     return Div(
         shop_theme(),
         styles,
-        logo_title_container,
-        *content,
-        # Own row: as a bare inline element it shared a line with whatever CTA
-        # a page ended on (checkout, "Browse products") at a different
-        # margin-top, so the two sat on visibly different baselines.
-        Div(A("Return to List of Apps", href="/", role="button", cls="contrast"),
-            cls="shop-footer"),
+        Div(
+            logo_title_container,
+            *content,
+            Div(A("Return to List of Apps", href="/", role="button", cls="shop-return"),
+                cls="shop-footer"),
+            cls="shop-page",
+        ),
     )
 
 
 def search_bar(value: str = ""):
-    """Shop chrome: browse link, search, cart and orders.
+    """Shop chrome: browse link, search, orders and cart.
 
     The "Shop" link is the way back to the landing page from anywhere. It
     lives here rather than on the header logo because `clickable_logo` is a
@@ -989,8 +1404,9 @@ def search_bar(value: str = ""):
     defaults to false -- navigation must not depend on a difficulty knob.
     """
     count = sum(row.quantity for row in _cart_rows())
+    cart_label = f"Cart, {count} item{'s' if count != 1 else ''}" if count else "Cart"
     return Div(
-        A("Shop", href="/onlineshop", cls="btn btn-neutral", role="button"),
+        A("Shop", href="/onlineshop", cls="btn"),
         Form(
             Input(
                 type="search",
@@ -998,16 +1414,19 @@ def search_bar(value: str = ""):
                 placeholder="Search products",
                 value=value,
                 aria_label="Search products",
-                style="height: auto"
             ),
-            Button("Search", cls="btn btn-primary", type="submit", style="margin-bottom: 0 !important"),
+            Button("Search", cls="btn btn-primary", type="submit"),
             action="/onlineshop/search",
             method="post",
-            style="height: 50px"
+            role="search",
+            cls="shop-search",
         ),
-        A(f"Cart ({count})" if count else "Cart",
-          href="/onlineshop/cart", cls="btn btn-neutral", role="button"),
-        A("Orders", href="/onlineshop/orders", cls="btn btn-neutral", role="button"),
+        Div(
+            A("Orders", href="/onlineshop/orders", cls="btn"),
+            A("Cart", Span(str(count), cls="cart-count") if count else "",
+              href="/onlineshop/cart", cls="btn", aria_label=cart_label),
+            cls="shop-bar-links",
+        ),
         cls="shop-bar",
     )
 
@@ -1018,28 +1437,55 @@ def category_strip(active: str = ""):
             label,
             href=f"/onlineshop/category/{slug}/1",
             cls=f"shop-category{' active' if slug == active else ''}",
+            aria_current="page" if slug == active else None,
         )
         for slug, label in _categories().items()
     ]
-    return Div(*links, cls="shop-categories") if links else ""
+    return Nav(*links, cls="shop-departments", aria_label="Departments") if links else ""
+
+
+def breadcrumb(*crumbs):
+    """``Home / ...``; a crumb is text, or an ``(label, href)`` pair."""
+    parts = [A("Home", href="/onlineshop")]
+    for crumb in crumbs:
+        parts.append(" / ")
+        parts.append(A(crumb[0], href=crumb[1]) if isinstance(crumb, tuple) else Span(crumb))
+    return Div(*parts, cls="breadcrumb")
+
+
+def section_head(title: str, detail: str = ""):
+    return Div(H2(title), Span(detail, cls="muted") if detail else "", cls="section-head")
 
 
 def product_card(product, keywords: str = ""):
     """One product in the `default` (row) or `grid` layout."""
-    body = Div(
-        H4(A(product.title, href=item_href(product, keywords)), cls="card-title"),
-        Div(
-            Span(money(product.price), cls="card-price"),
-            Span(stars(product.rating), cls="card-rating"),
-        ),
-        P(truncate(product.description, 140), cls="card-desc"),
-        A("View Details", href=item_href(product, keywords), cls="btn btn-primary", role="button"),
-        cls="product-body",
-    )
+    href = item_href(product, keywords)
+    title = H3(A(product.title, href=href), cls="card-title")
     if current_layout() == "grid":
-        return Div(product_image(product, 140), body, cls="card")
+        # A category-page tile: no description and no button -- the title is
+        # the link, as it is in every storefront grid.
+        return Div(
+            product_image(product, 220),
+            title,
+            rating_stars(product.rating),
+            price_tag(product.price),
+            option_summary(product),
+            cls="card",
+        )
     return Div(
-        Div(product_image(product), body, cls="product-row"),
+        Div(
+            product_image(product, 140),
+            Div(
+                title,
+                rating_stars(product.rating),
+                price_tag(product.price),
+                option_summary(product),
+                P(truncate(product.description, 160), cls="card-desc"),
+                A("View details", href=href, cls="btn"),
+                cls="product-body",
+            ),
+            cls="product-row",
+        ),
         cls="card",
     )
 
@@ -1050,15 +1496,23 @@ def truncate(text: str, limit: int) -> str:
 
 
 def product_table(products_page, keywords: str = ""):
-    """The `compact_table` layout: no imagery, one dense row per product."""
-    header = Thead(Tr(Th("Product"), Th("Category"), Th("Rating"), Th("Price"), Th("")))
+    """The `compact_table` layout: no imagery, one dense row per product.
+
+    The rating column only appears when some product on the page has one;
+    a column of blanks is noise.
+    """
+    rated = any(product.rating for product in products_page)
+    header = Thead(Tr(
+        Th("Product"), Th("Department"), Th("Rating") if rated else "",
+        Th("Price", cls="num"), Th(""),
+    ))
     rows = [
         Tr(
             Td(A(product.title, href=item_href(product, keywords))),
             Td(_categories().get(product.category, product.category), cls="muted"),
-            Td(stars(product.rating), cls="muted"),
-            Td(money(product.price)),
-            Td(A("View", href=item_href(product, keywords), cls="btn btn-primary", role="button")),
+            Td(rating_stars(product.rating)) if rated else "",
+            Td(money(product.price), cls="num"),
+            Td(A("View", href=item_href(product, keywords), cls="btn")),
         )
         for product in products_page
     ]
@@ -1068,28 +1522,39 @@ def product_table(products_page, keywords: str = ""):
 def product_listing(products_page, keywords: str = ""):
     """Render a page of products in whichever layout is configured."""
     if not products_page:
-        return P("No products matched.", cls="muted")
+        return Div(
+            P("No products matched. Try fewer or more general words."),
+            A("Browse all products", href="/onlineshop", cls="btn"),
+            cls="empty-state",
+        )
     layout = current_layout()
     if layout == "compact_table":
         return product_table(products_page, keywords)
     cards = [product_card(product, keywords) for product in products_page]
     if layout == "grid":
         return Div(*cards, cls="product-grid")
-    return Div(*cards)
+    return Div(*cards, cls="product-list")
 
 
 def pagination(base: str, page: int, total: int):
     last = max(1, (total + _per_page() - 1) // _per_page())
+    if last == 1:
+        return ""
     prev_link = (
-        A("Previous", href=f"{base}/{page - 1}", cls="btn btn-neutral", role="button")
-        if page > 1 else Span("Previous", cls="muted")
+        A("Previous", href=f"{base}/{page - 1}", cls="btn")
+        if page > 1 else Span("Previous", cls="btn is-disabled", aria_disabled="true")
     )
     next_link = (
-        A("Next", href=f"{base}/{page + 1}", cls="btn btn-neutral", role="button")
-        if page < last else Span("Next", cls="muted")
+        A("Next", href=f"{base}/{page + 1}", cls="btn")
+        if page < last else Span("Next", cls="btn is-disabled", aria_disabled="true")
     )
-    return Div(prev_link, Span(f"Page {page} of {last} ({total} products)", cls="muted"),
-               next_link, cls="pagination")
+    return Nav(prev_link, Span(f"Page {page} of {last}", cls="muted"), next_link,
+               cls="pagination", aria_label="Pages")
+
+
+def _results_label(count: int) -> str:
+    """``"224 products"``, or nothing when the empty state already says so."""
+    return f"{count} product{'s' if count != 1 else ''}" if count else ""
 
 
 # --------------------------------------------------------------------------
@@ -1099,14 +1564,15 @@ def pagination(base: str, page: int, total: int):
 @rt("/onlineshop")
 def get():
     cfg = _cfg()
-    promo = getattr(cfg, "promotional_message", "")
+    promo = str(getattr(cfg, "promotional_message", "") or "").strip()
+    intro = str(getattr(cfg, "description", "") or "").strip()
     featured = list(products())[:_per_page()]
     return page_shell(
         search_bar(),
-        Div(promo, cls="shop-promo") if promo else "",
-        P(getattr(cfg, "description", ""), cls="muted"),
         category_strip(),
-        H3("Featured Products"),
+        Div(promo, cls="shop-promo") if promo else "",
+        P(intro, cls="shop-intro") if intro else "",
+        section_head("Featured products"),
         product_listing(featured),
     )
 
@@ -1126,11 +1592,9 @@ def get(keywords: str, page: int):
     matched = search_products("" if keywords == "all" else terms)
     return page_shell(
         search_bar(terms),
-        Div(
-            A("Home", href="/onlineshop"), " / ", Span(f'Results for "{terms}"'),
-            cls="breadcrumb",
-        ),
-        H3(f'Search Results for "{terms}"'),
+        category_strip(),
+        breadcrumb(f'Results for "{terms}"'),
+        section_head(f'Search results for "{terms}"', _results_label(len(matched))),
         product_listing(paginate(matched, page), keywords),
         pagination(f"/onlineshop/search/{_url_keywords(keywords)}", page, len(matched)),
     )
@@ -1142,9 +1606,8 @@ def get(slug: str, page: int):
     matched = [p for p in products() if p.category == slug]
     return page_shell(
         search_bar(),
-        Div(A("Home", href="/onlineshop"), " / ", Span(label), cls="breadcrumb"),
         category_strip(active=slug),
-        H3(label),
+        section_head(label, _results_label(len(matched))),
         product_listing(paginate(matched, page)),
         pagination(f"/onlineshop/category/{slug}", page, len(matched)),
     )
@@ -1154,12 +1617,16 @@ def get(slug: str, page: int):
 def get(sku: str, keywords: str = ""):
     product = _row(products, sku)
     if product is None:
-        return page_shell(H3("Product not found"), A("Back to shop", href="/onlineshop"))
+        return page_shell(
+            search_bar(),
+            Div(P("Product not found. It may have been removed from the catalog."),
+                A("Back to shop", href="/onlineshop", cls="btn"), cls="empty-state"),
+        )
 
     available = json.loads(product.options)
     option_inputs = [
         Div(
-            Label(name.replace("_", " ").title(), _for=f"opt-{name}"),
+            Label(name.replace("_", " ").capitalize(), _for=f"opt-{name}"),
             Div(
                 Select(
                     *[Option(value, value=value) for value in values],
@@ -1174,41 +1641,39 @@ def get(sku: str, keywords: str = ""):
     ]
 
     crumbs = json.loads(product.breadcrumb)
-    breadcrumb = Div(
-        A("Home", href="/onlineshop"),
-        *[Span(" / ", crumb) for crumb in crumbs],
-        cls="breadcrumb",
-    )
     extra = getattr(_cfg(), "additional_info_to_item", "")
+    bullets = json.loads(product.bullets)
+    about = [
+        Ul(*[Li(bullet) for bullet in bullets]) if bullets else "",
+        P(product.description) if product.description else "",
+    ]
 
     return page_shell(
         search_bar(keywords.replace(",", " ")),
-        breadcrumb,
+        breadcrumb(*crumbs),
         Div(
-            Div(product_image(product, 200), cls="product-thumb"),
+            Div(product_image(product, 320), cls="product-gallery"),
             Div(
-                H3(product.title, cls="card-title"),
-                Div(
-                    Span(money(product.price), cls="card-price"),
-                    Span(stars(product.rating), cls="card-rating"),
-                ),
-                P(product.description),
-                Ul(*[Li(bullet) for bullet in json.loads(product.bullets)]),
+                H1(product.title),
+                rating_stars(product.rating),
+                price_tag(product.price, "lg"),
                 P(extra, cls="muted") if extra else "",
                 Form(
                     *option_inputs,
                     Div(
                         Input(type="number", name="quantity", value="1", min="1",
                               max="99", aria_label="Quantity"),
-                        Button("Add to Cart", cls="btn btn-primary", type="submit"),
+                        Button("Add to Cart", cls="btn btn-primary btn-lg", type="submit"),
                         cls="product-buy",
                     ),
                     action=f"/onlineshop/cart/add/{product.sku}",
                     method="post",
                 ),
-                cls="product-body",
+                Div(H2("About this item"), *about, cls="about-item")
+                if any(about) else "",
+                cls="buy-box product-body",
             ),
-            cls="product-row",
+            cls="product-detail",
         ),
     )
 
@@ -1291,44 +1756,40 @@ def cart_line(row):
     line_total = product.price * row.quantity
     return Div(
         Div(
-            product_image(product, 72),
+            product_image(product, 96),
             Div(
-                H4(A(product.title, href=item_href(product)), cls="card-title"),
+                H3(A(product.title, href=item_href(product)), cls="card-title"),
                 option_chips(row.options),
+                Span(f"{money(product.price)} each", cls="line-note"),
+                Span("Not selected for checkout", cls="line-note")
+                if not row.selected else "",
                 Div(
-                    Span(f"{money(product.price)} each", cls="muted"),
-                    Span(" x ", cls="muted"),
-                    Span(str(row.quantity), cls="muted"),
-                    Span(" = ", cls="muted"),
-                    Span(money(line_total), cls="card-price"),
+                    Form(
+                        Input(type="number", name="quantity", value=str(row.quantity),
+                              min="1", max="99", aria_label=f"Quantity for {product.title}"),
+                        Button("Update", cls="btn", type="submit"),
+                        action=f"/onlineshop/cart/quantity/{row.id}",
+                        method="post",
+                    ),
+                    Form(
+                        Button("Deselect" if row.selected else "Select",
+                               cls="btn", type="submit"),
+                        action=f"/onlineshop/cart/toggle/{row.id}",
+                        method="post",
+                    ),
+                    Form(
+                        Button("Remove", cls="btn btn-danger", type="submit"),
+                        action=f"/onlineshop/cart/remove/{row.id}",
+                        method="post",
+                    ),
+                    cls="cart-actions",
                 ),
-                Span("Not selected for checkout", cls="muted") if not row.selected else "",
                 cls="cart-line-body",
             ),
-            Div(
-                Form(
-                    Input(type="number", name="quantity", value=str(row.quantity),
-                          min="1", max="99", aria_label=f"Quantity for {product.title}"),
-                    Button("Update", cls="btn btn-accent", type="submit"),
-                    action=f"/onlineshop/cart/quantity/{row.id}",
-                    method="post",
-                ),
-                Form(
-                    Button("Remove", cls="btn btn-danger", type="submit"),
-                    action=f"/onlineshop/cart/remove/{row.id}",
-                    method="post",
-                ),
-                Form(
-                    Button("Deselect" if row.selected else "Select",
-                           cls="btn btn-neutral", type="submit"),
-                    action=f"/onlineshop/cart/toggle/{row.id}",
-                    method="post",
-                ),
-                cls="cart-actions",
-            ),
+            Span(money(line_total), cls="line-total"),
             cls="cart-line",
         ),
-        cls="card",
+        cls="card" if row.selected else "card is-deselected",
     )
 
 
@@ -1338,18 +1799,34 @@ def get():
     if not rows:
         return page_shell(
             search_bar(),
-            H3("Your Cart"),
-            P("Your cart is empty.", cls="muted"),
-            A("Browse products", href="/onlineshop", cls="btn btn-primary", role="button"),
+            H1("Your cart", cls="page-title"),
+            Div(
+                P("Your cart is empty."),
+                A("Browse products", href="/onlineshop", cls="btn btn-primary"),
+                cls="empty-state",
+            ),
         )
+    selected = [row for row in rows if row.selected]
+    count = sum(row.quantity for row in selected)
+    held_back = len(rows) - len(selected)
     return page_shell(
         search_bar(),
-        H3("Your Cart"),
-        *[cart_line(row) for row in rows],
-        Div(Span("Selected total: ", cls="muted"),
-            Span(money(_cart_total()), cls="cart-total")),
-        A("Proceed to Checkout", href="/onlineshop/checkout",
-          cls="btn btn-primary", role="button", style="margin-top: 0.8rem;"),
+        H1("Your cart", cls="page-title"),
+        Div(
+            Div(*[cart_line(row) for row in rows], cls="cart-lines"),
+            Aside(
+                H2("Order summary"),
+                Div(Span(f"Items ({count})"), Span(money(_cart_total())), cls="summary-row"),
+                Div(Span(f"{held_back} line{'s' if held_back != 1 else ''} not selected"),
+                    cls="summary-row muted") if held_back else "",
+                Div(Span("Selected total"), Span(money(_cart_total()), cls="cart-total"),
+                    cls="summary-row summary-total"),
+                A("Proceed to Checkout", href="/onlineshop/checkout",
+                  cls="btn btn-primary btn-lg btn-block"),
+                cls="summary",
+            ),
+            cls="cart-layout",
+        ),
     )
 
 
@@ -1401,8 +1878,8 @@ def checkout_line(row):
             Span(f"{row.quantity} x {money(product.price)}", cls="muted"),
             cls="cart-line-body",
         ),
-        Span(money(product.price * row.quantity), cls="card-price"),
-        cls="cart-line checkout-line",
+        Span(money(product.price * row.quantity), cls="line-total"),
+        cls="checkout-line",
     )
 
 
@@ -1416,9 +1893,12 @@ def get(error: str = ""):
     if not selected:
         return page_shell(
             search_bar(),
-            H3("Checkout"),
-            P("No items are selected for checkout.", cls="muted"),
-            A("Back to cart", href="/onlineshop/cart", cls="btn btn-primary", role="button"),
+            H1("Checkout", cls="page-title"),
+            Div(
+                P("No items are selected for checkout."),
+                A("Back to cart", href="/onlineshop/cart", cls="btn btn-primary"),
+                cls="empty-state",
+            ),
         )
 
     card_field = ""
@@ -1432,27 +1912,37 @@ def get(error: str = ""):
 
     return page_shell(
         search_bar(),
-        H3("Checkout"),
-        # The lines being bought, not just a count: with only "N item(s)
-        # selected" and a total, the cart's contents seemed to vanish between
-        # the cart and the confirmation.
+        H1("Checkout", cls="page-title"),
         Div(
-            *[checkout_line(row) for row in selected],
-            Div(Span("Order total: ", cls="muted"),
-                Span(money(_cart_total()), cls="cart-total"), cls="checkout-total"),
-            A("Edit cart", href="/onlineshop/cart"),
-            cls="card",
-        ),
-        P(error, style="color: var(--color-danger);") if error else "",
-        Form(
-            Div(Label("Full Name", _for="name"),
-                Input(id="name", name="name", required=True), cls="option-group"),
-            Div(Label("Shipping Address", _for="address"),
-                Input(id="address", name="address", required=True), cls="option-group"),
-            card_field,
-            Button("Place Order", cls="btn btn-primary", type="submit"),
-            action="/onlineshop/checkout",
-            method="post",
+            Div(
+                P(error, cls="form-error", role="alert") if error else "",
+                Form(
+                    H2("Shipping address"),
+                    Div(Label("Full Name", _for="name"),
+                        Input(id="name", name="name", required=True,
+                              autocomplete="name"), cls="option-group"),
+                    Div(Label("Shipping Address", _for="address"),
+                        Input(id="address", name="address", required=True,
+                              autocomplete="street-address"), cls="option-group"),
+                    card_field,
+                    Button("Place Order", cls="btn btn-primary btn-lg", type="submit"),
+                    action="/onlineshop/checkout",
+                    method="post",
+                ),
+                cls="checkout-form",
+            ),
+            # The lines being bought, not just a count: with only "N item(s)
+            # selected" and a total, the cart's contents seemed to vanish
+            # between the cart and the confirmation.
+            Aside(
+                H2("Order summary"),
+                *[checkout_line(row) for row in selected],
+                Div(Span("Order total"), Span(money(_cart_total()), cls="cart-total"),
+                    cls="summary-row summary-total"),
+                A("Edit cart", href="/onlineshop/cart", cls="text-link"),
+                cls="summary",
+            ),
+            cls="checkout-layout",
         ),
     )
 
@@ -1507,23 +1997,31 @@ def order_card(order):
     for row in _lines_for(order.order_id):
         product = _row(products, row.sku)
         title = product.title if product else row.sku
-        chosen = json.loads(row.options)
-        detail = ", ".join(f"{name}: {value}" for name, value in chosen.items())
         lines.append(
-            Li(f"{row.quantity} x {title}",
-               Span(f" ({detail})", cls="muted") if detail else "",
-               Span(f" - {money(row.unit_price * row.quantity)}", cls="muted"))
+            Div(
+                product_image(product, 56) if product else "",
+                Div(
+                    Div(title, cls="card-title"),
+                    option_chips(row.options),
+                    Span(f"{row.quantity} x {money(row.unit_price)}", cls="muted"),
+                    cls="cart-line-body",
+                ),
+                Span(money(row.unit_price * row.quantity), cls="line-total"),
+                cls="checkout-line",
+            )
         )
     return Div(
         Div(
-            H4(f"Order {order.order_id}", cls="card-title"),
-            Span(order.status, cls="status-pill"),
+            Div(Span("Order placed", cls="order-label"), Span(order.date)),
+            Div(Span("Total", cls="order-label"), Span(money(order.total), cls="cart-total")),
+            Div(Span("Ship to", cls="order-label"), Span(order.name),
+                Span(order.address, cls="muted")),
+            Div(H3(f"Order {order.order_id}", cls="card-title"),
+                Span(order.status, cls="status-pill"), cls="order-id"),
             cls="order-head",
         ),
-        P(f"{order.date} - {order.name}, {order.address}", cls="muted"),
-        Ul(*lines),
-        Div(Span("Total: ", cls="muted"), Span(money(order.total), cls="cart-total")),
-        cls="card",
+        Div(*lines, cls="order-lines"),
+        cls="order-card",
     )
 
 
@@ -1531,11 +2029,16 @@ def order_card(order):
 def get():
     all_orders = list(orders())
     if not all_orders:
-        return page_shell(search_bar(), H3("Your Orders"),
-                          P("You have no orders yet.", cls="muted"))
+        return page_shell(
+            search_bar(),
+            H1("Your orders", cls="page-title"),
+            Div(P("You have no orders yet."),
+                A("Browse products", href="/onlineshop", cls="btn btn-primary"),
+                cls="empty-state"),
+        )
     return page_shell(
         search_bar(),
-        H3("Your Orders"),
+        H1("Your orders", cls="page-title"),
         *[order_card(order) for order in reversed(all_orders)],
     )
 
