@@ -1119,13 +1119,30 @@ def openbanking_account_detail(
 
 @rt("/openbanking/accounts/{account_id}/ledger")
 def openbanking_account_ledger(
-    account_id: int, showing: int = 0, q: str = "", expand: int = 0
+    htmx: HtmxHeaders,
+    account_id: int,
+    showing: int = 0,
+    q: str = "",
+    expand: int = 0,
 ):
-    """htmx partial: the filtered/searched ledger only."""
+    """htmx partial: the filtered/searched ledger only.
+
+    The filter, search box and toggle all push history, but what lands in the
+    address bar must be the account page, not this fragment -- otherwise a
+    reload renders a bare, unstyled ledger. So the swap pushes the detail URL
+    (which reads the same params), and a non-htmx hit on this route -- an old
+    history entry or a bookmark -- gets the full page.
+    """
+    if not htmx.request:
+        return openbanking_account_detail(account_id, showing, q, expand=expand)
     account = get_account(account_id)
     if account is None:
         return Div(cfg().no_results_label, cls="ob-empty", id="ob-ledger")
-    return ledger(account, showing, q, bool(expand))
+    params = urlencode({"showing": showing, "q": q, "expand": expand})
+    return (
+        ledger(account, showing, q, bool(expand)),
+        HtmxResponseHeaders(push_url=f"/openbanking/accounts/{account_id}?{params}"),
+    )
 
 
 @rt("/openbanking/accounts/{account_id}/numbers")

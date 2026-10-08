@@ -747,6 +747,38 @@ class TestFiltering:
         assert "COOL APPS" not in response.text
 
 
+class TestLedgerHistory:
+    """Filtering pushes history; reloading what it pushed must render the page.
+
+    Regression: the controls used to push the `/ledger` partial's own URL, so a
+    reload after filtering showed a bare, unstyled fragment.
+    """
+
+    LEDGER = "/openbanking/accounts/0/ledger?showing=1&q=venmo&expand=0"
+    HX = {"HX-Request": "true"}
+
+    def test_the_swap_pushes_the_account_page_not_the_partial(self, client):
+        response = client.get(self.LEDGER, headers=self.HX)
+        assert response.headers["HX-Push-Url"] == (
+            "/openbanking/accounts/0?showing=1&q=venmo&expand=0"
+        )
+        assert "ob-root" not in response.text
+
+    def test_the_pushed_url_renders_the_filtered_page(self, client):
+        pushed = client.get(self.LEDGER, headers=self.HX).headers["HX-Push-Url"]
+        html = client.get(pushed).text
+        assert "ob-root" in html
+        assert "VENMO" in html
+        assert "COOL APPS" not in html
+
+    def test_a_direct_hit_on_the_partial_gets_the_full_page(self, client):
+        """Old history entries and bookmarks still point at `/ledger`."""
+        html = client.get(self.LEDGER).text
+        assert "ob-root" in html
+        assert "VENMO" in html
+        assert "COOL APPS" not in html
+
+
 class TestSeeMoreActivity:
     """The ledger is truncated, and the toggle is the only thing that opens it.
 
@@ -978,15 +1010,26 @@ class TestTaskSet:
 class TestTaskAnswersMatchTheSeed:
     """Guards the expected values against a seed edit.
 
-    Each test re-derives the answer from `config/apps/openbanking/content/
-    default.yaml` the way an agent would have to, and asserts the task set
-    still agrees. Without these, changing an amount in the seed leaves the
-    tasks syntactically valid but unsolvable.
+    Each test re-derives the answer from the seeded accounts the way an agent
+    would have to, and asserts the task set still agrees. Without these,
+    changing an amount in the seed leaves the tasks syntactically valid but
+    unsolvable. Parametrized over the content variants that append accounts,
+    because the expected answers are shared across variants -- an appended
+    account that outranks a seeded one breaks a task in that variant only.
+    german/mandarin are skipped: they translate type labels and dates, which
+    these English-keyed derivations read, and their figures are already pinned
+    to default by ``test_seeded_account_figures_are_identical``.
     """
 
-    @pytest.fixture(scope="class")
-    def accounts(self, tmp_path_factory):
-        cfg = _compose(tmp_path_factory.mktemp("seed"))
+    @pytest.fixture(
+        scope="class",
+        params=[v for v in CONTENT_VARIANTS if v not in ("german", "mandarin")],
+    )
+    def accounts(self, request, tmp_path_factory):
+        cfg = _compose(
+            tmp_path_factory.mktemp("seed"),
+            [f"apps/openbanking/content={request.param}"],
+        )
         return {a.name: a for a in cfg.apps.openbanking.accounts}
 
     def _expected(self, key, field="todo_name", index=None):
