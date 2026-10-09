@@ -37,6 +37,13 @@ sets its input model (`is_mobile`, `has_touch`), *and* it is passed to the app
 server as a Hydra override, so the pages render for that device rather than
 being a desktop layout in a narrow window. See `config/device/`.
 
+`__main__` publishes those flags as `OPENAPPS_APP`, `OPENAPPS_MCP_HOST` and
+`OPENAPPS_MCP_PORT` before importing the server, which is where `server.py`
+reads them (defaults `todo`, `127.0.0.1`, `8000`). Because it writes them
+unconditionally, the flags always win over anything already in the environment —
+set these variables only when embedding `open_apps.mcp.server` directly rather
+than launching via `python -m`.
+
 On startup you'll see the apps initialize ("Setting environment for ...");
 the server is then ready for tool calls.
 
