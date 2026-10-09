@@ -23,7 +23,7 @@ _target_: open_apps.agent.env_args.DeviceEnvArgs
 _convert_: all
 device: ${device}
 task_name: "" # needs to be a registered task
-task_seed: 42 # not relevant for us we have only deterministic envrionments
+task_seed: 42 # not relevant for us we have only deterministic environments
 max_steps: 25 # maximum number of steps per episode
 headless: True # keep the browser open
 record_video: False
