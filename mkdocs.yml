@@ -13,6 +13,12 @@ theme:
 site_url: https://facebookresearch.github.io/OpenApps/
 repo_url: https://github.com/facebookresearch/OpenApps
 
+# mkdocs renders every page under docs/, nav or not. `internal-*` files are
+# git-ignored so CI never checks them out, but exclude them here too — a
+# force-added one would otherwise publish straight to GitHub Pages.
+exclude_docs: |
+  internal-*.md
+
 nav:
   - Start: index.md
   - Manual Installation: installation.md
