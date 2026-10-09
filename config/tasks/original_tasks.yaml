@@ -214,3 +214,8 @@ create_notes_file_in_code_editor:
     'TODO: refactor' and save it."
   file_path: notes.txt
   expected_content: "TODO: refactor"
+navigate_to_onlineshop:
+  _target_: open_apps.tasks.tasks.NavigateToAppTask
+  goal: Navigate to the Online Shop app.
+  source_app: start_page
+  target_app: onlineshop

@@ -79,6 +79,11 @@ def load_theme(name: str) -> dict:
     ``assets``. Falls back to the default theme when ``name`` is unknown so
     a bad override degrades gracefully instead of raising.
     """
+    # Two separate guards, both needed: the character check keeps a name from
+    # escaping _THEME_DIR (``../``, absolute paths), the existence check keeps
+    # a merely-unknown-but-well-formed name from raising FileNotFoundError.
+    if not name or any(not (char.isalnum() or char in "-_") for char in name):
+        name = _DEFAULT_THEME
     path = _THEME_DIR / f"{name}.yaml"
     if not path.exists():
         path = _THEME_DIR / f"{_DEFAULT_THEME}.yaml"
@@ -132,24 +137,20 @@ def render_theme_css(theme: dict) -> str:
         # Allow only simple custom-property names to avoid broken CSS/injection.
         if (not key) or any(not (c.isalnum() or c in "-_") for c in key):
             continue
-        # Sanitize values to avoid breaking out of the declaration / <style> context.
-        val = (
-            str(value)
-            .replace("\n", " ")
-            .replace("\r", " ")
-            .replace(";", " ")
-            .replace("}", " ")
-            .replace("<", " ")
-            .replace(">", " ")
-            .strip()
-        )
+        val = str(value).replace("\n", " ").replace("\r", " ").strip()
+        # Drop, rather than rewrite, a value that could end the declaration
+        # (`;`, `{`, `}`) or the <style> element (`<`, `>`). A mangled value
+        # would still emit and quietly mean something else; a dropped one
+        # falls back visibly, the same way an unsafe token name does above.
+        if any(c in val for c in "<>;{}"):
+            continue
         safe_lines.append(f"  --{key}: {val};")
 
     lines = "\n".join(safe_lines)
 
     import_url = (theme.get("import_url") or "").strip()
     # Avoid breaking out of the quoted @import string.
-    if any(c in import_url for c in ('"', "'", "\n", "\r")):
+    if any(c in import_url for c in ('"', "'", "\n", "\r", "<", ">")):
         import_url = ""
 
     import_rule = f'@import url("{import_url}");\n' if import_url else ""

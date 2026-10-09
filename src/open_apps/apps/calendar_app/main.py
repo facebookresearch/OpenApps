@@ -12,8 +12,8 @@ from fasthtml.common import (
     Ul, Li, Hr, Article, Button, RedirectResponse, Container, MarkdownJS,
     HighlightJS, database, dataclass)
 from datetime import datetime, timedelta
-from src.open_apps.frontend import local_hdrs
-from src.open_apps.theme import render_theme_css, resolve_theme
+from open_apps.frontend import local_hdrs
+from open_apps.theme import render_theme_css, resolve_theme
 import calendar
 import os
 import logging
@@ -21,7 +21,7 @@ import yaml, json
 from feedgen.feed import FeedGenerator
 from starlette.responses import Response
 from typing import Optional, List
-from src.open_apps.apps.start_page.helper import create_logo_header
+from open_apps.apps.start_page.helper import create_logo_header
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

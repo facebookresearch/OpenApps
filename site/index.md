@@ -20,7 +20,7 @@ Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) a
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
-Install dependencies:   
+Install dependencies:
 
 ```bash
    uv sync
@@ -31,7 +31,7 @@ For other installation options and online shop setup see [Installation](installa
 ### Run OpenApps
 
 ```bash
-uv run launch.py 
+uv run launch.py
 ```
 ![landing](images/landing.png)
 
@@ -123,6 +123,53 @@ Available layouts: `todo` has `default` and `kanban_board`; `start_page` has
 `default`, `broken_logos` (icons detached from their tiles) and
 `clickable_logos`; the other apps currently have `default` only.
 
+#### Migrating from `appearance`
+
+The `appearance` group these two replaced was removed: there are no
+`config/apps/<app>/appearance/` directories and no app renders from one.
+`apps/<app>/appearance=...` is a Hydra composition error, not a silent
+no-op. Translate overrides as:
+
+| Old override | New override |
+| --- | --- |
+| `apps/<app>/appearance=default` | `apps/theme=default` |
+| `apps/<app>/appearance=dark_theme` | `apps/theme=dark` |
+| `apps/<app>/appearance=black_and_white` | `apps/theme=mono` |
+| `apps/<app>/appearance=challenging_font` | `apps/theme=challenging_font` |
+| `apps/code_editor/appearance=colorblind_access` | `apps/theme=colorblind` |
+| `apps/todo/appearance=kanban_board` | `apps/todo/layout=kanban_board` |
+| `apps/start_page/appearance=broken_logos` | `apps/start_page/layout=broken_logos` |
+| `apps/start_page/appearance=clickable_logos` | `apps/start_page/layout=clickable_logos` |
+
+The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one `apps/theme=dark`. Two renderings shift slightly:
+`mono` picks white-page/black-ink for every app, where the old
+`black_and_white` variants disagreed on polarity (calendar inverted the page,
+the rest did not), and `colorblind` is now available to all apps rather than
+the code editor alone.
+
+##### Reproducing the paper
+
+The paper's variation grid is indexed by `appearance` stem names, and the two
+axes above do not reproduce it pixel-for-pixel — see the shifts noted just
+above. **To reproduce the numbers in
+[the paper](https://arxiv.org/abs/2511.20766), use the `v1.0-paper` tag**, the
+last tree with `appearance` intact:
+
+```bash
+git checkout v1.0-paper
+uv run launch.py apps/todo/appearance=dark_theme
+```
+
+Theme and layout are the supported axes going forward; `v1.0-paper` is frozen
+and gets no fixes.
+
+One exception to the removal: the MCP `reconfigure` tool still accepts an
+`appearance=` argument, translates it onto `theme`/`layout` per the table
+above, and raises a `DeprecationWarning`. It exists so existing MCP clients
+keep working for one release and will be removed — see
+[`src/open_apps/mcp/README.md`](https://github.com/facebookresearch/OpenApps/blob/main/src/open_apps/mcp/README.md).
+
 #### Content
 
 /// tab | german
@@ -165,7 +212,7 @@ Optional: to save screenshots of all apps with a specific variation for testing,
 
 ## Exposing OpenApps as an MCP server
 
-If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/mcp/README.md`.
+If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/open_apps/mcp/README.md`.
 
 ## Launch Agent
 
@@ -303,7 +350,7 @@ uv run -m pytest tests/
 
 ## Attribution
 
-Our apps are built on top of several excellent frameworks:  
+Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):

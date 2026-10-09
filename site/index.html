@@ -458,13 +458,13 @@
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/facebookresearch/OpenApps.git
 </code></pre></div>
 
-<p>Install dependencies:   </p>
+<p>Install dependencies:</p>
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>uv<span class="w"> </span>sync
 </code></pre></div>
 
 <p>For other installation options and online shop setup see <a href="installation/">Installation</a>.</p>
 <h3 id="run-openapps">Run OpenApps</h3>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing.png" /></p>
@@ -537,6 +537,76 @@ uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> <
 <p>Available layouts: <code>todo</code> has <code>default</code> and <code>kanban_board</code>; <code>start_page</code> has
 <code>default</code>, <code>broken_logos</code> (icons detached from their tiles) and
 <code>clickable_logos</code>; the other apps currently have <code>default</code> only.</p>
+<h4 id="migrating-from-appearance">Migrating from <code>appearance</code></h4>
+<p>The <code>appearance</code> group these two replaced was removed: there are no
+<code>config/apps/&lt;app&gt;/appearance/</code> directories and no app renders from one.
+<code>apps/&lt;app&gt;/appearance=...</code> is a Hydra composition error, not a silent
+no-op. Translate overrides as:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Old override</th>
+<th>New override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=default</code></td>
+<td><code>apps/theme=default</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=dark_theme</code></td>
+<td><code>apps/theme=dark</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=black_and_white</code></td>
+<td><code>apps/theme=mono</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=challenging_font</code></td>
+<td><code>apps/theme=challenging_font</code></td>
+</tr>
+<tr>
+<td><code>apps/code_editor/appearance=colorblind_access</code></td>
+<td><code>apps/theme=colorblind</code></td>
+</tr>
+<tr>
+<td><code>apps/todo/appearance=kanban_board</code></td>
+<td><code>apps/todo/layout=kanban_board</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=broken_logos</code></td>
+<td><code>apps/start_page/layout=broken_logos</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=clickable_logos</code></td>
+<td><code>apps/start_page/layout=clickable_logos</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one <code>apps/theme=dark</code>. Two renderings shift slightly:
+<code>mono</code> picks white-page/black-ink for every app, where the old
+<code>black_and_white</code> variants disagreed on polarity (calendar inverted the page,
+the rest did not), and <code>colorblind</code> is now available to all apps rather than
+the code editor alone.</p>
+<h5 id="reproducing-the-paper">Reproducing the paper</h5>
+<p>The paper's variation grid is indexed by <code>appearance</code> stem names, and the two
+axes above do not reproduce it pixel-for-pixel — see the shifts noted just
+above. <strong>To reproduce the numbers in
+<a href="https://arxiv.org/abs/2511.20766">the paper</a>, use the <code>v1.0-paper</code> tag</strong>, the
+last tree with <code>appearance</code> intact:</p>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>checkout<span class="w"> </span>v1.0-paper
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/todo/appearance<span class="o">=</span>dark_theme
+</code></pre></div>
+
+<p>Theme and layout are the supported axes going forward; <code>v1.0-paper</code> is frozen
+and gets no fixes.</p>
+<p>One exception to the removal: the MCP <code>reconfigure</code> tool still accepts an
+<code>appearance=</code> argument, translates it onto <code>theme</code>/<code>layout</code> per the table
+above, and raises a <code>DeprecationWarning</code>. It exists so existing MCP clients
+keep working for one release and will be removed — see
+<a href="https://github.com/facebookresearch/OpenApps/blob/main/src/open_apps/mcp/README.md"><code>src/open_apps/mcp/README.md</code></a>.</p>
 <h4 id="content">Content</h4>
 <div class="tabbed-set" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><label for="__tabbed_2_1">german</label><div class="tabbed-content">
 <div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>german
@@ -568,7 +638,7 @@ variant, and <code>config/apps/maps/default.yaml</code> for behaviour (map zoom,
 layer, route planning) that is neither.</p>
 <p>Optional: to save screenshots of all apps with a specific variation for testing, we offer <code>tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/</code> to make this easy.</p>
 <h2 id="exposing-openapps-as-an-mcp-server">Exposing OpenApps as an MCP server</h2>
-<p>If you want an agent to interact with OpenApps using <a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a> please see <code>src/mcp/README.md</code>.</p>
+<p>If you want an agent to interact with OpenApps using <a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a> please see <code>src/open_apps/mcp/README.md</code>.</p>
 <h2 id="launch-agent">Launch Agent</h2>
 <p>For agents to directly interact with apps, install: <code>playwright install chromium</code>.</p>
 <p>Launch an agent to perform a task of <em>adding a meeting with Dennis to the calendar</em>:</p>
@@ -676,7 +746,7 @@ measure how robust an agent is to how the same task is worded.</p>
 </code></pre></div>
 
 <h2 id="attribution">Attribution</h2>
-<p>Our apps are built on top of several excellent frameworks:  </p>
+<p>Our apps are built on top of several excellent frameworks:</p>
 <ul>
 <li>FastHTML <a href="https://github.com/AnswerDotAI/fasthtml">framework</a> and <a href="https://github.com/AnswerDotAI/fasthtml-example">examples</a> which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.</li>
 <li><a href="https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE">Browser Gym</a> and <a href="https://github.com/ServiceNow/AgentLab/blob/main/LICENSE">AgentLab</a>:</li>
@@ -806,6 +876,12 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
             Layout
+        </a>
+        
+        <a href="#migrating-from-appearance"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Migrating from appearance
         </a>
         
         <a href="#content"

@@ -14,6 +14,8 @@ hydra/uvicorn/playwright, so it is safe to import from anywhere.
 
 from __future__ import annotations
 
+import warnings
+
 from open_apps import config_dir
 
 
@@ -47,6 +49,62 @@ def config_dir_for(app_name: str) -> str:
     return APP_CONFIG_DIRS.get(app_name, app_name)
 
 
+# ---------------------------------------------------------------------------
+# Legacy ``appearance`` group (removed — kept resolvable for one release).
+
+# ``appearance`` conflated global look with per-app structure, so the split is
+# not one-to-one: five stems became shared themes, three became per-app
+# layouts. Same mapping the docs migration table publishes.
+APPEARANCE_MIGRATION: dict[str, tuple[str, str]] = {
+    "default": ("theme", "default"),
+    "dark_theme": ("theme", "dark"),
+    "black_and_white": ("theme", "mono"),
+    "challenging_font": ("theme", "challenging_font"),
+    "colorblind_access": ("theme", "colorblind"),
+    "kanban_board": ("layout", "kanban_board"),
+    "broken_logos": ("layout", "broken_logos"),
+    "clickable_logos": ("layout", "clickable_logos"),
+}
+
+
+def migrate_appearance(
+    appearance: str,
+    *,
+    theme: str | None = None,
+    layout: str | None = None,
+) -> tuple[str | None, str | None]:
+    """Translate a legacy ``appearance`` stem into ``(theme, layout)``.
+
+    ``theme``/``layout`` are whatever the caller passed alongside it. A
+    disagreement raises rather than picking a winner silently — the caller
+    cannot tell from the result which of the two was applied.
+    """
+    try:
+        group, stem = APPEARANCE_MIGRATION[appearance]
+    except KeyError:
+        raise ValueError(
+            f"unknown appearance variant {appearance!r}. The appearance group "
+            f"was replaced by a shared theme + per-app layout; known legacy "
+            f"values are {', '.join(sorted(APPEARANCE_MIGRATION))}."
+        ) from None
+
+    passed = {"theme": theme, "layout": layout}[group]
+    if passed is not None and passed != stem:
+        raise ValueError(
+            f"appearance={appearance!r} maps to {group}={stem!r}, which "
+            f"conflicts with {group}={passed!r} passed alongside it. Drop the "
+            f"deprecated appearance argument."
+        )
+
+    warnings.warn(
+        f"appearance={appearance!r} is deprecated and will be removed; "
+        f"pass {group}={stem!r} instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+    return (stem, layout) if group == "theme" else (theme, stem)
+
+
 def list_variants(app_name: str, group: str) -> list[str]:
     """List Hydra variant yamls for a group (``theme``/``layout``/``content``).
 
@@ -57,7 +115,17 @@ def list_variants(app_name: str, group: str) -> list[str]:
 
     ``theme`` is a *shared* group (``config/apps/theme/``) applying to every
     app, so ``app_name`` is ignored for it; all other groups are per-app.
+
+    Raises ``ValueError`` for the removed ``appearance`` group: its directory
+    is gone, so the generic missing-dir path would answer ``["default"]`` and
+    a caller sampling variations would silently lose every non-default one.
     """
+    if group == "appearance":
+        raise ValueError(
+            "the appearance group was removed; list_variants(app, 'theme') "
+            "for the shared design-token themes and "
+            "list_variants(app, 'layout') for this app's structure variants."
+        )
     if group == "theme":
         group_dir = config_dir() / "apps" / "theme"
     else:

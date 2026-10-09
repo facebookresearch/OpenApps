@@ -191,6 +191,17 @@ class TestRenderThemeTokens:
         assert "--ok-name: 1;" in out
         assert "bad" not in out and "a b" not in out
 
+    def test_values_that_could_escape_the_style_block_are_dropped(self):
+        out = css(render_theme_tokens({"tokens": {
+            "ok": "#fff",
+            "tag": "red</style><script>x()</script>",
+            "decl": "red; color: blue",
+            "brace": "red } body { color: blue",
+        }}))
+        assert "--ok: #fff;" in out
+        assert "script" not in out and "blue" not in out
+        assert "--tag" not in out and "--decl" not in out and "--brace" not in out
+
     def test_newlines_in_values_are_flattened(self):
         out = css(render_theme_tokens({"tokens": {"font-family": "a\nb\rc"}}))
         assert "--font-family: a b c;" in out
