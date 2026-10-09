@@ -673,6 +673,7 @@ class NavigateToAppTask(Task):
 
 
 @dataclass
+@dataclass
 class CompositeTask(Task):
     """A meta-task made of several sub-tasks that must *all* be satisfied.
 
@@ -751,6 +752,95 @@ class CompositeTask(Task):
             target_state, current_state, reply_contacts=self._reply_contacts()
         )
         return app_state_comparison.compare()
+
+
+@dataclass
+class EditFileTask(Task):
+    """Edit (and save) a file in the Code Editor app.
+
+    Because the Code Editor state is intentionally excluded from
+    ``AppStateComparison`` (see ``AppStateComparison.preprocess``), this
+    task implements its own reward logic that walks the Code Editor file
+    tree directly (the JSON returned by the ``/codeeditor_all`` endpoint).
+
+    Reward = 1 once the file at ``file_path`` in the *current* Code Editor
+    state satisfies the content requirement **and** its content differs
+    from the *initial* Code Editor state. The latter check ensures an
+    unsaved / unchanged file does not earn reward.
+
+    Provide exactly one content requirement:
+      * ``expected_content`` — the file's full contents must match this
+        (whitespace-normalized), or
+      * ``required_fragment`` — this text fragment must appear in the file.
+
+    This class also handles the "create a new file" case: if the file did
+    not exist in the initial state, any matching current content counts as
+    a change.
+    """
+
+    file_path: str
+    expected_content: str | None = None
+    required_fragment: str | None = None
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        # Normalize line endings and strip trailing whitespace per line so
+        # editor-added newlines / indentation noise don't cause spurious
+        # mismatches.
+        lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        return "\n".join(line.rstrip() for line in lines).strip()
+
+    def _find_file_content(self, tree: dict, target_path: str) -> str | None:
+        """Return the content of the file at ``target_path`` in the file
+        tree, or ``None`` if no such file exists."""
+        if not isinstance(tree, dict):
+            return None
+        for child in tree.get("children", []) or []:
+            if child.get("type") == "file" and child.get("path") == target_path:
+                return child.get("content", "")
+            if child.get("type") == "folder":
+                found = self._find_file_content(child, target_path)
+                if found is not None:
+                    return found
+        return None
+
+    def _content_matches(self, content: str) -> bool:
+        if self.expected_content is not None:
+            return self._normalize(content) == self._normalize(self.expected_content)
+        if self.required_fragment is not None:
+            return self._normalize(self.required_fragment) in self._normalize(content)
+        raise ValueError(
+            "EditFileTask requires either 'expected_content' or 'required_fragment'"
+        )
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        if isinstance(initial_state, DictConfig):
+            initial_state = OmegaConf.to_container(initial_state, resolve=True)
+
+        current_tree = current_state.get("codeeditor") or {}
+        current_content = self._find_file_content(current_tree, self.file_path)
+        if current_content is None:
+            # The target file does not exist in the Code Editor.
+            return False
+
+        if not self._content_matches(current_content):
+            # Wrong file / wrong contents.
+            return False
+
+        # Require the file to have actually changed vs. the initial state so
+        # that an unsaved or unchanged file does not earn reward.
+        initial_tree = initial_state.get("codeeditor") or {}
+        initial_content = self._find_file_content(initial_tree, self.file_path)
+        if initial_content is not None and self._normalize(
+            initial_content
+        ) == self._normalize(current_content):
+            return False
+
+        return True
 
 
 if __name__ == "__main__":

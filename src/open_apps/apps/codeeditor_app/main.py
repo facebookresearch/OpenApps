@@ -175,7 +175,7 @@ def set_environment(config):
         }
     """),)
     _base_hdrs = _base_hdrs_with_highlight if config.code_editor.highlight else _base_hdrs_no_highlight
-    
+
     app.config = config
     # Update app headers by extending existing ones
     app.hdrs = (*_base_hdrs, _COMPONENT_STYLES)
@@ -237,6 +237,40 @@ def newfile_index(current_path):
     while os.path.exists(os.path.join(target_dir, f"Untitled-{i}")):
         i += 1
     return i
+
+def editor_binding(options_js: str) -> str:
+    """JS that binds the page-global ``editor`` used by Save / the selectors.
+
+    With ``code_editor.highlight`` on, ``editor`` is a CodeMirror instance
+    wrapping the ``#editor`` textarea. With it off there is no CodeMirror on
+    the page (the CDN scripts are only added in the highlight branch of
+    ``set_environment``), so bind a small shim over the plain textarea that
+    exposes the handful of methods the page calls: ``getValue`` (Save),
+    ``setValue``, ``setOption`` (mode/theme selectors), and ``setSize``.
+
+    Without the shim the emitted JS was
+    ``var editor = (document.getElementById('editor'), {...});`` — the comma
+    operator, which bound ``editor`` to the *options object*. Every
+    ``editor.getValue()`` then threw a TypeError, so the Save button silently
+    did nothing: no POST, no reload, no error modal.
+    """
+    if app.config.code_editor.highlight:
+        return (
+            "var editor = CodeMirror.fromTextArea(document.getElementById('editor'), "
+            f"{options_js});"
+        )
+    return """
+                    var editorTextarea = document.getElementById('editor');
+                    var editor = {
+                        getValue: function() { return editorTextarea.value; },
+                        setValue: function(value) { editorTextarea.value = value; },
+                        getOption: function() { return null; },
+                        setOption: function() {},
+                        setSize: function() {},
+                        refresh: function() {},
+                        focus: function() { editorTextarea.focus(); }
+                    };"""
+
 
 def get_file_tree(path: str) -> Dict:
     """Recursively build a file tree structure"""
@@ -300,10 +334,10 @@ def create_sidebar(current_path: str = None) -> Div:
                             const isVisible = content.style.display === 'block';
                             content.style.display = isVisible ? 'none' : 'block';
                             icon.textContent = isVisible ? '▶' : '▼';
-                            
+
                             const storageKey = getStorageKey('{folder_path}');
                             localStorage.setItem(storageKey, (!isVisible).toString());
-                            
+
                             window.location = '/codeeditor/{folder_path}';
                         """
                     }
@@ -417,11 +451,11 @@ def create_sidebar(current_path: str = None) -> Div:
                     const icon = container.querySelector('.folder-icon');
                     const content = container.querySelector('.folder-content');
                     const folderPath = folderHeader.getAttribute('data-path');
-                    
+
                     // Set initial state from localStorage, default to collapsed (false)
                     const storageKey = getStorageKey(folderPath);
                     const isExpanded = localStorage.getItem(storageKey) === 'true';
-                    
+
                     // Always start collapsed unless explicitly set to expanded in localStorage
                     content.style.display = isExpanded ? 'block' : 'none';
                     icon.textContent = isExpanded ? '▼' : '▶';
@@ -450,6 +484,28 @@ def index():
     # files_root = f"{current_dir}/files/"
     files_root = current_dir
     file_tree = get_file_tree(files_root)
+    editor_options = f"""{{
+                        mode: '{app.config.code_editor.mode}',
+                        theme: '{current_editor_theme()}',
+                        lineNumbers: true,
+                        indentUnit: 4,
+                        tabSize: 4,
+                        indentWithTabs: false,
+                        smartIndent: true,
+                        lineWrapping: true,
+                        extraKeys: {{
+                            "Tab": function(cm) {{
+                                if (cm.somethingSelected()) {{
+                                    cm.indentSelection("add");
+                                }} else {{
+                                    cm.replaceSelection("    ", "end", "+input");
+                                }}
+                            }},
+                            "Shift-Tab": function(cm) {{
+                                cm.indentSelection("subtract");
+                            }}
+                        }}
+                    }}"""
     # by default, the main screen should display an empty code editor
     main_screen = Div(cls="w-5/6")(
         Div(cls="main-content p-4 rounded-lg styled-content")(
@@ -518,28 +574,7 @@ def index():
                     disabled="disabled"
                 ),
                 Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
-                        mode: '{app.config.code_editor.mode}',
-                        theme: '{current_editor_theme()}',
-                        lineNumbers: true,
-                        indentUnit: 4,
-                        tabSize: 4,
-                        indentWithTabs: false,
-                        smartIndent: true,
-                        lineWrapping: true,
-                        extraKeys: {{
-                            "Tab": function(cm) {{
-                                if (cm.somethingSelected()) {{
-                                    cm.indentSelection("add");
-                                }} else {{
-                                    cm.replaceSelection("    ", "end", "+input");
-                                }}
-                            }},
-                            "Shift-Tab": function(cm) {{
-                                cm.indentSelection("subtract");
-                            }}
-                        }}
-                    }});
+                    {editor_binding(editor_options)}
                     {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
                 """),
             ),
@@ -569,6 +604,12 @@ def get(path: str):
 def get_folder(folder: str):
     """Handle folder view with empty editor"""
     side_bar = create_sidebar(folder)
+    editor_options = f"""{{
+                        mode: '{app.config.code_editor.mode}',
+                        theme: '{current_editor_theme()}',
+                        lineNumbers: true,
+                        readOnly: true
+                    }}"""
     main_screen = Div(cls="w-5/6")(
         Div(cls="main-content  p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
@@ -624,12 +665,7 @@ def get_folder(folder: str):
                     disabled="disabled"
                 ),
                 Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
-                        mode: '{app.config.code_editor.mode}',
-                        theme: '{current_editor_theme()}',
-                        lineNumbers: true,
-                        readOnly: true
-                    }});
+                    {editor_binding(editor_options)}
                     {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
                 """),
             ),
@@ -672,6 +708,35 @@ def get_file(file: str):
     # files_root = f"{current_dir}/files/"
     files_root = current_dir
     file_tree = get_file_tree(files_root)
+    editor_options = f"""{{
+                        mode: '{app.config.code_editor.mode}',
+                        theme: '{current_editor_theme()}',
+                        lineNumbers: true,
+                        indentUnit: 4,
+                        tabSize: 4,
+                        indentWithTabs: false,
+                        smartIndent: true,
+                        lineWrapping: true,
+                        screenReaderLabel: 'Code editor',
+                        inputStyle: 'contenteditable',
+                        role: 'textbox',
+                        'aria-multiline': true,
+                        'aria-atomic': true,
+                        'aria-live': 'off',
+                        announceMultiline: true,
+                        extraKeys: {{
+                            "Tab": function(cm) {{
+                                if (cm.somethingSelected()) {{
+                                    cm.indentSelection("add");
+                                }} else {{
+                                    cm.replaceSelection("    ", "end", "+input");
+                                }}
+                            }},
+                            "Shift-Tab": function(cm) {{
+                                cm.indentSelection("subtract");
+                            }}
+                        }}
+                    }}"""
     # same layout and sidebar as the main screen
     side_bar = create_sidebar(file)
     tab_bar = Div(cls="flex overflow-x-auto bg-gray-800 border-b border-gray-700")(
@@ -713,7 +778,7 @@ def get_file(file: str):
                 // Initialize opened files
                 let openedFiles = getOpenedFiles();
                 const currentFile = '""" + file + """';
-                
+
                 if (!openedFiles.includes(currentFile)) {
                     openedFiles.push(currentFile);
                     updateOpenedFiles(openedFiles);
@@ -723,13 +788,13 @@ def get_file(file: str):
                 function renderTabs() {
                     const container = document.getElementById('tab-container');
                     container.innerHTML = '';
-                    
+
                     openedFiles.forEach(file => {
                         const tab = document.createElement('div');
                         tab.className = `flex items-center px-4 py-2 cursor-pointer ${
                             file === currentFile ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                         }`;
-                        
+
                         const fileName = document.createElement('span');
                         fileName.textContent = file.split('/').pop();
                         fileName.onclick = () => {
@@ -737,7 +802,7 @@ def get_file(file: str):
                                 window.location = '/codeeditor/' + file;
                             }
                         };
-                        
+
                         const closeBtn = document.createElement('button');
                         closeBtn.className = 'ml-2 text-gray-500 hover:text-white focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0';
                         closeBtn.innerHTML = '×';
@@ -745,7 +810,7 @@ def get_file(file: str):
                             e.stopPropagation();
                             openedFiles = openedFiles.filter(f => f !== file);
                             updateOpenedFiles(openedFiles);
-                            
+
                             if (file === currentFile) {
                                 // Navigate to the next available tab or index
                                 if (openedFiles.length > 0) {
@@ -757,7 +822,7 @@ def get_file(file: str):
                                 renderTabs();
                             }
                         };
-                        
+
                         tab.appendChild(fileName);
                         tab.appendChild(closeBtn);
                         container.appendChild(tab);
@@ -820,7 +885,7 @@ def get_file(file: str):
                                     .then(data => {{
                                         if (data.success) {{
                                             // Update tab name before navigation
-                                            updateTabOnRename('{file}', newName);                                            
+                                            updateTabOnRename('{file}', newName);
                                             window.location = '/codeeditor/' + newName;
                                         }} else {{
                                             showErrorModal('Failed to rename: ' + data.error);
@@ -901,35 +966,7 @@ def get_file(file: str):
                     cls="sr-only"
                 )(f"Code editor for editing {file}"),
                 Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
-                        mode: '{app.config.code_editor.mode}',
-                        theme: '{current_editor_theme()}',
-                        lineNumbers: true,
-                        indentUnit: 4,
-                        tabSize: 4,
-                        indentWithTabs: false,
-                        smartIndent: true,
-                        lineWrapping: true,
-                        screenReaderLabel: 'Code editor',
-                        inputStyle: 'contenteditable',
-                        role: 'textbox',
-                        'aria-multiline': true,
-                        'aria-atomic': true,
-                        'aria-live': 'off',
-                        announceMultiline: true,
-                        extraKeys: {{
-                            "Tab": function(cm) {{
-                                if (cm.somethingSelected()) {{
-                                    cm.indentSelection("add");
-                                }} else {{
-                                    cm.replaceSelection("    ", "end", "+input");
-                                }}
-                            }},
-                            "Shift-Tab": function(cm) {{
-                                cm.indentSelection("subtract");
-                            }}
-                        }}
-                    }});
+                    {editor_binding(editor_options)}
                     {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
                 """),
             ),

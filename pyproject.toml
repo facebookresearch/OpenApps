@@ -54,3 +54,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: spins up the real web app and/or a browser; deselect with -m 'not slow'",
+]

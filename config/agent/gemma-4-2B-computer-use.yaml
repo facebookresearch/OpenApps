@@ -4,7 +4,7 @@ defaults:
 
 # Must exactly match the model vLLM is serving (the --model / served_model_name).
 model_name: "google/gemma-4-E2B-it"
-model_pretty_name: "gemma-4-computer-use"
+model_pretty_name: "gemma-4-2B-computer-use"
 api_version: null
 client_type: "vllm"
 # For client_type=vllm the URL is built as http://${hostname}:${port}/v1

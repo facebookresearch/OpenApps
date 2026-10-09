@@ -3,9 +3,8 @@
 # SLURM wrapper around scripts/conduct.sh.
 #
 # Requests a CPU allocation, auto-discovers the node running vLLM (serving the
-# target model on :8000), and launches the worker pool pointed at it. The eval
-# job talks to Gemma over the cluster-internal network, so no SSH tunnel from a
-# laptop is needed.
+# target model on :8000), and launches the worker pool pointed at it. This assume
+# the eval job is running on the same internal network as Gemme.
 #
 # Submit:
 #   AGENTS=gemma-4-computer-use COUNT=1 sbatch scripts/conduct_slurm.sh
