@@ -11,7 +11,7 @@ and the app registry (``open_apps.mcp.registry``).
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from browsergym.core.action import functions as bg_functions
@@ -277,3 +277,68 @@ class TestEndToEnd:
                 await session.close()
 
         assert asyncio.run(run()) == 1.0
+
+
+class TestLifecycleAndSeed:
+    """Tests for Session.reset / Session.reconfigure seed plumbing and initial_state sync."""
+
+    def test_session_reset_propagates_seed(self):
+        from open_apps.mcp.session import Session
+
+        session = Session("todo")
+        session._started = True
+        session.appserver = MagicMock()
+        session.appserver.reset = MagicMock()
+        session.appserver.get_state = MagicMock(return_value={"todo": []})
+        session.appserver.url_for = MagicMock(return_value="http://127.0.0.1:8000/todo")
+        session.page = AsyncMock()
+
+        async def run():
+            await session.reset(seed=123)
+
+        asyncio.run(run())
+        session.appserver.reset.assert_called_once_with(seed=123)
+        assert session._initial_state == {"todo": []}
+
+    def test_session_reconfigure_updates_initial_state(self):
+        from open_apps.mcp.session import Session
+
+        session = Session("todo")
+        session._started = True
+        session._initial_state = {"todo": ["initial"]}
+        session.appserver = MagicMock()
+        session.appserver.reconfigure = MagicMock()
+        session.appserver.get_state = MagicMock(return_value={"todo": ["reconfigured"]})
+
+        async def run():
+            await session.reconfigure(content="german", seed=42)
+
+        asyncio.run(run())
+        session.appserver.reconfigure.assert_called_once_with(
+            appearance=None, content="german", seed=42, extras=None
+        )
+        assert session._initial_state == {"todo": ["reconfigured"]}
+
+    def test_appserver_reset_delegates_to_reconfigure_when_seed_provided(self):
+        from open_apps.mcp.appserver import AppServer
+
+        server = AppServer.__new__(AppServer)
+        server.reconfigure = MagicMock()
+
+        with patch("open_apps.mcp.appserver.reset_all_apps") as mock_reset_all:
+            server.reset(seed=77)
+            server.reconfigure.assert_called_once_with(seed=77)
+            mock_reset_all.assert_not_called()
+
+    def test_appserver_reset_calls_reset_all_apps_when_no_seed(self):
+        from open_apps.mcp.appserver import AppServer
+
+        server = AppServer.__new__(AppServer)
+        server.reconfigure = MagicMock()
+        server.config = MagicMock()
+        server.config.apps = MagicMock()
+
+        with patch("open_apps.mcp.appserver.reset_all_apps") as mock_reset_all:
+            server.reset()
+            server.reconfigure.assert_not_called()
+            mock_reset_all.assert_called_once_with(server.config.apps)
