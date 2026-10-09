@@ -19,6 +19,7 @@ defaults:
   - apps/calendar: default
   - apps/todo: default
   - apps/onlineshop: default
+  - apps/ui_library: default
   - apps/pop_ups: default
   - _self_
 

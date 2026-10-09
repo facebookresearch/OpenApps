@@ -274,4 +274,6 @@ class TestStartPageLayoutAwareness:
         assert not any("pinned to the desktop" in q.question for q in questions)
         counts = [q for q in questions if "How many app shortcuts" in q.question]
         assert len(counts) == 1
-        assert counts[0].choices[counts[0].correct] == "5"
+        # Every app in the start page inventory except the globally gated
+        # online shop: todo, calendar, messages, maps, codeeditor, uilibrary.
+        assert counts[0].choices[counts[0].correct] == "6"

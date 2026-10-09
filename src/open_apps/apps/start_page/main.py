@@ -226,6 +226,10 @@ AVAILABLE_APPS = {
         "open_apps.apps.map_app",
         "get_map_routes",
     ),
+    "uilibrary": (
+        "open_apps.apps.uilibrary_app",
+        "get_uilibrary_routes",
+    ),
 }
 
 APP_MODULE_TO_NAME = {
@@ -234,6 +238,7 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.messenger_app": "messenger",
     "open_apps.apps.codeeditor_app": "code_editor",
     "open_apps.apps.map_app": "maps",
+    "open_apps.apps.uilibrary_app": "ui_library",
 }
 
 

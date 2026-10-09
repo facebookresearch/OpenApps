@@ -92,3 +92,9 @@ apps:
     enabled: true
     position: 6
     clickable_logo: false
+  uilibrary:
+    icon: ${apps.start_page.icon_path}/uilibrary.png
+    bw_icon: ${apps.start_page.bw_icon_path}/uilibrary.png
+    enabled: false
+    position: 7
+    clickable_logo: false
