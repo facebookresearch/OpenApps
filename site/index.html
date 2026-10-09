@@ -458,13 +458,13 @@
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/facebookresearch/OpenApps.git
 </code></pre></div>
 
-<p>Install dependencies:   </p>
+<p>Install dependencies:</p>
 <div class="codehilite"><pre><span></span><code><span class="w">   </span>uv<span class="w"> </span>sync
 </code></pre></div>
 
 <p>For other installation options and online shop setup see <a href="installation/">Installation</a>.</p>
 <h3 id="run-openapps">Run OpenApps</h3>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing.png" /></p>
@@ -475,31 +475,241 @@
 </code></pre></div>
 
 <p>OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.</p>
-<h4 id="appearance">Appearance</h4>
+<p>Appearance is split along two axes:</p>
+<ul>
+<li><strong>Theme</strong> -- <em>look</em>: colors, typography, shape. One shared set of design
+  tokens in <code>config/apps/theme/</code>, applied to <strong>every</strong> app at once.</li>
+<li><strong>Layout</strong> -- <em>structure</em>: how an individual app arranges itself. Per-app,
+  under <code>config/apps/&lt;app&gt;/layout/</code>.</li>
+</ul>
+<h4 id="theme">Theme</h4>
 <div class="tabbed-set" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><label for="__tabbed_1_1">challenging font</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>challenging_font
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">THEME</span><span class="o">=</span>challenging_font
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing-challenging-font.png" /></p>
 </div>
 <input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><label for="__tabbed_1_2">dark theme</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>dark_theme
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">THEME</span><span class="o">=</span>dark
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing-dark.png" /></p>
 </div>
 <input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><label for="__tabbed_1_3">default</label><div class="tabbed-content">
-<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">APPEARANCE</span><span class="o">=</span>default
+<div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">THEME</span><span class="o">=</span>default
 </code></pre></div>
 
 <p><img alt="landing" src="images/landing.png" /></p>
 </div>
 </div>
-<p>Launch specific apps with selected appearance:</p>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/appearance<span class="o">=</span><span class="nv">$APPEARANCE</span>
+<p>A single override themes every app:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/theme<span class="o">=</span><span class="nv">$THEME</span>
 </code></pre></div>
 
-<p>Or specific apps with: <code>apps/calendar/appearance=$APPEARANCE</code>.</p>
+<p>Or one app only, leaving the rest on the global theme:
+<code>uv run launch.py apps.calendar.theme=$THEME</code>.</p>
+<p>Shipped themes: <code>default</code>, <code>dark</code>, <code>mono</code>, <code>challenging_font</code>, <code>colorblind</code>,
+<code>solarized</code>, <code>material</code>, <code>bootstrap</code>, <code>meta</code>, <code>meta_dark</code>, <code>vscode_dark</code>.
+Adding one means adding a yaml file to <code>config/apps/theme/</code> -- no app code
+changes.</p>
+<p>Precedence, highest first:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Example</th>
+<th>Beats</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>per-app pin</td>
+<td><code>apps.calendar.theme=dark</code></td>
+<td>everything</td>
+</tr>
+<tr>
+<td>global selection</td>
+<td><code>apps/theme=dark</code></td>
+<td>the app's own default</td>
+</tr>
+<tr>
+<td>the app's own default</td>
+<td><code>theme_default:</code> in its <code>default.yaml</code></td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>--</td>
+<td>--</td>
+</tr>
+</tbody>
+</table></div>
+<p>The middle two are the ones worth understanding. An app may declare a
+<code>theme_default</code> -- the code editor's is <code>vscode_dark</code>, so <code>uv run launch.py</code>
+opens on something that reads as a code editor. It applies <em>only</em> when no
+theme was selected, so sweeping the axis still moves every app, including the
+<code>apps/theme=default</code> cell the rest of the sweep is compared against. A
+per-app <code>theme</code> pin is the opposite: it wins over the sweep, which is what you
+want for dressing one app differently on purpose and not much else.</p>
+<p>This is why the <code>apps/theme</code> group defaults to <code>null</code> in <code>config/config.yaml</code>
+rather than to <code>default</code> -- "nothing was selected" has to be distinguishable
+from "<code>default</code> was selected". A null group default is still bindable without
+a <code>+</code>.</p>
+<p>A theme file is a set of design tokens plus a small <code>assets</code> block:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># config/apps/theme/dark.yaml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span>
+<span class="nt">tokens</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">color-bg</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#121212&quot;</span><span class="w">       </span><span class="c1"># -&gt; --color-bg, consumed as var(--color-bg)</span>
+<span class="w">  </span><span class="nt">color-primary</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#bb86fc&quot;</span>
+<span class="w">  </span><span class="nt">font-family</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&#39;Inter&#39;,</span><span class="nv"> </span><span class="s">system-ui,</span><span class="nv"> </span><span class="s">sans-serif&quot;</span>
+<span class="w">  </span><span class="nt">radius</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;4px&quot;</span>
+<span class="nt">assets</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">tone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span><span class="w">                </span><span class="c1"># apps map this onto their own non-CSS assets</span>
+<span class="w">  </span><span class="nt">icon_set</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bw</span>
+</code></pre></div>
+
+<p>Every <code>tokens</code> entry becomes a CSS custom property. <code>assets</code> covers the
+choices a CSS variable cannot reach -- the start page's raster icons, the
+Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
+app-agnostic: the theme says <code>tone: dark</code> and each app picks its own dark
+asset, so a theme file never has to know which apps exist.</p>
+<h4 id="layout">Layout</h4>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/todo/layout<span class="o">=</span>kanban_board
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/start_page/layout<span class="o">=</span>gallery
+</code></pre></div>
+
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>App</th>
+<th>Layouts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start_page</code></td>
+<td><code>desktop</code> (default), <code>gallery</code>, <code>broken_logos</code>, <code>clickable_logos</code></td>
+</tr>
+<tr>
+<td><code>todo</code></td>
+<td><code>default</code>, <code>kanban_board</code></td>
+</tr>
+<tr>
+<td>everything else</td>
+<td><code>default</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The start page is the landing surface an agent sees first, so it carries the
+most:</p>
+<ul>
+<li><strong><code>desktop</code></strong> — the default. A toolbar (launcher, clock, weather, light/dark
+  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
+  it renders as a home screen instead; see <a href="#devices">Devices</a>.</li>
+<li><strong><code>gallery</code></strong> — the original html5up tile grid: five coloured tiles under a
+  "Welcome to OpenApps!" headline. Still a single override away, and it is what
+  the paper's figures show.</li>
+<li><strong><code>broken_logos</code></strong> / <strong><code>clickable_logos</code></strong> — variations <em>of the gallery</em>
+  (they compose it), so selecting either also selects the tile grid.</li>
+</ul>
+<p>Two pieces of desktop state are scoreable and served at <code>/desktop_all</code>: the
+light/dark mode and the list of pinned app keys. <code>launcher_open</code> is
+deliberately excluded — a task should not pass or fail on whether the agent
+left a popover showing.</p>
+<h5 id="pinning-and-making-the-agent-use-the-launcher">Pinning, and making the agent use the launcher</h5>
+<p>Every app is pinned by default (<code>pinned: all</code>), so each one has a shortcut on
+the desktop and the launcher is a convenience. The launcher only <em>tests</em>
+anything once something the agent needs is behind it, and that is one
+override — name the few to hide rather than re-listing the many to keep:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># OpenMessages has no shortcut; the only route to it is the launcher menu</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span><span class="nv">task_name</span><span class="o">=</span>navigate_to_messenger<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>apps.start_page.desktop.unpinned<span class="o">=[</span>messages<span class="o">]</span>
+
+<span class="c1"># or sweep it as a variation axis</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_parallel_agents.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="s1">&#39;parallel_tasks.app_variations=[[],[&quot;apps.start_page.desktop.unpinned=[messages,maps]&quot;]]&#39;</span>
+</code></pre></div>
+
+<p><code>pinned</code> also takes an explicit list, and resolution always follows the app
+inventory's order rather than the order you wrote — so "the third icon" means
+the same thing however the override was typed. <code>all</code> expands to the apps that
+actually render, so the online shop is not pinned while it is gated off, which
+would otherwise put a key in <code>/desktop_all</code> with no tile on the page.</p>
+<p>The phone home screen is the exception: it splits apps between a grid
+(unpinned) and a dock (pinned), so <code>all</code> would dock everything and leave the
+grid empty. It takes <code>pinned_by_variant.home_screen</code> instead. It is not the
+composition for this experiment anyway — a phone's unpinned apps sit on the
+grid in plain view, not behind the menu.</p>
+<h4 id="migrating-from-appearance">Migrating from <code>appearance</code></h4>
+<p>The <code>appearance</code> group these two replaced was removed: there are no
+<code>config/apps/&lt;app&gt;/appearance/</code> directories and no app renders from one.
+<code>apps/&lt;app&gt;/appearance=...</code> is a Hydra composition error, not a silent
+no-op. Translate overrides as:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Old override</th>
+<th>New override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=default</code></td>
+<td><code>apps/theme=default</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=dark_theme</code></td>
+<td><code>apps/theme=dark</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=black_and_white</code></td>
+<td><code>apps/theme=mono</code></td>
+</tr>
+<tr>
+<td><code>apps/&lt;app&gt;/appearance=challenging_font</code></td>
+<td><code>apps/theme=challenging_font</code></td>
+</tr>
+<tr>
+<td><code>apps/code_editor/appearance=colorblind_access</code></td>
+<td><code>apps/theme=colorblind</code></td>
+</tr>
+<tr>
+<td><code>apps/todo/appearance=kanban_board</code></td>
+<td><code>apps/todo/layout=kanban_board</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=broken_logos</code></td>
+<td><code>apps/start_page/layout=broken_logos</code></td>
+</tr>
+<tr>
+<td><code>apps/start_page/appearance=clickable_logos</code></td>
+<td><code>apps/start_page/layout=clickable_logos</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one <code>apps/theme=dark</code>. Two renderings shift slightly:
+<code>mono</code> picks white-page/black-ink for every app, where the old
+<code>black_and_white</code> variants disagreed on polarity (calendar inverted the page,
+the rest did not), and <code>colorblind</code> is now available to all apps rather than
+the code editor alone.</p>
+<h5 id="reproducing-the-paper">Reproducing the paper</h5>
+<p>The paper's variation grid is indexed by <code>appearance</code> stem names, and the two
+axes above do not reproduce it pixel-for-pixel — see the shifts noted just
+above. <strong>To reproduce the numbers in
+<a href="https://arxiv.org/abs/2511.20766">the paper</a>, use the <code>v1.0-paper</code> tag</strong>, the
+last tree with <code>appearance</code> intact:</p>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>checkout<span class="w"> </span>v1.0-paper
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>apps/todo/appearance<span class="o">=</span>dark_theme
+</code></pre></div>
+
+<p>Theme and layout are the supported axes going forward; <code>v1.0-paper</code> is frozen
+and gets no fixes.</p>
+<p>One exception to the removal: the MCP <code>reconfigure</code> tool still accepts an
+<code>appearance=</code> argument, translates it onto <code>theme</code>/<code>layout</code> per the table
+above, and raises a <code>DeprecationWarning</code>. It exists so existing MCP clients
+keep working for one release and will be removed — see
+<a href="https://github.com/facebookresearch/OpenApps/blob/main/src/open_apps/mcp/README.md"><code>src/open_apps/mcp/README.md</code></a>.</p>
 <h4 id="content">Content</h4>
 <div class="tabbed-set" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><label for="__tabbed_2_1">german</label><div class="tabbed-content">
 <div class="codehilite"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTENT</span><span class="o">=</span>german
@@ -524,7 +734,14 @@
 </code></pre></div>
 
 <p>Or specific apps with: <code>apps/calendar/content=$CONTENT</code>.</p>
-<p>You can see the specific variables for each defined in the individual apps. For example, <code>config/apps/maps/appearance/dark_theme.yaml</code>.</p>
+<p>You can see the specific variables for each defined in the individual apps.
+For example, <code>config/apps/theme/dark.yaml</code> for the shared design tokens,
+<code>config/apps/start_page/layout/broken_logos.yaml</code> for a per-app structure
+variant, and <code>config/apps/maps/default.yaml</code> for behaviour (map zoom, tile
+layer, route planning) that is neither.</p>
+<p>Optional: to save screenshots of all apps with a specific variation for testing, we offer <code>tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/</code> to make this easy.</p>
+<h2 id="exposing-openapps-as-an-mcp-server">Exposing OpenApps as an MCP server</h2>
+<p>If you want an agent to interact with OpenApps using <a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a> please see <code>src/open_apps/mcp/README.md</code>.</p>
 <h2 id="launch-agent">Launch Agent</h2>
 <p>For agents to directly interact with apps, install: <code>playwright install chromium</code>.</p>
 <p>Launch an agent to perform a task of <em>adding a meeting with Dennis to the calendar</em>:</p>
@@ -551,6 +768,118 @@ uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class=
 </code></pre></div>
 
 <p><img alt="Live Agent" src="images/gif.gif" /></p>
+<h3 id="devices">Devices</h3>
+<p>The device is a variation axis of its own, alongside theme, layout, content and
+pop-ups. <code>config/device/</code> ships four:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th><code>device=</code></th>
+<th>Viewport</th>
+<th>Form factor</th>
+<th>Input</th>
+<th>User agent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>desktop</code> (default)</td>
+<td>1920×1080</td>
+<td>desktop</td>
+<td>mouse</td>
+<td>Chromium's own</td>
+</tr>
+<tr>
+<td><code>laptop</code></td>
+<td>1280×800</td>
+<td>desktop</td>
+<td>mouse</td>
+<td>Chromium's own</td>
+</tr>
+<tr>
+<td><code>tablet</code></td>
+<td>820×1180</td>
+<td>tablet</td>
+<td>touch, no hover</td>
+<td>Chrome, Android tablet</td>
+</tr>
+<tr>
+<td><code>phone</code></td>
+<td>390×844</td>
+<td>phone</td>
+<td>touch, no hover</td>
+<td>Chrome, Android phone</td>
+</tr>
+</tbody>
+</table></div>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>+experiment<span class="o">=</span>phone<span class="w">                      </span><span class="c1"># browse the phone build</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span>+experiment<span class="o">=</span>phone<span class="w">    </span><span class="c1"># run an agent on it</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch_agent.py<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span><span class="nv">device</span><span class="o">=</span>tablet<span class="w">        </span><span class="c1"># just the device</span>
+</code></pre></div>
+
+<p>The mobile devices set a matching UA because <code>is_mobile</code> alone leaves Chromium
+announcing itself as desktop Chrome — touch input, phone width, desktop
+browser, which is a contradiction anything UA-sniffing would see. They claim
+Chrome rather than iOS Safari because the engine really is Blink, and the
+version is pinned so a rendering does not change because the month did.
+Opt out with <code>device.user_agent=null</code>, or set your own.</p>
+<p>One setting moves two things:</p>
+<ul>
+<li><strong>the browser</strong> — <code>browsergym_env_args.task_kwargs.screen_resolution</code> is
+  <code>${device.viewport}</code>, and <code>open_apps.agent.env_args.DeviceEnvArgs</code> forwards
+  <code>is_mobile</code>, <code>has_touch</code>, <code>device_scale_factor</code> and <code>user_agent</code> to the
+  Playwright context. On a phone or tablet the page gets a real mobile visual
+  viewport and a coarse pointer, so <code>@media (hover: none)</code> and
+  <code>(pointer: coarse)</code> match and hover-only affordances correctly disappear;</li>
+<li><strong>the apps</strong> — the node is mirrored to <code>apps.device</code>, so a server-rendered
+  layout can pick a composition for the form factor rather than only reflowing
+  to the width.</li>
+</ul>
+<p>The start page's desktop shell does exactly that. On a phone it renders a home
+screen: status bar, wordmark widget, an icon grid of the apps that are <strong>not</strong>
+pinned, and a dock holding the ones that are — so pinning moves an app into the
+dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+the test ids and <code>/desktop_all</code> are the same on both, so a task written against
+one scores unchanged on the other; what differs is what the agent can see and
+how far it has to travel. Which composition a form factor gets is config, not
+code:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># the control condition: the desktop composition, in a phone-sized window</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span>+experiment<span class="o">=</span>phone<span class="w"> </span>apps.start_page.desktop.variants.phone<span class="o">=</span>shell
+</code></pre></div>
+
+<p>Adding a device is a file in <code>config/device/</code>; a form factor with no variant of
+its own falls back to the desktop composition rather than to a blank page.</p>
+<h4 id="the-preview-window">The preview window</h4>
+<p><code>uv run launch.py</code> opens a browser on the apps once they answer, so "run it and
+look at it" is one command rather than two plus copying a URL out of the log.
+It is a Playwright Chromium, not the system browser, and it is handed the same
+<code>config/device/</code> emulation the agent path gets — viewport, <code>is_mobile</code>,
+<code>has_touch</code>, <code>device_scale_factor</code>, <code>user_agent</code>:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w">                    </span><span class="c1"># 1920×1080 desktop window</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span><span class="nv">device</span><span class="o">=</span>phone<span class="w">       </span><span class="c1"># 390×844, touch pointer, phone UA</span>
+uv<span class="w"> </span>run<span class="w"> </span>launch.py<span class="w"> </span><span class="nv">headless</span><span class="o">=</span>True<span class="w">      </span><span class="c1"># serve only, open nothing</span>
+</code></pre></div>
+
+<p><code>webbrowser.open</code> is not used because it can neither size a window nor make
+<code>@media (hover: none)</code> match, so <code>launch.py device=phone</code> would have opened a
+desktop-width page and the phone layout you asked to look at would not have
+been the thing on screen.</p>
+<p>It never opens for an agent run. <code>launch_agent.py</code> and
+<code>launch_parallel_agents.py</code> re-invoke <code>launch.py</code> with <code>headless=True</code>, and so
+does <code>tests/save_screenshots.py</code> — all three bring their own browser, and a
+second window fighting for focus mid-episode is not something an eval needs.</p>
+<p>Nothing here is fatal: with Playwright missing, its Chromium not installed, or
+no display available, this falls back to the system browser and finally to
+printing the URL. Serving the apps is the job; opening a window is a
+convenience.</p>
+<div class="admonition warning">
+<p class="admonition-title">Keep <code>device_scale_factor</code> at 1</p>
+<p>Screenshots are captured in <em>device</em> pixels and actions are dispatched in
+<em>CSS</em> pixels, and nothing in between divides by the ratio — the agent's
+coordinate space comes straight from the screenshot's shape. At scale 2 a
+grounded click lands at twice the intended offset. Every shipped device
+keeps it at 1, retina or not.</p>
+</div>
 <h3 id="logs">Logs</h3>
 <p>By default, information about the number of steps an agent took, task success, etc. will be shown in the terminal:</p>
 <div class="codehilite"><pre><span></span><code>...
@@ -588,23 +917,51 @@ You can also enable logging to weights and biases by logging into your account a
 <span class="w">  </span><span class="nt">app_variations</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;apps/start_page/content=default&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;apps/calendar/content=german&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span>
-<span class="w">        </span><span class="s">&quot;apps/start_page/appearance=dark_theme&quot;</span><span class="p p-Indicator">,</span>
-<span class="w">        </span><span class="s">&quot;apps/calendar/appearance=dark_theme&quot;</span><span class="p p-Indicator">,</span>
+<span class="w">        </span><span class="s">&quot;apps/theme=dark&quot;</span><span class="p p-Indicator">,</span>
 <span class="w">      </span><span class="p p-Indicator">]</span>
 </code></pre></div>
 
 <p>You can modify the set of tasks or app variation by updating the <code>config_parallel_tasks.yaml</code>. We ensure:</p>
 <ul>
-<li>Each deployment of OpenApps can have different appearance and content per app.</li>
+<li>Each deployment of OpenApps can have a different theme (global), plus layout and content per app.</li>
 <li>Each task is launched in an isolated environment for reproducible results.</li>
 </ul>
+<p>To run <strong>every</strong> task in the loaded tasks config (rather than listing a subset by
+hand), set <code>task_names</code> to <code>all</code>. This expands to all task names defined in the
+selected <code>tasks=</code> group, so it composes with any tasks file:</p>
+<div class="codehilite"><pre><span></span><code>uv run launch_parallel_agents.py \
+  mode=slurm_cluster agent=dummy tasks=longer_horizon \
+  parallel_tasks.task_names=all use_wandb=True
+</code></pre></div>
+
+<p>Passing an explicit list (e.g. <code>parallel_tasks.task_names=[task_a,task_b]</code>) still
+runs only that subset.</p>
+<p>You can also select a task group to run via <code>tasks=longer_horizon parallel_tasks.task_names=all</code>.</p>
+<h3 id="running-across-goal-variations">Running across goal variations</h3>
+<p>Every task ships with <strong>goal variations</strong> — the same task with the goal reworded
+in a different style. Styles are <code>casual</code>, <code>formal</code>, and <code>unrelated_context</code>
+(the instruction wrapped in unrelated chit-chat), with 9 variations per task.
+They live in <code>config/tasks/user_goal_variations.yaml</code>, keyed
+<code>&lt;original_task&gt;__&lt;style&gt;_&lt;n&gt;</code> (e.g. <code>add_meeting_with_dennis__formal_1</code>), and
+each one preserves the original task's reward — only the <code>goal</code> wording differs
+and a <code>goal_style</code> field records the style.</p>
+<p>To run agents across <strong>all</strong> tasks and their goal variations in parallel, use
+the dedicated config, which lists every task name swept over a single default
+app variation:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">uv</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="n">launch_parallel_agents</span><span class="o">.</span><span class="n">py</span><span class="w"> </span>\
+<span class="w">  </span><span class="o">--</span><span class="n">config</span><span class="o">-</span><span class="n">name</span><span class="o">=</span><span class="n">config_parallel_tasks_across_goal_variations</span><span class="w"> </span><span class="n">mode</span><span class="o">=</span><span class="n">slurm_cluster</span>
+</code></pre></div>
+
+<p>Use <code>mode=local</code> to run the jobs sequentially in the current process instead of
+on SLURM. This expands to one isolated job per goal phrasing, letting you
+measure how robust an agent is to how the same task is worded.</p>
 <h2 id="testing">Testing</h2>
 <p>Run all tests via:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">uv</span> <span class="n">run</span> <span class="o">-</span><span class="n">m</span> <span class="n">pytest</span> <span class="n">tests</span><span class="o">/</span>
 </code></pre></div>
 
 <h2 id="attribution">Attribution</h2>
-<p>Our apps are built on top of several excellent frameworks:  </p>
+<p>Our apps are built on top of several excellent frameworks:</p>
 <ul>
 <li>FastHTML <a href="https://github.com/AnswerDotAI/fasthtml">framework</a> and <a href="https://github.com/AnswerDotAI/fasthtml-example">examples</a> which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.</li>
 <li><a href="https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE">Browser Gym</a> and <a href="https://github.com/ServiceNow/AgentLab/blob/main/LICENSE">AgentLab</a>:</li>
@@ -724,10 +1081,22 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
         </a>
         
         
-        <a href="#appearance"
+        <a href="#theme"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
-            Appearance
+            Theme
+        </a>
+        
+        <a href="#layout"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Layout
+        </a>
+        
+        <a href="#migrating-from-appearance"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Migrating from appearance
         </a>
         
         <a href="#content"
@@ -739,12 +1108,26 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
         
 
         
+        <a href="#exposing-openapps-as-an-mcp-server"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="2">
+            Exposing OpenApps as an MCP server
+        </a>
+        
+
+        
         <a href="#launch-agent"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="2">
             Launch Agent
         </a>
         
+        
+        <a href="#devices"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Devices
+        </a>
         
         <a href="#logs"
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
@@ -760,6 +1143,14 @@ Copyright © Meta Platforms, Inc. See the <a href="https://opensource.fb.com/leg
             data-active="false" data-depth="2">
             Launch Agent(s) Across Multiple Tasks
         </a>
+        
+        
+        <a href="#running-across-goal-variations"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Running across goal variations
+        </a>
+        
         
 
         

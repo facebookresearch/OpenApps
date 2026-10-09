@@ -1,21 +1,34 @@
 # @package apps.theme
-# Faithful port of the former todo `black_and_white` appearance variant.
+# Strict black-and-white: no hue anywhere, so an agent gets no color cue for
+# "primary action" vs "destructive action" and has to read the label.
+#
+# The old per-app `black_and_white` variants disagreed on polarity -- calendar
+# inverted the page (black background, white text) while messenger, maps,
+# onlineshop and the start page kept a white page with black ink. This takes
+# the majority reading: white page, black ink. Use `dark` for an inverted page.
 name: mono
 import_url: ""
 tokens:
-  color-bg: "#000000"
+  color-bg: "#ffffff"
   color-surface: "#ffffff"
   color-fg: "#000000"
   color-muted: "#000000"
   color-border: "#000000"
   color-primary: "#000000"
+  color-primary-hover: "#444444"
   color-on-primary: "#ffffff"
   color-accent: "#000000"
   color-danger: "#000000"
   color-neutral: "#000000"
   color-btn-fg: "#ffffff"
-  font-family: "'Times New Roman', serif"
+  font-family: "'Inter', system-ui, -apple-system, sans-serif"
   font-heading: "inherit"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
   font-size-base: "16px"
-  radius: "8px"
+  font-size-sm: "14px"
+  font-size-heading: "2rem"
+  radius: "0px"                   # sharp corners: another cue removed
   space: "8px"
+assets:
+  tone: mono
+  icon_set: bw

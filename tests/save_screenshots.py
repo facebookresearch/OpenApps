@@ -19,6 +19,7 @@ from PIL import Image, ImageChops, ImageStat
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
+from open_apps.apps.availability import onlineshop_unavailable_reason
 from open_apps.launcher import OpenAppsLauncher
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -62,47 +63,41 @@ ROUTES = (
 
 THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
-# Apps that render from the shared design tokens rather than from an
-# `appearance` group, so their counterpart to an appearance variant is a theme
-# name. Everything else still composes `config/apps/<app>/appearance/`.
-THEME_NATIVE_APPS = ("todo", "onlineshop")
-APPEARANCE_APPS = ("start_page", "calendar", "messenger", "maps", "code_editor")
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "onlineshop",
 )
-THEME_FOR_APPEARANCE = {
-    "dark_theme": "dark",
-    "challenging_font": "challenging_font",
+
+# Per-app structure variants worth a screenshot of their own. Themes are
+# captured separately (one variation per stem) because they are global -- a
+# layout is not, so it has to name its app.
+LAYOUT_VARIATIONS = {
+    "layout_kanban_board": ["apps/todo/layout=kanban_board"],
+    "layout_broken_logos": ["apps/start_page/layout=broken_logos"],
+    "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
 }
 
 
 def available_themes() -> list[str]:
     """Theme stems under ``config/apps/theme/``, default first."""
-    stems = sorted(path.stem for path in THEME_DIR.glob("*.yaml"))
+    stems = sorted(p.stem for p in THEME_DIR.glob("*.yaml"))
     return ["default"] + [stem for stem in stems if stem != "default"]
-
-
-def appearance_variation(name: str) -> list[str]:
-    return [f"apps/{app_name}/appearance={name}" for app_name in APPEARANCE_APPS] + [
-        f"apps.{app_name}.theme={THEME_FOR_APPEARANCE[name]}"
-        for app_name in THEME_NATIVE_APPS
-    ]
 
 
 def build_variation_overrides() -> dict[str, list[str]]:
     variations = {
         "default": [],
-        "dark_theme": appearance_variation("dark_theme"),
-        "challenging_font": appearance_variation("challenging_font"),
         "german": [f"apps/{app_name}/content=german" for app_name in CONTENT_APPS],
         "long_descriptions": [
             f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
         ],
     }
-    # One variation per shared theme, named `theme_<stem>`, so a single
-    # `apps/theme=` override can be captured across every app at once.
+    # One variation per shared theme, named `theme_<stem>`. A single
+    # `apps/theme=` override reaches every app, which is what replaced the
+    # per-app `appearance` groups.
     for theme in available_themes():
         variations[f"theme_{theme}"] = [f"apps/theme={theme}"]
+    for name, overrides in LAYOUT_VARIATIONS.items():
+        variations[name] = list(overrides)
     return variations
 
 
@@ -135,13 +130,14 @@ def parse_args() -> argparse.Namespace:
         "--variation",
         dest="variations",
         nargs="*",
-        # `theme_*` entries are opt-in: they are not part of the reference set,
-        # they exist so the docs gallery can be regenerated with one command.
+        # Every `theme_*` and `layout_*` entry is selectable, but only the set
+        # below is captured by default -- the rest exist so the docs gallery
+        # can be regenerated with one command.
         choices=sorted(build_variation_overrides()),
         default=[
             "default",
-            "dark_theme",
-            "challenging_font",
+            "theme_dark",
+            "theme_challenging_font",
             "german",
             "long_descriptions",
         ],
@@ -214,9 +210,10 @@ def launch_variation(
         "--config-name",
         launcher.config_path.name,
         "use_wandb=False",
+        # This harness drives its own Playwright browser; launch.py must not
+        # also pop one per variation.
+        "headless=True",
     ]
-    if launcher.config.apps.onlineshop.enable:
-        command.append("apps.onlineshop.enable=True")
 
     process = subprocess.Popen(
         command,
@@ -465,9 +462,17 @@ def main() -> int:
                     )
                     page = context.new_page()
 
+                    shop_unavailable = onlineshop_unavailable_reason(launcher.config.apps)
                     for route in routes_to_capture:
                         target_path = output_dir / variation / f"{route.name}.png"
                         print(f"  - {route.name}")
+                        # Its routes are not registered, so waiting on its
+                        # selector would only time out. Recorded as a skip.
+                        if route.path.startswith("/onlineshop") and shop_unavailable:
+                            skipped_routes.append(
+                                f"{variation}/{route.name}: online shop not served ({shop_unavailable})"
+                            )
+                            continue
                         try:
                             status = capture_route(
                                 page,

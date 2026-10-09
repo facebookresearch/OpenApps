@@ -112,6 +112,81 @@ class TestRegistry:
         assert themes[0] == "default"
         assert "solarized" in themes
 
+    def test_list_variants_rejects_removed_appearance_group(self):
+        # Must not fall through to the missing-dir ``["default"]`` answer: a
+        # caller sampling variations would silently get a single-variant sweep.
+        with pytest.raises(ValueError, match="appearance group was removed"):
+            registry.list_variants("todo", "appearance")
+
+
+class TestAppearanceMigration:
+    """The removed ``appearance`` group, kept bindable for existing clients."""
+
+    def test_every_legacy_stem_maps_to_a_real_variant(self):
+        themes = set(registry.list_variants("todo", "theme"))
+        # Layouts are per-app and the legacy stems came from different apps
+        # (kanban_board from todo, the logo ones from start_page), so pool them.
+        layouts = {
+            p.stem
+            for group_dir in (config_dir() / "apps").glob("*/layout")
+            for p in group_dir.glob("*.yaml")
+        }
+        for stem, (group, target) in registry.APPEARANCE_MIGRATION.items():
+            pool = themes if group == "theme" else layouts
+            assert target in pool, f"appearance={stem} -> {group}={target}"
+
+    @pytest.mark.parametrize(
+        "appearance,expected",
+        [
+            ("default", ("default", None)),
+            ("dark_theme", ("dark", None)),
+            ("black_and_white", ("mono", None)),
+            ("challenging_font", ("challenging_font", None)),
+            ("colorblind_access", ("colorblind", None)),
+            ("kanban_board", (None, "kanban_board")),
+            ("broken_logos", (None, "broken_logos")),
+            ("clickable_logos", (None, "clickable_logos")),
+        ],
+    )
+    def test_maps_onto_theme_or_layout(self, appearance, expected):
+        with pytest.deprecated_call():
+            assert registry.migrate_appearance(appearance) == expected
+
+    def test_preserves_the_untouched_axis(self):
+        with pytest.deprecated_call():
+            assert registry.migrate_appearance("dark_theme", layout="kanban_board") == (
+                "dark",
+                "kanban_board",
+            )
+
+    def test_agreeing_value_is_not_a_conflict(self):
+        with pytest.deprecated_call():
+            assert registry.migrate_appearance("dark_theme", theme="dark") == (
+                "dark",
+                None,
+            )
+
+    def test_conflicting_value_raises(self):
+        with pytest.raises(ValueError, match="conflicts with"):
+            registry.migrate_appearance("dark_theme", theme="solarized")
+
+    def test_unknown_stem_raises_with_the_known_values(self):
+        with pytest.raises(ValueError, match="unknown appearance variant"):
+            registry.migrate_appearance("neon")
+
+    def test_reconfigure_tool_schema_still_binds_appearance(self):
+        # The published tool schema is the contract clients validate against:
+        # dropping the parameter fails their call before it reaches us.
+        from open_apps.mcp import server
+
+        tools = asyncio.run(server.mcp.list_tools())
+        schema = next(t for t in tools if t.name == "reconfigure").inputSchema
+        assert {"theme", "layout", "content", "seed", "extras"} <= set(
+            schema["properties"]
+        )
+        assert "appearance" in schema["properties"]
+        assert "appearance" not in schema.get("required", [])
+
 
 def _browsergym_calls(fn, *args):
     """Playwright calls BrowserGym's (sync) action function makes, demo off."""

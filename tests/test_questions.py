@@ -15,6 +15,7 @@ from pathlib import Path
 from hydra import initialize, compose
 from starlette.testclient import TestClient
 
+from open_apps.apps.start_page import main as start_page_main
 from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
 from tests.ui_questions.question_generation.generator import (
     generate_questions_from_client,
@@ -30,7 +31,8 @@ from tests.ui_questions.question_generation.templates import (
 
 @pytest.fixture(scope="module")
 def client_and_config(tmpdir_factory):
-    logs_dir = str(tmpdir_factory.getbasetemp())
+    # A dedicated temp dir, not the shared base temp other modules seed into.
+    logs_dir = str(tmpdir_factory.mktemp("test_questions"))
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config", overrides=[f"logs_dir={logs_dir}"])
     Path(config.logs_dir).mkdir(parents=True, exist_ok=True)
@@ -167,3 +169,112 @@ class TestQuestionGeneration:
         assert "element_identification" in categories
         assert "element_interaction" in categories
         assert "navigation" in categories
+
+
+class TestStartPageLayoutAwareness:
+    """The start page ships two compositions and the default is `desktop`.
+
+    A template that describes the tile gallery is simply false against the
+    desktop shell, and generating it raises nothing -- the corpus just goes
+    quietly wrong. These pin the branch so flipping the default layout, or
+    adding a third composition, fails here instead.
+    """
+
+    @staticmethod
+    def _start_page_questions(layout):
+        with initialize(version_base=None, config_path="../config/"):
+            config = compose(
+                config_name="config",
+                overrides=[f"apps/start_page/layout={layout}"],
+            )
+        # Attach the global config the way a live run does: the online shop is
+        # gated on Java 21 from a sibling node the start page cannot see, and
+        # without this it would count as a pinned app with no tile.
+        start_page_main.app.config = config.apps
+        return [
+            q
+            for q in generate_questions_from_state({}, config)
+            if q.app == "start_page"
+        ], config
+
+    def test_tile_questions_only_exist_for_the_gallery(self):
+        desktop, _ = self._start_page_questions("desktop")
+        assert desktop, "the default layout must still get start-page coverage"
+        for q in desktop:
+            assert "tile" not in q.question.lower(), q.question
+
+        gallery, _ = self._start_page_questions("gallery")
+        assert any("tile" in q.question.lower() for q in gallery)
+
+    def test_shell_questions_only_exist_for_the_desktop(self):
+        gallery, _ = self._start_page_questions("gallery")
+        for q in gallery:
+            assert "toolbar" not in q.question.lower(), q.question
+            assert "pinned to the desktop" not in q.question.lower(), q.question
+
+    @pytest.mark.parametrize(
+        "layout,expected",
+        [
+            ("gallery", "Welcome to OpenApps!"),
+            ("desktop", "An open source environment for digital agents"),
+        ],
+    )
+    def test_headline_question_follows_the_layout(self, layout, expected):
+        """The desktop shell overrides the start page's own headline copy."""
+        questions, _ = self._start_page_questions(layout)
+        headline_qs = [q for q in questions if "headline" in q.question.lower()]
+        assert len(headline_qs) == 1
+        q = headline_qs[0]
+        assert q.choices[q.correct] == expected
+
+    def test_only_apps_actually_in_the_dom_are_asked_about(self):
+        """The desktop shell renders only the pinned apps.
+
+        Everything else is behind the launcher popover and absent from the
+        initial HTML, so naming one as "shown" would be wrong.
+        """
+        from open_apps.apps.start_page.main import _desktop_config, resolve_pinned
+
+        questions, config = self._start_page_questions("desktop")
+        sp = config.apps.start_page
+        pinned_keys = resolve_pinned(_desktop_config(sp), sp)
+        unpinned_titles = {
+            a.title
+            for k, a in sp.apps.items()
+            if k not in pinned_keys and a.get("title")
+        }
+        shown_as_correct = {
+            q.choices[q.correct]
+            for q in questions
+            if "no desktop shortcut" not in q.question
+        }
+        assert not (unpinned_titles & shown_as_correct)
+
+    def test_unpinning_creates_the_launcher_question(self):
+        """`desktop.unpinned` is the knob that makes the launcher load-bearing,
+        so the corpus should be able to ask about it."""
+        with initialize(version_base=None, config_path="../config/"):
+            config = compose(
+                config_name="config",
+                overrides=[
+                    "apps/start_page/layout=desktop",
+                    "apps.start_page.desktop.unpinned=[messages]",
+                ],
+            )
+        start_page_main.app.config = config.apps
+        questions = generate_questions_from_state({}, config)
+        launcher_qs = [q for q in questions if "no desktop shortcut" in q.question]
+        assert len(launcher_qs) == 1
+        q = launcher_qs[0]
+        assert q.choices[q.correct] == config.apps.start_page.apps.messages.title
+
+    def test_everything_pinned_asks_a_count_instead(self):
+        """With no unpinned app there is no wrong answer to offer, so the
+        "which is pinned" question would have been unanswerable."""
+        questions, _ = self._start_page_questions("desktop")
+        assert not any("pinned to the desktop" in q.question for q in questions)
+        counts = [q for q in questions if "How many app shortcuts" in q.question]
+        assert len(counts) == 1
+        # Six: todo, calendar, messages, maps, code editor and the shop, which
+        # is on by default now that it needs no JDK.
+        assert counts[0].choices[counts[0].correct] == "6"

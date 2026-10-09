@@ -38,7 +38,7 @@ from open_apps.apps.start_page.main import (
     initialize_routes_and_configure_task,
     reset_all_apps,
 )
-from open_apps.mcp.registry import config_dir_for, url_path_for
+from open_apps.mcp.registry import config_dir_for, migrate_appearance, url_path_for
 from open_apps.state import get_current_state
 
 
@@ -159,10 +159,10 @@ class AppServer:
         *,
         theme: str | None = None,
         layout: str | None = None,
-        appearance: str | None = None,
         content: str | None = None,
         seed: int | None = None,
         extras: dict[str, Any] | None = None,
+        appearance: str | None = None,
     ) -> None:
         """Recompose the Hydra config with new variant choices and seed.
 
@@ -178,24 +178,28 @@ class AppServer:
             layout: Per-app structure variant stem under
                 ``config/apps/<app>/layout/`` for ``self.app_name``
                 (e.g. ``kanban_board``).
-            appearance: Legacy per-app variant stem under
-                ``config/apps/<app>/appearance/`` for apps not yet migrated
-                to the theme/layout split.
             content: Variant yaml stem under
                 ``config/apps/<app>/content/`` for ``self.app_name``.
             seed: Fresh integer seed for the OpenApps content samplers.
             extras: Additional dotpath overrides applied to the live
                 config in-place after compose. Example for the maps
                 app: ``{"apps.maps.init_location": [40.78, -73.97]}``.
+            appearance: **Deprecated.** Stem from the removed ``appearance``
+                group, translated onto ``theme``/``layout`` via
+                ``registry.APPEARANCE_MIGRATION``. Raises if it disagrees
+                with a ``theme``/``layout`` passed alongside it.
         """
+        if appearance is not None:
+            theme, layout = migrate_appearance(
+                appearance, theme=theme, layout=layout
+            )
+
         cfg_dir = config_dir_for(self.app_name)
         overrides: list[str] = []
         if theme is not None:
             overrides.append(f"apps/theme={theme}")
         if layout is not None:
             overrides.append(f"apps/{cfg_dir}/layout={layout}")
-        if appearance is not None:
-            overrides.append(f"apps/{cfg_dir}/appearance={appearance}")
         if content is not None:
             overrides.append(f"apps/{cfg_dir}/content={content}")
         if seed is not None:
@@ -214,7 +218,7 @@ class AppServer:
         # Routes read ``app.config`` per request, but the assignment above
         # rebinds ``self.config.apps`` to a fresh node — so re-point the
         # FastHTML app at it, otherwise the page keeps rendering the
-        # pre-reconfigure appearance/content.
+        # pre-reconfigure theme/layout/content.
         _fasthtml_app.config = self.config.apps
 
         shutil.rmtree(new_tmp_logs, ignore_errors=True)

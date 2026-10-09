@@ -20,7 +20,7 @@ Install the conda alternative [uv](https://docs.astral.sh/uv/getting-started/) a
    git clone https://github.com/facebookresearch/OpenApps.git
 ```
 
-Install dependencies:   
+Install dependencies:
 
 ```bash
    uv sync
@@ -31,7 +31,7 @@ For other installation options and online shop setup see [Installation](installa
 ### Run OpenApps
 
 ```bash
-uv run launch.py 
+uv run launch.py
 ```
 ![landing](images/landing.png)
 
@@ -46,12 +46,19 @@ uv run launch.py 'apps.todo.init_todos=[["Call Mom", false]]'
 
 OpenApps also comes with pre-defined variations that can affect the content and appearance of apps.
 
-#### Appearance
+Appearance is split along two axes:
+
+* **Theme** -- *look*: colors, typography, shape. One shared set of design
+  tokens in `config/apps/theme/`, applied to **every** app at once.
+* **Layout** -- *structure*: how an individual app arranges itself. Per-app,
+  under `config/apps/<app>/layout/`.
+
+#### Theme
 
 /// tab | challenging font
 
     ::bash
-    export APPEARANCE=challenging_font
+    export THEME=challenging_font
 
 
 ![landing](images/landing-challenging-font.png)
@@ -59,25 +66,180 @@ OpenApps also comes with pre-defined variations that can affect the content and 
 /// tab | dark theme
 
     ::bash
-    export APPEARANCE=dark_theme
+    export THEME=dark
 
 ![landing](images/landing-dark.png)
 ///
 /// tab | default
 
     ::bash
-    export APPEARANCE=default
+    export THEME=default
 
 ![landing](images/landing.png)
 
 ///
 
-Launch specific apps with selected appearance:
+A single override themes every app:
 ```shell
-uv run launch.py apps/start_page/appearance=$APPEARANCE
+uv run launch.py apps/theme=$THEME
 ```
 
-Or specific apps with: `apps/calendar/appearance=$APPEARANCE`.
+Or one app only, leaving the rest on the global theme:
+`uv run launch.py apps.calendar.theme=$THEME`.
+
+Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
+`solarized`, `material`, `bootstrap`, `meta`, `meta_dark`, `vscode_dark`.
+Adding one means adding a yaml file to `config/apps/theme/` -- no app code
+changes.
+
+Precedence, highest first:
+
+| Source | Example | Beats |
+| --- | --- | --- |
+| per-app pin | `apps.calendar.theme=dark` | everything |
+| global selection | `apps/theme=dark` | the app's own default |
+| the app's own default | `theme_default:` in its `default.yaml` | nothing |
+| `default` | -- | -- |
+
+The middle two are the ones worth understanding. An app may declare a
+`theme_default` -- the code editor's is `vscode_dark`, so `uv run launch.py`
+opens on something that reads as a code editor. It applies *only* when no
+theme was selected, so sweeping the axis still moves every app, including the
+`apps/theme=default` cell the rest of the sweep is compared against. A
+per-app `theme` pin is the opposite: it wins over the sweep, which is what you
+want for dressing one app differently on purpose and not much else.
+
+This is why the `apps/theme` group defaults to `null` in `config/config.yaml`
+rather than to `default` -- "nothing was selected" has to be distinguishable
+from "`default` was selected". A null group default is still bindable without
+a `+`.
+
+A theme file is a set of design tokens plus a small `assets` block:
+
+```yaml
+# config/apps/theme/dark.yaml
+name: dark
+tokens:
+  color-bg: "#121212"       # -> --color-bg, consumed as var(--color-bg)
+  color-primary: "#bb86fc"
+  font-family: "'Inter', system-ui, sans-serif"
+  radius: "4px"
+assets:
+  tone: dark                # apps map this onto their own non-CSS assets
+  icon_set: bw
+```
+
+Every `tokens` entry becomes a CSS custom property. `assets` covers the
+choices a CSS variable cannot reach -- the start page's raster icons, the
+Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
+app-agnostic: the theme says `tone: dark` and each app picks its own dark
+asset, so a theme file never has to know which apps exist.
+
+#### Layout
+
+```shell
+uv run launch.py apps/todo/layout=kanban_board
+uv run launch.py apps/start_page/layout=gallery
+```
+
+| App | Layouts |
+| --- | --- |
+| `start_page` | `desktop` (default), `gallery`, `broken_logos`, `clickable_logos` |
+| `todo` | `default`, `kanban_board` |
+| everything else | `default` |
+
+The start page is the landing surface an agent sees first, so it carries the
+most:
+
+* **`desktop`** — the default. A toolbar (launcher, clock, weather, light/dark
+  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
+  it renders as a home screen instead; see [Devices](#devices).
+* **`gallery`** — the original html5up tile grid: five coloured tiles under a
+  "Welcome to OpenApps!" headline. Still a single override away, and it is what
+  the paper's figures show.
+* **`broken_logos`** / **`clickable_logos`** — variations *of the gallery*
+  (they compose it), so selecting either also selects the tile grid.
+
+Two pieces of desktop state are scoreable and served at `/desktop_all`: the
+light/dark mode and the list of pinned app keys. `launcher_open` is
+deliberately excluded — a task should not pass or fail on whether the agent
+left a popover showing.
+
+##### Pinning, and making the agent use the launcher
+
+Every app is pinned by default (`pinned: all`), so each one has a shortcut on
+the desktop and the launcher is a convenience. The launcher only *tests*
+anything once something the agent needs is behind it, and that is one
+override — name the few to hide rather than re-listing the many to keep:
+
+```bash
+# OpenMessages has no shortcut; the only route to it is the launcher menu
+uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
+    apps.start_page.desktop.unpinned=[messages]
+
+# or sweep it as a variation axis
+uv run launch_parallel_agents.py \
+    'parallel_tasks.app_variations=[[],["apps.start_page.desktop.unpinned=[messages,maps]"]]'
+```
+
+`pinned` also takes an explicit list, and resolution always follows the app
+inventory's order rather than the order you wrote — so "the third icon" means
+the same thing however the override was typed. `all` expands to the apps that
+actually render, so the online shop is not pinned while it is gated off, which
+would otherwise put a key in `/desktop_all` with no tile on the page.
+
+The phone home screen is the exception: it splits apps between a grid
+(unpinned) and a dock (pinned), so `all` would dock everything and leave the
+grid empty. It takes `pinned_by_variant.home_screen` instead. It is not the
+composition for this experiment anyway — a phone's unpinned apps sit on the
+grid in plain view, not behind the menu.
+
+#### Migrating from `appearance`
+
+The `appearance` group these two replaced was removed: there are no
+`config/apps/<app>/appearance/` directories and no app renders from one.
+`apps/<app>/appearance=...` is a Hydra composition error, not a silent
+no-op. Translate overrides as:
+
+| Old override | New override |
+| --- | --- |
+| `apps/<app>/appearance=default` | `apps/theme=default` |
+| `apps/<app>/appearance=dark_theme` | `apps/theme=dark` |
+| `apps/<app>/appearance=black_and_white` | `apps/theme=mono` |
+| `apps/<app>/appearance=challenging_font` | `apps/theme=challenging_font` |
+| `apps/code_editor/appearance=colorblind_access` | `apps/theme=colorblind` |
+| `apps/todo/appearance=kanban_board` | `apps/todo/layout=kanban_board` |
+| `apps/start_page/appearance=broken_logos` | `apps/start_page/layout=broken_logos` |
+| `apps/start_page/appearance=clickable_logos` | `apps/start_page/layout=clickable_logos` |
+
+The theme rows are global, so the six per-app overrides the old dark variation
+needed collapse to one `apps/theme=dark`. Two renderings shift slightly:
+`mono` picks white-page/black-ink for every app, where the old
+`black_and_white` variants disagreed on polarity (calendar inverted the page,
+the rest did not), and `colorblind` is now available to all apps rather than
+the code editor alone.
+
+##### Reproducing the paper
+
+The paper's variation grid is indexed by `appearance` stem names, and the two
+axes above do not reproduce it pixel-for-pixel — see the shifts noted just
+above. **To reproduce the numbers in
+[the paper](https://arxiv.org/abs/2511.20766), use the `v1.0-paper` tag**, the
+last tree with `appearance` intact:
+
+```bash
+git checkout v1.0-paper
+uv run launch.py apps/todo/appearance=dark_theme
+```
+
+Theme and layout are the supported axes going forward; `v1.0-paper` is frozen
+and gets no fixes.
+
+One exception to the removal: the MCP `reconfigure` tool still accepts an
+`appearance=` argument, translates it onto `theme`/`layout` per the table
+above, and raises a `DeprecationWarning`. It exists so existing MCP clients
+keep working for one release and will be removed — see
+[`src/open_apps/mcp/README.md`](https://github.com/facebookresearch/OpenApps/blob/main/src/open_apps/mcp/README.md).
 
 #### Content
 
@@ -111,7 +273,17 @@ uv run launch.py apps/start_page/content=$CONTENT
 
 Or specific apps with: `apps/calendar/content=$CONTENT`.
 
-You can see the specific variables for each defined in the individual apps. For example, `config/apps/maps/appearance/dark_theme.yaml`.
+You can see the specific variables for each defined in the individual apps.
+For example, `config/apps/theme/dark.yaml` for the shared design tokens,
+`config/apps/start_page/layout/broken_logos.yaml` for a per-app structure
+variant, and `config/apps/maps/default.yaml` for behaviour (map zoom, tile
+layer, route planning) that is neither.
+
+Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
+
+## Exposing OpenApps as an MCP server
+
+If you want an agent to interact with OpenApps using [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) please see `src/open_apps/mcp/README.md`.
 
 ## Launch Agent
 
@@ -145,6 +317,96 @@ uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
 ![Live Agent](images/gif.gif)
+
+### Devices
+
+The device is a variation axis of its own, alongside theme, layout, content and
+pop-ups. `config/device/` ships four:
+
+| `device=` | Viewport | Form factor | Input | User agent |
+| --- | --- | --- | --- | --- |
+| `desktop` (default) | 1920×1080 | desktop | mouse | Chromium's own |
+| `laptop` | 1280×800 | desktop | mouse | Chromium's own |
+| `tablet` | 820×1180 | tablet | touch, no hover | Chrome, Android tablet |
+| `phone` | 390×844 | phone | touch, no hover | Chrome, Android phone |
+
+```bash
+uv run launch.py +experiment=phone                      # browse the phone build
+uv run launch_agent.py agent=dummy +experiment=phone    # run an agent on it
+uv run launch_agent.py agent=dummy device=tablet        # just the device
+```
+
+The mobile devices set a matching UA because `is_mobile` alone leaves Chromium
+announcing itself as desktop Chrome — touch input, phone width, desktop
+browser, which is a contradiction anything UA-sniffing would see. They claim
+Chrome rather than iOS Safari because the engine really is Blink, and the
+version is pinned so a rendering does not change because the month did.
+Opt out with `device.user_agent=null`, or set your own.
+
+One setting moves two things:
+
+* **the browser** — `browsergym_env_args.task_kwargs.screen_resolution` is
+  `${device.viewport}`, and `open_apps.agent.env_args.DeviceEnvArgs` forwards
+  `is_mobile`, `has_touch`, `device_scale_factor` and `user_agent` to the
+  Playwright context. On a phone or tablet the page gets a real mobile visual
+  viewport and a coarse pointer, so `@media (hover: none)` and
+  `(pointer: coarse)` match and hover-only affordances correctly disappear;
+* **the apps** — the node is mirrored to `apps.device`, so a server-rendered
+  layout can pick a composition for the form factor rather than only reflowing
+  to the width.
+
+The start page's desktop shell does exactly that. On a phone it renders a home
+screen: status bar, wordmark widget, an icon grid of the apps that are **not**
+pinned, and a dock holding the ones that are — so pinning moves an app into the
+dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+the test ids and `/desktop_all` are the same on both, so a task written against
+one scores unchanged on the other; what differs is what the agent can see and
+how far it has to travel. Which composition a form factor gets is config, not
+code:
+
+```bash
+# the control condition: the desktop composition, in a phone-sized window
+uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
+```
+
+Adding a device is a file in `config/device/`; a form factor with no variant of
+its own falls back to the desktop composition rather than to a blank page.
+
+#### The preview window
+
+`uv run launch.py` opens a browser on the apps once they answer, so "run it and
+look at it" is one command rather than two plus copying a URL out of the log.
+It is a Playwright Chromium, not the system browser, and it is handed the same
+`config/device/` emulation the agent path gets — viewport, `is_mobile`,
+`has_touch`, `device_scale_factor`, `user_agent`:
+
+```bash
+uv run launch.py                    # 1920×1080 desktop window
+uv run launch.py device=phone       # 390×844, touch pointer, phone UA
+uv run launch.py headless=True      # serve only, open nothing
+```
+
+`webbrowser.open` is not used because it can neither size a window nor make
+`@media (hover: none)` match, so `launch.py device=phone` would have opened a
+desktop-width page and the phone layout you asked to look at would not have
+been the thing on screen.
+
+It never opens for an agent run. `launch_agent.py` and
+`launch_parallel_agents.py` re-invoke `launch.py` with `headless=True`, and so
+does `tests/save_screenshots.py` — all three bring their own browser, and a
+second window fighting for focus mid-episode is not something an eval needs.
+
+Nothing here is fatal: with Playwright missing, its Chromium not installed, or
+no display available, this falls back to the system browser and finally to
+printing the URL. Serving the apps is the job; opening a window is a
+convenience.
+
+!!! warning "Keep `device_scale_factor` at 1"
+    Screenshots are captured in *device* pixels and actions are dispatched in
+    *CSS* pixels, and nothing in between divides by the ratio — the agent's
+    coordinate space comes straight from the screenshot's shape. At scale 2 a
+    grounded click lands at twice the intended offset. Every shipped device
+    keeps it at 1, retina or not.
 
 ### Logs
 
@@ -192,16 +454,52 @@ parallel_tasks:
   app_variations:
     - ["apps/start_page/content=default", "apps/calendar/content=german"]
     - [
-        "apps/start_page/appearance=dark_theme",
-        "apps/calendar/appearance=dark_theme",
+        "apps/theme=dark",
       ]
 ```
 
 You can modify the set of tasks or app variation by updating the `config_parallel_tasks.yaml`. We ensure:
 
-* Each deployment of OpenApps can have different appearance and content per app.
+* Each deployment of OpenApps can have a different theme (global), plus layout and content per app.
 * Each task is launched in an isolated environment for reproducible results.
 
+To run **every** task in the loaded tasks config (rather than listing a subset by
+hand), set `task_names` to `all`. This expands to all task names defined in the
+selected `tasks=` group, so it composes with any tasks file:
+
+```
+uv run launch_parallel_agents.py \
+  mode=slurm_cluster agent=dummy tasks=longer_horizon \
+  parallel_tasks.task_names=all use_wandb=True
+```
+
+Passing an explicit list (e.g. `parallel_tasks.task_names=[task_a,task_b]`) still
+runs only that subset.
+
+You can also select a task group to run via `tasks=longer_horizon parallel_tasks.task_names=all`.
+
+### Running across goal variations
+
+Every task ships with **goal variations** — the same task with the goal reworded
+in a different style. Styles are `casual`, `formal`, and `unrelated_context`
+(the instruction wrapped in unrelated chit-chat), with 9 variations per task.
+They live in `config/tasks/user_goal_variations.yaml`, keyed
+`<original_task>__<style>_<n>` (e.g. `add_meeting_with_dennis__formal_1`), and
+each one preserves the original task's reward — only the `goal` wording differs
+and a `goal_style` field records the style.
+
+To run agents across **all** tasks and their goal variations in parallel, use
+the dedicated config, which lists every task name swept over a single default
+app variation:
+
+```
+uv run launch_parallel_agents.py \
+  --config-name=config_parallel_tasks_across_goal_variations mode=slurm_cluster
+```
+
+Use `mode=local` to run the jobs sequentially in the current process instead of
+on SLURM. This expands to one isolated job per goal phrasing, letting you
+measure how robust an agent is to how the same task is worded.
 
 ## Testing
 
@@ -213,7 +511,7 @@ uv run -m pytest tests/
 
 ## Attribution
 
-Our apps are built on top of several excellent frameworks:  
+Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):

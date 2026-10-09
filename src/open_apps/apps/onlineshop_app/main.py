@@ -1400,7 +1400,7 @@ def search_bar(value: str = ""):
 
     The "Shop" link is the way back to the landing page from anywhere. It
     lives here rather than on the header logo because `clickable_logo` is a
-    start-page variation axis (see `config/apps/start_page/appearance/`) and
+    start-page variation axis (see `config/apps/start_page/layout/`) and
     defaults to false -- navigation must not depend on a difficulty knob.
     """
     count = sum(row.quantity for row in _cart_rows())

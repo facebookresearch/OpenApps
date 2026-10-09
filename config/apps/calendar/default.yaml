@@ -1,6 +1,6 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
 
 database_path: ${databases_dir}/calendar.db
 

@@ -9,6 +9,7 @@ tokens:
   color-muted: "#93a1a1"
   color-border: "#93a1a1"
   color-primary: "#268bd2"
+  color-primary-hover: "#1f6f9f"
   color-on-primary: "#fdf6e3"
   color-accent: "#2aa198"
   color-danger: "#dc322f"
@@ -16,6 +17,12 @@ tokens:
   color-btn-fg: "#fdf6e3"
   font-family: "'Inter', system-ui, sans-serif"
   font-heading: "inherit"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
   font-size-base: "16px"
+  font-size-sm: "14px"
+  font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+assets:
+  tone: light
+  icon_set: color

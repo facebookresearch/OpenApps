@@ -1,9 +1,93 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
 
 database_path: ${databases_dir}/codeeditor
 
-# Per-app theme override. null = inherit the global `apps/theme` selection.
-# Override for just this app with `apps.code_editor.theme=solarized`.
+# Serve the editor with no third-party CDN fetches at all (pico, Tailwind,
+# DaisyUI, CodeMirror). The inline design tokens, layout fallbacks and base
+# control styling cover everything the app uses.
+#
+# Left off by default only because flipping it changes the look on a host that
+# *does* have egress, and that wants a visual check first. On an air-gapped
+# node those fetches already fail silently, so turning this on there costs
+# nothing and makes rendering deterministic:
+#   apps.code_editor.no_egress=true
+no_egress: false
+
+# Per-app design theme *pin*. null = don't pin. A value here beats a global
+# `apps/theme=` selection, so it is for dressing the editor differently from
+# every other app on purpose -- not for setting its default look.
 theme: null
+
+# The editor's own preferred look, used only when nobody selected a theme, so
+# `uv run launch.py` opens on something that reads as a code editor. Any
+# explicit selection replaces it: `apps/theme=dark` darkens the editor along
+# with everything else, and `apps/theme=default` gives it the plain default.
+# See open_apps.theme.resolve_theme for the full precedence.
+theme_default: vscode_dark
+
+# The design themes offered by the in-editor selector. Each must exist as
+# config/apps/theme/<name>.yaml.
+list_of_themes:
+  - vscode_dark
+  - default
+  - dark
+  - solarized
+  - material
+  - mono
+
+# Fallback arms only. Every rule that reads these is written as
+# `var(--token, <this value>)`, so they are what renders if a theme omits the
+# corresponding token -- never the primary source. Change the theme, not these.
+font: "Arial"
+font_size: 12
+fontcolor: ""
+
+# --- CodeMirror ------------------------------------------------------------
+# `theme` above is the *shared design* theme. CodeMirror's syntax highlighting
+# is a whole stylesheet loaded by name, which no CSS variable can substitute
+# for, so it is a separate key. The two were both called `theme` until the
+# appearance groups were removed, and the per-app override silently won,
+# leaving CodeMirror initialised with `theme: 'None'` (or with a design-theme
+# name that has no stylesheet on the CDN).
+editor_theme: "eclipse"
+# The shared theme picks a stylesheet indirectly via its `tone` asset, so
+# `apps/theme=dark` darkens the code pane and not just the chrome around it.
+editor_theme_by_tone:
+  dark: "monokai"
+  mono: "eclipse"
+# CodeMirror stylesheets to put on the page. The tone-mapped names are added
+# automatically, so trimming this list cannot leave a tone pointing at a
+# stylesheet that was never loaded.
+list_of_editor_themes:
+  - monokai
+  - eclipse
+  - solarized
+  - seti
+  - night
+  - dracula
+  - twilight
+  - zenburn
+  - material
+
+# --- Behaviour -------------------------------------------------------------
+# Not theme and not layout: these change what the editor *does*. They used to
+# come from the `appearance` group, which conflated all three.
+
+# Language mode the editor starts in.
+mode: "python"
+# Load CodeMirror at all. False renders a plain <textarea> -- a meaningfully
+# different observation for an agent, so it is behaviour, not appearance.
+highlight: False
+# Sort the mode/theme dropdowns alphabetically instead of config order.
+sort_feature: True
+list_of_modes:
+  - python
+  - javascript
+  - css
+  - yaml
+  - markdown
+  - shell
+  - clike
+  - go

@@ -12,7 +12,68 @@ import json
 from starlette.responses import Response
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
-from open_apps.theme import legacy_theme_style
+from open_apps.theme import theme_asset, theme_style
+
+# Static, theme-agnostic component styles. Colors and fonts are design tokens
+# from the shared theme (`config/apps/theme/`), emitted per-request by
+# `codeeditor_theme()`. `!important` throughout because daisyUI ships utility
+# classes on these same elements.
+_COMPONENT_STYLES = Style(
+    """
+    .main-content {
+        background-color: var(--color-bg);
+    }
+    .styled-content {
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family);
+        color: var(--color-fg);
+    }
+    /* The code pane keeps a monospace face regardless of the theme's body
+       font -- column alignment is load-bearing in an editor. */
+    textarea, textarea.styled-content {
+        background-color: var(--color-surface);
+        color: var(--color-fg);
+        font-family: var(--font-mono);
+    }
+    .btn-primary {
+        background-color: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        color: var(--color-on-primary) !important;
+        font-family: var(--font-family) !important;
+    }
+    .btn-secondary {
+        background-color: var(--color-neutral) !important;
+        border-color: var(--color-neutral) !important;
+        color: var(--color-btn-fg) !important;
+        font-family: var(--font-family) !important;
+    }
+    .btn-error {
+        background-color: var(--color-danger) !important;
+        border-color: var(--color-danger) !important;
+        color: var(--color-btn-fg) !important;
+        font-family: var(--font-family) !important;
+    }
+"""
+)
+
+# Set by the in-page theme dropdown; None means "follow the shared theme".
+_editor_theme_override = None
+
+
+def _as_dict(node):
+    """Coerce an OmegaConf node (or None) to a plain dict."""
+    return {k: v for k, v in node.items()} if node is not None else {}
+
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import (
+    _as_plain,
+    load_theme,
+    resolve_theme,
+    theme_asset,
+    theme_style,
+)
+from open_apps.icons import Icon, icon
 
 # Global variables
 _base_hdrs_no_highlight = (
@@ -31,6 +92,9 @@ _base_hdrs_no_highlight = (
 )
 current_dir = None
 list_of_modes, list_of_themes = [], []
+# CodeMirror syntax stylesheets, distinct from `list_of_themes` (the shared
+# design themes the in-editor selector offers).
+list_of_editor_themes = []
 _base_hdrs = _base_hdrs_no_highlight
 opened_files = {}
 logo_title_container = None
@@ -71,7 +135,7 @@ def update_db_from_hydra(config):
 def set_environment(config):
     """Set environment variables for the code editor app"""
     # Create styles with environment variables
-    global app, _base_hdrs, list_of_modes, list_of_themes, current_dir, logo_title_container
+    global app, _base_hdrs, list_of_modes, list_of_themes, list_of_editor_themes, current_dir, logo_title_container
     if getattr(config.code_editor, 'no_css', False):
         app.hdrs = ()
         app.config = config
@@ -84,6 +148,7 @@ def set_environment(config):
         return
     list_of_modes = config.code_editor.list_of_modes
     list_of_themes = config.code_editor.list_of_themes
+    list_of_editor_themes = config.code_editor.list_of_editor_themes
     current_dir = config.code_editor.database_path + '/'
     if os.path.exists(current_dir):
         # alert the user
@@ -100,7 +165,17 @@ def set_environment(config):
         Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css"),
     )
-    for theme_name in list_of_themes:
+    # Every stylesheet the page could ask for, loaded up front: a shared-theme
+    # swap selects one by tone at request time. Include the tone-mapped names
+    # even if `list_of_editor_themes` was trimmed, otherwise `apps/theme=dark`
+    # asks CodeMirror for a stylesheet that is not on the page and the code
+    # pane silently renders unstyled. Design-theme names are deliberately not
+    # in here -- they have no CodeMirror stylesheet to fetch.
+    tone_themes = list(_as_plain(getattr(config.code_editor, "editor_theme_by_tone", None) or {}).values())
+    editor_themes = dict.fromkeys(
+        [*list_of_editor_themes, *tone_themes, config.code_editor.editor_theme]
+    )
+    for theme_name in editor_themes:
         _base_hdrs_with_highlight += (
             Link(rel="stylesheet", href=f"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/{theme_name}.min.css"),
         )
@@ -118,7 +193,31 @@ def set_environment(config):
         }
     """),)
     _base_hdrs = _base_hdrs_with_highlight if config.code_editor.highlight else _base_hdrs_no_highlight
-    
+
+    # Drop every third-party stylesheet/script. The inline blocks below carry
+    # the design tokens, the layout utilities this app uses and base control
+    # styling, so the page renders identically with no outbound network.
+    #
+    # Worth knowing which way the risk runs: on a host that already has no
+    # egress those CDN tags fail silently and the inline CSS is what renders
+    # anyway, so setting this makes the result deterministic rather than
+    # network-dependent. On a host *with* egress it is a visible change,
+    # because Tailwind and DaisyUI stop contributing.
+    if getattr(config.code_editor, 'no_egress', False):
+        _base_hdrs = (
+            Script("""
+                function getStorageKey(folderPath) {
+                    return `folder_state_${folderPath}`;
+                }
+            """),
+        )
+
+    # Colours and typography come from the shared design tokens
+    # (config/apps/theme/<name>.yaml), emitted as a :root block by
+    # theme_style() and consumed here via var(). The legacy appearance keys
+    # are kept as the fallback arm of each var() so the old appearance presets
+    # still render, and so a theme that omits an editor-specific token
+    # degrades to a sensible general one instead of to nothing.
     primary_color = getattr(config.code_editor, 'primary_button_color', '#4A90E2')
     secondary_color = getattr(config.code_editor, 'secondary_button_color', '#50E3C2')
     danger_color = getattr(config.code_editor, 'danger_button_color', '#D0021B')
@@ -130,10 +229,19 @@ def set_environment(config):
     env_styles = Style(
         f"""
         :root {{
-            --custom-font-size: {config.code_editor.font_size}px;
-            --custom-font-family: {config.code_editor.font};
-            --custom-font-color: {config.code_editor.fontcolor};
-            --main-bg-color: {main_background_color};
+            --custom-font-size: var(--font-size-base, {config.code_editor.font_size}px);
+            --custom-font-family: var(--font-family, {config.code_editor.font});
+            --custom-font-color: var(--color-fg, {config.code_editor.fontcolor});
+            --main-bg-color: var(--color-bg, {main_background_color});
+            /* Editor-specific tokens degrade to general ones, so a theme that
+               predates them (default, dark, mono, solarized) still works. */
+            --sidebar-bg-color: var(--color-surface, {main_background_color});
+            --border-color: var(--color-border, transparent);
+            --accent-color: var(--color-accent, {primary_color});
+            --row-hover-color: var(--color-row-hover, var(--color-surface, rgba(127,127,127,0.2)));
+            --row-active-color: var(--color-row-active, var(--color-primary, {primary_color}));
+            --editor-bg-color: var(--color-editor-bg, var(--color-bg, {textarea_background_color}));
+            --editor-fg-color: var(--color-editor-fg, var(--color-fg, {textarea_background_color}));
         }}
         .main-content {{
             background-color: var(--main-bg-color);
@@ -148,33 +256,177 @@ def set_environment(config):
             color: var(--custom-font-color);
         }}
         textarea {{
-            background-color: {textarea_background_color};
-            color: var(--custom-font-color);
+            background-color: var(--editor-bg-color);
+            color: var(--editor-fg-color);
             font-family: var(--custom-font-family);
         }}
         .btn-primary {{
-            background-color: {primary_color} !important;
-            border-color: {primary_color} !important;
-            color: var(--custom-font-color) !important;
+            background-color: var(--color-primary, {primary_color}) !important;
+            border-color: var(--color-primary, {primary_color}) !important;
+            color: var(--color-on-primary, var(--custom-font-color)) !important;
             font-family: var(--custom-font-family); !important;
         }}
         .btn-secondary {{
-            background-color: {secondary_color} !important;
-            border-color: {secondary_color} !important;
-            color: var(--custom-font-color) !important;
+            background-color: var(--color-neutral, {secondary_color}) !important;
+            border-color: var(--color-neutral, {secondary_color}) !important;
+            color: var(--color-btn-fg, var(--custom-font-color)) !important;
             font-family: var(--custom-font-family); !important;
         }}
         .btn-error {{
-            background-color: {danger_color} !important;
-            border-color: {danger_color} !important;
-            color: var(--custom-font-color) !important;
+            background-color: var(--color-danger, {danger_color}) !important;
+            border-color: var(--color-danger, {danger_color}) !important;
+            color: var(--color-btn-fg, var(--custom-font-color)) !important;
             font-family: var(--custom-font-family); !important;
+        }}
+
+        /* ---- Editor chrome -------------------------------------------
+           The sidebar and the editor pane both carry .main-content, so by
+           default they render as one undifferentiated slab. Giving the file
+           explorer its own surface and a divider is what makes the layout
+           read as "editor" at a glance. Inert for presets that do not set
+           sidebar_background_color, since it then equals the main colour. */
+        .sidebar {{
+            background-color: var(--sidebar-bg-color);
+            border-right: 1px solid var(--border-color);
+        }}
+        /* File and folder rows: a visible hit area with a real hover and a
+           clearly marked current file. Previously the only cue was Tailwind's
+           hover:bg-gray-700, which vanishes if the CDN is unreachable. */
+        .sidebar .file-row, .sidebar .folder-row {{
+            border-radius: 3px;
+            color: var(--custom-font-color);
+        }}
+        .sidebar .file-row:hover, .sidebar .folder-row:hover {{
+            background-color: var(--row-hover-color);
+        }}
+        .sidebar .file-row.is-current {{
+            background-color: var(--row-active-color);
+        }}
+        .sidebar a {{
+            color: inherit;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+        }}
+
+        /* ---- File tree icons -------------------------------------------
+           Inline SVG from open_apps.icons (see that module for why they are
+           not an icon font). They inherit colour via currentColor, so a live
+           theme swap recolours them with everything else. */
+        .sidebar .row-link {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .sidebar .folder-row {{
+            gap: 6px;
+        }}
+        .sidebar .row-icon {{
+            display: inline-flex;
+            align-items: center;
+            flex: none;
+            color: var(--color-muted, var(--custom-font-color));
+        }}
+        .sidebar .row-label {{
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        /* The name inside a folder row is a <button>; strip the control
+           chrome so it reads as a tree label like the file links do. */
+        .sidebar .folder-name {{
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            font: inherit;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+        }}
+        /* One chevron for both states: rotated a quarter turn when open,
+           rather than swapping one glyph for another. */
+        .sidebar .folder-icon {{
+            display: inline-flex;
+            align-items: center;
+            flex: none;
+            color: var(--color-muted, var(--custom-font-color));
+            transition: transform 0.12s ease;
+        }}
+        .sidebar .folder-row.is-expanded .folder-icon {{
+            transform: rotate(90deg);
+        }}
+        /* Files sit one chevron-width in, so names line up with folder names
+           instead of hanging left of them. */
+        .sidebar .file-row {{
+            padding-left: calc(1rem + 12px + 6px);
+        }}
+        #editor, .CodeMirror {{
+            border: 1px solid var(--border-color);
+            font-family: var(--custom-font-family), monospace;
+            font-size: var(--custom-font-size);
+        }}
+
+        /* ---- Layout fallback ------------------------------------------
+           Tailwind, DaisyUI and CodeMirror are all CDN fetches. On a host
+           without egress none of them arrive and the page collapses to
+           unstyled HTML — no sidebar, no widths, no spacing. These few rules
+           reproduce only the layout utilities this app actually relies on,
+           using Tailwind's own values, so the page is identical whether or
+           not the CDN resolved. */
+        .flex {{ display: flex; }}
+        .items-center {{ align-items: center; }}
+        .justify-between {{ justify-content: space-between; }}
+        .justify-center {{ justify-content: center; }}
+        .w-1\\/6 {{ width: 16.666667%; }}
+        .w-5\\/6 {{ width: 83.333333%; }}
+        .p-4 {{ padding: 1rem; }}
+        .pl-2 {{ padding-left: 0.5rem; }}
+        .pl-4 {{ padding-left: 1rem; }}
+        .py-1 {{ padding-top: 0.25rem; padding-bottom: 0.25rem; }}
+        .ml-2 {{ margin-left: 0.5rem; }}
+        .mt-4 {{ margin-top: 1rem; }}
+        .rounded-lg {{ border-radius: 0.5rem; }}
+        .overflow-y-auto {{ overflow-y: auto; }}
+        .cursor-pointer {{ cursor: pointer; }}
+        body {{
+            background-color: var(--main-bg-color);
+            color: var(--custom-font-color);
+            font-family: var(--custom-font-family);
+        }}
+        /* Base control styling, normally supplied by DaisyUI/pico over the
+           network. Only shape and spacing here -- the colours are set by the
+           .btn-* rules above from design tokens. */
+        .btn {{
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius, 4px);
+            border: 1px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            line-height: 1.2;
+        }}
+        select, .select {{
+            background-color: var(--sidebar-bg-color);
+            color: var(--custom-font-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius, 4px);
+            padding: 0.25rem 0.5rem;
+            font-family: var(--custom-font-family);
+        }}
+        textarea {{
+            border-radius: var(--radius, 4px);
+            padding: 0.5rem;
+            width: 100%;
         }}
     """
     )
     app.config = config
-    # Update app headers by extending existing ones
-    app.hdrs = (*_base_hdrs, env_styles)
+    # Order matters: theme tokens define the :root custom properties that
+    # env_styles consumes via var(), so they must come first. Both are inline
+    # <style> blocks, so the whole look survives an unreachable CDN.
+    app.hdrs = (*_base_hdrs, theme_style(config, "code_editor"), env_styles,
+                theme_switcher_script(config))
 
     if config.code_editor.sort_feature:
         list_of_modes = sorted(list_of_modes)
@@ -186,14 +438,89 @@ def set_environment(config):
         current_file_path=__file__
     )
 
-def codeeditor_theme():
-    """The active theme, mapped onto this app's `appearance` CSS variables.
+def live_theme_style() -> Style:
+    """Re-emit the design tokens for the *current* config, per request.
 
-    Empty on the default theme. Rendered into the page body (not `app.hdrs`)
-    so it lands after `env_styles`, which it has to override, and so live
-    `reconfigure` theme swaps take effect.
+    The token block in ``app.hdrs`` is built once in ``set_environment``, so it
+    freezes whatever theme was configured at startup. Selecting a theme updates
+    ``app.config.code_editor.theme`` (via /codeeditor/update_config) and
+    repaints the live page, but the next navigation used to re-render from
+    those frozen headers and snap the look back to the startup theme -- while
+    the dropdown, which reads the config, still showed the chosen one.
+
+    Emitting the block again per request fixes that: it appears after the
+    header copy, so its :root wins, and it always reflects the current config.
+    theme.py's own guidance is to call theme_style per request for exactly
+    this reason.
     """
-    return legacy_theme_style(app.config, "code_editor")
+    return theme_style(app.config, "code_editor")
+
+
+# Set by the in-page theme dropdown; None means "follow the configured theme".
+_design_theme_override = None
+
+
+def current_design_theme() -> str:
+    """Name of the design theme the page is currently rendering.
+
+    Resolves the per-app override against the global `apps/theme` group, so a
+    null `apps.code_editor.theme` reports the inherited theme instead of the
+    literal None the dropdown used to show.
+    """
+    if _design_theme_override is not None:
+        return _design_theme_override
+    return resolve_theme(app.config, "code_editor").get("name", "default")
+
+
+def current_editor_theme() -> str:
+    """CodeMirror's syntax-highlighting stylesheet name.
+
+    Not the shared design theme -- CodeMirror ships a whole stylesheet per
+    theme, which no CSS variable can substitute for. The shared theme therefore
+    picks one indirectly via its `tone` asset, so `apps/theme=dark` darkens the
+    code pane and not just the chrome around it.
+    """
+    cfg = app.config.code_editor
+    tone = theme_asset(app.config, "code_editor", "tone", "light")
+    by_tone = _as_plain(getattr(cfg, "editor_theme_by_tone", None) or {})
+    return by_tone.get(tone, cfg.editor_theme)
+
+
+def theme_switcher_script(config) -> Script:
+    """Embed every selectable theme's tokens so the selector can swap live.
+
+    The tokens for all of ``list_of_themes`` are inlined as JSON, so changing
+    theme is a set of ``style.setProperty`` calls on :root -- no page reload,
+    no server round-trip, and nothing fetched from a CDN. That is what makes
+    the dropdown a real-time surface rather than a form control.
+
+    The server is still notified (``/codeeditor/update_config``) so the choice
+    survives a reload and shows up in the config an eval records, but the
+    visual change does not wait on that request.
+    """
+    names = list(getattr(config.code_editor, "list_of_themes", []) or [])
+    palettes = {name: _as_plain(load_theme(name).get("tokens", {})) for name in names}
+    return Script(f"""
+        window.OPENAPPS_THEMES = {json.dumps(palettes)};
+        window.applyTheme = function(name) {{
+            var tokens = window.OPENAPPS_THEMES[name];
+            if (!tokens) {{ return false; }}
+            var root = document.documentElement;
+            var allKeys = {{}};
+            Object.keys(window.OPENAPPS_THEMES).forEach(function(theme) {{
+                Object.keys(window.OPENAPPS_THEMES[theme]).forEach(function(k) {{
+                    allKeys[k] = true;
+                }});
+            }});
+            Object.keys(allKeys).forEach(function(k) {{
+                root.style.removeProperty('--' + k);
+            }});
+            Object.keys(tokens).forEach(function(k) {{
+                root.style.setProperty('--' + k, tokens[k]);
+            }});
+            return true;
+        }};
+    """)
 
 
 def return_to_index():
@@ -214,6 +541,52 @@ def newfile_index(current_path):
     while os.path.exists(os.path.join(target_dir, f"Untitled-{i}")):
         i += 1
     return i
+
+def editor_binding(options_js: str) -> str:
+    """JS that binds the page-global ``editor`` used by Save / the selectors.
+
+    With ``code_editor.highlight`` on, ``editor`` is a CodeMirror instance
+    wrapping the ``#editor`` textarea. With it off there is no CodeMirror on
+    the page (the CDN scripts are only added in the highlight branch of
+    ``set_environment``), so bind a small shim over the plain textarea that
+    exposes the handful of methods the page calls: ``getValue`` (Save),
+    ``setValue``, ``setOption`` (mode/theme selectors), and ``setSize``.
+
+    Without the shim the emitted JS was
+    ``var editor = (document.getElementById('editor'), {...});`` — the comma
+    operator, which bound ``editor`` to the *options object*. Every
+    ``editor.getValue()`` then threw a TypeError, so the Save button silently
+    did nothing: no POST, no reload, no error modal.
+
+    ``setOption`` used to be a no-op, which is why the theme selector appeared
+    to do nothing whenever highlight was off (its default). It now applies the
+    local ``theme-*`` classes defined in ``set_environment``'s stylesheet, so
+    theme swapping works without reaching CodeMirror's CDN.
+    """
+    if app.config.code_editor.highlight:
+        return (
+            "var editor = CodeMirror.fromTextArea(document.getElementById('editor'), "
+            f"{options_js});"
+        )
+    return """
+                    var editorTextarea = document.getElementById('editor');
+                    var editor = {
+                        getValue: function() { return editorTextarea.value; },
+                        setValue: function(value) { editorTextarea.value = value; },
+                        getOption: function() { return null; },
+                        setOption: function(name, value) {
+                            // Themes are design tokens now, applied to :root by
+                            // window.applyTheme, so this works with no CodeMirror
+                            // on the page and nothing fetched from a CDN.
+                            if (name === 'theme' && window.applyTheme) {
+                                window.applyTheme(value);
+                            }
+                        },
+                        setSize: function() {},
+                        refresh: function() {},
+                        focus: function() { editorTextarea.focus(); }
+                    };"""
+
 
 def get_file_tree(path: str) -> Dict:
     """Recursively build a file tree structure"""
@@ -249,12 +622,22 @@ def create_sidebar(current_path: str = None) -> Div:
             file_path = item['path']
             is_current = current_path == file_path
             return Div(
-                cls=f"pl-4 py-1 hover:bg-gray-700 cursor-pointer {'bg-blue-800' if is_current else ''}"
+                # Colours come from the inline stylesheet, not Tailwind: the
+                # CDN injects its rules at runtime and would otherwise win the
+                # cascade, making the editor look different on a host with
+                # egress than on one without.
+                cls=f"file-row pl-4 py-1 cursor-pointer "
+                    f"{'is-current' if is_current else ''}"
             )(
                 A(
-                    item['name'],
+                    # Icon inside the link so the whole row, glyph included, is
+                    # one hit target. The svg is aria-hidden, so it adds no
+                    # AXTree node and the link's accessible name stays the
+                    # bare filename.
+                    Span(icon(Icon.FILE, size=14), cls="row-icon"),
+                    Span(item['name'], cls="row-label"),
                     href=f"/codeeditor/{file_path}",
-                    cls="text-white hover:text-white no-underline"
+                    cls="row-link no-underline"
                 )
             )
         else:
@@ -267,26 +650,33 @@ def create_sidebar(current_path: str = None) -> Div:
             return Div(cls="folder-container")(
                 # Merge span elements into a single clickable div
                 Div(
-                    cls=f"flex items-center pl-2 py-1 hover:bg-gray-700 cursor-pointer {('bg-blue-800' if is_current else '')}",
+                    cls=f"folder-row flex items-center pl-2 py-1 cursor-pointer {('is-current' if is_current else '')}",
                     **{
                         "data-path": folder_path,
                         "onclick": f"""
                             const container = this.closest('.folder-container');
                             const content = container.querySelector('.folder-content');
-                            const icon = this.querySelector('.folder-icon');
                             const isVisible = content.style.display === 'block';
                             content.style.display = isVisible ? 'none' : 'block';
-                            icon.textContent = isVisible ? '▶' : '▼';
-                            
+                            // One chevron, rotated by CSS -- no glyph swap.
+                            this.classList.toggle('is-expanded', !isVisible);
+
                             const storageKey = getStorageKey('{folder_path}');
                             localStorage.setItem(storageKey, (!isVisible).toString());
-                            
+
                             window.location = '/codeeditor/{folder_path}';
                         """
                     }
                 )(
-                    Button(cls="folder-icon mr-1", onclick="")(Span("▶")),
-                    Button(item['name'], cls="folder-name text-white", onclick=""),
+                    # Chevron and folder glyph are spans, not buttons. They
+                    # used to be Button(onclick="") wrappers, which put an
+                    # extra *unnamed* button in the accessibility tree for
+                    # every folder -- pure noise in the agent's observation.
+                    # The name stays a Button so the folder keeps one named,
+                    # clickable node to target.
+                    Span(icon(Icon.CHEVRON, size=12), cls="folder-icon"),
+                    Span(icon(Icon.FOLDER, size=14), cls="row-icon"),
+                    Button(item['name'], cls="folder-name row-label", onclick=""),
                 ),
                 Div(
                     cls="folder-content ml-2",
@@ -311,7 +701,7 @@ def create_sidebar(current_path: str = None) -> Div:
     else:
         folder_path = current_path
     return Div(
-        cls="main-content w-1/6 p-4 rounded-lg overflow-y-auto",
+        cls="sidebar main-content w-1/6 p-4 rounded-lg overflow-y-auto",
         style="max-height: calc(100vh - 2rem)"
     )(
         Div(cls="mb-4")(
@@ -390,18 +780,18 @@ def create_sidebar(current_path: str = None) -> Div:
         Script("""
             document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.folder-container').forEach(container => {
-                    const folderHeader = container.querySelector('.flex');
-                    const icon = container.querySelector('.folder-icon');
+                    const folderHeader = container.querySelector('.folder-row');
                     const content = container.querySelector('.folder-content');
                     const folderPath = folderHeader.getAttribute('data-path');
-                    
+
                     // Set initial state from localStorage, default to collapsed (false)
                     const storageKey = getStorageKey(folderPath);
                     const isExpanded = localStorage.getItem(storageKey) === 'true';
-                    
+
                     // Always start collapsed unless explicitly set to expanded in localStorage
                     content.style.display = isExpanded ? 'block' : 'none';
-                    icon.textContent = isExpanded ? '▼' : '▶';
+                    // Rotate the single chevron rather than swapping glyphs.
+                    folderHeader.classList.toggle('is-expanded', isExpanded);
                 });
             });
             function showErrorModal(message) {
@@ -427,6 +817,28 @@ def index():
     # files_root = f"{current_dir}/files/"
     files_root = current_dir
     file_tree = get_file_tree(files_root)
+    editor_options = f"""{{
+                        mode: '{app.config.code_editor.mode}',
+                        theme: '{current_editor_theme()}',
+                        lineNumbers: true,
+                        indentUnit: 4,
+                        tabSize: 4,
+                        indentWithTabs: false,
+                        smartIndent: true,
+                        lineWrapping: true,
+                        extraKeys: {{
+                            "Tab": function(cm) {{
+                                if (cm.somethingSelected()) {{
+                                    cm.indentSelection("add");
+                                }} else {{
+                                    cm.replaceSelection("    ", "end", "+input");
+                                }}
+                            }},
+                            "Shift-Tab": function(cm) {{
+                                cm.indentSelection("subtract");
+                            }}
+                        }}
+                    }}"""
     # by default, the main screen should display an empty code editor
     main_screen = Div(cls="w-5/6")(
         Div(cls="main-content p-4 rounded-lg styled-content")(
@@ -465,6 +877,7 @@ def index():
                             id="theme-selector",
                             cls="bg-gray-800 text-white p-2 rounded",
                             onchange="""
+                                window.applyTheme(this.value);
                                 editor.setOption('theme', this.value);
                                 fetch('/codeeditor/update_config', {
                                     method: 'POST',
@@ -482,7 +895,7 @@ def index():
                             });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -495,28 +908,7 @@ def index():
                     disabled="disabled"
                 ),
                 Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
-                        mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
-                        lineNumbers: true,
-                        indentUnit: 4,
-                        tabSize: 4,
-                        indentWithTabs: false,
-                        smartIndent: true,
-                        lineWrapping: true,
-                        extraKeys: {{
-                            "Tab": function(cm) {{
-                                if (cm.somethingSelected()) {{
-                                    cm.indentSelection("add");
-                                }} else {{
-                                    cm.replaceSelection("    ", "end", "+input");
-                                }}
-                            }},
-                            "Shift-Tab": function(cm) {{
-                                cm.indentSelection("subtract");
-                            }}
-                        }}
-                    }});
+                    {editor_binding(editor_options)}
                     {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
                 """),
             ),
@@ -528,7 +920,7 @@ def index():
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(codeeditor_theme(), logo_title_container, page)
+    return Div(live_theme_style(), logo_title_container, page)
 
 
 @app.get("/codeeditor/{path:path}")
@@ -546,6 +938,12 @@ def get(path: str):
 def get_folder(folder: str):
     """Handle folder view with empty editor"""
     side_bar = create_sidebar(folder)
+    editor_options = f"""{{
+                        mode: '{app.config.code_editor.mode}',
+                        theme: '{current_editor_theme()}',
+                        lineNumbers: true,
+                        readOnly: true
+                    }}"""
     main_screen = Div(cls="w-5/6")(
         Div(cls="main-content  p-4 rounded-lg styled-content")(
             Div(cls="flex justify-between items-center")(
@@ -577,6 +975,7 @@ def get_folder(folder: str):
                             id="theme-selector",
                             cls="bg-gray-800 text-white p-2 rounded",
                             onchange="""
+                                window.applyTheme(this.value);
                                 editor.setOption('theme', this.value);
                                 fetch('/codeeditor/update_config', {
                                     method: 'POST',
@@ -588,7 +987,7 @@ def get_folder(folder: str):
                                 });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -601,12 +1000,7 @@ def get_folder(folder: str):
                     disabled="disabled"
                 ),
                 Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
-                        mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
-                        lineNumbers: true,
-                        readOnly: true
-                    }});
+                    {editor_binding(editor_options)}
                     {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
                 """),
             ),
@@ -634,7 +1028,7 @@ def get_folder(folder: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(codeeditor_theme(), logo_title_container, page)
+    return Div(live_theme_style(), logo_title_container, page)
 
 def get_file(file: str):
     side_bar = create_sidebar(file)
@@ -649,6 +1043,35 @@ def get_file(file: str):
     # files_root = f"{current_dir}/files/"
     files_root = current_dir
     file_tree = get_file_tree(files_root)
+    editor_options = f"""{{
+                        mode: '{app.config.code_editor.mode}',
+                        theme: '{current_editor_theme()}',
+                        lineNumbers: true,
+                        indentUnit: 4,
+                        tabSize: 4,
+                        indentWithTabs: false,
+                        smartIndent: true,
+                        lineWrapping: true,
+                        screenReaderLabel: 'Code editor',
+                        inputStyle: 'contenteditable',
+                        role: 'textbox',
+                        'aria-multiline': true,
+                        'aria-atomic': true,
+                        'aria-live': 'off',
+                        announceMultiline: true,
+                        extraKeys: {{
+                            "Tab": function(cm) {{
+                                if (cm.somethingSelected()) {{
+                                    cm.indentSelection("add");
+                                }} else {{
+                                    cm.replaceSelection("    ", "end", "+input");
+                                }}
+                            }},
+                            "Shift-Tab": function(cm) {{
+                                cm.indentSelection("subtract");
+                            }}
+                        }}
+                    }}"""
     # same layout and sidebar as the main screen
     side_bar = create_sidebar(file)
     tab_bar = Div(cls="flex overflow-x-auto bg-gray-800 border-b border-gray-700")(
@@ -690,7 +1113,7 @@ def get_file(file: str):
                 // Initialize opened files
                 let openedFiles = getOpenedFiles();
                 const currentFile = '""" + file + """';
-                
+
                 if (!openedFiles.includes(currentFile)) {
                     openedFiles.push(currentFile);
                     updateOpenedFiles(openedFiles);
@@ -700,13 +1123,13 @@ def get_file(file: str):
                 function renderTabs() {
                     const container = document.getElementById('tab-container');
                     container.innerHTML = '';
-                    
+
                     openedFiles.forEach(file => {
                         const tab = document.createElement('div');
                         tab.className = `flex items-center px-4 py-2 cursor-pointer ${
                             file === currentFile ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                         }`;
-                        
+
                         const fileName = document.createElement('span');
                         fileName.textContent = file.split('/').pop();
                         fileName.onclick = () => {
@@ -714,7 +1137,7 @@ def get_file(file: str):
                                 window.location = '/codeeditor/' + file;
                             }
                         };
-                        
+
                         const closeBtn = document.createElement('button');
                         closeBtn.className = 'ml-2 text-gray-500 hover:text-white focus:outline-none focus:ring-0 focus:ring-offset-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0';
                         closeBtn.innerHTML = '×';
@@ -722,7 +1145,7 @@ def get_file(file: str):
                             e.stopPropagation();
                             openedFiles = openedFiles.filter(f => f !== file);
                             updateOpenedFiles(openedFiles);
-                            
+
                             if (file === currentFile) {
                                 // Navigate to the next available tab or index
                                 if (openedFiles.length > 0) {
@@ -734,7 +1157,7 @@ def get_file(file: str):
                                 renderTabs();
                             }
                         };
-                        
+
                         tab.appendChild(fileName);
                         tab.appendChild(closeBtn);
                         container.appendChild(tab);
@@ -797,7 +1220,7 @@ def get_file(file: str):
                                     .then(data => {{
                                         if (data.success) {{
                                             // Update tab name before navigation
-                                            updateTabOnRename('{file}', newName);                                            
+                                            updateTabOnRename('{file}', newName);
                                             window.location = '/codeeditor/' + newName;
                                         }} else {{
                                             showErrorModal('Failed to rename: ' + data.error);
@@ -841,6 +1264,7 @@ def get_file(file: str):
                             id="theme-selector",
                             cls="bg-gray-800 text-white p-2 rounded",
                             onchange="""
+                                window.applyTheme(this.value);
                                 editor.setOption('theme', this.value);
                                 fetch('/codeeditor/update_config', {
                                     method: 'POST',
@@ -852,7 +1276,7 @@ def get_file(file: str):
                                 });
                             """
                         )(
-                            *[Option(theme, value=theme, selected=(theme == app.config.code_editor.theme)) for theme in list_of_themes]
+                            *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
                         ),
                     ),
                 ),
@@ -878,35 +1302,7 @@ def get_file(file: str):
                     cls="sr-only"
                 )(f"Code editor for editing {file}"),
                 Script(f"""
-                    var editor = {'CodeMirror.fromTextArea' if app.config.code_editor.highlight else ''} (document.getElementById('editor'), {{
-                        mode: '{app.config.code_editor.mode}',
-                        theme: '{app.config.code_editor.theme}',
-                        lineNumbers: true,
-                        indentUnit: 4,
-                        tabSize: 4,
-                        indentWithTabs: false,
-                        smartIndent: true,
-                        lineWrapping: true,
-                        screenReaderLabel: 'Code editor',
-                        inputStyle: 'contenteditable',
-                        role: 'textbox',
-                        'aria-multiline': true,
-                        'aria-atomic': true,
-                        'aria-live': 'off',
-                        announceMultiline: true,
-                        extraKeys: {{
-                            "Tab": function(cm) {{
-                                if (cm.somethingSelected()) {{
-                                    cm.indentSelection("add");
-                                }} else {{
-                                    cm.replaceSelection("    ", "end", "+input");
-                                }}
-                            }},
-                            "Shift-Tab": function(cm) {{
-                                cm.indentSelection("subtract");
-                            }}
-                        }}
-                    }});
+                    {editor_binding(editor_options)}
                     {f'editor.setSize("100%", "calc(100vh - 12rem)");' if app.config.code_editor.highlight else ''}
                 """),
             ),
@@ -957,7 +1353,7 @@ def get_file(file: str):
         ),
     )
     page = Div(cls="flex space-x-2")(side_bar, main_screen)
-    return Div(codeeditor_theme(), logo_title_container, page)
+    return Div(live_theme_style(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")
 def create_folder(folder: str):
@@ -1042,7 +1438,9 @@ async def update_config(request):
         if data["type"] == "mode":
             app.config.code_editor.mode = data["value"]
         elif data["type"] == "theme":
+            global _design_theme_override
             app.config.code_editor.theme = data["value"]
+            _design_theme_override = data["value"]
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}

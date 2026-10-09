@@ -10,7 +10,8 @@ A *theme* is a set of design tokens (colors, typography, shape, spacing)
 defined once in ``config/apps/theme/<name>.yaml`` and shared across every
 app. Selecting a theme emits a ``:root { --token: value }`` block that all
 apps consume via ``var(--token)``. This decouples *look* (theme) from
-*structure* (each app's ``layout``).
+*structure* (each app's ``layout``) and from *behaviour* (plain keys in
+each app's ``config/apps/<app>/default.yaml``).
 
 Selection is done with Hydra overrides:
 
@@ -31,15 +32,19 @@ A theme file looks like::
       font-family: "'Inter', sans-serif"
       radius: "8px"
       ...
+    assets:
+      tone: light
+      icon_set: color
 
 The ``tokens`` mapping is open-ended: every ``key: value`` becomes the CSS
 custom property ``--key: value``, so apps can introduce new tokens without
 touching this module.
 
-Apps that have not been migrated to design tokens yet (everything except
-todo) still build their stylesheet from ``config/apps/<app>/appearance/``.
-:func:`legacy_theme_css` bridges the two worlds — see the comment on
-``_LEGACY_ALIASES`` below.
+``assets`` covers what a CSS variable cannot reach: raster icons, Leaflet
+tile layers, CodeMirror stylesheets. It is deliberately *app-agnostic* --
+a theme declares intent (``tone: dark``) and each app maps that onto its
+own concrete choice, so a shared theme file never has to grow a key for
+every app in the repo. See :func:`theme_assets`.
 """
 from __future__ import annotations
 
@@ -52,6 +57,9 @@ from fasthtml.common import Style
 _THEME_DIR = Path(__file__).resolve().parents[2] / "config" / "apps" / "theme"
 
 _DEFAULT_THEME = "default"
+
+# Fallbacks for a theme that predates (or omits) the `assets` block.
+_DEFAULT_ASSETS: dict[str, str] = {"tone": "light", "icon_set": "color"}
 
 
 def _as_plain(value):
@@ -67,10 +75,15 @@ def _as_plain(value):
 def load_theme(name: str) -> dict:
     """Load a theme's tokens from ``config/apps/theme/<name>.yaml``.
 
-    Returns a dict with at least ``name``, ``tokens`` and ``import_url``.
-    Falls back to the default theme when ``name`` is unknown so a bad
-    override degrades gracefully instead of raising.
+    Returns a dict with at least ``name``, ``tokens``, ``import_url`` and
+    ``assets``. Falls back to the default theme when ``name`` is unknown so
+    a bad override degrades gracefully instead of raising.
     """
+    # Two separate guards, both needed: the character check keeps a name from
+    # escaping _THEME_DIR (``../``, absolute paths), the existence check keeps
+    # a merely-unknown-but-well-formed name from raising FileNotFoundError.
+    if not name or any(not (char.isalnum() or char in "-_") for char in name):
+        name = _DEFAULT_THEME
     path = _THEME_DIR / f"{name}.yaml"
     if not path.exists():
         path = _THEME_DIR / f"{_DEFAULT_THEME}.yaml"
@@ -78,6 +91,7 @@ def load_theme(name: str) -> dict:
     data.setdefault("name", name)
     data.setdefault("tokens", {})
     data.setdefault("import_url", "")
+    data.setdefault("assets", {})
     return data
 
 
@@ -85,9 +99,24 @@ def resolve_theme(apps_config, app_name: str) -> dict:
     """Resolve the effective theme for ``app_name``.
 
     ``apps_config`` is the ``config.apps`` node handed to every app as
-    ``app.config``. Precedence: per-app ``apps.<app_name>.theme`` (a theme
-    name string) overrides the global ``apps.theme`` group; a null/unset
-    per-app value inherits the global theme.
+    ``app.config``. Precedence, highest first:
+
+    1. ``apps.<app_name>.theme`` -- a per-app *pin*. Beats a global selection,
+       so it is for dressing one app differently on purpose.
+    2. the global ``apps.theme`` group -- what ``apps/theme=<name>`` sets.
+    3. ``apps.<app_name>.theme_default`` -- the app's own preferred look, used
+       only when nobody selected a theme. The code editor's is ``vscode_dark``.
+    4. ``default``.
+
+    3 sits *below* the global group rather than above it so that an app with a
+    strong default still moves when the theme axis is swept: a pin at that
+    level would leave one app frozen across every cell of the sweep, which is
+    the one thing the shared theme group exists to prevent.
+
+    Telling "the user chose ``default``" apart from "the user chose nothing" is
+    what makes 3 possible, and it is why ``apps/theme`` defaults to ``null`` in
+    ``config/config.yaml`` rather than to ``default``. Hydra still accepts a
+    bare ``apps/theme=dark`` with a null group default -- no ``+`` needed.
     """
     app_cfg = getattr(apps_config, app_name, None)
     per_app = getattr(app_cfg, "theme", None) if app_cfg is not None else None
@@ -97,13 +126,19 @@ def resolve_theme(apps_config, app_name: str) -> dict:
     global_theme = getattr(apps_config, "theme", None)
     if global_theme is not None:
         # Allow global theme to be provided either as a composed config node
-        # (apps/theme=<name>) or as a plain string override (apps.theme=<name>). 
+        # (apps/theme=<name>) or as a plain string override (apps.theme=<name>).
         if isinstance(global_theme, str):
             return load_theme(global_theme)
         theme = _as_plain(global_theme)
         theme.setdefault("tokens", {})
         theme["tokens"] = _as_plain(theme["tokens"])
+        theme.setdefault("assets", {})
+        theme["assets"] = _as_plain(theme["assets"])
         return theme
+
+    app_default = getattr(app_cfg, "theme_default", None) if app_cfg is not None else None
+    if app_default:
+        return load_theme(str(app_default))
 
     return load_theme(_DEFAULT_THEME)
 
@@ -121,9 +156,12 @@ def render_theme_css(theme: dict) -> str:
         # Allow only simple custom-property names to avoid broken CSS/injection.
         if (not key) or any(not (c.isalnum() or c in "-_") for c in key):
             continue
-        val = str(value).replace("\n", " ").replace("\r", " ")
-        # Prevent breaking out of <style> tags if a theme value contains HTML.
-        if "<" in val or ">" in val:
+        val = str(value).replace("\n", " ").replace("\r", " ").strip()
+        # Drop, rather than rewrite, a value that could end the declaration
+        # (`;`, `{`, `}`) or the <style> element (`<`, `>`). A mangled value
+        # would still emit and quietly mean something else; a dropped one
+        # falls back visibly, the same way an unsafe token name does above.
+        if any(c in val for c in "<>;{}"):
             continue
         safe_lines.append(f"  --{key}: {val};")
 
@@ -131,7 +169,7 @@ def render_theme_css(theme: dict) -> str:
 
     import_url = (theme.get("import_url") or "").strip()
     # Avoid breaking out of the quoted @import string.
-    if any(c in import_url for c in ('"', "'", "\n", "\r")):
+    if any(c in import_url for c in ('"', "'", "\n", "\r", "<", ">")):
         import_url = ""
 
     import_rule = f'@import url("{import_url}");\n' if import_url else ""
@@ -152,110 +190,28 @@ def theme_style(apps_config, app_name: str) -> Style:
 
 
 # --------------------------------------------------------------------------
-# Bridge for apps that still render `config/apps/<app>/appearance/*.yaml`
+# Non-CSS theme choices
 # --------------------------------------------------------------------------
-#
-# Only the todo app has been rewritten against design tokens. The other apps
-# build a `:root` block of their own from their `appearance` config and read
-# those names throughout their stylesheets, so a theme selection was invisible
-# to them. Rewriting five stylesheets is a much larger change than this one;
-# until then, re-point the legacy custom properties at the shared tokens.
-#
-# Keys are the legacy custom-property names those apps declare; values are the
-# token they should follow. `--font-family` needs no entry: the theme declares
-# that name itself, and the bridge block is emitted after the app's own
-# stylesheet, so the token value already wins.
-_LEGACY_ALIASES: dict[str, str] = {
-    # calendar
-    "primary": "color-primary",
-    "primary-hover": "color-accent",
-    "secondary": "color-neutral",
-    "background": "color-bg",
-    "text": "color-fg",
-    "error": "color-danger",
-    "border": "color-border",
-    "heading-font": "font-heading",
-    "base-font-size": "font-size-base",
-    "button-border-radius": "radius",
-    # messenger + code editor
-    "custom-font-family": "font-family",
-    "custom-font-size": "font-size-base",
-    "custom-font-color": "color-fg",
-    "custom-background-color": "color-bg",
-    "chat-font-family": "font-family",
-    "chat-font-size": "font-size-base",
-    "chat-font-color": "color-fg",
-    "chat-header-font-color": "color-muted",
-    "chat-primary-bubble-color": "color-primary",
-    "chat-secondary-bubble-color": "color-surface",
-    "chat-display-background-color": "color-bg",
-    "main-bg-color": "color-surface",
-}
-
-# The page chrome every app shares. Aliasing alone is not enough: an app only
-# picks up a token where its own CSS happens to use a variable, and several
-# paint the page from hard-coded values.
-_LEGACY_BASE_CSS = """
-html, body {
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-  font-family: var(--font-family);
-}
-"""
-
-# Per-app selectors whose colors are hard-coded in the app's stylesheet (so no
-# alias can reach them) but which cover enough of the page that leaving them
-# unthemed reads as "the theme did nothing".
-_LEGACY_APP_CSS: dict[str, str] = {
-    "maps": """
-#sidebar { background: var(--color-surface); }
-#sidebar h2, #sidebar h3 { color: var(--color-fg); }
-.popup-list-item, .route-result, .saved-place { background: var(--color-surface); }
-""",
-    "code_editor": """
-.main-content { background-color: var(--color-surface); }
-textarea, textarea.styled-content { background-color: var(--color-surface); }
-""",
-    "messenger": """
-.bg-base-100, .bg-base-200 { background-color: var(--color-surface); }
-""",
-    "start_page": """
-#wrapper > .wrapper { background-color: var(--color-bg); }
-""",
-}
 
 
-def legacy_theme_css(apps_config, app_name: str) -> str:
-    """CSS that makes the active theme visible in an app built on ``appearance``.
+def theme_assets(apps_config, app_name: str) -> dict:
+    """The active theme's ``assets`` block for ``app_name``, with defaults filled.
 
-    Emits the theme's token block, the legacy-variable aliases, and the shared
-    page chrome. Returns ``""`` for the ``default`` theme: unmigrated apps are
-    still described entirely by their ``appearance`` config, so a deployment
-    that never selects a theme must render exactly as it did before.
+    Keys are app-agnostic on purpose:
 
-    Emit the result *after* the app's own stylesheet — the bridge relies on
-    document order, not specificity, to win.
+    * ``tone``     -- ``light`` | ``dark`` | ``mono``. Apps map this onto their
+      own concrete asset (maps picks a tile layer, the code editor picks a
+      CodeMirror stylesheet, the start page picks a tile fill).
+    * ``icon_set`` -- ``color`` | ``bw``. Which raster icon directory to serve.
+
+    A theme that omits ``assets`` (or omits a key) gets the light/color
+    defaults, so adding a new theme file never has to spell them out.
     """
-    theme = resolve_theme(apps_config, app_name)
-    if str(theme.get("name", _DEFAULT_THEME)) == _DEFAULT_THEME:
-        return ""
-
-    tokens = _as_plain(theme.get("tokens", {}))
-    aliases = "\n".join(
-        f"  --{legacy}: var(--{token});"
-        for legacy, token in _LEGACY_ALIASES.items()
-        if token in tokens
-    )
-    return "\n".join(
-        [
-            render_theme_css(theme),
-            f":root {{\n{aliases}\n}}",
-            _LEGACY_BASE_CSS,
-            _LEGACY_APP_CSS.get(app_name, ""),
-        ]
-    )
+    assets = dict(_DEFAULT_ASSETS)
+    assets.update(_as_plain(resolve_theme(apps_config, app_name).get("assets", {})))
+    return assets
 
 
-def legacy_theme_style(apps_config, app_name: str) -> Style:
-    """:func:`legacy_theme_css` as a FastHTML ``Style`` (empty on the default theme)."""
-    return Style(legacy_theme_css(apps_config, app_name))
+def theme_asset(apps_config, app_name: str, key: str, default=None):
+    """A single :func:`theme_assets` entry, or ``default`` when unset."""
+    return theme_assets(apps_config, app_name).get(key, default)

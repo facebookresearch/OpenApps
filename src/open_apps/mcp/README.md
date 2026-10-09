@@ -23,10 +23,19 @@ uv run python -m open_apps.mcp --app todo
 
 # HTTP / SSE (remote or multiple clients connect to a running server)
 uv run python -m open_apps.mcp --app todo --transport http --host 127.0.0.1 --port 8000
+
+# on a phone: 390x844, touch pointer, and the apps rendered for that form factor
+uv run python -m open_apps.mcp --app todo --device phone
 ```
 
 Flags: `--app {todo,calendar,messages,map,codeeditor}` (default `todo`),
-`--transport {stdio,http,sse}` (default `stdio`), `--host`, `--port`.
+`--transport {stdio,http,sse}` (default `stdio`), `--host`, `--port`,
+`--device {desktop,laptop,tablet,phone}` (default: a 1024x640 desktop window).
+
+`--device` is one setting for two things: it sizes the Playwright context and
+sets its input model (`is_mobile`, `has_touch`), *and* it is passed to the app
+server as a Hydra override, so the pages render for that device rather than
+being a desktop layout in a narrow window. See `config/device/`.
 
 `__main__` publishes those flags as `OPENAPPS_APP`, `OPENAPPS_MCP_HOST` and
 `OPENAPPS_MCP_PORT` before importing the server, which is where `server.py`
@@ -52,10 +61,36 @@ the server is then ready for tool calls.
 | `load_task(key)` | Bind a task for scoring; returns its goal. Call `reset` after. |
 | `get_reward()` | Reward for the bound task (1.0 if complete, else 0.0). |
 | `set_goal(goal)` | Free-form goal, no automatic scoring. |
-| `reconfigure(theme, layout, appearance, content, seed, extras)` | Live variant/seed change. `theme` is the shared global design-token theme; `layout` is per-app structure; `appearance` is legacy (unmigrated apps). |
+| `reconfigure(theme, layout, content, seed, extras, appearance)` | Live variant/seed change. `theme` is the shared global design-token theme; `layout` and `content` are per-app. `appearance` is deprecated — see below. |
 | `list_apps()` | App keys actually registered this process. |
-| `list_variants(app, group)` | Variant stems for a group (`theme`/`layout`/`content`/`appearance`). |
+| `list_variants(app, group)` | Variant stems for a group (`theme`/`layout`/`content`). |
 | `app_url(app=None)` | Absolute URL of an app's landing page. |
+
+### Deprecated: `appearance`
+
+`reconfigure` used to take a per-app `appearance` stem. That group was split
+into a shared `theme` (look) and a per-app `layout` (structure). The parameter
+still exists so existing clients keep binding, and is translated:
+
+| `appearance=` | becomes |
+| --- | --- |
+| `default` | `theme="default"` |
+| `dark_theme` | `theme="dark"` |
+| `black_and_white` | `theme="mono"` |
+| `challenging_font` | `theme="challenging_font"` |
+| `colorblind_access` | `theme="colorblind"` |
+| `kanban_board` | `layout="kanban_board"` |
+| `broken_logos` | `layout="broken_logos"` |
+| `clickable_logos` | `layout="clickable_logos"` |
+
+Each call raises a `DeprecationWarning`; passing `appearance` together with a
+`theme`/`layout` it disagrees with raises `ValueError` rather than silently
+picking one. `list_variants(app, "appearance")` raises too — the group's
+directory is gone, and the missing-dir fallback would otherwise answer
+`["default"]` and quietly drop every variation from a sweep. Two renderings
+shift slightly under the new axes (`mono` polarity, `colorblind` scope); the
+[docs](https://facebookresearch.github.io/OpenApps/) migration table has the
+detail. `appearance` will be removed in a later release.
 
 **Actions** are BrowserGym action strings (full-resolution pixels):
 

@@ -13,7 +13,7 @@ from fasthtml.common import (
     HighlightJS, database, dataclass)
 from datetime import datetime, timedelta
 from open_apps.frontend import local_hdrs
-from open_apps.theme import legacy_theme_style
+from open_apps.theme import render_theme_css, resolve_theme
 import calendar
 import os
 import logging
@@ -30,160 +30,136 @@ logger = logging.getLogger(__name__)
 # fix relative path issue
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-def generate_styles_from_config(config):
-    """Generate CSS styles from configuration"""
-    if not hasattr(config.calendar, 'style'):
-        raise ValueError("Calendar config does not contain 'style' section")
-    
-    # Extract style config
-    style_config = config.calendar.style
-    colors = style_config.colors
-    typography = style_config.typography
-    buttons = style_config.buttons
-    layout = style_config.layout
-    
-    # Build CSS with variables
-    return f"""
-        /* Custom CSS Variables */
-        :root {{
-            --primary: {colors.primary};
-            --primary-hover: {colors.primary_hover};
-            --secondary: {colors.secondary};
-            --background: {colors.background};
-            --text: {colors.text};
-            --error: {colors.error};
-            --border: {colors.border};
-            --font-family: {typography.font_family};
-            --heading-font: {typography.heading_font};
-            --base-font-size: {typography.base_font_size};
-            --heading-size: {typography.heading_size};
-            --button-border-radius: {buttons.border_radius};
-            --button-padding: {buttons.padding};
-            --container-width: {layout.container_width};
-            --spacing: {layout.spacing};
-        }}
-        
-        /* Base styles */
-        body {{
-            font-family: var(--font-family);
-            font-size: var(--base-font-size);
-            color: var(--text);
-            background-color: var(--background);
-        }}
-        
-        h1, h2, h3, h4, h5, h6 {{
-            font-family: var(--heading-font);
-        }}
-        
-        h1 {{
-            font-size: var(--heading-size);
-        }}
-        
-        /* Button styles */
-        [role="button"], button {{
-            border-radius: var(--button-border-radius);
-            padding: var(--button-padding);
-        }}
-        
-        /* Apply primary color to buttons */
-        [role="button"]:not(.outline):not(.secondary),
-        button:not(.outline):not(.secondary) {{
-            background-color: var(--primary);
-            border-color: var(--primary);
-        }}
-        
-        /* Apply hover state for primary buttons */
-        [role="button"]:not(.outline):not(.secondary):hover,
-        button:not(.outline):not(.secondary):hover {{
-            background-color: var(--primary-hover);
-            border-color: var(--primary-hover);
-        }}
-        
-        /* Secondary buttons */
-        [role="button"].secondary,
-        button.secondary {{
-            background-color: var(--secondary);
-            border-color: var(--secondary);
-        }}
-        
-        /* Apply border color to form elements */
-        input, select, textarea {{
-            border: 1px solid var(--border);
-            border-radius: var(--button-border-radius);
-        }}
+# Static, theme-agnostic component styles. Every color, font and radius is a
+# design token from the shared theme (`config/apps/theme/`), resolved
+# per-request by `calendar_theme()`; the three structural values the calendar
+# owns come from its `layout` group as `--layout-*`. Nothing here depends on
+# the config, so this block is built once at import instead of rebuilt in
+# `set_environment`.
+_COMPONENT_CSS = """
+    /* Base styles */
+    body {
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        color: var(--color-fg);
+        background-color: var(--color-bg);
+    }
 
-        [role="button"].outline,
-        button.outline {{
-            background-color: var(--background);
-            border-color: var(--border);
-            color: var(--primary);
-        }}
-        
-        /* Apply container width */
-        #calendar-container {{
-            width: var(--container-width);
-            margin: 0 auto;
-        }}
-        
-        /* Apply border color to tables */
-        table, th, td {{
-            border-color: var(--border);
-        }}
-        
-        /* Calendar days */
-        .calendar-cell {{
-            border: 1px solid var(--border);
-            background-color: var(--background);
-        }}
-        
-        /* Links */
-        a:not([role="button"]) {{
-            color: var(--primary);
-        }}
-        
-        a:not([role="button"]):hover {{
-            color: var(--primary-hover);
-        }}
-        
-        /* Calendar app specific styles */
-        .logo-title-container {{
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-        }}
-        
-        .custom-logo {{
-            max-height: 50px;
-            margin-right: 10px;
-        }}
-        .calendar-title {{
-            margin: 0;
-            color: var(--primary);
-        }}
-        
-        .logo-title-container a {{
-            text-decoration: none;
-        }}
-        
-        .button-container {{
-            display: flex;
-            justify-content: space-between;
-            margin-top: var(--spacing);
-        }}
-        
-        .error-message {{
-            background-color: rgba(220, 53, 69, 0.1);
-            color: var(--error);
-            padding: var(--spacing);
-            margin-bottom: var(--spacing);
-            border-radius: var(--button-border-radius);
-            text-align: center;
-        }}
-    """
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+    }
 
-# Initialize with default styles
-# Will be updated in set_environment
-styles = Style("")
+    h1 {
+        font-size: var(--font-size-heading);
+    }
+
+    /* Button styles */
+    [role="button"], button {
+        border-radius: var(--radius);
+        padding: var(--layout-button-padding);
+    }
+
+    /* Apply primary color to buttons */
+    [role="button"]:not(.outline):not(.secondary),
+    button:not(.outline):not(.secondary) {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+
+    /* Apply hover state for primary buttons */
+    [role="button"]:not(.outline):not(.secondary):hover,
+    button:not(.outline):not(.secondary):hover {
+        background-color: var(--color-primary-hover);
+        border-color: var(--color-primary-hover);
+    }
+
+    /* Secondary buttons */
+    [role="button"].secondary,
+    button.secondary {
+        background-color: var(--color-neutral);
+        border-color: var(--color-neutral);
+        color: var(--color-btn-fg);
+    }
+
+    /* Apply border color to form elements */
+    input, select, textarea {
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+    }
+
+    [role="button"].outline,
+    button.outline {
+        background-color: var(--color-bg);
+        border-color: var(--color-border);
+        color: var(--color-primary);
+    }
+
+    /* Apply container width */
+    #calendar-container {
+        width: var(--layout-container-width);
+        margin: 0 auto;
+    }
+
+    /* Apply border color to tables */
+    table, th, td {
+        border-color: var(--color-border);
+    }
+
+    /* Calendar days */
+    .calendar-cell {
+        border: 1px solid var(--color-border);
+        background-color: var(--color-surface);
+    }
+
+    /* Links */
+    a:not([role="button"]) {
+        color: var(--color-primary);
+    }
+
+    a:not([role="button"]):hover {
+        color: var(--color-primary-hover);
+    }
+
+    /* Calendar app specific styles */
+    .logo-title-container {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .custom-logo {
+        max-height: 50px;
+        margin-right: 10px;
+    }
+    .calendar-title {
+        margin: 0;
+        color: var(--color-primary);
+    }
+
+    .logo-title-container a {
+        text-decoration: none;
+    }
+
+    .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: var(--layout-spacing);
+    }
+
+    .error-message {
+        background-color: rgba(220, 53, 69, 0.1);
+        color: var(--color-danger);
+        padding: var(--layout-spacing);
+        margin-bottom: var(--layout-spacing);
+        border-radius: var(--radius);
+        text-align: center;
+    }
+"""
+
+styles = Style(_COMPONENT_CSS)
 
 
 app, rt = fast_app(
@@ -218,12 +194,9 @@ class Event:
 
 def set_environment(config):
     """Set environment variables for the messenger app"""
-    global app, styles, logo_title_container
+    global app, logo_title_container
     app.config = config
-    
-    # Update the styles from config
-    styles = Style(generate_styles_from_config(config))
-    
+
     db = database(config.calendar.database_path)
     # create new events
     global events
@@ -239,12 +212,24 @@ def set_environment(config):
 
 
 def calendar_theme():
-    """The active theme, mapped onto this app's `appearance` CSS variables.
+    """The active theme's tokens plus this app's layout variables.
 
-    Empty on the default theme. Rendered per-request (and after `styles`, which
-    it has to override) so live `reconfigure` theme swaps take effect.
+    Resolved per-request so live `reconfigure` theme and layout swaps take
+    effect. The `--layout-*` block is emitted here rather than in
+    `_COMPONENT_CSS` because it is the only part of the stylesheet that
+    depends on config.
     """
-    return legacy_theme_style(app.config, "calendar")
+    layout = app.config.calendar
+    return Style(
+        render_theme_css(resolve_theme(app.config, "calendar"))
+        + f"""
+:root {{
+  --layout-container-width: {layout.container_width};
+  --layout-spacing: {layout.spacing};
+  --layout-button-padding: {layout.button_padding};
+}}
+"""
+    )
 
 
 def update_db_from_hydra():
@@ -306,7 +291,7 @@ def create_footer(hide_add_button=False):
         else ""
     )
 
-    
+
     # Add "Return to List of Apps" button
     return_to_apps = A("Return to List of Apps", href="/", role="button", cls="outline")
 
@@ -327,32 +312,32 @@ def get_events_for_month(year, month):
     start_date = f"{year}-{month:02d}-01"
     end_date = f"{year}-{month:02d}-31"
     direct_month_events = events(f"date >= '{start_date}' AND date <= '{end_date}'")
-    
+
     # Create a list to hold all events including recurring ones
     all_month_events = list(direct_month_events)
-    
+
     # Now handle recurring events
     all_events = events()
     month_days = calendar.monthrange(year, month)[1]  # Get number of days in month
-    
+
     for event in all_events:
         if not event.recurring:
             continue
-            
+
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
-        
+
         # If the original event is in this month, it's already included
         if event_date.year == year and event_date.month == month:
             continue
-            
+
         # Handle different recurrence types
         if event.recurring == "yearly":
             # Only include if the month and day match
             if event_date.month == month:
                 # Create a new event instance for this year
                 recurring_date = f"{year}-{event_date.month:02d}-{event_date.day:02d}"
-                
+
                 # Skip if the recurring date is invalid (e.g., Feb 29 in non-leap years)
                 try:
                     datetime.strptime(recurring_date, "%Y-%m-%d")
@@ -369,7 +354,7 @@ def get_events_for_month(year, month):
                     all_month_events.append(recurring_event)
                 except ValueError:
                     pass
-                
+
         elif event.recurring == "monthly":
             # Include if the day of month is valid for this month
             if event_date.day <= month_days:
@@ -385,15 +370,15 @@ def get_events_for_month(year, month):
                     recurring=event.recurring
                 )
                 all_month_events.append(recurring_event)
-                
+
         elif event.recurring == "weekly":
             # Get the weekday of the original event
             event_weekday = event_date.weekday()
-            
+
             # Check each day in this month
             for day in range(1, month_days + 1):
                 check_date = datetime(year, month, day).date()
-                
+
                 # If it's the same weekday, add a recurring instance
                 if check_date.weekday() == event_weekday:
                     recurring_date = f"{year}-{month:02d}-{day:02d}"
@@ -408,7 +393,7 @@ def get_events_for_month(year, month):
                         recurring=event.recurring
                     )
                     all_month_events.append(recurring_event)
-    
+
     return all_month_events
 
 
@@ -420,47 +405,47 @@ def get_upcoming_events(start_date=None, end_date=None):
 
     # Get direct events in the date range
     direct_events = events(f"date >= '{start_date}' AND date <= '{end_date}'")
-    
+
     # Create a list to hold all events including recurring ones
     all_events = list(direct_events)
-    
+
     # Now handle recurring events
     all_stored_events = events()
-    
+
     for event in all_stored_events:
         if not event.recurring:
             continue
-            
+
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
-        
+
         # Get the date range to check
         current_date = start_date
         while current_date <= end_date:
             include_event = False
             recurring_date = None
-            
+
             if event.recurring == "yearly" and event_date.month == current_date.month and event_date.day == current_date.day:
                 # Yearly recurring event matching the month and day
                 include_event = True
                 recurring_date = f"{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
-                
+
             elif event.recurring == "monthly" and event_date.day == current_date.day:
                 # Monthly recurring event matching the day of month
                 include_event = True
                 recurring_date = f"{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
-                
+
             elif event.recurring == "weekly" and event_date.weekday() == current_date.weekday():
                 # Weekly recurring event matching the weekday
                 include_event = True
                 recurring_date = f"{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
-            
+
             if include_event and recurring_date:
                 # Skip the original event date if it's already in the direct events
                 if event_date == current_date:
                     current_date += timedelta(days=1)
                     continue
-                
+
                 # Create a recurring instance
                 recurring_event = Event(
                     id=event.id,
@@ -473,9 +458,9 @@ def get_upcoming_events(start_date=None, end_date=None):
                     recurring=event.recurring
                 )
                 all_events.append(recurring_event)
-            
+
             current_date += timedelta(days=1)
-    
+
     return sorted(all_events, key=lambda e: e.date)  # Sort events by date
 
 
@@ -567,21 +552,21 @@ def show_main_layout(year, month, view="calendar", event_id=None):
     # Add calendar-specific styles that don't come from config
     calendar_specific_styles = Style(
         """
-        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing); }
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--layout-spacing); }
         .calendar-nav h2 { margin: 0; }
-        .view-toggle { display: flex; justify-content: center; gap: 10px; margin-bottom: var(--spacing); }
+        .view-toggle { display: flex; justify-content: center; gap: 10px; margin-bottom: var(--layout-spacing); }
         .calendar-table { width: 100%; table-layout: fixed; }
         .calendar-table th { text-align: center; font-weight: bold; }
         .calendar-cell { height: 100px; vertical-align: top; padding: 5px !important; }
         .day-number { font-weight: bold; margin-bottom: 5px; }
         .event-link { display: block; margin-bottom: 2px; font-size: 0.8em; }
         .agenda-list { list-style-type: none; padding: 0; }
-        .agenda-list li { margin-bottom: var(--spacing); }
-        .footer-container { margin-top: var(--spacing); }
-        #about-dialog-content { padding: var(--spacing); }
+        .agenda-list li { margin-bottom: var(--layout-spacing); }
+        .footer-container { margin-top: var(--layout-spacing); }
+        #about-dialog-content { padding: var(--layout-spacing); }
         """
     )
-    
+
     return (
         Title(app.config.start_page.apps.calendar.title),
         Container(
@@ -606,7 +591,7 @@ def get(req):
         Container(
             styles,
             calendar_theme(),
-            error_div, 
+            error_div,
             show_main_layout(today.year, today.month, view)
         ),
     )
@@ -704,12 +689,12 @@ def get_calendar_content(year, month, view, cal, month_events):
 def get(id: int):
     event = events[id]
     event_url = A("Event Link", href=event.url, target="_blank") if event.url else ""
-    
+
     # Display recurring information
     recurring_info = ""
     if event.recurring:
         recurring_info = P(f"Recurring: {event.recurring.capitalize()}")
-    
+
     # Create delete form
     delete_form = Form(
         Button("Delete Event", type="submit", cls="outline error"),
@@ -777,7 +762,7 @@ def get():
                 attrs['aria_label'] = aria_label
         except AttributeError:
             pass
-        
+
         return attrs
 
     return (Title("Creating a new event"),
@@ -787,13 +772,13 @@ def get():
         logo_title_container,
         Form(
             H3("Create New Event"),
-            
+
             Label("Title", For="title"),
             Input(**get_input_attrs('title', {'type': 'text', 'id': 'title', 'name': 'title', 'required': True})),
-            
+
             Label("Date", For="date"),
             Input(**get_input_attrs('date', {'type': 'text', 'id': 'date', 'name': 'date', 'required': True})),
-            
+
             Label("Description", For="description"),
             Textarea(**get_input_attrs('description', {'id': 'description', 'name': 'description'})),
 
@@ -805,7 +790,7 @@ def get():
 
             Label("Location", For="location"),
             Input(**get_input_attrs('location', {'type': 'text', 'id': 'location', 'name': 'location'})),
-            
+
             Label("Recurring", For="recurring"),
             Select(
                 Option("Not Recurring", value="none", selected=True),
@@ -815,7 +800,7 @@ def get():
                 id="recurring",
                 name="recurring"
             ),
-            
+
             Button("Submit", type="submit"),
             method="post",
             action="/calendar/create_event/save_text"
@@ -835,7 +820,7 @@ async def save_text(request):  # Add async here
         location = form.get("location", "")
         invitees = form.get("invitees", "")
         recurring = form.get("recurring", "none")
-        
+
         # Set recurring to None if "none" is selected
         if recurring == "none":
             recurring = None

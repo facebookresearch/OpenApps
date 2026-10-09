@@ -1,6 +1,6 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
 
 database_path: ${databases_dir}/maps.db
 otp_url: 'http://localhost:8080/'
@@ -8,3 +8,24 @@ otp_url: 'http://localhost:8080/'
 # Per-app theme override. null = inherit the global `apps/theme` selection.
 # Override for just this app with `apps.maps.theme=solarized`.
 theme: null
+
+# --- Behaviour -------------------------------------------------------------
+# Not layout and not theme: these change what the map *does*, not how it looks.
+
+# Show Leaflet's basemap switcher. Off hides the tile layer from the agent.
+enable_layer_control: True
+# Basemap used on page load. Tiles are raster images from a CDN, so no CSS
+# variable can recolor them -- the theme instead picks one via its `tone`
+# (see `layer_by_tone`). Must name a key defined in templates/map.html.
+default_layer: 'OpenStreetMap'
+# Basemap per theme tone; anything not listed falls back to `default_layer`.
+# This is what makes `apps/theme=dark` darken the map itself and not just
+# the sidebar around it.
+layer_by_tone:
+  dark: 'CartoDB Dark'
+  mono: 'CartoDB Positron'
+# 'automatic' places a styled marker on save; 'diy' leaves styling to the user.
+popup_display_rule: 'automatic'
+zoom: 12
+granularity: 'coarse'
+allow_planning: False

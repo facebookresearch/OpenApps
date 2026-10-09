@@ -1605,7 +1605,15 @@ def codeeditor_dropdowns_location(state, config, rng, **_):
 
 
 # ===========================================================================
-# Start Page Templates — 5 visible app tiles (no OnlineShop)
+# Start Page Templates
+#
+# The start page ships two compositions and the default is `desktop`, so these
+# have to branch. A question that describes the tile gallery is simply false
+# against the desktop shell -- and nothing about generating it would fail, so
+# the corpus would go quietly wrong. Each template below returns [] when the
+# active layout is not the one it describes.
+#
+# `config` here is the `apps.start_page` node (see generator._get_app_config).
 # ===========================================================================
 
 _START_PAGE_APPS = [
@@ -1625,8 +1633,34 @@ _FAKE_APPS = [
     "OpenShop",
 ]
 
+#: Apps pinned to the dock on first load, per
+#: config/apps/start_page/layout/desktop.yaml. The rest sit in the launcher.
+_DEFAULT_PINNED = ["OpenTodos", "OpenCalendar"]
+
+
+def _layout(config) -> str:
+    """Which start-page composition is active: `gallery` | `desktop` | ..."""
+    return str((config or {}).get("layout") or "gallery")
+
+
+def _headline(config) -> str:
+    """The headline actually rendered, which the two layouts disagree about.
+
+    The desktop shell overrides the start page's own copy; reading it rather
+    than hardcoding it also keeps the question right under a content variation
+    (`apps/start_page/content=german`).
+    """
+    config = config or {}
+    if _layout(config) == "desktop":
+        desktop = config.get("desktop") or {}
+        if desktop.get("headline"):
+            return str(desktop["headline"])
+    return str(config.get("headline") or "Welcome to OpenApps!")
+
 
 def start_page_app_count(state, config, rng, **_):
+    if _layout(config) != "gallery":
+        return []
     correct = str(len(_START_PAGE_APPS))
     distractors = _nearby_integers(len(_START_PAGE_APPS), 10, rng)
     choices, correct_letter = _shuffle_choices(correct, distractors, rng)
@@ -1642,6 +1676,12 @@ def start_page_app_count(state, config, rng, **_):
 
 
 def start_page_app_names_positive(state, config, rng, **_):
+    # Gallery-only: the desktop shell renders *only* the pinned apps into the
+    # page. The rest live behind the launcher popover and are not in the DOM
+    # until it is opened, so "shown on the start page" would be false for
+    # them. start_page_shell_pinned_apps covers that composition instead.
+    if _layout(config) != "gallery":
+        return []
     questions = []
     for app_name in _START_PAGE_APPS:
         distractors = rng.sample(_FAKE_APPS, 3)
@@ -1659,6 +1699,12 @@ def start_page_app_names_positive(state, config, rng, **_):
 
 
 def start_page_not_an_app(state, config, rng, **_):
+    # Gallery-only: the desktop shell renders *only* the pinned apps into the
+    # page. The rest live behind the launcher popover and are not in the DOM
+    # until it is opened, so "shown on the start page" would be false for
+    # them. start_page_shell_pinned_apps covers that composition instead.
+    if _layout(config) != "gallery":
+        return []
     questions = []
     for fake in _FAKE_APPS[:4]:
         real = rng.sample(_START_PAGE_APPS, 3)
@@ -1678,7 +1724,7 @@ def start_page_not_an_app(state, config, rng, **_):
 
 def start_page_headline(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "Welcome to OpenApps!",
+        _headline(config),
         ["My Apps", "App Dashboard", "Home"],
         rng,
     )
@@ -1694,6 +1740,8 @@ def start_page_headline(state, config, rng, **_):
 
 
 def start_page_tile_layout(state, config, rng, **_):
+    if _layout(config) != "gallery":
+        return []
     choices, correct_letter = _shuffle_choices(
         "Colored rounded tiles arranged in a grid, each containing an icon and the app name",
         [
@@ -1715,6 +1763,8 @@ def start_page_tile_layout(state, config, rng, **_):
 
 
 def start_page_app_order(state, config, rng, **_):
+    if _layout(config) != "gallery":
+        return []
     questions = []
     for i, app_name in enumerate(_START_PAGE_APPS):
         distractors = [a for a in _START_PAGE_APPS if a != app_name]
@@ -1734,6 +1784,8 @@ def start_page_app_order(state, config, rng, **_):
 
 
 def start_page_tile_interaction(state, config, rng, **_):
+    if _layout(config) != "gallery":
+        return []
     choices, correct_letter = _shuffle_choices(
         "Select the colored tile with the desired app's icon and name",
         [
@@ -1755,6 +1807,8 @@ def start_page_tile_interaction(state, config, rng, **_):
 
 
 def start_page_tile_grid_location(state, config, rng, **_):
+    if _layout(config) != "gallery":
+        return []
     choices, correct_letter = _shuffle_choices(
         "Below the welcome headline, in the center of the page",
         [
@@ -1770,6 +1824,194 @@ def start_page_tile_grid_location(state, config, rng, **_):
             choices=choices,
             correct=correct_letter,
             category="element_location",
+            app="start_page",
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Desktop-shell composition (the default layout)
+#
+# Counterparts to the gallery templates above, asking about the affordances
+# this composition actually has: a toolbar, a launcher popover, and a dock of
+# pinned shortcuts. Without these, flipping the default layout would have left
+# the start page with almost no question coverage at all.
+# ---------------------------------------------------------------------------
+
+def start_page_shell_app_access(state, config, rng, **_):
+    if _layout(config) != "desktop":
+        return []
+    choices, correct_letter = _shuffle_choices(
+        "Open the launcher in the toolbar, then select the app",
+        [
+            "Select one of the coloured tiles in a grid below the headline",
+            "Type the app name into a search box at the top of the page",
+            "Pick the app from a dropdown beneath the headline",
+        ],
+        rng,
+    )
+    return [
+        MCQuestion(
+            question="How do you open an app that is not already on the desktop?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="start_page",
+        )
+    ]
+
+
+def start_page_shell_toolbar_contents(state, config, rng, **_):
+    if _layout(config) != "desktop":
+        return []
+    choices, correct_letter = _shuffle_choices(
+        "A launcher button, a clock, the weather, and a light/dark toggle",
+        [
+            "A search field and a user avatar",
+            "Back and forward navigation arrows and a URL bar",
+            "A row of app tabs and a close button",
+        ],
+        rng,
+    )
+    return [
+        MCQuestion(
+            question="What is shown in the toolbar at the top of the start page?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_identification",
+            app="start_page",
+        )
+    ]
+
+
+def start_page_shell_pinned_apps(state, config, rng, **_):
+    """What is on the desktop, and what is only behind the launcher.
+
+    Which question is fair depends on the config. Everything is pinned by
+    default, so "which app is pinned?" has no wrong answer to offer and is
+    asked as a count instead. Once a researcher unpins something -- the whole
+    point of `desktop.unpinned`, and the only way the launcher exerts any
+    pressure -- both directions become answerable and more interesting.
+    """
+    from open_apps.apps.start_page.main import _inventory_keys, resolve_pinned
+
+    config = config or {}
+    desktop = config.get("desktop") or {}
+    # Both sets come off the inventory, not the raw `apps:` block. The online
+    # shop is listed there with a title but gated off globally, so building
+    # titles from the block would have made it the answer to "which app has no
+    # desktop shortcut" -- an app that is not on the page at all.
+    inventory = _inventory_keys(config)
+    # Not `desktop["pinned"]` -- that is `all` by default, and list("all") is
+    # three letters. Resolution also subtracts `unpinned`.
+    pinned_keys = resolve_pinned(desktop, config)
+    apps_cfg = config.get("apps") or {}
+    titles = {
+        key: (apps_cfg.get(key) or {}).get("title")
+        for key in inventory
+        if (apps_cfg.get(key) or {}).get("title")
+    }
+    pinned = [t for k, t in titles.items() if k in pinned_keys]
+    unpinned = [t for k, t in titles.items() if k not in pinned_keys]
+    if not pinned:
+        return []
+
+    # Always answerable, and the only one that works when everything is pinned.
+    choices, correct_letter = _shuffle_choices(
+        str(len(pinned)), _nearby_integers(len(pinned), 10, rng), rng
+    )
+    questions = [
+        MCQuestion(
+            question="How many app shortcuts are on the desktop?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_counting",
+            app="start_page",
+        )
+    ]
+
+    # Each direction needs three distractors from the *other* set, and the two
+    # sets are lopsided in opposite ways: everything is pinned by default, and
+    # a launcher experiment unpins one or two. So gate them independently
+    # rather than on one shared threshold.
+    for app_name in pinned if len(unpinned) >= 3 else []:
+        distractors = rng.sample(unpinned, 3)
+        choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
+        questions.append(
+            MCQuestion(
+                question="Which of these apps has a shortcut pinned to the desktop?",
+                choices=choices,
+                correct=correct_letter,
+                category="element_content",
+                app="start_page",
+                difficulty="medium",
+            )
+        )
+    # The inverse is the one that matters for a launcher task: naming the app
+    # with no shortcut is naming the app you have to open the menu to reach.
+    if len(pinned) >= 3 and unpinned:
+        for app_name in unpinned:
+            distractors = rng.sample(pinned, 3)
+            choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
+            questions.append(
+                MCQuestion(
+                    question=(
+                        "Which of these apps has no desktop shortcut, so it can "
+                        "only be opened from the launcher?"
+                    ),
+                    choices=choices,
+                    correct=correct_letter,
+                    category="element_content",
+                    app="start_page",
+                    difficulty="medium",
+                )
+            )
+    return questions
+
+
+def start_page_shell_mode_toggle(state, config, rng, **_):
+    if _layout(config) != "desktop":
+        return []
+    mode = str(((config or {}).get("desktop") or {}).get("mode") or "light")
+    # The control is labelled with the mode it switches *to*, not the current
+    # one, so a question about the label has to invert it.
+    target = "dark" if mode == "light" else "light"
+    choices, correct_letter = _shuffle_choices(
+        f"Switch to {target} mode",
+        [
+            "Open settings",
+            "Refresh the desktop",
+            "Sign out",
+        ],
+        rng,
+    )
+    return [
+        MCQuestion(
+            question="What does the rightmost toolbar toggle do?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_interaction",
+            app="start_page",
+        )
+    ]
+
+
+def start_page_shell_weather(state, config, rng, **_):
+    if _layout(config) != "desktop":
+        return []
+    weather = ((config or {}).get("desktop") or {}).get("weather") or {}
+    celsius = weather.get("celsius")
+    if celsius is None:
+        return []
+    correct = f"{int(celsius)}\u00b0C"
+    distractors = [f"{int(celsius) + d}\u00b0C" for d in (-5, 3, 9)]
+    choices, correct_letter = _shuffle_choices(correct, distractors, rng)
+    return [
+        MCQuestion(
+            question="What temperature is shown in the start page toolbar?",
+            choices=choices,
+            correct=correct_letter,
+            category="element_content",
             app="start_page",
         )
     ]
@@ -2073,6 +2315,11 @@ ALL_TEMPLATES: dict[str, list] = {
         start_page_app_order,
         start_page_tile_interaction,
         start_page_tile_grid_location,
+        start_page_shell_app_access,
+        start_page_shell_toolbar_contents,
+        start_page_shell_pinned_apps,
+        start_page_shell_mode_toggle,
+        start_page_shell_weather,
     ],
     "onlineshop_electronics": [onlineshop_electronics_results],
     "onlineshop_fashion": [onlineshop_fashion_results],
