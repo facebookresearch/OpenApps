@@ -147,6 +147,7 @@ def AppTile(
         Div(glyph if glyph is not None else icon(Icon.APPS, size=22), cls="ui-tile-glyph"),
         Text(title, variant="caption", cls="ui-tile-label"),
         href=href,
+        aria_label=title,
         cls=f"ui-tile {cls}".strip(),
         style=style,
         data_testid=f"{slot}-{title.lower().replace(' ', '-')}",
