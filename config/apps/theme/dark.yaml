@@ -1,0 +1,21 @@
+# @package apps.theme
+# Faithful port of the former todo `dark_theme` appearance variant.
+name: dark
+import_url: ""
+tokens:
+  color-bg: "#ffffff"
+  color-surface: "#000000"
+  color-fg: "#ffffff"
+  color-muted: "#9ca3af"
+  color-border: "#ffffff"
+  color-primary: "#000000"
+  color-on-primary: "#ffffff"
+  color-accent: "#ffffff"
+  color-danger: "#ffffff"
+  color-neutral: "#ffffff"
+  color-btn-fg: "#000000"
+  font-family: "'Times New Roman', serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"

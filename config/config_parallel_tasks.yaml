@@ -36,7 +36,7 @@ parallel_tasks:
     - [
         "apps/start_page/appearance=dark_theme",
         "apps/calendar/appearance=dark_theme",
-        "apps/todo/appearance=dark_theme",
+        "apps.todo.theme=dark",
         "apps/messenger/appearance=dark_theme",
         "apps/maps/appearance=dark_theme",
         "apps/code_editor/appearance=dark_theme",

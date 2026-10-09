@@ -7,7 +7,6 @@ LICENSE file in the root directory of this source tree.
 from fasthtml.common import *
 import random
 import os
-import subprocess
 from pathlib import Path
 
 from open_apps.frontend import local_hdrs
@@ -300,14 +299,17 @@ class Raw:
     def __str__(self):
         return self.content
 
-def PageWrapper(title, *content, config=None):
+def PageWrapper(title, *content, config=None, theme_css=""):
     """
     Create a page wrapper with custom styling from configuration.
-    
+
     Args:
         title: Page title
         *content: Content elements
         config: Configuration dictionary with styling options
+        theme_css: Shared design-token CSS from ``open_apps.theme``. Emitted
+            last so it overrides the appearance-derived rules above it; empty
+            unless a non-default theme is selected.
     """
     # Set defaults if config is None
     if config is None:
@@ -547,6 +549,8 @@ def PageWrapper(title, *content, config=None):
             }}
             
             {custom_css}
+
+            {theme_css}
         </style>
         <script>
             function showModal(id) {{
@@ -620,21 +624,6 @@ def get_app(hdrs=None, *args, **kwargs):
 def footer():
     links = A("main-page", href="/")
     return Footer(Div(links, cls="inner"), cls="wrapper style1 align-center")
-
-def get_java_version():
-    try:
-        result = subprocess.run(
-            ['java', '-version'],
-            capture_output=True,
-            text=True
-        )
-        # Java version info is usually in stderr
-        output = result.stderr.strip().split('\n')[0]
-        # Extract the version number
-        version = output.split('"')[1] if '"' in output else output.split()[2]
-        return version
-    except FileNotFoundError:
-        return "Java is not installed or not in PATH."
 
 def create_logo_header(app_config, base_url: str, current_file_path: str):
     """

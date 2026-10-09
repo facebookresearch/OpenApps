@@ -1,0 +1,21 @@
+# @package apps.theme
+# Solarized Light (Ethan Schoonover palette).
+name: solarized
+import_url: ""
+tokens:
+  color-bg: "#fdf6e3"
+  color-surface: "#eee8d5"
+  color-fg: "#657b83"
+  color-muted: "#93a1a1"
+  color-border: "#93a1a1"
+  color-primary: "#268bd2"
+  color-on-primary: "#fdf6e3"
+  color-accent: "#2aa198"
+  color-danger: "#dc322f"
+  color-neutral: "#586e75"
+  color-btn-fg: "#fdf6e3"
+  font-family: "'Inter', system-ui, sans-serif"
+  font-heading: "inherit"
+  font-size-base: "16px"
+  radius: "8px"
+  space: "8px"

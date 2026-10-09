@@ -1,0 +1,4 @@
+# @package apps.onlineshop
+# Structure only -- no colors/fonts (those come from the shared theme).
+# One product per row: image left, details right.
+layout: default

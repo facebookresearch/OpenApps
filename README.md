@@ -54,7 +54,14 @@ uv run launch.py app.todo.title='Super Todo'
 
 Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/).
 
+For a hot reloading dev server (live changes in browser):
+`scripts/dev.sh`
 
+## The online shop
+
+The shop is a Python rewrite of [WebShop](https://github.com/princeton-nlp/WebShop),
+on by default with a 999-product catalog from WebShop's item dump. See
+[Online Shop](docs/onlineshop.md) for its variations, catalog and data.
 
 ## Launch an Agent
 
@@ -134,6 +141,20 @@ https://github.com/user-attachments/assets/40482d53-9481-4e48-962b-eb384e94e3c7
 
 
 
+## Reproducing the paper
+
+`main` moves. The [`v1.0-paper`](https://github.com/facebookresearch/OpenApps/releases/tag/v1.0-paper) tag pins the paper-era config surface used for the variation grid in [arXiv:2511.20766](https://arxiv.org/abs/2511.20766) — check it out if you are reproducing or comparing against our setup:
+```bash
+git clone https://github.com/facebookresearch/OpenApps.git
+cd OpenApps
+git checkout v1.0-paper
+uv sync
+```
+
+Everything after that tag is free to diverge. The first such change is the appearance refactor: the per-app `appearance` config group is replaced by a shared `apps/theme` (look) plus a per-app `apps/<app>/layout` (structure), so overrides written as `apps/todo/appearance=dark_theme` no longer resolve on `main`. See [App variations](https://facebookresearch.github.io/OpenApps/#app-variations) in the docs for the current axes, which include a table mapping every old `appearance` value onto its replacement.
+
+The tag is the config surface the paper used, not a byte-exact snapshot of the runs: it carries the app, task and harness fixes landed since publication, some of which move rewards (map tasks now match coordinates by ground distance, for example). Expect small differences from the published tables.
+
 ## Contributing
 
 We welcome pull requests with new features or issues via GitHub.
@@ -172,9 +193,8 @@ Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
-- [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
 - Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.
-- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton
+- (for the online shop) [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md), developed by Princeton University: our shop is a rewrite, and its catalog is converted from WebShop's item dump.
 
 Some icons are have been designed using resources from Flaticon.com
 
