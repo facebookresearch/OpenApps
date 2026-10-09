@@ -129,7 +129,7 @@ _STROKE_WIDTH = "1.5"
 def icon_markup(name: Icon | str, size: int = 16, cls: str = "") -> str:
     """Return the raw ``<svg>`` string for ``name``.
 
-    Raises ``KeyError`` for an unknown icon rather than rendering nothing —
+    Raises ``ValueError`` for an unknown icon rather than rendering nothing —
     a missing glyph is a layout bug that should fail loudly in tests, not a
     blank space discovered later in a screenshot.
     """
