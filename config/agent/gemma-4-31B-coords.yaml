@@ -1,0 +1,171 @@
+# Gemma 4 31B, screenshot-only via pixel coordinates.
+#
+# NOT THE RECOMMENDED CONFIG. Use gemma-4-31B-computer-use.yaml (set-of-marks
+# bids). This one is kept as a measured negative result, so the experiment is
+# not repeated from scratch.
+#
+# ## What was measured
+#
+# The theory was that Gemma's off-target clicks were a coordinate-space
+# problem -- that it emitted normalized coordinates which were being fed to
+# playwright as raw viewport pixels. Two cluster runs falsified that. Taking
+# the executed action and inverting the conversion:
+#
+#   model said (88, 238),  coord_scale=1024, 1920x1080 -> executed (165, 251)
+#   model said (611, 645), coord_scale=1000, 1920x1080 -> executed (1173, 697)
+#
+# Both exact to the pixel, at two different scales. The conversion put the
+# cursor precisely where the model asked; the model asked for the wrong place.
+# That is a grounding failure, not a scaling one, and no coord_scale value
+# fixes it -- see "Calibrating a new model" in src/open_apps/agent/README.md
+# for how to tell the two apart.
+#
+# A run with bids instead was mechanically sound by comparison -- clicks
+# executed and navigation worked -- but the model still misread which printed
+# label belonged to which row. So Gemma 4 31B struggles with pixel grounding
+# *and* with reading marks off an image. Feeding it the accessibility tree
+# (agent.use_axtree=true) turns "decode a label in an image" into "read a
+# name from text" and is the more promising direction.
+#
+# ## If you run this anyway
+#
+# The prompt declares a 1000x1000 grid and coord_scale matches it, so the
+# conversion is correct by construction as long as the model complies -- and
+# it does comply; that was never the failing part. Do not pass
+# agent.coord_scale=1024: it contradicts the declared grid and shrinks every
+# click ~2.3% toward the top-left.
+#
+# Pair with: browsergym_env_args=screenshot (also raises max_steps 10 -> 25;
+# on the default preset this task can run out of budget before it finishes).
+defaults:
+  - default
+  - _self_
+
+# Must exactly match the model vLLM is serving (the --model / served_model_name).
+model_name: "google/gemma-4-31B-it"
+model_pretty_name: "gemma-4-31B-coords"
+api_version: null
+client_type: "vllm"
+# For client_type=vllm the URL is built as http://${hostname}:${port}/v1
+# (base_url is ignored). The vLLM node changes every SLURM allocation, so pass it
+# at launch, e.g.: uv run launch_agent.py agent=gemma-4-31B-coords agent.hostname=h200-000-026
+hostname: null
+port: "8000"
+# vLLM does not check the key, but the OpenAI client requires a non-empty string.
+api_key: "EMPTY"
+# Grounding wants determinism, not diversity.
+temperature: 0
+max_tokens: 5000
+aws_access_key: null
+aws_secret_key: null
+aws_session_token: null
+aws_region: us-west-2
+
+# The model emits coordinates on the 0-1000 grid declared in system_prompt;
+# action_parsers.coords.rescale_xy converts them to viewport pixels.
+coord_scale: 1000
+
+# Coordinate-based actions only. Every action here is described in
+# action_prompt below and survives flexible_parser: mouse_click is emitted
+# directly, and keyboard_type / scroll / noop pass through untouched.
+custom_actions:
+- mouse_click
+- keyboard_type
+- keyboard_press
+- scroll
+- noop
+
+use_html: false
+use_axtree: false
+use_screenshot: true
+# No marks: this config is measuring raw pixel grounding, so the annotated
+# boxes would both give away the answer and clutter the image.
+save_som: false
+extract_visible_tag: false
+extract_clickable_tag: false
+extract_coords: false
+filter_visible_elements_only: false
+use_focused_element: false
+prompt_txt:
+  system_prompt: |-
+    You are a GUI agent operating a web browser. At each step you are given a
+    task, your action history, and a screenshot of the current page.
+
+    Coordinates use a fixed 1000x1000 grid, regardless of the real size of the
+    screenshot. x=0 is the left edge and x=1000 the right edge; y=0 is the top
+    edge and y=1000 the bottom edge. So the centre of the screen is (500, 500),
+    and a button in the bottom-right corner is near (900, 950).
+
+    Always give coordinates on that 1000x1000 grid. Never report coordinates in
+    the screenshot's own pixel size.
+
+    Aim for the centre of the element you want to click, not its edge or its
+    label's first character.
+  output_format: '
+
+    <think>
+
+    </think>
+
+    <action>
+
+    </action>
+    '
+
+  think_prompt: null
+  think_abstract_example: |
+    <think>
+    Think step by step. Describe what your previous action changed on the page,
+    name the element you need next, locate it in the screenshot, and convert
+    its centre to the 1000x1000 grid.
+    </think>
+  think_concrete_example: null
+  action_prompt: |
+    ## Action Space
+
+    mouse_click(x=X, y=Y)
+      Click at (X, Y) on the 1000x1000 grid. Use for links, buttons,
+      checkboxes, tabs, files in a sidebar, and to focus a text field.
+
+    keyboard_type(text="...")
+      Type text at the current keyboard focus. Click the field first to focus
+      it. This appends at the cursor, so to replace existing content select it
+      first with keyboard_press.
+
+    keyboard_press(key="...")
+      Press a key or chord, e.g. keyboard_press(key="Enter"),
+      keyboard_press(key="Control+a"), keyboard_press(key="Backspace").
+
+    scroll(delta_x, delta_y)
+      Scroll the page. Unlike mouse_click, these deltas are in screen pixels,
+      not grid units. Positive delta_y scrolls down, negative scrolls up.
+      e.g. scroll(0, 400)
+
+    noop(wait_ms=5000)
+      Wait and re-screenshot. Use only when the page appears to still be
+      loading.
+
+    ## Note
+    - Exactly one action per step, inside a single <action> tag.
+    - Use English in the `think` part.
+    - Write a short plan, then state your next action and the element it
+      targets in one sentence.
+    - Check the history: if your last action did not change the page, your
+      coordinate probably missed. Re-locate the element and try a different
+      point rather than repeating the same one.
+    - Saving usually needs an explicit click on a Save/Send/Add button after
+      you type into a field.
+  action_abstract_example: |
+    <action>mouse_click(x=X, y=Y)</action>
+
+    or, to enter text once a field is focused:
+
+    <action>keyboard_type(text="the text to type")</action>
+  action_concrete_example: |
+    To click a Send button in the bottom-right of the chat panel:
+
+    <action>mouse_click(x=870, y=940)</action>
+
+    then on the next step, to type into the field it focused and submit:
+
+    <action>keyboard_type(text="Hello world\n")</action>

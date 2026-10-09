@@ -13,8 +13,8 @@ from fasthtml.common import (
     HighlightJS, database, dataclass)
 from datetime import datetime, timedelta
 from itertools import groupby
-from src.open_apps.frontend import local_hdrs
-from src.open_apps.theme import render_theme_css, resolve_theme
+from open_apps.frontend import local_hdrs
+from open_apps.theme import render_theme_css, resolve_theme
 import calendar
 import os
 import logging
@@ -22,7 +22,7 @@ import yaml, json
 from feedgen.feed import FeedGenerator
 from starlette.responses import Response
 from typing import Optional, List
-from src.open_apps.apps.start_page.helper import create_logo_header
+from open_apps.apps.start_page.helper import create_logo_header
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -580,32 +580,32 @@ def get_events_for_month(year, month):
     start_date = f"{year}-{month:02d}-01"
     end_date = f"{year}-{month:02d}-31"
     direct_month_events = events(f"date >= '{start_date}' AND date <= '{end_date}'")
-    
+
     # Create a list to hold all events including recurring ones
     all_month_events = list(direct_month_events)
-    
+
     # Now handle recurring events
     all_events = events()
     month_days = calendar.monthrange(year, month)[1]  # Get number of days in month
-    
+
     for event in all_events:
         if not event.recurring:
             continue
-            
+
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
-        
+
         # If the original event is in this month, it's already included
         if event_date.year == year and event_date.month == month:
             continue
-            
+
         # Handle different recurrence types
         if event.recurring == "yearly":
             # Only include if the month and day match
             if event_date.month == month:
                 # Create a new event instance for this year
                 recurring_date = f"{year}-{event_date.month:02d}-{event_date.day:02d}"
-                
+
                 # Skip if the recurring date is invalid (e.g., Feb 29 in non-leap years)
                 try:
                     datetime.strptime(recurring_date, "%Y-%m-%d")
@@ -622,7 +622,7 @@ def get_events_for_month(year, month):
                     all_month_events.append(recurring_event)
                 except ValueError:
                     pass
-                
+
         elif event.recurring == "monthly":
             # Include if the day of month is valid for this month
             if event_date.day <= month_days:
@@ -638,15 +638,15 @@ def get_events_for_month(year, month):
                     recurring=event.recurring
                 )
                 all_month_events.append(recurring_event)
-                
+
         elif event.recurring == "weekly":
             # Get the weekday of the original event
             event_weekday = event_date.weekday()
-            
+
             # Check each day in this month
             for day in range(1, month_days + 1):
                 check_date = datetime(year, month, day).date()
-                
+
                 # If it's the same weekday, add a recurring instance
                 if check_date.weekday() == event_weekday:
                     recurring_date = f"{year}-{month:02d}-{day:02d}"
@@ -661,7 +661,7 @@ def get_events_for_month(year, month):
                         recurring=event.recurring
                     )
                     all_month_events.append(recurring_event)
-    
+
     return all_month_events
 
 
@@ -673,47 +673,47 @@ def get_upcoming_events(start_date=None, end_date=None):
 
     # Get direct events in the date range
     direct_events = events(f"date >= '{start_date}' AND date <= '{end_date}'")
-    
+
     # Create a list to hold all events including recurring ones
     all_events = list(direct_events)
-    
+
     # Now handle recurring events
     all_stored_events = events()
-    
+
     for event in all_stored_events:
         if not event.recurring:
             continue
-            
+
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
-        
+
         # Get the date range to check
         current_date = start_date
         while current_date <= end_date:
             include_event = False
             recurring_date = None
-            
+
             if event.recurring == "yearly" and event_date.month == current_date.month and event_date.day == current_date.day:
                 # Yearly recurring event matching the month and day
                 include_event = True
                 recurring_date = f"{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
-                
+
             elif event.recurring == "monthly" and event_date.day == current_date.day:
                 # Monthly recurring event matching the day of month
                 include_event = True
                 recurring_date = f"{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
-                
+
             elif event.recurring == "weekly" and event_date.weekday() == current_date.weekday():
                 # Weekly recurring event matching the weekday
                 include_event = True
                 recurring_date = f"{current_date.year}-{current_date.month:02d}-{current_date.day:02d}"
-            
+
             if include_event and recurring_date:
                 # Skip the original event date if it's already in the direct events
                 if event_date == current_date:
                     current_date += timedelta(days=1)
                     continue
-                
+
                 # Create a recurring instance
                 recurring_event = Event(
                     id=event.id,
@@ -726,9 +726,9 @@ def get_upcoming_events(start_date=None, end_date=None):
                     recurring=event.recurring
                 )
                 all_events.append(recurring_event)
-            
+
             current_date += timedelta(days=1)
-    
+
     return sorted(all_events, key=lambda e: e.date)  # Sort events by date
 
 
@@ -903,7 +903,7 @@ def get(req):
         Container(
             styles,
             calendar_theme(),
-            error_div, 
+            error_div,
             show_main_layout(today.year, today.month, view)
         ),
     )
@@ -1106,12 +1106,12 @@ def get_calendar_content(year, month, view, cal, month_events):
 def get(id: int):
     event = events[id]
     event_url = A("Event Link", href=event.url, target="_blank") if event.url else ""
-    
+
     # Display recurring information
     recurring_info = ""
     if event.recurring:
         recurring_info = P(f"Recurring: {event.recurring.capitalize()}")
-    
+
     # Create delete form
     delete_form = Form(
         Button("Delete Event", type="submit", cls="outline error"),
@@ -1179,7 +1179,7 @@ def get():
                 attrs['aria_label'] = aria_label
         except AttributeError:
             pass
-        
+
         return attrs
 
     return (Title("Creating a new event"),
@@ -1189,13 +1189,13 @@ def get():
         logo_title_container,
         Form(
             H3("Create New Event"),
-            
+
             Label("Title", For="title"),
             Input(**get_input_attrs('title', {'type': 'text', 'id': 'title', 'name': 'title', 'required': True})),
-            
+
             Label("Date", For="date"),
             Input(**get_input_attrs('date', {'type': 'text', 'id': 'date', 'name': 'date', 'required': True})),
-            
+
             Label("Description", For="description"),
             Textarea(**get_input_attrs('description', {'id': 'description', 'name': 'description'})),
 
@@ -1207,7 +1207,7 @@ def get():
 
             Label("Location", For="location"),
             Input(**get_input_attrs('location', {'type': 'text', 'id': 'location', 'name': 'location'})),
-            
+
             Label("Recurring", For="recurring"),
             Select(
                 Option("Not Recurring", value="none", selected=True),
@@ -1217,7 +1217,7 @@ def get():
                 id="recurring",
                 name="recurring"
             ),
-            
+
             Button("Submit", type="submit"),
             method="post",
             action="/calendar/create_event/save_text"
@@ -1237,7 +1237,7 @@ async def save_text(request):  # Add async here
         location = form.get("location", "")
         invitees = form.get("invitees", "")
         recurring = form.get("recurring", "none")
-        
+
         # Set recurring to None if "none" is selected
         if recurring == "none":
             recurring = None

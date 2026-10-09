@@ -10,9 +10,10 @@ import shutil
 from typing import Dict
 import json
 from starlette.responses import Response
-from src.open_apps.apps.start_page.helper import create_logo_header
-from src.open_apps.frontend import local_hdrs
-from src.open_apps.theme import theme_asset, theme_style
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.icons import Icon, icon
+from open_apps.theme import _as_plain, load_theme, resolve_theme, theme_asset, theme_style
 
 # Static, theme-agnostic component styles. Colors, fonts, radii and spacing
 # are design tokens from the shared theme (`config/apps/theme/`), emitted
@@ -179,13 +180,18 @@ _COMPONENT_STYLES = Style(
     }
 
     /* --- Explorer -------------------------------------------------------- */
+    /* Both panes sit on the page background by default and read as one slab;
+       the explorer gets its own surface so the layout reads as "editor". */
+    .codeeditor-app .sidebar {
+        --sidebar-bg-color: var(--color-surface);
+    }
     .codeeditor-app .codeeditor-sidebar {
         display: flex;
         flex-direction: column;
         flex: 0 0 16rem;
         min-width: 0;
         overflow-y: auto;
-        background-color: var(--color-surface);
+        background-color: var(--sidebar-bg-color);
         border-right: 1px solid var(--color-border);
     }
     .codeeditor-app .ce-pane-title {
@@ -223,7 +229,8 @@ _COMPONENT_STYLES = Style(
         white-space: nowrap;
         cursor: pointer;
     }
-    .codeeditor-app .tree-row:hover {
+    .codeeditor-app .sidebar .file-row:hover,
+    .codeeditor-app .sidebar .folder-row:hover {
         background-color: var(--ce-hover);
     }
     .codeeditor-app .tree-row.is-selected {
@@ -248,8 +255,8 @@ _COMPONENT_STYLES = Style(
         color: inherit;
         text-decoration: none;
     }
-    /* The chevron and the name are <button>s (their handlers live on the
-       row); strip Pico's filled-control look so they read as tree labels. */
+    /* The folder name is a <button> (its handler lives on the row); strip
+       Pico's filled-control look so it reads as a tree label. */
     .codeeditor-app .tree-row button {
         width: auto;
         margin: 0;
@@ -264,12 +271,24 @@ _COMPONENT_STYLES = Style(
         text-align: left;
         cursor: pointer;
     }
+    /* One chevron for both states, rotated a quarter turn when open rather
+       than swapping one glyph for another. */
     .codeeditor-app .tree-row .folder-icon {
+        display: inline-flex;
         flex: none;
+        align-items: center;
+        justify-content: center;
         width: var(--ce-chevron);
         color: var(--color-muted);
-        font-size: 0.6em;
-        text-align: center;
+        transition: transform 0.12s ease;
+    }
+    .codeeditor-app .folder-row.is-expanded .folder-icon {
+        transform: rotate(90deg);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .codeeditor-app .tree-row .folder-icon {
+            transition: none;
+        }
     }
     .codeeditor-app .tree-row .folder-name {
         overflow: hidden;
@@ -284,11 +303,26 @@ _COMPONENT_STYLES = Style(
     .codeeditor-app .ce-icon-code {
         color: var(--color-primary);
     }
-    .codeeditor-app .ce-icon-folder {
+    /* Explorer glyphs are inline SVG (`_row_icon`) drawn in currentColor. */
+    .codeeditor-app .row-icon {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: calc(var(--space) * 2);
+        color: var(--color-muted);
+    }
+    .codeeditor-app .folder-row .row-icon {
         color: var(--color-accent);
     }
-    .codeeditor-app .folder-container.is-open > .tree-row .ce-icon-folder::before {
-        content: "\f07c";
+    /* Both folder glyphs are on the row; the open one shows while the folder
+       is expanded (`is-open`, set alongside the inline display). */
+    .codeeditor-app .row-icon .ce-folder-open,
+    .codeeditor-app .folder-container.is-open > .tree-row .ce-folder-closed {
+        display: none;
+    }
+    .codeeditor-app .folder-container.is-open > .tree-row .ce-folder-open {
+        display: inline;
     }
     /* Indentation guide: a hairline under each open folder's chevron. */
     .codeeditor-app .folder-content {
@@ -639,11 +673,29 @@ _DIALOG_STYLES = Style(
 # Font Awesome 5, vendored under apps/assets (no CDN) -- explorer, tab and
 # status-bar icons. Every icon is `aria-hidden`, so the accessibility tree an
 # agent reads is unchanged by it.
+# Local fallbacks for the Tailwind utilities the markup still carries (the
+# body's `p-4`, the folder rows' `flex`, ...). Tailwind is a CDN fetch; with
+# it unreachable these are what render, using Tailwind's own values, so the
+# page is the same with or without egress. Layout only, no colours.
+_UTILITY_FALLBACKS = Style(r"""
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: center; }
+    .w-1\/6 { width: 16.666667%; }
+    .w-5\/6 { width: 83.333333%; }
+    .p-4 { padding: 1rem; }
+    .pl-2 { padding-left: 0.5rem; }
+    .pl-4 { padding-left: 1rem; }
+    .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+    .ml-2 { margin-left: 0.5rem; }
+    .mt-4 { margin-top: 1rem; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .overflow-y-auto { overflow-y: auto; }
+    .cursor-pointer { cursor: pointer; }
+""")
+
 _ICON_STYLESHEET = Link(rel="stylesheet", href="/assets/css/fontawesome-all.min.css")
-
-# Set by the in-page theme dropdown; None means "follow the shared theme".
-_editor_theme_override = None
-
 
 def _as_dict(node):
     """Coerce an OmegaConf node (or None) to a plain dict."""
@@ -667,6 +719,9 @@ _base_hdrs_no_highlight = (
 )
 current_dir = None
 list_of_modes, list_of_themes = [], []
+# CodeMirror syntax stylesheets, distinct from `list_of_themes` (the shared
+# design themes the in-editor selector offers).
+list_of_editor_themes = []
 _base_hdrs = _base_hdrs_no_highlight
 opened_files = {}
 logo_title_container = None
@@ -707,7 +762,7 @@ def update_db_from_hydra(config):
 def set_environment(config):
     """Set environment variables for the code editor app"""
     # Create styles with environment variables
-    global app, _base_hdrs, list_of_modes, list_of_themes, current_dir, logo_title_container
+    global app, _base_hdrs, list_of_modes, list_of_themes, list_of_editor_themes, current_dir, logo_title_container
     if getattr(config.code_editor, 'no_css', False):
         app.hdrs = ()
         app.config = config
@@ -720,6 +775,7 @@ def set_environment(config):
         return
     list_of_modes = config.code_editor.list_of_modes
     list_of_themes = config.code_editor.list_of_themes
+    list_of_editor_themes = config.code_editor.list_of_editor_themes
     current_dir = config.code_editor.database_path + '/'
     if os.path.exists(current_dir):
         # alert the user
@@ -736,13 +792,14 @@ def set_environment(config):
         Link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/daisyui@4.11.1/dist/full.min.css"),
         Link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css"),
     )
-    # Every stylesheet the page could ask for, loaded up front: the dropdown
-    # switches themes client-side, and a shared-theme swap can select one by
-    # tone. Include the tone-mapped names even if `list_of_themes` was trimmed,
-    # otherwise `apps/theme=dark` asks CodeMirror for a stylesheet that is not
-    # on the page and the editor silently renders unstyled.
-    tone_themes = list(_as_dict(getattr(config.code_editor, "editor_theme_by_tone", None)).values())
-    for theme_name in dict.fromkeys([*list_of_themes, *tone_themes, config.code_editor.editor_theme]):
+    # Every stylesheet the page could ask for, loaded up front: a shared-theme
+    # swap selects one by tone at request time. Include the tone-mapped names
+    # even if `list_of_editor_themes` was trimmed, otherwise `apps/theme=dark`
+    # asks CodeMirror for a stylesheet that is not on the page and the code
+    # pane silently renders unstyled. Design-theme names are deliberately not
+    # in here -- they have no CodeMirror stylesheet to fetch.
+    tone_themes = list(_as_plain(getattr(config.code_editor, "editor_theme_by_tone", None) or {}).values())
+    for theme_name in dict.fromkeys([*list_of_editor_themes, *tone_themes, config.code_editor.editor_theme]):
         _base_hdrs_with_highlight += (
             Link(rel="stylesheet", href=f"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/{theme_name}.min.css"),
         )
@@ -760,10 +817,33 @@ def set_environment(config):
         }
     """),)
     _base_hdrs = _base_hdrs_with_highlight if config.code_editor.highlight else _base_hdrs_no_highlight
-    
+
+    # Drop every third-party stylesheet/script. The inline blocks carry the
+    # design tokens, the component styles and the utility fallbacks, and Pico,
+    # htmx and the icon font are served locally, so the page renders the same
+    # with no outbound network.
+    #
+    # Worth knowing which way the risk runs: on a host that already has no
+    # egress those CDN tags fail silently and the inline CSS is what renders
+    # anyway, so setting this makes the result deterministic rather than
+    # network-dependent. On a host *with* egress it is a visible change,
+    # because Tailwind and DaisyUI stop contributing.
+    if getattr(config.code_editor, 'no_egress', False):
+        _base_hdrs = (
+            *local_hdrs(),
+            Script("""
+                function getStorageKey(folderPath) {
+                    return `folder_state_${folderPath}`;
+                }
+            """),
+        )
+
     app.config = config
     # Update app headers by extending existing ones
-    app.hdrs = (*_base_hdrs, _ICON_STYLESHEET, _COMPONENT_STYLES, _DIALOG_STYLES)
+    app.hdrs = (
+        *_base_hdrs, _ICON_STYLESHEET, _UTILITY_FALLBACKS, _COMPONENT_STYLES,
+        _DIALOG_STYLES, theme_switcher_script(config),
+    )
 
     if config.code_editor.sort_feature:
         list_of_modes = sorted(list_of_modes)
@@ -784,6 +864,17 @@ def codeeditor_theme():
     return theme_style(app.config, "code_editor")
 
 
+def current_design_theme() -> str:
+    """Name of the design theme the page is currently rendering.
+
+    Resolved from the live config rather than tracked separately, so the
+    selector always agrees with the token block `codeeditor_theme()` emits --
+    including after `/codeeditor/update_config` pins a new one, and with a
+    null `apps.code_editor.theme` inheriting the global selection.
+    """
+    return resolve_theme(app.config, "code_editor").get("name", "default")
+
+
 def current_editor_theme():
     """CodeMirror's syntax-highlighting stylesheet name.
 
@@ -791,17 +882,49 @@ def current_editor_theme():
     per theme, which no CSS variable can substitute for. The shared theme
     therefore picks one indirectly via its `tone` asset, so `apps/theme=dark`
     darkens the editor pane and not just the chrome around it.
-
-    An in-page selection from the dropdown wins over the tone mapping: the
-    user (or agent) just asked for that theme explicitly.
     """
-    if _editor_theme_override is not None:
-        return _editor_theme_override
     cfg = app.config.code_editor
     tone = theme_asset(app.config, "code_editor", "tone", "light")
-    return _as_dict(getattr(cfg, "editor_theme_by_tone", None)).get(
-        tone, cfg.editor_theme
-    )
+    by_tone = _as_plain(getattr(cfg, "editor_theme_by_tone", None) or {})
+    return by_tone.get(tone, cfg.editor_theme)
+
+
+def theme_switcher_script(config) -> Script:
+    """Embed every selectable theme's tokens so the selector can swap live.
+
+    The tokens for all of ``list_of_themes`` are inlined as JSON, so changing
+    theme is a set of ``style.setProperty`` calls on :root -- no page reload,
+    no server round-trip, and nothing fetched from a CDN. The server is still
+    told (``/codeeditor/update_config``), so the choice survives navigation and
+    shows up in the config an eval records, but the repaint does not wait on it.
+
+    Every token any theme defines is cleared first: themes do not all define
+    the same keys, and a key only the previous theme set would otherwise stay
+    on :root and leak into the new one.
+    """
+    names = list(getattr(config.code_editor, "list_of_themes", []) or [])
+    palettes = {name: _as_plain(load_theme(name).get("tokens", {})) for name in names}
+    return Script(f"""
+        window.OPENAPPS_THEMES = {json.dumps(palettes)};
+        window.applyTheme = function(name) {{
+            var tokens = window.OPENAPPS_THEMES[name];
+            if (!tokens) {{ return false; }}
+            var root = document.documentElement;
+            var allKeys = {{}};
+            Object.keys(window.OPENAPPS_THEMES).forEach(function(theme) {{
+                Object.keys(window.OPENAPPS_THEMES[theme]).forEach(function(k) {{
+                    allKeys[k] = true;
+                }});
+            }});
+            Object.keys(allKeys).forEach(function(k) {{
+                root.style.removeProperty('--' + k);
+            }});
+            Object.keys(tokens).forEach(function(k) {{
+                root.style.setProperty('--' + k, tokens[k]);
+            }});
+            return true;
+        }};
+    """)
 
 
 def current_layout():
@@ -936,6 +1059,23 @@ def _file_icon(name: str) -> I:
     return _icon("far fa-file-alt")
 
 
+def _row_icon(*svgs) -> I:
+    """The explorer row's glyph slot: inline SVG from `open_apps.icons`.
+
+    SVG rather than the icon font in the tree: it inherits colour through
+    `currentColor`, so a live theme swap recolours it with everything else,
+    and it needs no stylesheet to arrive. Decorative, like every icon here.
+    """
+    return I(*svgs, cls="row-icon", **{"aria-hidden": "true"})
+
+
+def _file_svg(name: str):
+    """One file glyph for every kind -- the icon set has no code-file mark --
+    with code files tinted, as the icon-font glyph used to distinguish them."""
+    is_code = name.lower().endswith(_CODE_EXTENSIONS)
+    return icon(Icon.FILE, size=14, cls="ce-icon-code" if is_code else "")
+
+
 def _nav_in_status_bar() -> bool:
     """Whether the ways out of the editor are quiet status-bar items.
 
@@ -1015,14 +1155,16 @@ def create_sidebar(current_path: str = None) -> Div:
         if item['type'] == 'file':
             file_path = item['path']
             is_current = current_path == file_path
+            # `file-row` / `is-current` are the semantic hooks the row styles
+            # select on; `is-selected` is the highlight itself.
             return Div(
-                cls=f"tree-row ce-file{' is-selected' if is_current else ''}"
+                cls=f"tree-row ce-file file-row{' is-selected is-current' if is_current else ''}"
             )(
                 A(
-                    _file_icon(item['name']),
+                    _row_icon(_file_svg(item['name'])),
                     item['name'],
                     href=f"/codeeditor/{file_path}",
-                    cls="ce-row-link",
+                    cls="row-link ce-row-link",
                     **({"aria-current": "page"} if is_current else {}),
                 )
             )
@@ -1036,7 +1178,7 @@ def create_sidebar(current_path: str = None) -> Div:
                 # state onto an `is-open` class and `aria-expanded`, which the
                 # styles select on instead of the inline display value.
                 Div(
-                    cls=f"tree-row ce-folder flex{' is-selected' if is_current else ''}",
+                    cls=f"tree-row ce-folder folder-row flex{' is-selected' if is_current else ''}",
                     **{
                         "data-path": folder_path,
                         "onclick": f"""
@@ -1045,7 +1187,8 @@ def create_sidebar(current_path: str = None) -> Div:
                             const icon = this.querySelector('.folder-icon');
                             const isVisible = content.style.display === 'block';
                             content.style.display = isVisible ? 'none' : 'block';
-                            icon.textContent = isVisible ? '▶' : '▼';
+                            // One chevron, rotated by CSS -- no glyph swap.
+                            this.classList.toggle('is-expanded', !isVisible);
                             icon.setAttribute('aria-expanded', (!isVisible).toString());
                             container.classList.toggle('is-open', !isVisible);
 
@@ -1056,8 +1199,15 @@ def create_sidebar(current_path: str = None) -> Div:
                         """
                     }
                 )(
-                    Button(cls="folder-icon", onclick="", **{"aria-expanded": "false"})(Span("▶")),
-                    _icon("far fa-folder ce-icon-folder"),
+                    # Chevron and folder glyph are not buttons: an icon-only
+                    # button is an unnamed node in the accessibility tree for
+                    # every folder. The name stays a Button, so the folder keeps
+                    # one named, clickable node to target.
+                    Span(icon(Icon.CHEVRON, size=12), cls="folder-icon", **{"aria-expanded": "false"}),
+                    _row_icon(
+                        icon(Icon.FOLDER, size=14, cls="ce-folder-closed"),
+                        icon(Icon.FOLDER_OPEN, size=14, cls="ce-folder-open"),
+                    ),
                     Button(item['name'], cls="folder-name", onclick=""),
                 ),
                 Div(
@@ -1084,8 +1234,8 @@ def create_sidebar(current_path: str = None) -> Div:
         folder_path = current_path
     return Div(
         # `codeeditor-sidebar` distinguishes this panel from the editor pane;
-        # the layout rules target it.
-        cls="codeeditor-sidebar",
+        # the layout rules target it. `sidebar` carries its own surface colour.
+        cls="codeeditor-sidebar sidebar main-content",
     )(
         H2("Explorer", cls="ce-pane-title"),
         # New File / New Folder keep their visible labels: the UI questions
@@ -1175,7 +1325,7 @@ def create_sidebar(current_path: str = None) -> Div:
                     
                     // Always start collapsed unless explicitly set to expanded in localStorage
                     content.style.display = isExpanded ? 'block' : 'none';
-                    icon.textContent = isExpanded ? '▼' : '▶';
+                    folderHeader.classList.toggle('is-expanded', isExpanded);
                     icon.setAttribute('aria-expanded', isExpanded.toString());
                     container.classList.toggle('is-open', isExpanded);
                 });
@@ -1219,6 +1369,7 @@ _MODE_ONCHANGE = """
 """
 
 _THEME_ONCHANGE = """
+    window.applyTheme(this.value);
     editor.setOption('theme', this.value);
     fetch('/codeeditor/update_config', {
         method: 'POST',
@@ -1261,7 +1412,7 @@ def editor_selects():
         Div(cls="ce-field")(
             Label("Theme: "),
             Select(id="theme-selector", cls="ce-select", onchange=_THEME_ONCHANGE)(
-                *[Option(theme, value=theme, selected=(theme == current_editor_theme())) for theme in list_of_themes]
+                *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
             ),
         ),
     )
@@ -1295,8 +1446,49 @@ def status_bar(*meta):
     )
 
 
+def editor_binding(options_js: str) -> str:
+    """JS that binds the page-global ``editor`` used by Save / the selectors.
+
+    With ``code_editor.highlight`` on, ``editor`` is a CodeMirror instance
+    wrapping the ``#editor`` textarea. With it off there is no CodeMirror on
+    the page (the CDN scripts are only added in the highlight branch of
+    ``set_environment``), so bind a small shim over the plain textarea that
+    exposes the handful of methods the page calls: ``getValue`` (Save),
+    ``setValue``, ``setOption`` (mode/theme selectors), and ``setSize``.
+
+    Without the shim the emitted JS was
+    ``var editor = (document.getElementById('editor'), {...});`` -- the comma
+    operator, which bound ``editor`` to the *options object*. Every
+    ``editor.getValue()`` then threw a TypeError, so the Save button silently
+    did nothing: no POST, no reload, no error modal.
+    """
+    if app.config.code_editor.highlight:
+        return (
+            "var editor = CodeMirror.fromTextArea(document.getElementById('editor'), "
+            f"{options_js});"
+        )
+    return """
+        var editorTextarea = document.getElementById('editor');
+        var editor = {
+            getValue: function() { return editorTextarea.value; },
+            setValue: function(value) { editorTextarea.value = value; },
+            getOption: function() { return null; },
+            setOption: function(name, value) {
+                // Themes are design tokens, applied to :root by
+                // window.applyTheme, so this works with no CodeMirror on the
+                // page and nothing fetched from a CDN.
+                if (name === 'theme' && window.applyTheme) {
+                    window.applyTheme(value);
+                }
+            },
+            setSize: function() {},
+            refresh: function() {},
+            focus: function() { editorTextarea.focus(); }
+        };"""
+
+
 def editor_script(options: str) -> Script:
-    """CodeMirror bootstrap (or, with `highlight: False`, a no-op).
+    """Bind the page's ``editor`` (see :func:`editor_binding`).
 
     `setSize("100%", "100%")`: the editor body is a flex column that already
     fills the window, so CodeMirror takes its height from there rather than
@@ -1304,7 +1496,7 @@ def editor_script(options: str) -> Script:
     """
     highlight = app.config.code_editor.highlight
     return Script(f"""
-        var editor = {'CodeMirror.fromTextArea' if highlight else ''} (document.getElementById('editor'), {options});
+        {editor_binding(options)}
         {'editor.setSize("100%", "100%");' if highlight else ''}
     """)
 
@@ -1766,10 +1958,10 @@ async def update_config(request):
         if data["type"] == "mode":
             app.config.code_editor.mode = data["value"]
         elif data["type"] == "theme":
-            # CodeMirror's stylesheet, not the shared design-token theme.
-            # Recorded as an override so it survives a later theme swap.
-            global _editor_theme_override
-            _editor_theme_override = data["value"]
+            # The selector offers *design* themes. Pinning it per-app is what
+            # makes the choice survive navigation: every page re-emits the
+            # token block from the live config (`codeeditor_theme()`).
+            app.config.code_editor.theme = data["value"]
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}

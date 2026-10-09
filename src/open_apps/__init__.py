@@ -10,10 +10,13 @@ from pathlib import Path
 
 
 def _ensure_legacy_src_importable() -> None:
-    # Some app modules import each other through the legacy ``src.open_apps...``
-    # prefix instead of ``open_apps...``. For editable installs (uv workspace,
-    # pip install -e) that resolves only when the repo root (sibling of
-    # ``src/``) is on sys.path, so add it on package import. Wheel installs
+    # Nothing in the tree imports through the legacy ``src.open_apps...``
+    # prefix any more, but external scripts and older notebooks still do, and
+    # the two prefixes resolve to *separate module objects* -- a second copy of
+    # every module-level global, which is how a live theme swap can appear to
+    # apply and then not stick. For editable installs (uv workspace, pip
+    # install -e) the legacy prefix resolves only when the repo root (sibling
+    # of ``src/``) is on sys.path, so add it on package import. Wheel installs
     # don't have a ``src/`` sibling and skip this branch silently.
     pkg_dir = Path(__file__).resolve().parent  # .../src/open_apps/
     src_dir = pkg_dir.parent  # .../src/

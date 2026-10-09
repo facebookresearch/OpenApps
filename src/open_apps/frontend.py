@@ -34,7 +34,7 @@ run of zero-reward episodes on the cluster.
 """
 from __future__ import annotations
 
-from fasthtml.common import Link, Script
+from fasthtml.common import Link, Meta, Script
 
 # Pinned by filename. FastHTML's default pulled `@picocss/pico@latest`, which
 # made the styling of an eval run depend on the day it ran.
@@ -61,7 +61,17 @@ def local_hdrs(pico: bool = True, htmx: bool = True) -> list:
     given, so a shared module-level constant would accumulate one app's headers
     onto the next.
     """
-    hdrs = []
+    # `default_hdrs=False` drops FastHTML's charset and viewport metas along
+    # with the CDN tags, so they are re-added here. The viewport one is not
+    # cosmetic: without it a real phone lays the page out at 980px and then
+    # scales it down, so every `max-width` media query in ui/styles.py
+    # evaluates against 980 and the phone gets the desktop layout, shrunk.
+    # Headless Chromium ignores the tag unless mobile emulation is on, which is
+    # exactly why this regression would never show up in an eval run.
+    hdrs = [
+        Meta(charset="utf-8"),
+        Meta(name="viewport", content="width=device-width, initial-scale=1, viewport-fit=cover"),
+    ]
     if pico:
         hdrs.append(Link(rel="stylesheet", href=PICO_URL))
     if htmx:

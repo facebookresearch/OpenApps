@@ -24,14 +24,15 @@ from open_apps.apps.start_page.helper import LAUNCHER_CSS
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 
-# Position order from `config/apps/start_page/layout/default.yaml`. The online
-# shop is opt-in (`apps.onlineshop.enable`), so it is not on the default page.
+# Position order from `config/apps/start_page/default.yaml`. The online shop
+# is on by default now that it needs no JDK, so it closes the row.
 EXPECTED_TILES = [
     ("/todo", "OpenTodos"),
     ("/calendar", "OpenCalendar"),
     ("/messages", "OpenMessages"),
     ("/maps", "OpenMaps"),
     ("/codeeditor", "OpenCodeEditor"),
+    ("/onlineshop", "OpenShop"),
 ]
 
 TILE_RE = re.compile(
@@ -52,7 +53,13 @@ def render(monkeypatch, *overrides, rng_seed=0):
 
     Mirrors what ``initialize_routes_and_configure_task`` does to the start
     page config (the icon shuffle) without seeding every app's database.
+
+    Every test here is about the tile launcher, which is the `gallery` layout
+    now that `desktop` is the default, so that is selected unless a test
+    picks a layout of its own.
     """
+    if not any(o.startswith("apps/start_page/layout=") for o in overrides):
+        overrides = ("apps/start_page/layout=gallery", *overrides)
     apps = compose_apps(*overrides)
     if apps.start_page.get("shuffle_icons"):
         start_page.shuffle_icons(apps.start_page.apps, rng=random.Random(rng_seed))
@@ -70,7 +77,7 @@ def links(markup):
     return re.findall(r'<a href="([^"]*)"', markup)
 
 
-LAYOUTS = ["default", "broken_logos", "clickable_logos"]
+LAYOUTS = ["gallery", "broken_logos", "clickable_logos"]
 
 
 @pytest.mark.parametrize("layout", LAYOUTS)
@@ -85,14 +92,14 @@ def test_every_layout_links_each_app_once_in_position_order(monkeypatch, layout)
 
 def test_clickable_logos_does_not_change_the_start_page(monkeypatch):
     """`clickable_logos` links each app's in-page logo back home; the launcher
-    itself must render exactly as the default does."""
+    itself must render exactly as the plain gallery does."""
     assert render(monkeypatch, "apps/start_page/layout=clickable_logos") == render(
         monkeypatch
     )
 
 
 OWN_ICON = {"/todo": "todo", "/calendar": "calendar", "/messages": "messages",
-            "/maps": "maps", "/codeeditor": "code"}
+            "/maps": "maps", "/codeeditor": "code", "/onlineshop": "shop"}
 
 
 def test_default_icons_match_their_tiles(monkeypatch):
@@ -108,7 +115,7 @@ def test_broken_logos_detaches_icons_from_their_tiles(monkeypatch):
     }
     assert broken.keys() == default.keys()
     # The configured pictures, dealt to the wrong tiles. The deal covers every
-    # configured app, the opt-in shop included, so its icon can surface here.
+    # configured app, so any configured icon can surface here.
     configured = {
         app.icon for app in compose_apps().start_page.apps.values()
     }

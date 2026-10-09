@@ -1,0 +1,23 @@
+# @package _global_
+# A screenshot-only agent on a laptop-sized screen.
+#
+#   uv run launch_agent.py agent=gemma-4-31B-computer-use +experiment=screenshot_agent
+#
+# Bundles the two halves that have to agree: the episode settings
+# (`browsergym_env_args=screenshot`, max_steps 25) and the window the
+# screenshot is taken of (`device=laptop`, 1280x800). The image is sent at full
+# size -- agent.utils.image_to_jpg_base64_url does not downscale -- so the
+# served model's image processor resizes it, and the less it has to squash the
+# more legible the set-of-marks labels are.
+#
+# This exists because a config in a group cannot select another group's option:
+# Hydra resolves a defaults-list entry against the config's own package, so
+# `override /device: laptop` inside browsergym_env_args/screenshot.yaml lands on
+# `device@browsergym_env_args.device` and fails. An experiment config is at the
+# global package and can, which is what the pattern is for.
+#
+# Overridable as usual -- `+experiment=screenshot_agent device=phone` evaluates
+# the same agent on a phone.
+defaults:
+  - override /browsergym_env_args: screenshot
+  - override /device: laptop

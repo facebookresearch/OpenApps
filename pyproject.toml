@@ -10,17 +10,12 @@ dependencies = [
     "transformers==4.52.2",
     "fastapi==0.115.12",
     "feedgen>=1.0.0",
-    "faiss-cpu==1.10.0",
-    "gdown>=5.2.0",
     "gitpython>=3.1.44",
     "hydra-core>=1.3.2",
     "jinja2>=3.1.6",
     "pip",
-    "pyserini==0.44.0",
     "python-fasthtml>=0.12.14",
     "python-multipart>=0.0.20",
-    "spacy==3.8.5",
-    "thefuzz==0.22.1",
     "submitit>=1.5.2",
     "uvicorn>=0.34.2",
     "wandb>=0.19.9",
@@ -43,12 +38,27 @@ dependencies = [
 open-apps-mcp = "open_apps.mcp.__main__:main"
 
 [project.optional-dependencies]
+# Everything needed to build the site in `docs/` -- `uv run --extra docs
+# mkdocs build`. Split out of `dev` so a docs build does not also pull jupyter,
+# plotly and kaleido.
+#
+# `mkdocs` itself is listed even though `mkdocs-shadcn` depends on it: the
+# build invokes the `mkdocs` binary directly, and a dependency that arrives
+# only through a theme disappears the day that theme repins it, for a reason
+# nothing in this file would explain.
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-shadcn@git+https://github.com/asiffer/mkdocs-shadcn@30-search-indexing-broken",
+    "pymdown-extensions>=10.16.1",
+]
+
+# Notebooks, figures, and nicer pytest diffs. Includes `docs` so the historical
+# `uv sync --extra dev` still builds the site.
 dev = [
+    "open_apps[docs]",
     "jupyter>=1.1.1",
     "kaleido>=1.2.0",
-    "mkdocs-shadcn@git+https://github.com/asiffer/mkdocs-shadcn@30-search-indexing-broken",
     "plotly>=6.4.0",
-    "pymdown-extensions>=10.16.1",
     "pytest-icdiff>=0.9",
 ]
 
@@ -59,3 +69,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: spins up the real web app and/or a browser; deselect with -m 'not slow'",
+]

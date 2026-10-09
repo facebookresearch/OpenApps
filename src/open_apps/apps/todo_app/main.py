@@ -8,9 +8,9 @@ from fasthtml.common import *
 from dataclasses import dataclass
 import json
 from typing import List
-from src.open_apps.apps.start_page.helper import create_logo_header
-from src.open_apps.frontend import local_hdrs
-from src.open_apps.theme import theme_style
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import theme_style
 
 
 @dataclass
@@ -718,8 +718,16 @@ def delete(id: int):
 def post(title: str):
     # server assigns unique id
     new_id = max([t.id for t in todos()], default=-1) + 1
-    todos.upsert(Todo(id=new_id, title=title, done=False))
-    return todos[-1], mk_input(hx_swap_oob="true")
+    # Return upsert's own result, the way the PUT handler below already does.
+    # This was `todos[-1]`, which looks like "the last row" but is not: fastlite
+    # indexes a table by PRIMARY KEY, so it asked for the row with id == -1 and
+    # raised NotFoundError. The insert on the line above had already committed,
+    # so the todo was created and only the response failed -- the write landed,
+    # the browser got a 500, htmx had nothing to swap, and the new item never
+    # appeared. State-based tests pass straight through that.
+    return todos.upsert(Todo(id=new_id, title=title, done=False)), mk_input(
+        hx_swap_oob="true"
+    )
 
 
 @rt("/todo/kanban/add/{col}")

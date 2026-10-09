@@ -7,7 +7,6 @@ LICENSE file in the root directory of this source tree.
 from fasthtml.common import *
 import random
 import os
-import subprocess
 from pathlib import Path
 
 from open_apps.frontend import local_hdrs
@@ -663,21 +662,6 @@ def get_app(hdrs=None, *args, **kwargs):
 def footer():
     links = A("main-page", href="/")
     return Footer(Div(links, cls="inner"), cls="wrapper style1 align-center")
-
-def get_java_version():
-    try:
-        result = subprocess.run(
-            ['java', '-version'],
-            capture_output=True,
-            text=True
-        )
-        # Java version info is usually in stderr
-        output = result.stderr.strip().split('\n')[0]
-        # Extract the version number
-        version = output.split('"')[1] if '"' in output else output.split()[2]
-        return version
-    except FileNotFoundError:
-        return "Java is not installed or not in PATH."
 
 def create_logo_header(app_config, base_url: str, current_file_path: str):
     """

@@ -1,0 +1,21 @@
+# @package _global_
+# The whole phone setup: a phone-sized Chromium with touch, and the start page
+# rendered as a home screen.
+#
+#   uv run launch.py +experiment=phone                       # browse it yourself
+#   uv run launch_agent.py agent=dummy +experiment=phone     # run an agent on it
+#
+# `device=phone` alone gets the window and the input model, but leaves the
+# start page on its default `gallery` layout, which has no phone variant --
+# so the interesting half of the comparison would be missing. This pairs them.
+#
+# max_steps goes to 25 for the same reason it does for screenshot-only agents:
+# a phone shows a fraction of the page, and several steps go on scrolling to
+# controls a desktop puts on screen at once. Leaving it at 10 would measure the
+# step budget rather than the layout.
+defaults:
+  - override /device: phone
+  - override /apps/start_page/layout: desktop
+
+browsergym_env_args:
+  max_steps: 25

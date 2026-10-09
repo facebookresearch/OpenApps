@@ -12,7 +12,7 @@ import ast
 import json
 import re
 import zlib
-from src.open_apps.apps.start_page.helper import create_logo_header
+from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
 

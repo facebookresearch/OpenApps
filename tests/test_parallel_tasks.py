@@ -160,7 +160,7 @@ class TestVariationOverridesCompose:
         """Same guard for the visual-regression grid in save_screenshots.py."""
         from tests.save_screenshots import build_variation_overrides
 
-        grid = build_variation_overrides(include_onlineshop=False)
+        grid = build_variation_overrides()
         assert grid, "no screenshot variations to check"
         for name, overrides in grid.items():
             try:
