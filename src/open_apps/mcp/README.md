@@ -46,7 +46,7 @@ the server is then ready for tool calls.
 | `get_reward()` | Reward for the bound task (1.0 if complete, else 0.0). |
 | `set_goal(goal)` | Free-form goal, no automatic scoring. |
 | `reconfigure(theme, layout, content, seed, extras, appearance)` | Live variant/seed change. `theme` is the shared global design-token theme; `layout` and `content` are per-app. `appearance` is deprecated — see below. |
-| `list_apps()` | App keys actually registered (Java-aware). |
+| `list_apps()` | App keys actually registered this process. |
 | `list_variants(app, group)` | Variant stems for a group (`theme`/`layout`/`content`). |
 | `app_url(app=None)` | Absolute URL of an app's landing page. |
 

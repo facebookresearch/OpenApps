@@ -19,7 +19,6 @@ from PIL import Image, ImageChops, ImageStat
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-from open_apps.apps.start_page.helper import get_java_version
 from open_apps.launcher import OpenAppsLauncher
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -54,16 +53,18 @@ ROUTES = (
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
-    RouteSpec("onlineshop", "/onlineshop/", "input[name='search_query']"),
-    RouteSpec("onlineshop_electronics", "/onlineshop/search/electronics/1", ".card"),
-    RouteSpec("onlineshop_fashion", "/onlineshop/search/fashion/1", ".card"),
-    RouteSpec("onlineshop_home_kitchen", "/onlineshop/search/home,kitchen/1", ".card"),
+    RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
+    RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
+    RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
+    RouteSpec("onlineshop_search", "/onlineshop/search/coffee/1", ".card"),
 )
 
 
 THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
-CONTENT_APPS = ("start_page", "todo", "calendar", "messenger", "maps", "code_editor")
+CONTENT_APPS = (
+    "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "onlineshop",
+)
 
 # Per-app structure variants worth a screenshot of their own. Themes are
 # captured separately (one variation per stem) because they are global -- a
@@ -81,24 +82,21 @@ def available_themes() -> list[str]:
     return ["default"] + [stem for stem in stems if stem != "default"]
 
 
-def build_variation_overrides(include_onlineshop: bool) -> dict[str, list[str]]:
-    onlineshop_overrides = ["apps.onlineshop.enable=True"] if include_onlineshop else []
-    content_apps = list(CONTENT_APPS) + (["onlineshop"] if include_onlineshop else [])
-
+def build_variation_overrides() -> dict[str, list[str]]:
     variations = {
-        "default": onlineshop_overrides,
-        "german": onlineshop_overrides
-        + [f"apps/{app_name}/content=german" for app_name in content_apps],
-        "long_descriptions": onlineshop_overrides
-        + [f"apps/{app_name}/content=long_descriptions" for app_name in content_apps],
+        "default": [],
+        "german": [f"apps/{app_name}/content=german" for app_name in CONTENT_APPS],
+        "long_descriptions": [
+            f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
+        ],
     }
     # One variation per shared theme, named `theme_<stem>`. A single
     # `apps/theme=` override reaches every app, which is what replaced the
     # per-app `appearance` groups.
     for theme in available_themes():
-        variations[f"theme_{theme}"] = onlineshop_overrides + [f"apps/theme={theme}"]
+        variations[f"theme_{theme}"] = [f"apps/theme={theme}"]
     for name, overrides in LAYOUT_VARIATIONS.items():
-        variations[name] = onlineshop_overrides + overrides
+        variations[name] = list(overrides)
     return variations
 
 
@@ -134,7 +132,7 @@ def parse_args() -> argparse.Namespace:
         # Every `theme_*` and `layout_*` entry is selectable, but only the set
         # below is captured by default -- the rest exist so the docs gallery
         # can be regenerated with one command.
-        choices=sorted(build_variation_overrides(include_onlineshop=False)),
+        choices=sorted(build_variation_overrides()),
         default=[
             "default",
             "theme_dark",
@@ -427,9 +425,7 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     runtime_dir.mkdir(parents=True, exist_ok=True)
 
-    java_version = get_java_version()
-    include_onlineshop = java_version.startswith("21")
-    variation_overrides = build_variation_overrides(include_onlineshop)
+    variation_overrides = build_variation_overrides()
     compare_against_reference = reference_root_exists(reference_dir)
 
     selected_route_names = set(args.route_names) if args.route_names else None
@@ -465,15 +461,6 @@ def main() -> int:
                     page = context.new_page()
 
                     for route in routes_to_capture:
-                        if (
-                            route.path.startswith("/onlineshop")
-                            and not include_onlineshop
-                        ):
-                            skipped_routes.append(
-                                f"{variation}/{route.name}: skipped because Java 21 is unavailable ({java_version})"
-                            )
-                            continue
-
                         target_path = output_dir / variation / f"{route.name}.png"
                         print(f"  - {route.name}")
                         try:

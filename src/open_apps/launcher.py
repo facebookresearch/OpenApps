@@ -115,10 +115,16 @@ class OpenAppsLauncher:
         # increase timeout per wandb folks' suggestion
         # to avoid FAIR cluster network issues
         os.environ["WANDB_INIT_TIMEOUT"] = "60"
-        agent_name = self.config.agent.get(
-            "model_name", self.config.agent.get("agent_name", "agent")
+        # model_pretty_name is the display name every agent config sets for
+        # exactly this purpose; model_name is the raw HF repo path, which drags
+        # the org prefix (e.g. "ByteDance-Seed/") into the run name.
+        agent_name = (
+            self.config.agent.get("model_pretty_name")
+            or self.config.agent.get("model_name")
+            or self.config.agent.get("agent_name")
+            or "agent"
         )
-        run_name = f"openapps-{agent_name}"
+        run_name = agent_name
         task_name = self.config.get("task_name")
         if task_name:
             run_name = f"{run_name}-{task_name}"

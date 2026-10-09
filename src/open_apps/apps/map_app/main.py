@@ -14,7 +14,7 @@ import requests
 from fasthtml.common import *
 import requests
 import json
-from src.open_apps.theme import render_theme_css, resolve_theme, theme_asset
+from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from datetime import datetime, timezone
 import subprocess
 import time

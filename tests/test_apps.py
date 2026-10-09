@@ -25,9 +25,6 @@ from open_apps.apps.start_page.main import (
     app,
     initialize_routes_and_configure_task,
 )
-from open_apps.apps.start_page.helper import (
-    get_java_version,
-)
 
 
 @pytest.fixture(scope="module")
@@ -88,13 +85,18 @@ class TestApps:
         response = client.get("/maps")
         assert response.status_code == 200
 
-    def test_onlineshop(self, client):
-        if get_java_version().startswith("21"):
-            response = client.get("/onlineshop")
-            assert response.status_code == 200
-        else:
-            # Skip the test if Java version is not 21 or higher
-            pytest.skip("Java version is not 21 or higher, skipping onlineshop test.")
+    def test_onlineshop_is_present_by_default(self, client):
+        """The shipped default is `content=webshop`, so the shop is there.
+
+        The catalog is committed, so no setup step stands between a clean
+        checkout and a storefront. `tests/test_onlineshop.py::TestCatalogGate`
+        covers the other side -- a `content` pack with no products leaves the
+        routes unregistered rather than serving an empty shop.
+        """
+        assert client.get("/onlineshop").status_code == 200
+
+    def test_homepage_shows_the_shop_tile(self, client):
+        assert 'href="/onlineshop"' in client.get("/").text
 
 
 class TestTasks:

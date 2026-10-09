@@ -202,7 +202,7 @@ async def get_reward() -> float:
 
 @mcp.tool()
 async def list_apps() -> list[str]:
-    """App keys actually registered this process (Java-aware live set)."""
+    """App keys actually registered this process (post-init live set)."""
     return _require().appserver.registered_apps()
 
 
