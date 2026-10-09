@@ -506,6 +506,15 @@ def theme_switcher_script(config) -> Script:
             var tokens = window.OPENAPPS_THEMES[name];
             if (!tokens) {{ return false; }}
             var root = document.documentElement;
+            var allKeys = {{}};
+            Object.keys(window.OPENAPPS_THEMES).forEach(function(theme) {{
+                Object.keys(window.OPENAPPS_THEMES[theme]).forEach(function(k) {{
+                    allKeys[k] = true;
+                }});
+            }});
+            Object.keys(allKeys).forEach(function(k) {{
+                root.style.removeProperty('--' + k);
+            }});
             Object.keys(tokens).forEach(function(k) {{
                 root.style.setProperty('--' + k, tokens[k]);
             }});
