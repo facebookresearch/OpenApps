@@ -14,7 +14,7 @@ import requests
 from fasthtml.common import *
 import requests
 import json
-from src.open_apps.theme import render_theme_css, resolve_theme, theme_asset
+from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from datetime import datetime, timezone
 import subprocess
 import time
@@ -116,12 +116,48 @@ def current_tile_layer() -> str:
     return cfg.default_layer
 
 
+def current_layout() -> str:
+    """The active structure variant from `config/apps/maps/layout/`.
+
+    Emitted as a `layout-<name>` class on <body>. map.html also emits the
+    panel in each layout's visual order (so the accessibility tree reads the
+    way the page looks) and `map_controls` places Leaflet's controls, but the
+    map's ids, labels and routes are identical across layouts and rewards --
+    which read /maps/landmarks, not the DOM -- are unaffected.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return "default"
+    return getattr(config.maps, "layout", "default")
+
+
+# Where Leaflet's zoom bar and basemap switcher sit in each layout, after the
+# product that layout imitates. `default` keeps the basemap list expanded at the
+# top right: the UI-understanding questions built from its screenshot
+# (tests/ui_questions) ask about those visible radio options. The other layouts
+# fold it into a layers button, as real maps do -- Google Maps desktop puts it
+# bottom-left with zoom bottom-right. Collapsed, the radios appear on hover or
+# click of the button; tasks only read /maps/landmarks, never the basemap.
+MAP_CONTROLS = {
+    "default": {"zoom_position": "topleft", "layers_position": "topright", "layers_collapsed": False},
+    "sidebar_left": {"zoom_position": "bottomright", "layers_position": "bottomleft", "layers_collapsed": True},
+    "bottom_sheet": {"zoom_position": "topleft", "layers_position": "topright", "layers_collapsed": True},
+}
+
+
+def map_controls(layout: str) -> dict:
+    """Leaflet control placement for `layout`; unknown layouts get the default's."""
+    return MAP_CONTROLS.get(layout, MAP_CONTROLS["default"])
+
+
 @app.get("/maps", response_class=HTMLResponse)
 async def map_page(request: Request):
     return templates.TemplateResponse(
         "map.html",
         {
             "request": request,
+            "layout": current_layout(),
+            "controls": map_controls(current_layout()),
             "enable_layer_control": app.config.maps.enable_layer_control,
             "default_layer": current_tile_layer(),
             "popup_display_rule": app.config.maps.popup_display_rule,

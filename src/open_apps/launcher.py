@@ -39,20 +39,20 @@ from killport import kill_ports
 from omegaconf import DictConfig, OmegaConf
 
 # Project-specific imports
+from open_apps.apps.availability import (
+    onlineshop_unavailable_reason,
+    task_needs_onlineshop,
+)
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+from open_apps.preview import open_preview
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
 from open_apps.tasks.tasks import Task
 from open_apps.utils import merge_plus_keys
 
-try:
-    # Register the custom 'now' resolver
-    OmegaConf.register_resolver(
-        "now",
-        lambda format_str="%Y-%m-%d_%H-%M-%S": datetime.now().strftime(format_str),
-    )
-except AssertionError:
-    # resolver already registered, ignore
-    pass
+# Note: the "now" interpolation resolver (used as ${now:...} in the configs)
+# is provided by Hydra's own setup at run/compose time, so we don't register
+# one here. (A local registration previously lived here but was shadowed by
+# Hydra's and never actually ran.)
 
 
 class OpenAppsLauncher:
@@ -115,10 +115,16 @@ class OpenAppsLauncher:
         # increase timeout per wandb folks' suggestion
         # to avoid FAIR cluster network issues
         os.environ["WANDB_INIT_TIMEOUT"] = "60"
-        agent_name = self.config.agent.get(
-            "model_name", self.config.agent.get("agent_name", "agent")
+        # model_pretty_name is the display name every agent config sets for
+        # exactly this purpose; model_name is the raw HF repo path, which drags
+        # the org prefix (e.g. "ByteDance-Seed/") into the run name.
+        agent_name = (
+            self.config.agent.get("model_pretty_name")
+            or self.config.agent.get("model_name")
+            or self.config.agent.get("agent_name")
+            or "agent"
         )
-        run_name = f"openapps-{agent_name}"
+        run_name = agent_name
         task_name = self.config.get("task_name")
         if task_name:
             run_name = f"{run_name}-{task_name}"
@@ -205,6 +211,14 @@ class OpenAppsLauncher:
 
         initialize_routes_and_configure_task(self.config.apps)
 
+        # Open a window on the apps, sized like `config/device/`. Off whenever
+        # something other than a person is driving: `headless=True` is passed
+        # by launch_apps_via_shell (agent runs) and by save_screenshots.py,
+        # both of which bring their own browser.
+        if not self.config.get("headless", False):
+            url = f"http://{self.web_app_host}:{self.web_app_port}/"
+            open_preview(url, self.config.get("device"))
+
         serve(
             appname="launch",
             reload=False,
@@ -227,10 +241,8 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
         )
-        if self.config.apps.onlineshop.enable:
-            command += " apps.onlineshop.enable=True"
         print("Launching web app with command: ", command)
         # Redirect the web app's output to a file rather than an unread PIPE.
         # An unread PIPE fills its OS buffer (~64KB) and blocks the web server
@@ -307,18 +319,50 @@ class AgentLauncher(OpenAppsLauncher):
         cum_reward = float(exp_record.get("cum_reward") or 0.0)
         wandb.run.summary["cum_reward"] = cum_reward
         wandb.run.summary["success"] = int(cum_reward >= 1.0)
+        steps_info = exp_result.steps_info
+
+        def action_error(i: int) -> str:
+            """BrowserGym's ``last_action_error`` for the action taken at step ``i``.
+
+            An observation describes the state *after* the preceding action, so
+            the error raised by ``steps_info[i].action`` lands in
+            ``steps_info[i + 1].obs``, not in step ``i``'s own obs. Without
+            this shift the column would blame each failure on the next action.
+            The final step has no successor (the loop ended), so its action —
+            if any — has no recorded outcome.
+            """
+            if i + 1 >= len(steps_info):
+                return ""
+            next_obs = steps_info[i + 1].obs
+            return str(next_obs.get("last_action_error", "") if next_obs else "")
+
         actions_data = [
             [
                 i,
                 str(step_info.action),
-                str(step_info.obs["open_pages_urls"]),
-                str(step_info.agent_info.get("think")),
+                str(step_info.obs.get("open_pages_urls") if step_info.obs else None),
+                str(
+                    step_info.agent_info.get("think")
+                    if step_info.agent_info
+                    else None
+                ),
+                # Whether the environment actually accepted the action. Agents
+                # routinely narrate success in `think` for a click that never
+                # landed, so without this the table reads as a win either way.
+                action_error(i),
             ]
-            for i, step_info in enumerate(exp_result.steps_info)
+            for i, step_info in enumerate(steps_info)
         ]
 
         actions_table = wandb.Table(
-            data=actions_data, columns=["step", "action", "open_pages_urls", "think"]
+            data=actions_data,
+            columns=[
+                "step",
+                "action",
+                "open_pages_urls",
+                "think",
+                "last_action_error",
+            ],
         )
         wandb.log({"actions": actions_table})
         print("logging screenshots to wandb")
@@ -416,10 +460,30 @@ class AgentLauncher(OpenAppsLauncher):
                 "a sibling job's web app."
             )
 
+    def check_task_can_run(self):
+        """Refuse a task that needs the shop when this run does not serve it.
+
+        Otherwise the agent spends every step looking for an app whose routes
+        were never registered, and the run reads as a model failure. Checked
+        before the web app starts, so the mistake costs nothing.
+        """
+        task_name = self.config.get("task_name")
+        task_cfg = self.config.tasks.get(task_name) if task_name else None
+        if not task_needs_onlineshop(task_cfg):
+            return
+        reason = onlineshop_unavailable_reason(self.config.apps)
+        if reason:
+            raise ValueError(
+                f"Task {task_name!r} uses the online shop, but this run does not "
+                f"serve it: {reason}. Drop that override, or pick a task that "
+                f"does not touch the shop."
+            )
+
     def launch(self):
         """
         Launches open apps environment and orchestrates agent to perform the task.
         """
+        self.check_task_can_run()
         apps_process = self.launch_apps_via_shell()
         self.wait_until_apps_start(apps_process)
         # TODO: check if agent model is available in case of VLLM or API

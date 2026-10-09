@@ -1,0 +1,79 @@
+defaults:
+  - default
+  - _self_
+
+# Must exactly match the model vLLM is serving (the --model / served_model_name).
+model_name: "google/gemma-4-E2B-it"
+model_pretty_name: "gemma-4-2B-computer-use"
+api_version: null
+client_type: "vllm"
+# For client_type=vllm the URL is built as http://${hostname}:${port}/v1
+# (base_url is ignored). The vLLM node changes every SLURM allocation, so pass it
+# at launch, e.g.: uv run launch_agent.py agent=gemma-4-e2b-it agent.hostname=node-001
+hostname: null
+port: "8000"
+# vLLM does not check the key, but the OpenAI client requires a non-empty string.
+api_key: "EMPTY"
+temperature: 1
+max_tokens: 5000
+aws_access_key: null
+aws_secret_key: null
+aws_session_token: null
+aws_region: us-west-2
+
+custom_actions:
+- mouse_click
+- mouse_dblclick
+- scroll
+- mouse_move
+- mouse_down
+- mouse_up
+- mouse_drag_and_drop
+- mouse_upload_file
+- keyboard_down
+- keyboard_up
+- keyboard_press
+- keyboard_type
+- keyboard_insert_text
+
+use_html: false
+use_axtree: false
+use_screenshot: true
+save_som: false
+extract_visible_tag: false
+extract_clickable_tag: false
+extract_coords: false
+filter_visible_elements_only: false
+use_focused_element: false
+prompt_txt:
+  system_prompt: You are a GUI agent. You are given a task and your action history,
+    with screenshots. You need to perform the next action to complete the task.
+  output_format: '
+
+    <think>
+
+    </think>
+
+    <action>
+
+    </action>
+    '
+
+  think_prompt: null
+  think_abstract_example: null
+  think_concrete_example: null
+  action_prompt: "## Action Space\n\nmouse_click(x=x, y=y)\nmouse_dblclick(x=x,\
+    \ y=y)\ntype(content='xxx') # Use escape characters \\\\', \\\
+    \\\\\", and \\\\n in content part to ensure we can parse the content in normal\
+    \ python string format. If you want to submit your input, use \\\\n at the end\
+    \ of content. \nscroll(direction='down or up', point='(x, y)')\
+    \ # Show more information on the `direction` side.\nwait() #Sleep\
+    \ for 5s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
+    \ in `Thought` part.\n- Write a small plan and finally summarize your next action\
+    \ (with its target element) in one sentence in `Thought` part.\n"
+  action_abstract_example: '<action>type(content='''')</action>
+
+    '
+  action_concrete_example: '<action>mouse_click(x=x, y=y)</action>
+
+    '
