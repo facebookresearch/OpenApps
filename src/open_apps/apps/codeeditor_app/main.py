@@ -10,6 +10,59 @@ import shutil
 from typing import Dict
 import json
 from starlette.responses import Response
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import theme_asset, theme_style
+
+# Static, theme-agnostic component styles. Colors and fonts are design tokens
+# from the shared theme (`config/apps/theme/`), emitted per-request by
+# `codeeditor_theme()`. `!important` throughout because daisyUI ships utility
+# classes on these same elements.
+_COMPONENT_STYLES = Style(
+    """
+    .main-content {
+        background-color: var(--color-bg);
+    }
+    .styled-content {
+        font-size: var(--font-size-sm);
+        font-family: var(--font-family);
+        color: var(--color-fg);
+    }
+    /* The code pane keeps a monospace face regardless of the theme's body
+       font -- column alignment is load-bearing in an editor. */
+    textarea, textarea.styled-content {
+        background-color: var(--color-surface);
+        color: var(--color-fg);
+        font-family: var(--font-mono);
+    }
+    .btn-primary {
+        background-color: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        color: var(--color-on-primary) !important;
+        font-family: var(--font-family) !important;
+    }
+    .btn-secondary {
+        background-color: var(--color-neutral) !important;
+        border-color: var(--color-neutral) !important;
+        color: var(--color-btn-fg) !important;
+        font-family: var(--font-family) !important;
+    }
+    .btn-error {
+        background-color: var(--color-danger) !important;
+        border-color: var(--color-danger) !important;
+        color: var(--color-btn-fg) !important;
+        font-family: var(--font-family) !important;
+    }
+"""
+)
+
+# Set by the in-page theme dropdown; None means "follow the shared theme".
+_editor_theme_override = None
+
+
+def _as_dict(node):
+    """Coerce an OmegaConf node (or None) to a plain dict."""
+    return {k: v for k, v in node.items()} if node is not None else {}
 
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs

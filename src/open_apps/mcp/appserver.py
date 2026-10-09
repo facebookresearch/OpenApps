@@ -232,12 +232,12 @@ class AppServer:
         return f"{self.base_url}{url_path_for(app_name or self.app_name)}"
 
     def registered_apps(self) -> list[str]:
-        """App keys actually registered this process (Java-aware, post-init).
+        """App keys actually registered this process (post-init live set).
 
-        ``onlineshop`` is only present if config-enabled AND Java 21+ is
-        installed; map planning is likewise gated. Reflects the live
-        ``AVAILABLE_APPS`` after ``initialize_routes_and_configure_task``,
-        not the static registry.
+        ``onlineshop`` is only present if it is config-enabled AND its
+        ``content`` pack has products; map planning is separately gated on a
+        JDK. Reflects the live ``AVAILABLE_APPS`` after
+        ``initialize_routes_and_configure_task``, not the static registry.
         """
         return list(AVAILABLE_APPS.keys())
 

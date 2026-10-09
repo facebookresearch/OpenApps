@@ -19,7 +19,6 @@ try:
         footer,
         serve,
         Modal,
-        get_java_version,
         generate_random_colors,
     )
 except ImportError:
@@ -32,7 +31,6 @@ except ImportError:
         footer,
         serve,
         Modal,
-        get_java_version,
         generate_random_colors,
     )
 from omegaconf import DictConfig, OmegaConf
@@ -234,7 +232,22 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.messenger_app": "messenger",
     "open_apps.apps.codeeditor_app": "code_editor",
     "open_apps.apps.map_app": "maps",
+    "open_apps.apps.onlineshop_app": "onlineshop",
 }
+
+
+def onlineshop_has_catalog(apps_cfg) -> bool:
+    """Whether the shop has any products configured.
+
+    The catalog belongs to the selected `content` pack, not the app: the
+    default `webshop` pack has 999 products and the chrome-only `default`
+    pack has none. Read off the config rather than importing the shop module,
+    which would pull in its FastHTML app at start-page import time.
+    """
+    shop_cfg = getattr(apps_cfg, "onlineshop", None)
+    if shop_cfg is None:
+        return False
+    return bool(shop_cfg.get("products"))
 
 
 def _drop_app_tables(module, apps_cfg) -> None:
@@ -354,22 +367,22 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     reset_desktop_state(getattr(config, "start_page", None), _configured_variant(config))
     _prerender_wallpaper(getattr(config, "start_page", None))
 
-    java_version_high_enough = get_java_version().startswith("21")
+    # A `content` pack with no products leaves the shop unregistered rather
+    # than served as an empty storefront: an app that is absent is a clearer
+    # signal than one that renders zero products. The default pack is
+    # `webshop`, so reaching this branch means an empty pack was asked for.
     if not app.config.onlineshop.enable:
         print("---> Online shop is disabled in the config.")
+    elif not onlineshop_has_catalog(app.config):
+        print("---> Online shop has no catalog, skipping it. The selected "
+              "`content` pack has no products; the default `webshop` pack "
+              "has 999.")
     else:
-        print("Java version check:", get_java_version())
-        if java_version_high_enough:
-            print("---> Online shop turned on!!")
-            AVAILABLE_APPS["onlineshop"] = (
-                "open_apps.apps.onlineshop_app",
-                "get_onlineshop_routes",
-            )
-    if java_version_high_enough:
-        if app.config.maps.allow_planning:
-            print("---> Map planning is not available without Java 21 or higher.")
-            print("Turning off the planning feature for now...")
-            app.config.maps.allow_planning = False
+        print("---> Online shop turned on!!")
+        AVAILABLE_APPS["onlineshop"] = (
+            "open_apps.apps.onlineshop_app",
+            "get_onlineshop_routes",
+        )
 
     for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
         try:
@@ -433,8 +446,13 @@ def get():
         
         # Add items for each enabled app
         for index, (app_name, app_config) in enumerate(enabled_apps):
-            # Skip the shopping app if disabled
-            if app_name == "onlineshop" and not app.config.onlineshop.enable:
+            # Skip the shopping app if disabled, or if it has no catalog to
+            # sell (see `onlineshop_has_catalog`) -- its routes are not
+            # registered in that case, so a tile here would 404.
+            if app_name == "onlineshop" and (
+                not app.config.onlineshop.enable
+                or not onlineshop_has_catalog(app.config)
+            ):
                 continue
             # Get the app URL
             app_url = f"/{app_name}" if app_name != "vault" else "/todo"

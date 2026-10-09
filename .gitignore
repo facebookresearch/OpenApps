@@ -184,13 +184,6 @@ outputs/*
 log_outputs/*
 artifacts/*
 
-# java config
-src/open_apps/apps/onlineshop_app/java
-src/open_apps/apps/onlineshop_app/data
-src/open_apps/apps/onlineshop_app/search_engine/indexes*
-src/open_apps/apps/onlineshop_app/search_engine/resources*
-src/open_apps/apps/onlineshop_app/goals*
-
 .vscode/*
 .vscode/settings.json
 
@@ -208,3 +201,7 @@ internal-*
 # committed; see open_apps.wallpaper. Keeping a binary out of git also keeps
 # it out of the public remotes' history.
 src/open_apps/apps/assets/img/desktop-*.png
+# Nested git worktrees. `git worktree add .claude/worktrees/<topic>` puts a
+# full checkout inside the repo, which otherwise shows up as untracked and a
+# stray `git add -A` would commit the entire tree.
+.claude/worktrees/

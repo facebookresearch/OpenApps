@@ -156,17 +156,13 @@ def render_theme_css(theme: dict) -> str:
         # Allow only simple custom-property names to avoid broken CSS/injection.
         if (not key) or any(not (c.isalnum() or c in "-_") for c in key):
             continue
-        # Sanitize values to avoid breaking out of the declaration / <style> context.
-        val = (
-            str(value)
-            .replace("\n", " ")
-            .replace("\r", " ")
-            .replace(";", " ")
-            .replace("}", " ")
-            .replace("<", " ")
-            .replace(">", " ")
-            .strip()
-        )
+        val = str(value).replace("\n", " ").replace("\r", " ").strip()
+        # Drop, rather than rewrite, a value that could end the declaration
+        # (`;`, `{`, `}`) or the <style> element (`<`, `>`). A mangled value
+        # would still emit and quietly mean something else; a dropped one
+        # falls back visibly, the same way an unsafe token name does above.
+        if any(c in val for c in "<>;{}"):
+            continue
         safe_lines.append(f"  --{key}: {val};")
 
     lines = "\n".join(safe_lines)
