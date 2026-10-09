@@ -22,9 +22,9 @@ from dataclasses import dataclass
 import json
 from typing import List, Optional
 from urllib.parse import urlencode
-from src.open_apps.apps.start_page.helper import create_logo_header
-from src.open_apps.frontend import local_hdrs
-from src.open_apps.theme import theme_asset, theme_style
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import theme_asset, theme_style
 
 
 @dataclass

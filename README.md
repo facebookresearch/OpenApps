@@ -57,6 +57,12 @@ Learn more about to customize the content and appearance of apps in the [docs](h
 For a hot reloading dev server (live changes in browser):
 `scripts/dev.sh`
 
+## The online shop
+
+The shop is a Python rewrite of [WebShop](https://github.com/princeton-nlp/WebShop),
+on by default with a 999-product catalog from WebShop's item dump. See
+[Online Shop](docs/onlineshop.md) for its variations, catalog and data.
+
 ## Launch an Agent
 
 For agents to directly interact with apps, install: `playwright install chromium`.
@@ -140,9 +146,8 @@ Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
-- [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
 - Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.
-- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton 
+- (for the online shop) [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md), developed by Princeton University: our shop is a rewrite, and its catalog is converted from WebShop's item dump.
 
 Some icons are have been designed using resources from Flaticon.com
 
