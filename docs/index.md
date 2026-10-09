@@ -58,34 +58,29 @@ Appearance is split along two axes:
 /// tab | challenging font
 
     ::bash
-    export THEME=challenging_font
-
+    uv run launch.py apps/theme=challenging_font
 
 ![landing](images/landing-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
-    export THEME=dark
+    uv run launch.py apps/theme=dark
 
 ![landing](images/landing-dark.png)
 ///
 /// tab | default
 
     ::bash
-    export THEME=default
+    uv run launch.py apps/theme=default
 
 ![landing](images/landing.png)
 
 ///
 
-A single override themes every app:
-```shell
-uv run launch.py apps/theme=$THEME
-```
-
-Or one app only, leaving the rest on the global theme:
-`uv run launch.py apps.calendar.theme=$THEME`.
+`apps/theme=` is one override that themes every app. To theme one app only,
+leaving the rest on the global theme, set its own field:
+`uv run launch.py apps.calendar.theme=dark`.
 
 Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
 `solarized`, `material`, `bootstrap`, `meta`, `meta_dark`, `vscode_dark`.
@@ -264,15 +259,14 @@ keep working for one release and will be removed — see
 /// tab | german
 
     ::bash
-    export CONTENT=german
-
+    uv run launch.py apps/start_page/content=german
 
 ![landing](images/landing-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    export CONTENT=long_descriptions
+    uv run launch.py apps/start_page/content=long_descriptions
 
 ![landing](images/landing-long-descriptions.png)
 ///
@@ -285,11 +279,8 @@ keep working for one release and will be removed — see
 
 ///
 
-```shell
-uv run launch.py apps/start_page/content=$CONTENT
-```
-
-Or specific apps with: `apps/calendar/content=$CONTENT`.
+Content is per app, so each override names the app it changes, e.g.
+`uv run launch.py apps/calendar/content=german`.
 
 You can see the specific variables for each defined in the individual apps.
 For example, `config/apps/theme/dark.yaml` for the shared design tokens,
