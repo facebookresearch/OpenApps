@@ -29,7 +29,9 @@ from open_apps.apps.start_page.main import (
 
 @pytest.fixture(scope="module")
 def client(tmpdir_factory):
-    logs_dir = str(tmpdir_factory.getbasetemp())
+    # Its own directory, not the shared base temp: other modules seed their
+    # databases there too, and re-seeding on top of them violates UNIQUE keys.
+    logs_dir = str(tmpdir_factory.mktemp("test_apps"))
     # Exercise a non-default selection on every axis: the shared theme
     # (global), a per-app theme override, and per-app content.
     alt_config = [

@@ -39,7 +39,12 @@ from killport import kill_ports
 from omegaconf import DictConfig, OmegaConf
 
 # Project-specific imports
+from open_apps.apps.availability import (
+    onlineshop_unavailable_reason,
+    task_needs_onlineshop,
+)
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+from open_apps.preview import open_preview
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
 from open_apps.tasks.tasks import Task
 from open_apps.utils import merge_plus_keys
@@ -206,6 +211,14 @@ class OpenAppsLauncher:
 
         initialize_routes_and_configure_task(self.config.apps)
 
+        # Open a window on the apps, sized like `config/device/`. Off whenever
+        # something other than a person is driving: `headless=True` is passed
+        # by launch_apps_via_shell (agent runs) and by save_screenshots.py,
+        # both of which bring their own browser.
+        if not self.config.get("headless", False):
+            url = f"http://{self.web_app_host}:{self.web_app_port}/"
+            open_preview(url, self.config.get("device"))
+
         serve(
             appname="launch",
             reload=False,
@@ -228,10 +241,8 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
         )
-        if self.config.apps.onlineshop.enable:
-            command += " apps.onlineshop.enable=True"
         print("Launching web app with command: ", command)
         # Redirect the web app's output to a file rather than an unread PIPE.
         # An unread PIPE fills its OS buffer (~64KB) and blocks the web server
@@ -449,10 +460,30 @@ class AgentLauncher(OpenAppsLauncher):
                 "a sibling job's web app."
             )
 
+    def check_task_can_run(self):
+        """Refuse a task that needs the shop when this run does not serve it.
+
+        Otherwise the agent spends every step looking for an app whose routes
+        were never registered, and the run reads as a model failure. Checked
+        before the web app starts, so the mistake costs nothing.
+        """
+        task_name = self.config.get("task_name")
+        task_cfg = self.config.tasks.get(task_name) if task_name else None
+        if not task_needs_onlineshop(task_cfg):
+            return
+        reason = onlineshop_unavailable_reason(self.config.apps)
+        if reason:
+            raise ValueError(
+                f"Task {task_name!r} uses the online shop, but this run does not "
+                f"serve it: {reason}. Drop that override, or pick a task that "
+                f"does not touch the shop."
+            )
+
     def launch(self):
         """
         Launches open apps environment and orchestrates agent to perform the task.
         """
+        self.check_task_can_run()
         apps_process = self.launch_apps_via_shell()
         self.wait_until_apps_start(apps_process)
         # TODO: check if agent model is available in case of VLLM or API

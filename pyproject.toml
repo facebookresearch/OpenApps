@@ -38,12 +38,27 @@ dependencies = [
 open-apps-mcp = "open_apps.mcp.__main__:main"
 
 [project.optional-dependencies]
+# Everything needed to build the site in `docs/` -- `uv run --extra docs
+# mkdocs build`. Split out of `dev` so a docs build does not also pull jupyter,
+# plotly and kaleido.
+#
+# `mkdocs` itself is listed even though `mkdocs-shadcn` depends on it: the
+# build invokes the `mkdocs` binary directly, and a dependency that arrives
+# only through a theme disappears the day that theme repins it, for a reason
+# nothing in this file would explain.
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-shadcn@git+https://github.com/asiffer/mkdocs-shadcn@30-search-indexing-broken",
+    "pymdown-extensions>=10.16.1",
+]
+
+# Notebooks, figures, and nicer pytest diffs. Includes `docs` so the historical
+# `uv sync --extra dev` still builds the site.
 dev = [
+    "open_apps[docs]",
     "jupyter>=1.1.1",
     "kaleido>=1.2.0",
-    "mkdocs-shadcn@git+https://github.com/asiffer/mkdocs-shadcn@30-search-indexing-broken",
     "plotly>=6.4.0",
-    "pymdown-extensions>=10.16.1",
     "pytest-icdiff>=0.9",
 ]
 

@@ -88,8 +88,31 @@ Or one app only, leaving the rest on the global theme:
 `uv run launch.py apps.calendar.theme=$THEME`.
 
 Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
-`solarized`, `material`, `bootstrap`. Adding one means adding a yaml file to
-`config/apps/theme/` -- no app code changes.
+`solarized`, `material`, `bootstrap`, `meta`, `meta_dark`, `vscode_dark`.
+Adding one means adding a yaml file to `config/apps/theme/` -- no app code
+changes.
+
+Precedence, highest first:
+
+| Source | Example | Beats |
+| --- | --- | --- |
+| per-app pin | `apps.calendar.theme=dark` | everything |
+| global selection | `apps/theme=dark` | the app's own default |
+| the app's own default | `theme_default:` in its `default.yaml` | nothing |
+| `default` | -- | -- |
+
+The middle two are the ones worth understanding. An app may declare a
+`theme_default` -- the code editor's is `vscode_dark`, so `uv run launch.py`
+opens on something that reads as a code editor. It applies *only* when no
+theme was selected, so sweeping the axis still moves every app, including the
+`apps/theme=default` cell the rest of the sweep is compared against. A
+per-app `theme` pin is the opposite: it wins over the sweep, which is what you
+want for dressing one app differently on purpose and not much else.
+
+This is why the `apps/theme` group defaults to `null` in `config/config.yaml`
+rather than to `default` -- "nothing was selected" has to be distinguishable
+from "`default` was selected". A null group default is still bindable without
+a `+`.
 
 A theme file is a set of design tokens plus a small `assets` block:
 
@@ -116,12 +139,60 @@ asset, so a theme file never has to know which apps exist.
 
 ```shell
 uv run launch.py apps/todo/layout=kanban_board
-uv run launch.py apps/start_page/layout=broken_logos
+uv run launch.py apps/start_page/layout=gallery
 ```
 
-Available layouts: `todo` has `default` and `kanban_board`; `start_page` has
-`default`, `broken_logos` (icons detached from their tiles) and
-`clickable_logos`; the other apps currently have `default` only.
+| App | Layouts |
+| --- | --- |
+| `start_page` | `desktop` (default), `gallery`, `broken_logos`, `clickable_logos` |
+| `todo` | `default`, `kanban_board` |
+| everything else | `default` |
+
+The start page is the landing surface an agent sees first, so it carries the
+most:
+
+* **`desktop`** — the default. A toolbar (launcher, clock, weather, light/dark
+  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
+  it renders as a home screen instead; see [Devices](#devices).
+* **`gallery`** — the original html5up tile grid: five coloured tiles under a
+  "Welcome to OpenApps!" headline. Still a single override away, and it is what
+  the paper's figures show.
+* **`broken_logos`** / **`clickable_logos`** — variations *of the gallery*
+  (they compose it), so selecting either also selects the tile grid.
+
+Two pieces of desktop state are scoreable and served at `/desktop_all`: the
+light/dark mode and the list of pinned app keys. `launcher_open` is
+deliberately excluded — a task should not pass or fail on whether the agent
+left a popover showing.
+
+##### Pinning, and making the agent use the launcher
+
+Every app is pinned by default (`pinned: all`), so each one has a shortcut on
+the desktop and the launcher is a convenience. The launcher only *tests*
+anything once something the agent needs is behind it, and that is one
+override — name the few to hide rather than re-listing the many to keep:
+
+```bash
+# OpenMessages has no shortcut; the only route to it is the launcher menu
+uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
+    apps.start_page.desktop.unpinned=[messages]
+
+# or sweep it as a variation axis
+uv run launch_parallel_agents.py \
+    'parallel_tasks.app_variations=[[],["apps.start_page.desktop.unpinned=[messages,maps]"]]'
+```
+
+`pinned` also takes an explicit list, and resolution always follows the app
+inventory's order rather than the order you wrote — so "the third icon" means
+the same thing however the override was typed. `all` expands to the apps that
+actually render, so the online shop is not pinned while it is gated off, which
+would otherwise put a key in `/desktop_all` with no tile on the page.
+
+The phone home screen is the exception: it splits apps between a grid
+(unpinned) and a dock (pinned), so `all` would dock everything and leave the
+grid empty. It takes `pinned_by_variant.home_screen` instead. It is not the
+composition for this experiment anyway — a phone's unpinned apps sit on the
+grid in plain view, not behind the menu.
 
 #### Migrating from `appearance`
 
@@ -270,6 +341,96 @@ uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
 ![Live Agent](images/gif.gif)
+
+### Devices
+
+The device is a variation axis of its own, alongside theme, layout, content and
+pop-ups. `config/device/` ships four:
+
+| `device=` | Viewport | Form factor | Input | User agent |
+| --- | --- | --- | --- | --- |
+| `desktop` (default) | 1920×1080 | desktop | mouse | Chromium's own |
+| `laptop` | 1280×800 | desktop | mouse | Chromium's own |
+| `tablet` | 820×1180 | tablet | touch, no hover | Chrome, Android tablet |
+| `phone` | 390×844 | phone | touch, no hover | Chrome, Android phone |
+
+```bash
+uv run launch.py +experiment=phone                      # browse the phone build
+uv run launch_agent.py agent=dummy +experiment=phone    # run an agent on it
+uv run launch_agent.py agent=dummy device=tablet        # just the device
+```
+
+The mobile devices set a matching UA because `is_mobile` alone leaves Chromium
+announcing itself as desktop Chrome — touch input, phone width, desktop
+browser, which is a contradiction anything UA-sniffing would see. They claim
+Chrome rather than iOS Safari because the engine really is Blink, and the
+version is pinned so a rendering does not change because the month did.
+Opt out with `device.user_agent=null`, or set your own.
+
+One setting moves two things:
+
+* **the browser** — `browsergym_env_args.task_kwargs.screen_resolution` is
+  `${device.viewport}`, and `open_apps.agent.env_args.DeviceEnvArgs` forwards
+  `is_mobile`, `has_touch`, `device_scale_factor` and `user_agent` to the
+  Playwright context. On a phone or tablet the page gets a real mobile visual
+  viewport and a coarse pointer, so `@media (hover: none)` and
+  `(pointer: coarse)` match and hover-only affordances correctly disappear;
+* **the apps** — the node is mirrored to `apps.device`, so a server-rendered
+  layout can pick a composition for the form factor rather than only reflowing
+  to the width.
+
+The start page's desktop shell does exactly that. On a phone it renders a home
+screen: status bar, wordmark widget, an icon grid of the apps that are **not**
+pinned, and a dock holding the ones that are — so pinning moves an app into the
+dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+the test ids and `/desktop_all` are the same on both, so a task written against
+one scores unchanged on the other; what differs is what the agent can see and
+how far it has to travel. Which composition a form factor gets is config, not
+code:
+
+```bash
+# the control condition: the desktop composition, in a phone-sized window
+uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
+```
+
+Adding a device is a file in `config/device/`; a form factor with no variant of
+its own falls back to the desktop composition rather than to a blank page.
+
+#### The preview window
+
+`uv run launch.py` opens a browser on the apps once they answer, so "run it and
+look at it" is one command rather than two plus copying a URL out of the log.
+It is a Playwright Chromium, not the system browser, and it is handed the same
+`config/device/` emulation the agent path gets — viewport, `is_mobile`,
+`has_touch`, `device_scale_factor`, `user_agent`:
+
+```bash
+uv run launch.py                    # 1920×1080 desktop window
+uv run launch.py device=phone       # 390×844, touch pointer, phone UA
+uv run launch.py headless=True      # serve only, open nothing
+```
+
+`webbrowser.open` is not used because it can neither size a window nor make
+`@media (hover: none)` match, so `launch.py device=phone` would have opened a
+desktop-width page and the phone layout you asked to look at would not have
+been the thing on screen.
+
+It never opens for an agent run. `launch_agent.py` and
+`launch_parallel_agents.py` re-invoke `launch.py` with `headless=True`, and so
+does `tests/save_screenshots.py` — all three bring their own browser, and a
+second window fighting for focus mid-episode is not something an eval needs.
+
+Nothing here is fatal: with Playwright missing, its Chromium not installed, or
+no display available, this falls back to the system browser and finally to
+printing the URL. Serving the apps is the job; opening a window is a
+convenience.
+
+!!! warning "Keep `device_scale_factor` at 1"
+    Screenshots are captured in *device* pixels and actions are dispatched in
+    *CSS* pixels, and nothing in between divides by the ratio — the agent's
+    coordinate space comes straight from the screenshot's shape. At scale 2 a
+    grounded click lands at twice the intended offset. Every shipped device
+    keeps it at 1, retina or not.
 
 ### Logs
 

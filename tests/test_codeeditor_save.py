@@ -33,7 +33,8 @@ def client(tmpdir_factory):
     # again on top of a module that already configured them re-populates the
     # shared DBs and raises. Reuse whatever is already wired up in that case.
     if codeeditor_main.current_dir is None:
-        logs_dir = str(tmpdir_factory.getbasetemp())
+        # A dedicated temp dir, not the shared base temp other modules seed into.
+        logs_dir = str(tmpdir_factory.mktemp("test_codeeditor_save"))
         with initialize(version_base=None, config_path="../config/"):
             config = compose(config_name="config", overrides=[f"logs_dir={logs_dir}"])
         Path(config.logs_dir).mkdir(parents=True, exist_ok=True)

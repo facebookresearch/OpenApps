@@ -97,7 +97,7 @@ create_notes_file_in_code_editor:
 Run it like any other task:
 
 ```shell
-uv run launch_agent.py agent=gemma-4 task_name=edit_script_add_header_comment
+uv run launch_agent.py agent=gemma-4-2B-computer-use task_name=edit_script_add_header_comment
 ```
 
 ## Goal Variations

@@ -782,6 +782,13 @@ class EditFileTask(Task):
     expected_content: str | None = None
     required_fragment: str | None = None
 
+    def __post_init__(self) -> None:
+        if (self.expected_content is None) == (self.required_fragment is None):
+            raise ValueError(
+                "EditFileTask requires exactly one of expected_content or "
+                "required_fragment"
+            )
+
     @staticmethod
     def _normalize(text: str) -> str:
         # Normalize line endings and strip trailing whitespace per line so

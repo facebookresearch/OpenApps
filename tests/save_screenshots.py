@@ -19,6 +19,7 @@ from PIL import Image, ImageChops, ImageStat
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
+from open_apps.apps.availability import onlineshop_unavailable_reason
 from open_apps.launcher import OpenAppsLauncher
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -209,9 +210,10 @@ def launch_variation(
         "--config-name",
         launcher.config_path.name,
         "use_wandb=False",
+        # This harness drives its own Playwright browser; launch.py must not
+        # also pop one per variation.
+        "headless=True",
     ]
-    if launcher.config.apps.onlineshop.enable:
-        command.append("apps.onlineshop.enable=True")
 
     process = subprocess.Popen(
         command,
@@ -460,9 +462,17 @@ def main() -> int:
                     )
                     page = context.new_page()
 
+                    shop_unavailable = onlineshop_unavailable_reason(launcher.config.apps)
                     for route in routes_to_capture:
                         target_path = output_dir / variation / f"{route.name}.png"
                         print(f"  - {route.name}")
+                        # Its routes are not registered, so waiting on its
+                        # selector would only time out. Recorded as a skip.
+                        if route.path.startswith("/onlineshop") and shop_unavailable:
+                            skipped_routes.append(
+                                f"{variation}/{route.name}: online shop not served ({shop_unavailable})"
+                            )
+                            continue
                         try:
                             status = capture_route(
                                 page,
