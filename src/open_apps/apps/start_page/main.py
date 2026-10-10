@@ -259,6 +259,7 @@ AVAILABLE_APPS = {
     "uilibrary": (
         "open_apps.apps.uilibrary_app",
         "get_uilibrary_routes",
+    ),
     "openbanking": (
         "open_apps.apps.openbanking_app",
         "get_openbanking_routes",
