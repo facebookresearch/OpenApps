@@ -127,13 +127,21 @@ class AppStateComparison:
 
     def preprocess(self, state: dict) -> dict:
         # Drop keys we never compare *before* deep-copying: underscore-prefixed
-        # env metadata (e.g. ``_url``) and the (potentially large) code-editor
-        # tree. Shallow-slicing first avoids deep-copying data we're about to
-        # discard.
+        # env metadata (e.g. ``_url``), the (potentially large) code-editor
+        # tree, and the UI library's story settings. Shallow-slicing first
+        # avoids deep-copying data we're about to discard.
+        #
+        # ``ui_library`` is excluded for a different reason than
+        # ``codeeditor``: it is a component gallery that exists to be poked
+        # at, so an agent that wanders in and flips a variant knob while
+        # working on a todo task would otherwise register a spurious diff and
+        # fail an otherwise-correct episode. A task that actually targets the
+        # gallery reads ``/uilibrary_all`` directly, the same way
+        # ``EditFileTask`` reads ``/codeeditor_all``.
         state = {
             k: v
             for k, v in state.items()
-            if not k.startswith("_") and k != "codeeditor"
+            if not k.startswith("_") and k not in ("codeeditor", "ui_library")
         }
         # Deep copy so normalization never mutates the caller's state. The
         # helpers below rewrite nested lists/dicts (dropping ids, flattening
@@ -638,6 +646,8 @@ _NAV_APP_URL_PREFIXES: dict[str, tuple[str, ...]] = {
     "messages": ("/messages",),
     "codeeditor": ("/codeeditor",),
     "map": ("/maps",),
+    "uilibrary": ("/uilibrary",),
+    "openbanking": ("/openbanking",),
 }
 
 

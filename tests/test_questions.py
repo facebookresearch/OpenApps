@@ -275,6 +275,7 @@ class TestStartPageLayoutAwareness:
         assert not any("pinned to the desktop" in q.question for q in questions)
         counts = [q for q in questions if "How many app shortcuts" in q.question]
         assert len(counts) == 1
-        # Six: todo, calendar, messages, maps, code editor and the shop, which
-        # is on by default now that it needs no JDK.
-        assert counts[0].choices[counts[0].correct] == "6"
+        # Seven: todo, calendar, messages, maps, code editor, the shop (on by
+        # default now that it needs no JDK) and OpenBanking. The UI Library's
+        # tile is disabled by default.
+        assert counts[0].choices[counts[0].correct] == "7"

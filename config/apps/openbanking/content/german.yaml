@@ -1,0 +1,206 @@
+# @package apps.openbanking
+defaults:
+  - default
+
+# Chrome and transaction descriptions are translated. Two things deliberately
+# are *not*: the account names (they are product names, and tasks address
+# accounts by them) and every numeric amount/balance. Tasks score on figures
+# read out of this ledger, so the numbers must be identical across every
+# content variant or the same task would need a different answer per language.
+nav_actions: ["Konto eröffnen"]
+# The phone number is a figure, so it stays identical across variants for the
+# same reason the amounts do.
+open_account_heading: "Neues Konto eröffnen"
+open_account_body: "Neue Konten werden telefonisch eröffnet. Rufen Sie uns an, und ein Firmenkundenberater richtet Ihr Konto ein."
+close_label: "Schließen"
+accounts_heading: "Ihre Konten"
+back_to_accounts_label: "Zurück zu den Konten"
+
+available_balance_label: "Verfügbarer Saldo"
+present_balance_label: "Aktueller Saldo"
+available_credit_label: "Verfügbarer Kreditrahmen"
+available_plus_credit_label: "Verfügbar plus Kredit"
+account_number_label: "Kontonummer"
+routing_number_label: "Bankleitzahl"
+show_number_label: "Vollständige Nummer anzeigen"
+hide_number_label: "Nummer ausblenden"
+
+card_number_label: "Kartennummer"
+card_expires_label: "Gültig bis"
+payment_heading: "Zahlung"
+statement_balance_label: "Abrechnungssaldo"
+minimum_payment_label: "Mindestzahlung fällig"
+payment_due_label: "Fälligkeitsdatum"
+statement_close_label: "Abrechnung abgeschlossen"
+available_to_spend_label: "Verfügbarer Betrag"
+current_balance_label: "Aktueller Saldo"
+credit_limit_label: "Kreditrahmen"
+
+transactions_heading: "Umsätze"
+showing_label: "Anzeige"
+showing_options:
+  - "Alle Umsätze"
+  - "Eingänge"
+  - "Ausgänge"
+search_placeholder: "Umsätze durchsuchen"
+search_label: "Suchen"
+see_more_label: "Weitere Aktivitäten anzeigen"
+see_less_label: "Weniger Aktivitäten anzeigen"
+pending_label: "Ausstehend"
+no_results_label: "Keine Umsätze entsprechen Ihrer Suche."
+column_labels:
+  date: "Datum"
+  description: "Beschreibung"
+  type: "Art"
+  amount: "Betrag"
+  balance: "Saldo"
+
+accounts:
+  - name: "BUS COMPLETE CHK (...5555)"
+    kind: deposit
+    holder: "Acme Industries GmbH"
+    account_number: "447109255555"
+    routing_number: "123456789"
+    available_balance: 6102.80
+    present_balance: 6102.80
+    available_credit: 0.00
+    transactions:
+      - date: null
+        description: "ECHTZEITÜBERWEISUNG ERHALTEN VON BLZ/GEGENBK-123 VON: PART CORP INC REF: 12345 INFO: TEXT-123 IID: 555 EING: 12:19:04 TRN: 123ABC BREF: 123ABC"
+        type: "Sonstige"
+        amount: 5000.00
+        balance: null
+      - date: "25. Aug. 2026"
+        description: "AUFTRAGGEBER:VENMO AUFTRAGS-ID:123 BUCHUNGSDATUM:260824 VERWENDUNGSZWECK:AUSZAHLUNG SEC:PPD BELEG#:123 EED:123 IND ID: IND NAME:ACMEIND TRN: 123ABC"
+        type: "SEPA-Gutschrift"
+        amount: 632.67
+        balance: 1102.80
+      - date: "24. Aug. 2026"
+        description: "GESCHÄFTSSOFTWARE BIZTOOL.COM TX 23.08. (...5432)"
+        type: "Karte"
+        amount: -323.36
+        balance: 470.13
+      - date: "24. Aug. 2026"
+        description: "COOL APPS INC. COOLAPP.COM MD 22.08. (...4321)"
+        type: "Karte"
+        amount: -1078.81
+        balance: 793.49
+      # Behind "Weitere Aktivitäten anzeigen". Amounts and balances match
+      # `default` exactly -- only the wording is translated.
+      - date: "23. Aug. 2026"
+        description: "AUFTRAGGEBER:PAYROLL PARTNERS AUFTRAGS-ID:456 BUCHUNGSDATUM:260822 VERWENDUNGSZWECK:GEHALTSLAUF SEC:CCD BELEG#:456 EED:260823 IND ID: IND NAME:ACMEIND TRN: 456DEF"
+        type: "SEPA-Lastschrift"
+        amount: -1500.00
+        balance: 1872.30
+      - date: "22. Aug. 2026"
+        description: "EINZAHLUNG BELEGERFASSUNG STAPEL 00187 POSTEN 003 VERARBEITET 22.08. 09:41:12 CT"
+        type: "Einzahlung"
+        amount: 2450.00
+        balance: 3372.30
+      - date: "20. Aug. 2026"
+        description: "DRUCKEREI 44 PRINTSHOP44.COM TX 19.08. (...5432)"
+        type: "Karte"
+        amount: -64.20
+        balance: 922.30
+
+  - name: "BUS SELECT SAVINGS (...8891)"
+    kind: deposit
+    holder: "Northgate Supply GmbH"
+    account_number: "620833148891"
+    routing_number: "123456789"
+    available_balance: 24310.55
+    present_balance: 24310.55
+    available_credit: 0.00
+    transactions:
+      - date: "22. Aug. 2026"
+        description: "ÜBERTRAG VOM GIROKONTO ...5555"
+        type: "Überweisung"
+        amount: 2000.00
+        balance: 24310.55
+      - date: "01. Aug. 2026"
+        description: "ZINSGUTSCHRIFT"
+        type: "Zinsen"
+        amount: 18.42
+        balance: 22310.55
+      - date: "15. Juli 2026"
+        description: "ÜBERTRAG VOM GIROKONTO ...5555"
+        type: "Überweisung"
+        amount: 3500.00
+        balance: 22292.13
+      - date: "01. Juli 2026"
+        description: "ZINSGUTSCHRIFT"
+        type: "Zinsen"
+        amount: 15.88
+        balance: 18792.13
+      - date: "18. Juni 2026"
+        description: "ÜBERTRAG AUF GIROKONTO ...5555"
+        type: "Überweisung"
+        amount: -1200.00
+        balance: 18776.25
+      - date: "01. Juni 2026"
+        description: "ÜBERTRAG VOM GIROKONTO ...5555"
+        type: "Überweisung"
+        amount: 2500.00
+        balance: 19976.25
+
+  # The two date strings *are* translated, like the transaction dates. The
+  # payment-due task therefore scores on a calendar event (a real date), not on
+  # a string the agent read back -- see config/tasks/openbanking.yaml.
+  - name: "INK BUSINESS CARD (...2043)"
+    kind: credit_card
+    holder: "Cardinal Freight GmbH"
+    account_number: "9024007155992043"
+    routing_number: null
+    card_brand: "Meridian"
+    card_expiration: "09/29"
+    available_balance: 0.00
+    present_balance: -1284.19
+    available_credit: 8715.81
+    credit_limit: 10000.00
+    statement_balance: 872.19
+    statement_close_date: "21. Aug. 2026"
+    minimum_payment: 35.00
+    payment_due_date: "15. Sep. 2026"
+    transactions:
+      - date: "23. Aug. 2026"
+        description: "CLOUD HOST LLC CLOUDHOST.IO WA 22.08. (...2043)"
+        type: "Karte"
+        amount: -412.00
+        balance: -1284.19
+      - date: "20. Aug. 2026"
+        description: "BÜROBEDARF CO OFFICESUP.COM NY 19.08. (...2043)"
+        type: "Karte"
+        amount: -212.44
+        balance: -872.19
+      - date: "18. Aug. 2026"
+        description: "ZAHLUNG - VIELEN DANK"
+        type: "Zahlung"
+        amount: 900.00
+        balance: -659.75
+      # None of these is type `Karte`: the card-charges task states the account
+      # has exactly two, and that has to stay true in every language.
+      - date: "12. Aug. 2026"
+        description: "JAHRESGEBÜHR"
+        type: "Gebühr"
+        amount: -95.00
+        balance: -1559.75
+      - date: "08. Aug. 2026"
+        description: "SOLLZINSEN AUF UMSÄTZE"
+        type: "Zinsen"
+        amount: -18.32
+        balance: -1464.75
+      - date: "05. Aug. 2026"
+        description: "GUTSCHRIFT RETOURE FLEET UNIFORM SUPPLY (...2043)"
+        type: "Gutschrift"
+        amount: 146.55
+        balance: -1446.43
+      - date: "01. Aug. 2026"
+        description: "SOLLZINSEN AUF UMSÄTZE"
+        type: "Zinsen"
+        amount: -4.77
+        balance: -1592.98
+      - date: "31. Juli 2026"
+        description: "SOLLZINSEN AUF UMSÄTZE"
+        type: "Zinsen"
+        amount: -79.00
+        balance: -1588.21

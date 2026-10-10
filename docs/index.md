@@ -58,34 +58,29 @@ Appearance is split along two axes:
 /// tab | challenging font
 
     ::bash
-    export THEME=challenging_font
-
+    uv run launch.py apps/theme=challenging_font
 
 ![landing](images/landing-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
-    export THEME=dark
+    uv run launch.py apps/theme=dark
 
 ![landing](images/landing-dark.png)
 ///
 /// tab | default
 
     ::bash
-    export THEME=default
+    uv run launch.py apps/theme=default
 
 ![landing](images/landing.png)
 
 ///
 
-A single override themes every app:
-```shell
-uv run launch.py apps/theme=$THEME
-```
-
-Or one app only, leaving the rest on the global theme:
-`uv run launch.py apps.calendar.theme=$THEME`.
+`apps/theme=` is one override that themes every app. To theme one app only,
+leaving the rest on the global theme, set its own field:
+`uv run launch.py apps.calendar.theme=dark`.
 
 Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
 `solarized`, `material`, `bootstrap`, `meta`, `meta_dark`, `vscode_dark`.
@@ -135,18 +130,50 @@ Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
 app-agnostic: the theme says `tone: dark` and each app picks its own dark
 asset, so a theme file never has to know which apps exist.
 
+Apps consume only the shared vocabulary in `config/apps/theme/default.yaml`.
+There are no app-specific themes or tokens: a token only one theme defines is
+undefined under every other, and a palette only one app reads would not restyle
+with the rest of the environment.
+
+One caveat worth knowing before adding a dark theme: Pico ships its own palette
+in `--pico-*` properties and applies it to elements an app rarely restyles --
+table cells, form fields and every heading. Tokens cannot reach those, so a
+dark theme alone leaves a white ledger under a dark page. `openbanking` shows
+the fix: it reads `assets.tone` to set Pico's `data-theme` on its page wrapper,
+then re-points the handful of `--pico-*` properties its markup touches at its
+own tokens.
+
 #### Layout
 
 ```shell
 uv run launch.py apps/todo/layout=kanban_board
+uv run launch.py apps/maps/layout=sidebar_left
 uv run launch.py apps/start_page/layout=gallery
 ```
 
-| App | Layouts |
-| --- | --- |
-| `start_page` | `desktop` (default), `gallery`, `broken_logos`, `clickable_logos` |
-| `todo` | `default`, `kanban_board` |
-| everything else | `default` |
+A layout changes *structure* only -- where things sit on the page. Colors and
+fonts stay with the theme, and routes, element ids and the `/<app>_all` state
+endpoints are identical across layouts, so rewards are unaffected by the
+layout in play. Every app has `default`, plus:
+
+| App | Layouts | What changes |
+| --- | --- | --- |
+| `start_page` | `desktop` (default) | Toolbar, wallpaper and pinnable shortcuts; a home screen on a phone |
+| | `gallery` | The original tile grid the paper's figures show |
+| | `broken_logos` | Gallery with icons detached from their tiles |
+| | `clickable_logos` | Gallery with tile logos as their own click targets |
+| `todo` | `kanban_board` | Status columns of cards instead of one list |
+| `calendar` | `agenda_first` | Lands on the agenda, not the month grid |
+| | `sidebar_nav` | Month nav and view toggle become a left rail |
+| `messenger` | `split_inbox` | Chat list stays beside the open thread |
+| | `compact_list` | Dense avatar-less rows; flat messages, not bubbles |
+| `maps` | `sidebar_left` | Search and Saved Locations left of the map |
+| | `bottom_sheet` | Sidebar becomes a panel under the map |
+| `code_editor` | `sidebar_right` | File tree right of the editor |
+| | `top_tree` | File tree as a strip above the editor, no side column |
+| `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| `onlineshop` | `grid` | Product cards in a grid instead of rows |
+| | `compact_table` | Dense, text-only product table |
 
 The start page is the landing surface an agent sees first, so it carries the
 most:
@@ -193,6 +220,22 @@ The phone home screen is the exception: it splits apps between a grid
 grid empty. It takes `pinned_by_variant.home_screen` instead. It is not the
 composition for this experiment anyway — a phone's unpinned apps sit on the
 grid in plain view, not behind the menu.
+
+A layout carries structural knobs as well as a shape. `openbanking`'s
+`visible_transactions` (default 4) is how many ledger rows show before the
+"See more activity" toggle; the rest are one click away, so finding a figure
+takes navigating the ledger rather than reading one screenshot. Set it to `0`
+to put the whole ledger on screen:
+
+```shell
+uv run launch.py apps.openbanking.visible_transactions=0
+```
+
+The two axes compose, so structure can be varied independently of the palette:
+
+```shell
+uv run launch.py apps/todo/layout=kanban_board apps/theme=dark
+```
 
 #### Migrating from `appearance`
 
@@ -241,20 +284,60 @@ above, and raises a `DeprecationWarning`. It exists so existing MCP clients
 keep working for one release and will be removed — see
 [`src/open_apps/mcp/README.md`](https://github.com/facebookresearch/OpenApps/blob/main/src/open_apps/mcp/README.md).
 
+#### Window chrome
+
+Every page of every app is drawn as a desktop window: a **title bar** with
+close / minimise / maximise controls, a **dock** of app shortcuts with their
+names underneath, and a rendered **agent cursor**. None of it is drawn by the
+apps; a response middleware on the web server injects it into each full page,
+so the template-rendered apps (maps, the shop) get it too.
+
+| Selection | Result |
+| --- | --- |
+| `apps/chrome=default` | macOS-style traffic lights, dock, glowing cursor |
+| `apps/chrome=windows` | Windows-style caption buttons on the right |
+| `apps/chrome=none` | no chrome — the pages exactly as the apps draw them |
+
+The dock is the cross-app shortcut layer for long-horizon tasks: one click (or
+`Alt+1`…`Alt+9`, advertised to the accessibility tree via
+`aria-keyshortcuts`) to any app, `Alt+0` back to the desktop, and an
+**All apps** panel listing everything. It shows the desktop's pinned apps by
+default, so pinning on the desktop docks the app too.
+
+```bash
+uv run launch.py apps.chrome.dock.show=all              # every app, ignoring pins
+uv run launch.py apps.chrome.dock.exclude=[messages]    # take one out of the dock
+uv run launch.py apps.chrome.dock.labels=false          # bare icons: a visual-grounding probe
+```
+
+The cursor exists because Playwright teleports the real pointer and headless
+Chromium never draws one. The rendered cursor eases from its last position to
+each new one, so recordings show the agent's hand moving, and it persists
+across page loads, so the screenshot after a click shows where the click
+landed. It follows `fill()` into text fields too, and draws a ripple on
+click. By default (`apps.chrome.cursor.show=auto`) it only appears in an
+automated browser — agent runs, screenshot scripts, recordings — and never
+over a person's own pointer. The glide finishes inside BrowserGym's 500 ms
+post-action settle, so a screenshot never catches it mid-flight.
+
+None of this is scoreable: which apps are "running" and which windows are
+maximized are transient UI that never reaches `get_current_state()`. It changes
+the *observation*, not the reward. Compare against `apps/chrome=none` like any
+other appearance axis.
+
 #### Content
 
 /// tab | german
 
     ::bash
-    export CONTENT=german
-
+    uv run launch.py apps/start_page/content=german
 
 ![landing](images/landing-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    export CONTENT=long_descriptions
+    uv run launch.py apps/start_page/content=long_descriptions
 
 ![landing](images/landing-long-descriptions.png)
 ///
@@ -267,11 +350,8 @@ keep working for one release and will be removed — see
 
 ///
 
-```shell
-uv run launch.py apps/start_page/content=$CONTENT
-```
-
-Or specific apps with: `apps/calendar/content=$CONTENT`.
+Content is per app, so each override names the app it changes, e.g.
+`uv run launch.py apps/calendar/content=german`.
 
 You can see the specific variables for each defined in the individual apps.
 For example, `config/apps/theme/dark.yaml` for the shared design tokens,
@@ -304,6 +384,28 @@ uv run launch.py apps.onlineshop.theme=dark        # just the shop
 ```
 
 Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
+
+##### Generating more OpenBanking transactions
+
+A bank ledger has to stay arithmetically coherent -- each row's `balance` is
+the running balance after that posting, so a row appended to the end chains off
+the oldest existing one. `openbanking-gen-txns` does that arithmetic and emits
+seed YAML in the content files' own style:
+
+```shell
+# Preview three rows for the checking account
+uv run openbanking-gen-txns --account "BUS COMPLETE CHK (...5555)" --count 3
+
+# Write two small fee/interest rows into the card, in place
+uv run openbanking-gen-txns --account 2043 --count 2 --max-amount 80 \
+    --types Fee Interest --in-place
+```
+
+The same `--seed` always produces the same rows, and nothing is written to the
+running database -- the app is read-only, and `/openbanking_all` has to stay
+byte-stable. `--types` and `--max-amount` are how you stay clear of the figures
+`config/tasks/openbanking.yaml` reads off an account; re-run
+`pytest tests/test_openbanking.py` afterwards, which checks those.
 
 ## Exposing OpenApps as an MCP server
 
@@ -341,6 +443,40 @@ uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
 ![Live Agent](images/gif.gif)
+
+To record the full episode as a video instead:
+```
+uv run launch_agent.py agent=dummy record_video=True
+```
+
+Each episode is saved as `<time>_<task>_<agent>_<pass|fail>[_job<N>].webm`, at
+the device's viewport size, with the window chrome and the agent cursor in
+frame (the cursor is parked mid-screen until the agent's first move). The
+original also stays in the experiment directory under `task_video/`.
+
+Where it goes is `record_video_dir`, which defaults to `<logs_dir>/recordings`:
+
+| Launched with | Recordings land in |
+| --- | --- |
+| `launch_agent.py` | `log_outputs/<run>/recordings/` |
+| `launch_parallel_agents.py` (local) | `<sweep logs_dir>/recordings/` — one folder for every job |
+| `launch_parallel_agents.py mode=slurm_cluster` | the same, on the cluster's shared `logs_dir` |
+| `scripts/conduct.sh record_video=True` / `conduct_slurm.sh` | each run's own `logs_dir` (point them at one folder with `record_video_dir=`) |
+
+The destination is resolved once, in the process you launched, and handed to
+every job as an absolute path. A relative `record_video_dir=videos` therefore
+means `./videos` from where you ran the command, even for SLURM jobs that
+start on a compute node in another directory. Set an absolute path to collect
+recordings across launches:
+
+```
+uv run launch_parallel_agents.py mode=slurm_cluster record_video=True \
+    record_video_dir=/path/on/shared/storage/recordings
+```
+
+With `use_wandb=True` each video is also logged to its run as
+`episode_video`, which is usually the easiest way to watch cluster episodes
+from a laptop.
 
 ### Devices
 

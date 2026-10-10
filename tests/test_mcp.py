@@ -96,11 +96,13 @@ class TestRegistry:
 
     def test_url_path_for(self):
         assert registry.url_path_for("map") == "/maps"
+        assert registry.url_path_for("openbanking") == "/openbanking"
         assert registry.url_path_for("unknown") == "/unknown"
 
     def test_config_dir_for(self):
         assert registry.config_dir_for("messages") == "messenger"
         assert registry.config_dir_for("todo") == "todo"
+        assert registry.config_dir_for("openbanking") == "openbanking"
 
     def test_list_variants_default_first(self):
         # Per-app structure group.
@@ -111,6 +113,11 @@ class TestRegistry:
         themes = registry.list_variants("todo", "theme")
         assert themes[0] == "default"
         assert "solarized" in themes
+        # openbanking is theme+layout native: it has no `appearance` group, and
+        # the same shared theme list is visible through it.
+        assert registry.list_variants("openbanking", "theme") == themes
+        assert registry.list_variants("openbanking", "layout")[0] == "default"
+        assert "card_list" in registry.list_variants("openbanking", "layout")
 
     def test_list_variants_rejects_removed_appearance_group(self):
         # Must not fall through to the missing-dir ``["default"]`` answer: a

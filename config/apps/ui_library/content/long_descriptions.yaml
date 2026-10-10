@@ -1,0 +1,21 @@
+# @package apps.ui_library
+# The verbose variation: same information, far more of it, to test whether an
+# agent can still find the controls when the prose around them grows.
+intro: >-
+  Every component rendered on this page comes from the shared component
+  library that the applications in this environment are built from, and each
+  one is drawn using the design tokens belonging to whichever theme happens
+  to be active at the moment you loaded the page. Nothing shown below is a
+  mock-up, a screenshot, or a hand-written approximation of a component:
+  these are the actual components, constructed by the actual library code, so
+  whatever you observe here is precisely what you would observe were the same
+  component used inside any of the other applications. Should you wish to see
+  how a different theme affects the appearance of these components, change
+  the theme selection and reload this page, and every colour, typeface,
+  corner radius and unit of spacing visible here will be repainted
+  accordingly without a single line of Python being re-executed.
+section_labels:
+  tokens: Design Tokens and Their Values
+  atoms: Atoms, the Smallest Styled Elements
+  molecules: Molecules, Composed of Atoms
+  brand: Brand Mark and Wordmark

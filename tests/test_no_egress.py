@@ -37,8 +37,17 @@ from open_apps.apps.start_page.main import (
 from open_apps.frontend import HTMX_URL, PICO_URL
 
 # Every route a browser (or an agent) actually lands on.
-ROUTES = ["/", "/todo", "/calendar", "/messages", "/codeeditor/", "/maps",
-          "/onlineshop"]
+ROUTES = [
+    "/",
+    "/todo",
+    "/calendar",
+    "/messages",
+    "/codeeditor/",
+    "/maps",
+    "/openbanking",
+    "/openbanking/accounts/0",
+    "/onlineshop",
+]
 
 # External origins each route is still allowed to reference, by hostname.
 #
@@ -56,6 +65,10 @@ ALLOWED_EXTERNAL_HOSTS = {
     "/messages": {"cdn.jsdelivr.net", "cdn.tailwindcss.com", "cdnjs.cloudflare.com"},
     "/codeeditor/": {"cdn.jsdelivr.net", "cdn.tailwindcss.com"},
     "/maps": {"cdnjs.cloudflare.com", "unpkg.com"},          # leaflet + awesome-markers
+    # Styled entirely from shared theme tokens and one inline stylesheet, so it
+    # starts in the goal state. Keep it there.
+    "/openbanking": set(),
+    "/openbanking/accounts/0": set(),
     # Unlike every other entry here, this is content rather than a styling
     # dependency: the default `content=webshop` pack sets
     # `product_images: hotlink`, so each product renders its own Amazon photo.
