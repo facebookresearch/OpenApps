@@ -34,10 +34,10 @@ def class_list(*args):
 def Wrapper(title, description, content, style=1, align=None, color=None, invert=False, config=None):
     """
     Create a wrapper section with configurable styling.
-    
+
     Args:
         title: Section title
-        description: Section description
+        description: Section description; omitted from the markup when empty
         content: Section content
         style: Wrapper style number
         align: Content alignment
@@ -51,163 +51,127 @@ def Wrapper(title, description, content, style=1, align=None, color=None, invert
         align = config.get('wrapper_align', align)
         color = config.get('wrapper_color', color)
         invert = config.get('wrapper_invert', invert)
-    
+
     wrapper_classes = class_list(
         "wrapper style", style, "align-", align, "invert", invert, "color", color
     )
-    
+
     # Typography is inherited from the shared theme's tokens (see the
     # stylesheet PageWrapper emits) rather than written as inline styles from
     # per-app font config, which is what the `appearance` group used to supply.
-    inner_content = [
-        H2(title),
-        P(description),
-        content
-    ]
-    
+    # An empty sub-header is dropped rather than rendered as a blank <p>: it
+    # only added a paragraph-sized gap between the headline and the grid.
+    inner_content = [H2(title, cls="launcher-title")]
+    if description and str(description).strip():
+        inner_content.append(P(description, cls="launcher-subtitle"))
+    inner_content.append(content)
+
     return Section(Div(*inner_content, cls="inner"), cls=wrapper_classes)
 
 
-def ItemContent(title, description, color="primary", icon=None, xtra=None, href="#", config=None):
+def ItemContent(title, description, color=None, icon=None, xtra=None, href="#", config=None):
     """
-    Create an item following the Story template pattern with extensive configurability.
-    
+    One launcher entry: a colored tile holding the app's icon and name (and,
+    when the content variant supplies one, its description).
+
+    The whole entry is a single link, as on an OS start screen or a new-tab
+    page, so the icon, the name and the description all open the app.
+
     Args:
-        title: The title of the item
-        description: Description text
-        color: Can be a hex color code or one of the Story theme colors
+        title: The app name shown on the tile
+        description: Description text; omitted from the markup when empty
+        color: Hex fill for the tile (from the layout's palette)
         icon: Icon name (for FontAwesome) or path to image
         xtra: Additional content to append
         href: Link URL when item is clicked
         config: Configuration dictionary with styling options
     """
     content = []
-    
-    # Set defaults if config is None
-    if config is None:
-        config = {}
-    
+
+    # The fill is the one per-item color: it comes from the layout's palette
+    # (or the theme tone's single fill), and reaches the stylesheet as a custom
+    # property so every other declaration can stay in the token stylesheet.
+    fill = f"--tile-fill: {color}" if color and str(color).startswith('#') else None
+
     # Handle icon (either FontAwesome or image)
     if icon:
         if icon.endswith(('.png', '.jpg', '.jpeg', '.svg')):  # Check if icon is an image file
-            # Create an image wrapper with proper scaling
-            content.append(Span(
-                Img(src=icon, alt=title),
-                cls="image icon"
-            ))
+            content.append(Span(Img(src=icon, alt=title), cls="tile-icon"))
         else:
-            content.append(Span(cls=f"icon style2 major fa-{icon}"))
-    
-    # Tile typography comes from the shared theme (the `.item h3` / `.item p`
-    # rules in PageWrapper), not from inline per-app font config.
+            content.append(Span(cls=f"tile-icon icon style2 major fa-{icon}"))
+
+    # Tile typography comes from the shared theme (the `.launcher` rules in
+    # PageWrapper), not from inline per-app font config.
     content.append(H3(title))
-    content.append(P(description))
-    
+    if description and str(description).strip():
+        content.append(P(description))
+
     # Add any extra content
     if xtra:
         content.append(xtra if isinstance(xtra, (list, tuple)) else [xtra])
-    
-    # Determine how to handle the color based on configuration
-    style_attr = []
-    
-    # Use theme colors if configured, otherwise use custom color
-    if config.get('use_theme_colors') and config.get('theme_color'):
-        theme_class = f"color{config['theme_color']}"
-    else:
-        theme_class = None
-        # Apply custom background color if provided
-        if color and color.startswith('#'):
-            style_attr.append(f"background-color: {color};")
-    
-    # Apply additional styling from config
-    if config.get('item_text_align'):
-        style_attr.append(f"text-align: {config['item_text_align']};")
-    if config.get('item_border_radius'):
-        style_attr.append(f"border-radius: {config['item_border_radius']}px;")
-    if config.get('item_padding'):
-        style_attr.append(f"padding: {config['item_padding']}em;")
-        
-    # Create the actual item content section with style
-    inner_content = Section(
-        *content,
-        style=";".join(style_attr) if style_attr else None,
-        cls=theme_class
-    )
-    
-    # Build additional item classes
-    item_classes = ["item"]
-    
-    # For the Story template, items are wrapped in links if href is provided
+
     if href and href != "#":
-        return A(
-            inner_content,
-            href=href,
-            cls=" ".join(item_classes),
-            style=";".join(style_attr) if style_attr else None,
-        )
-    else:
-        return inner_content
+        return A(*content, href=href, cls="item", style=fill)
+    return Div(*content, cls="item", style=fill)
 
 
 def Gallery(
     items,
-    style=1,
-    size="medium",
-    lightbox=False,
+    size="small",
     fade_in=False,
     random_tile_reoder: bool = False,
+    has_descriptions: bool = False,
+    light_glyphs: bool = False,
     config=None,
 ):
     """
-    Create a gallery/items grid following the Story template pattern with extensive configurability.
-    
+    The launcher grid.
+
     Args:
         items: List of ItemContent objects
-        style: Style number (1, 2, or 3) as per Story template
-        size: Size of items - "small", "medium", or "big"
-        lightbox: Whether to enable lightbox for gallery images
+        size: Size of the tiles - "small", "medium", or "big"
         fade_in: Whether to fade in items on scroll
         random_tile_reoder: Whether to shuffle the items
+        has_descriptions: At least one item carries a description. Switches the
+            grid from icon-and-label tiles to wider cards, the way a store or
+            settings listing lays out apps it describes -- a paragraph squeezed
+            under a launcher icon is unreadable.
+        light_glyphs: The icons are black line art on a dark single fill (the
+            `bw` icon set under a non-light tone), so draw them inverted.
         config: Configuration dictionary with styling options
     """
     # Override defaults with config if provided
     if config:
-        style = config.get('style', style)
         size = config.get('size', size)
-        lightbox = config.get('lightbox', lightbox)
         fade_in = config.get('fade_in', fade_in)
         random_tile_reoder = config.get('random_tile_reoder', random_tile_reoder)
-    
+
     # Shuffle items if configured
     if random_tile_reoder:
         random.shuffle(items)
-        
-    # Build the appropriate class list according to Story template
-    classes = []
-    classes.append(f"items style{style}")
-    
-    # Add size modifier
+
+    classes = ["items", "launcher"]
     if size in ["small", "medium", "big"]:
         classes.append(size)
-    
-    # Add lightbox support if needed
-    if lightbox:
-        classes.append("lightbox")
-    
-    # Add fade-in effect if needed
+    if has_descriptions:
+        classes.append("has-descriptions")
+    if light_glyphs:
+        classes.append("glyphs-light")
     if fade_in:
         classes.append("onscroll-fade-in")
-    
-    # Additional styling based on config
-    custom_style = []
     if config and config.get('item_hover_effect') is False:
-        custom_style.append("--hover-effect: none;")
-    
-    return Div(
-        *items,
-        cls=" ".join(classes),
-        style=";".join(custom_style) if custom_style else None,
-    )
+        classes.append("no-hover")
+
+    # Label ink on the tile fill belongs with the fill palette (the layout's
+    # `tile_label_*` keys), not the theme: no theme token means "text on an
+    # arbitrary saturated hue", and `--color-on-primary` is black under `dark`.
+    ink = []
+    if config and config.get('tile_label_color'):
+        ink.append(f"--tile-ink: {config['tile_label_color']}")
+    if config and config.get('tile_label_shadow'):
+        ink.append(f"--tile-ink-shadow: {config['tile_label_shadow']}")
+
+    return Div(*items, cls=" ".join(classes), style="; ".join(ink) or None)
 
 
 scr_fns = [
@@ -227,26 +191,26 @@ scripts = [
 
 def Modal(content, id="modal", title="Notice", button_title="Close", link_button=None, link_url=None, cls=None):
     modal_classes = f"modal {cls or ''}".strip()
-    
+
     # Create footer buttons with improved styling
-    footer_buttons = [Button(button_title, cls="close-modal", 
+    footer_buttons = [Button(button_title, cls="close-modal",
                            onclick="closeModal()",
                            style="min-width: 100px; padding: 8px 16px; margin: 5px; white-space: nowrap;")]
-    
+
     # Add link button if specified
     if link_button and link_url:
         footer_buttons.append(
-            Button(link_button, cls="link-button", 
+            Button(link_button, cls="link-button",
                   onclick=f"window.location.href='{link_url}'",
                   style="min-width: 100px; padding: 8px 16px; margin: 5px; white-space: nowrap;")
         )
-    
+
     # Wrap content in a scrollable div
     content_wrapper = Div(
         content,
         style="max-height: 60vh; overflow-y: auto; padding-right: 16px;"
     )
-    
+
     return Div(
         Div(
             Div(
@@ -268,9 +232,292 @@ def Modal(content, id="modal", title="Notice", button_title="Close", link_button
 class Raw:
     def __init__(self, content):
         self.content = content
-    
+
     def __str__(self):
         return self.content
+
+# The launcher's stylesheet. Every color, font, radius and gap is a `var()`
+# into the shared theme tokens (or a `color-mix()` of them); the only literal
+# per-item value is the tile fill, passed in as `--tile-fill`. Selectors are
+# anchored on `#wrapper` so they outrank the Story template (main.css) and Pico,
+# which both still load on this page, without `!important`.
+LAUNCHER_CSS = """
+    html, body {
+        background-color: var(--color-bg);
+    }
+    body {
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        color: var(--color-fg);
+    }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-heading);
+        color: var(--color-fg);
+    }
+
+    /* Page: the grid fills the viewport and the footer sits at the bottom,
+       like a new-tab page, instead of floating under a fixed 7rem gap. */
+    #wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: var(--color-bg);
+    }
+    #wrapper > .wrapper {
+        background-color: var(--color-bg);
+        box-shadow: none;
+    }
+    #wrapper > section.wrapper {
+        flex: 1 0 auto;
+    }
+    #wrapper > section.wrapper > .inner {
+        width: auto;
+        max-width: calc(var(--space) * 120);
+        margin: 0 auto;
+        padding: calc(var(--space) * 12) calc(var(--space) * 4) calc(var(--space) * 8);
+    }
+
+    /* Header */
+    #wrapper .launcher-title {
+        margin: 0 0 calc(var(--space) * 1.5);
+        font-family: var(--font-heading);
+        font-size: calc(var(--font-size-heading) * 1.5);
+        font-weight: 400;
+        line-height: 1.2;
+        letter-spacing: normal;
+        color: var(--color-fg);
+        text-align: center;
+    }
+    #wrapper .launcher-subtitle {
+        max-width: 70ch;
+        margin: 0 auto;
+        font-size: var(--font-size-base);
+        line-height: 1.6;
+        color: color-mix(in srgb, var(--color-muted) 50%, var(--color-fg));
+        text-align: center;
+        text-wrap: pretty;
+    }
+
+    /* Grid: fixed-width square tiles, centered as a block, rows filled left
+       to right so a short last row stays on the column lines -- a start
+       screen's tile grid. Three columns keeps the row breaks the page has
+       always had. */
+    #wrapper .launcher {
+        --tile-width: calc(var(--space) * 20);
+        --icon-size: calc(var(--space) * 7);
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, var(--tile-width)));
+        justify-content: center;
+        gap: calc(var(--space) * 2);
+        width: auto;
+        margin: calc(var(--space) * 6) auto 0;
+        padding: 0;
+
+        .item {
+            &:hover {
+                opacity: 100%;
+            }
+            opacity: 80%;
+            .inner {
+                display: flex;
+                align-items: center;
+                flex-direction: column;
+            }
+        }
+    }
+    #wrapper .launcher.medium {
+        --tile-width: calc(var(--space) * 23);
+        --icon-size: calc(var(--space) * 8);
+    }
+    #wrapper .launcher.big {
+        --tile-width: calc(var(--space) * 27);
+        --icon-size: calc(var(--space) * 10);
+    }
+
+    /* Tile: the colored square is the link. The icon sits in the middle, the
+       name along the bottom edge, as on a start-screen tile. */
+    #wrapper .launcher > .item {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        justify-items: center;
+        align-items: center;
+        aspect-ratio: 1;
+        min-width: 0;
+        margin: 0;
+        padding: calc(var(--space) * 1.5);
+        border: 0;
+        border-radius: calc(var(--radius) * 1.5);
+        background-color: var(--tile-fill, var(--color-surface));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-fg) 8%, transparent);
+        color: var(--tile-ink, var(--color-fg));
+        text-align: left;
+        text-decoration: none;
+        transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    /* Hover is signalled by the opacity lift on `.item` above, not a fill
+       shift, so the tile keeps its theme colour. */
+    #wrapper .launcher > .item:hover {
+        color: var(--tile-ink, var(--color-fg));
+        text-decoration: none;
+    }
+    #wrapper .launcher.no-hover > .item:hover {
+        background-color: var(--tile-fill, var(--color-surface));
+    }
+    #wrapper .launcher > .item:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 3px;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-fg) 8%, transparent);
+    }
+    #wrapper .launcher > .item:active {
+        transform: scale(0.97);
+    }
+
+    /* Icon: sized in steps of the spacing token. */
+    #wrapper .launcher .tile-icon {
+        display: grid;
+        place-items: center;
+        width: var(--icon-size);
+        max-width: 100%;
+        aspect-ratio: 1;
+        margin: 0;
+    }
+    #wrapper .launcher .tile-icon img {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: 0;
+        object-fit: contain;
+        border-radius: 0;
+    }
+    #wrapper .launcher.glyphs-light .tile-icon img {
+        filter: invert(1);
+    }
+
+    /* Label and description */
+    #wrapper .launcher > .item h3 {
+        justify-self: stretch;
+        margin: 0;
+        font-family: var(--font-family);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: normal;
+        color: inherit;
+        text-shadow: 0 1px 2px var(--tile-ink-shadow, transparent);
+        overflow-wrap: break-word;
+    }
+    #wrapper .launcher > .item p {
+        margin: 0;
+        font-size: var(--font-size-sm);
+        line-height: 1.5;
+        color: color-mix(in srgb, var(--color-muted) 50%, var(--color-fg));
+        text-align: left;
+    }
+
+    /* Cards: when the apps come with descriptions, each app gets a listing
+       card -- colored icon and name on one line, description underneath -- in
+       as many columns as fit, down to one on a phone. A paragraph of white
+       text across a saturated tile is unreadable, so the fill moves onto the
+       icon here. */
+    #wrapper .launcher.has-descriptions {
+        --icon-size: calc(var(--space) * 6);
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--space) * 32)), 1fr));
+        justify-content: stretch;
+        max-width: calc(var(--space) * 108);
+    }
+    #wrapper .launcher.has-descriptions > .item {
+        grid-template-columns: var(--icon-size) minmax(0, 1fr);
+        grid-template-rows: none;
+        justify-items: stretch;
+        align-content: start;
+        aspect-ratio: auto;
+        gap: calc(var(--space) * 1.5);
+        padding: calc(var(--space) * 2.5);
+        border: 1px solid var(--color-border);
+        background-color: var(--color-surface);
+        box-shadow: none;
+        color: var(--color-fg);
+    }
+    #wrapper .launcher.has-descriptions > .item:hover {
+        background-color: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface));
+        color: var(--color-fg);
+    }
+    #wrapper .launcher.has-descriptions.no-hover > .item:hover {
+        background-color: var(--color-surface);
+    }
+    #wrapper .launcher.has-descriptions > .item:active {
+        transform: none;
+    }
+    #wrapper .launcher.has-descriptions .tile-icon {
+        border-radius: calc(var(--radius) * 1.5);
+        background-color: var(--tile-fill, var(--color-surface));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-fg) 8%, transparent);
+    }
+    #wrapper .launcher.has-descriptions .tile-icon img {
+        width: 70%;
+    }
+    #wrapper .launcher.has-descriptions > .item h3 {
+        font-size: var(--font-size-base);
+        text-shadow: none;
+    }
+    #wrapper .launcher.has-descriptions > .item p {
+        grid-column: 1 / -1;
+    }
+
+    /* Footer */
+    #wrapper > footer.wrapper {
+        flex: none;
+        border-top: 1px solid var(--color-border);
+    }
+    #wrapper > footer.wrapper > .inner {
+        width: auto;
+        padding: calc(var(--space) * 2.5) calc(var(--space) * 4);
+        font-size: var(--font-size-sm);
+    }
+    #wrapper > footer.wrapper a {
+        color: var(--color-muted);
+        text-decoration: none;
+        border-radius: var(--radius);
+    }
+    #wrapper > footer.wrapper a:hover {
+        color: var(--color-fg);
+        text-decoration: underline;
+    }
+    #wrapper > footer.wrapper a:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        box-shadow: none;
+    }
+
+    @media screen and (max-width: 736px) {
+        #wrapper > section.wrapper > .inner {
+            padding: calc(var(--space) * 6) calc(var(--space) * 2) calc(var(--space) * 4);
+        }
+        #wrapper .launcher-title {
+            font-size: calc(var(--font-size-heading) * 1.25);
+        }
+        #wrapper .launcher {
+            margin-top: calc(var(--space) * 4);
+            gap: calc(var(--space) * 1.5);
+        }
+    }
+    /* Phones: two tiles per row, as phone start screens lay out medium
+       tiles, rather than three squeezed until the names break. */
+    @media screen and (max-width: 480px) {
+        #wrapper .launcher:not(.has-descriptions) {
+            grid-template-columns: repeat(2, minmax(0, var(--tile-width)));
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        #wrapper .launcher > .item {
+            transition: none;
+        }
+        #wrapper .launcher > .item:active {
+            transform: none;
+        }
+    }
+"""
+
 
 def PageWrapper(title, *content, config=None, theme_css=""):
     """
@@ -281,87 +528,8 @@ def PageWrapper(title, *content, config=None, theme_css=""):
         *content: Content elements
         config: Configuration dictionary with styling options
         theme_css: Shared design-token CSS from ``open_apps.theme``. Emitted
-            last; every color and font below is a ``var()`` into it.
+            last; every color and font in ``LAUNCHER_CSS`` is a ``var()`` into it.
     """
-    # Set defaults if config is None
-    if config is None:
-        config = {}
-
-    # Typography and page chrome come from the shared theme; only geometry
-    # (radii, padding, hover behaviour) is still read from `config`, which is
-    # the start page's `layout` group.
-    custom_css = """
-        body {
-            font-family: var(--font-family);
-            color: var(--color-fg);
-            background-color: var(--color-bg);
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: var(--font-heading);
-            color: var(--color-fg);
-        }
-        #wrapper > .wrapper {
-            background-color: var(--color-bg);
-        }
-    """
-
-    # Add iOS-style typography for items
-    # Tile labels stay white in every theme: they sit on the tile fill, not
-    # on the page background, and every tone's fill is dark enough to carry
-    # white text. `--color-fg` here would be white-on-white in a light theme.
-    custom_css += """
-        .item h3 {
-            font-size: 0.9em !important;
-            font-weight: 600 !important;
-            margin: 0.5em 0 0.2em 0 !important;
-            color: white !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-        }
-        
-        .item p {
-            font-size: 0.7em !important;
-            margin: 0 !important;
-            opacity: 0.9 !important;
-            color: rgba(255, 255, 255, 0.9) !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-            line-height: 1.2 !important;
-        }
-    """
-    
-    # Item styling
-    item_styles = []
-    if config.get('item_border_radius') is not None:
-        item_styles.append(f"border-radius: {config['item_border_radius']}px")
-    if config.get('item_padding') is not None:
-        item_styles.append(f"padding: {config['item_padding']}em")
-    if config.get('item_text_align'):
-        item_styles.append(f"text-align: {config['item_text_align']}")
-    
-    # Add iPhone-style box shadow and modern styling
-    item_styles.append("box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2)")
-    item_styles.append("transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)")
-    item_styles.append("min-height: 120px")
-    item_styles.append("display: flex")
-    item_styles.append("flex-direction: column")
-    item_styles.append("justify-content: center")
-    item_styles.append("align-items: center")
-    
-    if item_styles:
-        custom_css += f".item {{ {'; '.join(item_styles)}; }}\n"
-    
-    # Hover effects
-    hover_effects = []
-    if config.get('hover_shadow') is True:
-        hover_effects.append("box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 2px 5px rgba(0, 0, 0, 0.3)")
-    if config.get('hover_scale') is True:
-        hover_effects.append("transform: scale(1.05)")
-    if config.get('hover_brightness') is True:
-        hover_effects.append("filter: brightness(1.1)")
-    if hover_effects:
-        custom_css += f".item:hover {{ {'; '.join(hover_effects)}; }}\n"
-    elif config.get('item_hover_effect') is False:
-        custom_css += ".item:hover { background-color: inherit; box-shadow: none; transform: none; }\n"
-    
     modal_styles = f"""
         <style>
             .modal {{
@@ -386,7 +554,7 @@ def PageWrapper(title, *content, config=None, theme_css=""):
             .modal.bottom .modal-dialog {{ margin-top: 25%; }}
             .modal.left .modal-dialog {{ margin-left: 5%; }}
             .modal.right .modal-dialog {{ margin-left: auto; margin-right: 5%; }}
-            
+
             /* Themed like the rest of the page on purpose: a pop-up that
                stayed near-white on a dark theme would be trivially easy to
                spot, which confounds the adversarial-pop-up variation. */
@@ -408,7 +576,7 @@ def PageWrapper(title, *content, config=None, theme_css=""):
                 gap: 10px;
                 margin-top: 20px;
             }}
-            
+
             .link-button {{
                 background-color: var(--color-accent);
                 color: var(--color-btn-fg);
@@ -417,121 +585,8 @@ def PageWrapper(title, *content, config=None, theme_css=""):
             .link-button:hover {{
                 background-color: var(--color-primary-hover);
             }}
-            
-            /* Story template item scaling customization */
-            .items {{
-                display: flex;
-                flex-wrap: wrap;
-                margin: -1rem 0 0 -1rem;
-                width: calc(100% + 1rem);
-            }}
-            
-            .items > * {{
-                margin: 1rem 0 0 1rem;
-                width: calc(50% - 1rem);
-            }}
-            
-            /* Small items - 4 per row on desktop for more compact iPhone-like grid */
-            .items.small > * {{
-                width: calc(25% - 1rem);
-            }}
-            
-            /* Medium items - 3 per row */
-            .items.medium > * {{
-                width: calc(33.33333% - 1rem);
-            }}
-            
-            /* Big items - 2 per row */
-            .items.big > * {{
-                width: calc(50% - 1rem);
-            }}
-            
-            /* Item icon image scaling - smaller for iPhone app look */
-            .image.icon {{
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 0.8em;
-            }}
-            
-            .image.icon img {{
-                max-width: 3em;
-                max-height: 3em;
-                border-radius: 8px;
-            }}
-            
-            /* Media queries for responsive scaling */
-            @media screen and (max-width: 1024px) {{
-                .items.small > * {{
-                    width: calc(33.33333% - 1rem);
-                }}
-            }}
-            
-            @media screen and (max-width: 736px) {{
-                .items > * {{
-                    width: calc(50% - 1rem);
-                }}
-                
-                .items.small > * {{
-                    width: calc(50% - 1rem);
-                }}
-            }}
-            
-            @media screen and (max-width: 480px) {{
-                .items.small > * {{
-                    width: calc(50% - 1rem);
-                }}
-            }}
-            
-            /* iPhone-style app tile styling */
-            .item {{
-                border-radius: 22px;
-                text-align: center;
-                padding: 1.2em;
-                transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
-                display: block;
-                text-decoration: none;
-                color: white;
-                position: relative;
-                overflow: hidden;
-                min-height: 120px;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-            }}
-            
-            .item h3 {{
-                font-size: 0.9em;
-                font-weight: 600;
-                margin: 0.5em 0 0.2em 0;
-                color: white;
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-            }}
-            
-            .item p {{
-                font-size: 0.7em;
-                margin: 0;
-                opacity: 0.9;
-                color: rgba(255, 255, 255, 0.9);
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-                line-height: 1.2;
-            }}
-            
-            .item:hover {{
-                transform: scale(1.05);
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 2px 5px rgba(0, 0, 0, 0.3);
-            }}
-            
-            .item:active {{
-                transform: scale(0.98);
-            }}
-            
-            {custom_css}
+
+            {LAUNCHER_CSS}
 
             {theme_css}
         </style>
@@ -546,7 +601,7 @@ def PageWrapper(title, *content, config=None, theme_css=""):
             }}
         </script>
     """
-    
+
     auto_show_modal = """
         <script>
             let modalIndex = 0;
@@ -556,7 +611,7 @@ def PageWrapper(title, *content, config=None, theme_css=""):
                     modals[modalIndex].style.display = "block";
                 }
             };
-            
+
             function closeModal() {
                 document.querySelectorAll('.modal').forEach(modal => {
                     modal.style.display = "none";
@@ -564,7 +619,7 @@ def PageWrapper(title, *content, config=None, theme_css=""):
                 modalIndex++;
                 showNextModal();
             }
-            
+
             window.onload = function() {
                 showNextModal();
             }
@@ -619,9 +674,9 @@ def create_logo_header(app_config, base_url: str, current_file_path: str):
     """
     current_dir = os.path.dirname(os.path.abspath(current_file_path))
     parent_dir = os.path.dirname(current_dir)
-    
+
     file_path = os.path.join(parent_dir, app_config.icon.lstrip('/'))
-    
+
     logo = ""
     if os.path.exists(file_path):
         # logo = Img(src=app_config.icon, cls="h-10 mr-3")
@@ -650,7 +705,7 @@ def DelayedContent(content, delay_ms=2000):
     """
     spinner_id = "loading-spinner-container"
     content_id = "delayed-page-content"
-    
+
     return Div(
         # The loading spinner, shown by default
         Div(

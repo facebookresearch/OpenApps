@@ -11,6 +11,7 @@ from typing import List
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
+from open_apps.apps.todo_app.styles import styles
 
 
 @dataclass
@@ -23,104 +24,6 @@ class Todo:
 app, rt = fast_app(default_hdrs=False, hdrs=local_hdrs())
 logo_title_container = None
 
-# Static, theme-agnostic component styles. All colors/fonts are design tokens
-# resolved per-request via `theme_style()` (see the `:root` block it emits), so
-# this block never needs rebuilding when the theme or app config changes.
-styles = Style("""
-    body {
-        font-family: var(--font-family);
-        font-size: var(--font-size-base);
-        color: var(--color-fg);
-        background-color: var(--color-bg);
-    }
-    .todo, .card, .group, .add-btn {
-        color: var(--color-fg);
-    }
-    a {
-        color: var(--color-fg);
-        text-decoration: none;
-    }
-    .todo-item, .todo-controls {
-        list-style-type: none;
-        color: var(--color-fg);
-    }
-    .todo-general {
-        background-color: var(--color-surface);
-    }
-    .todo-controls {
-        margin-left: 12px;
-    }
-    .todo-btn {
-        transform: scale(.7);
-        color: var(--color-fg);
-    }
-    .edit-btn {
-        background-color: var(--color-neutral);
-        border: 1px solid var(--color-neutral);
-        color: var(--color-btn-fg);
-    }
-    .remove-btn {
-        background-color: var(--color-danger);
-        border: 1px solid var(--color-danger);
-        color: var(--color-btn-fg);
-    }
-    .add-btn {
-        background-color: var(--color-primary);
-        color: var(--color-on-primary);
-    }
-    .save-btn {
-        background-color: var(--color-accent);
-        border: 1px solid var(--color-accent);
-        color: var(--color-btn-fg);
-    }
-    .kanban-board {
-        width: 100%;
-    }
-    .kanban-columns {
-        display: flex;
-        gap: 1rem;
-        align-items: flex-start;
-        margin-top: 1rem;
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
-    }
-    .kanban-column {
-        flex: 0 0 450px;
-        min-width: 450px;
-        background-color: var(--color-surface);
-        border-radius: var(--radius);
-        padding: 0.5rem 0.75rem;
-        min-height: 120px;
-    }
-    .kanban-column-title {
-        margin-top: 0.25rem;
-    }
-    .kanban-card {
-        background-color: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius);
-        padding: 0.5rem 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-    .kanban-card-title {
-        margin-bottom: 0.4rem;
-    }
-    .kanban-card-controls {
-        display: flex;
-        gap: 0.25rem;
-        flex-wrap: wrap;
-    }
-    .kanban-edit input {
-        margin-bottom: 0.4rem;
-    }
-    .kanban-add {
-        margin-top: 0.5rem;
-    }
-    .kanban-header-edit {
-        display: flex;
-        gap: 0.25rem;
-    }
-""")
 
 def set_environment(config):
     """Set environment variables for the todo app"""
@@ -174,10 +77,16 @@ def __ft__(self: Todo):
         hx_put=f"/todo/toggle/{self.id}",
         target_id=tid(self.id),
         hx_swap="outerHTML",
-        style="margin-right: 10px;"
+        # The title sits beside the checkbox rather than in a <label> (the
+        # row structure is part of the observation agents have always seen),
+        # so name the control explicitly.
+        aria_label=self.title,
     )
-    # show = Span(self.title, f"/todos/{self.id}", id_curr, style="text-decoration: none;")
-    show = Span(self.title, style="text-decoration: none;")
+    # Done rows are muted, not struck through or red: the UI-question set
+    # (tests/ui_questions) offers "The item is struck through" and "The item
+    # is shown in red" as *distractors* for checkbox-state questions, so
+    # either treatment would make a wrong answer visually true.
+    show = Span(self.title, cls="todo-title")
     edit = Button(
         "Edit",
         hx_get=f"/todo/edit/{self.id}",
@@ -192,7 +101,12 @@ def __ft__(self: Todo):
         hx_swap="outerHTML",
         cls="todo-btn remove-btn",
     )
-    return Div(Li(checkbox, show, cls="todo-item"), Li(edit, remove, cls="todo-controls"), id=tid(self.id))
+    return Div(
+        Li(checkbox, show, cls="todo-item"),
+        Li(edit, remove, cls="todo-controls"),
+        id=tid(self.id),
+        cls="todo-row is-done" if self.done else "todo-row",
+    )
 
 
 def mk_input(**kw):
@@ -269,7 +183,7 @@ def kanban_edit_form(todo):
     )
 
 
-def kanban_column_header(col, editing):
+def kanban_column_header(col, editing, count):
     if editing:
         return Form(
             Input(name="title", value=kanban_titles[col]),
@@ -279,7 +193,7 @@ def kanban_column_header(col, editing):
             hx_swap="outerHTML",
             cls="kanban-column-title kanban-header-edit",
         )
-    return H3(
+    title = H3(
         kanban_titles[col],
         hx_get=f"/todo/kanban/header/{col}",
         target_id="todo-board",
@@ -287,6 +201,9 @@ def kanban_column_header(col, editing):
         cls="kanban-column-title",
         style="cursor: pointer;",
     )
+    # The count lives beside the <h3>, not inside it, so the heading's text
+    # (the column name agents read and rename) is unchanged.
+    return Div(title, Span(str(count), cls="kanban-count"), cls="kanban-column-header")
 
 
 def kanban_add_form(col):
@@ -304,7 +221,7 @@ def kanban_add_form(col):
 
 def kanban_column(col, cards, edit_header):
     return Div(
-        kanban_column_header(col, editing=(edit_header == col)),
+        kanban_column_header(col, editing=(edit_header == col), count=len(cards)),
         *cards,
         kanban_add_form(col),
         cls="kanban-column",
@@ -330,17 +247,28 @@ def render_kanban_board(edit_id=None, edit_header=None):
     return Div(columns, id="todo-board", cls="kanban-board")
 
 
+def home_link(prominent: bool = False):
+    """Back-to-launcher chrome. Text, href, ``role`` and position are the same
+    in every layout (agents locate it by them).
+
+    ``prominent`` keeps it a full-size filled button: the default layout's
+    navigation tasks depend on screenshot agents finding it. Other layouts
+    demote it to a quiet link, the realistic treatment."""
+    cls = "todo-home-button" if prominent else "todo-home-link"
+    return A("Return to List of Apps", href="/", role="button", cls=cls)
+
+
 @rt("/todo")
 def get():
     if current_layout() == "kanban_board":
-        home_button = A(
-            "Return to List of Apps",
-            href="/",
-            role="button",
-            cls="contrast",
-            style="margin-top: 1rem;",
+        return Div(
+            todo_theme(),
+            styles,
+            logo_title_container,
+            render_kanban_board(),
+            home_link(),
+            cls="todo-page todo-page--board",
         )
-        return Div(todo_theme(), styles, logo_title_container, render_kanban_board(), home_button)
     add = Form(
         Group(
             mk_input(),
@@ -350,14 +278,22 @@ def get():
         target_id="todo-list",
         hx_swap="beforeend",
     )
-    card = (Card(Ul(*todos(), id="todo-list"), header=add, footer=Div(id=id_curr), cls="todo-general"),)
-    home_button = A("Return to List of Apps", href="/", role="button", cls="contrast", style="margin-top: 1rem;")
+    card = Card(
+        Ul(*todos(), id="todo-list"),
+        # Shown by CSS only while #todo-list has no rows, so it tracks htmx
+        # adds/removes without a server round-trip.
+        P("No tasks yet. Add your first one above.", cls="todo-empty"),
+        header=add,
+        footer=Div(id=id_curr),
+        cls="todo-general",
+    )
     return Div(
         todo_theme(),
         styles,
         logo_title_container,
         card,
-        home_button,
+        home_link(prominent=True),
+        cls="todo-page todo-page--list",
     )
 
 

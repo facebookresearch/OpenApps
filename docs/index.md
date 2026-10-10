@@ -58,34 +58,29 @@ Appearance is split along two axes:
 /// tab | challenging font
 
     ::bash
-    export THEME=challenging_font
-
+    uv run launch.py apps/theme=challenging_font
 
 ![landing](images/landing-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
-    export THEME=dark
+    uv run launch.py apps/theme=dark
 
 ![landing](images/landing-dark.png)
 ///
 /// tab | default
 
     ::bash
-    export THEME=default
+    uv run launch.py apps/theme=default
 
 ![landing](images/landing.png)
 
 ///
 
-A single override themes every app:
-```shell
-uv run launch.py apps/theme=$THEME
-```
-
-Or one app only, leaving the rest on the global theme:
-`uv run launch.py apps.calendar.theme=$THEME`.
+`apps/theme=` is one override that themes every app. To theme one app only,
+leaving the rest on the global theme, set its own field:
+`uv run launch.py apps.calendar.theme=dark`.
 
 Shipped themes: `default`, `dark`, `mono`, `challenging_font`, `colorblind`,
 `solarized`, `material`, `bootstrap`, `meta`, `meta_dark`, `vscode_dark`.
@@ -139,14 +134,32 @@ asset, so a theme file never has to know which apps exist.
 
 ```shell
 uv run launch.py apps/todo/layout=kanban_board
+uv run launch.py apps/maps/layout=sidebar_left
 uv run launch.py apps/start_page/layout=gallery
 ```
 
-| App | Layouts |
-| --- | --- |
-| `start_page` | `desktop` (default), `gallery`, `broken_logos`, `clickable_logos` |
-| `todo` | `default`, `kanban_board` |
-| everything else | `default` |
+A layout changes *structure* only -- where things sit on the page. Colors and
+fonts stay with the theme, and routes, element ids and the `/<app>_all` state
+endpoints are identical across layouts, so rewards are unaffected by the
+layout in play. Every app has `default`, plus:
+
+| App | Layouts | What changes |
+| --- | --- | --- |
+| `start_page` | `desktop` (default) | Toolbar, wallpaper and pinnable shortcuts; a home screen on a phone |
+| | `gallery` | The original tile grid the paper's figures show |
+| | `broken_logos` | Gallery with icons detached from their tiles |
+| | `clickable_logos` | Gallery with tile logos as their own click targets |
+| `todo` | `kanban_board` | Status columns of cards instead of one list |
+| `calendar` | `agenda_first` | Lands on the agenda, not the month grid |
+| | `sidebar_nav` | Month nav and view toggle become a left rail |
+| `messenger` | `split_inbox` | Chat list stays beside the open thread |
+| | `compact_list` | Dense avatar-less rows; flat messages, not bubbles |
+| `maps` | `sidebar_left` | Search and Saved Locations left of the map |
+| | `bottom_sheet` | Sidebar becomes a panel under the map |
+| `code_editor` | `sidebar_right` | File tree right of the editor |
+| | `top_tree` | File tree as a strip above the editor, no side column |
+| `onlineshop` | `grid` | Product cards in a grid instead of rows |
+| | `compact_table` | Dense, text-only product table |
 
 The start page is the landing surface an agent sees first, so it carries the
 most:
@@ -246,15 +259,14 @@ keep working for one release and will be removed — see
 /// tab | german
 
     ::bash
-    export CONTENT=german
-
+    uv run launch.py apps/start_page/content=german
 
 ![landing](images/landing-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    export CONTENT=long_descriptions
+    uv run launch.py apps/start_page/content=long_descriptions
 
 ![landing](images/landing-long-descriptions.png)
 ///
@@ -267,11 +279,8 @@ keep working for one release and will be removed — see
 
 ///
 
-```shell
-uv run launch.py apps/start_page/content=$CONTENT
-```
-
-Or specific apps with: `apps/calendar/content=$CONTENT`.
+Content is per app, so each override names the app it changes, e.g.
+`uv run launch.py apps/calendar/content=german`.
 
 You can see the specific variables for each defined in the individual apps.
 For example, `config/apps/theme/dark.yaml` for the shared design tokens,
