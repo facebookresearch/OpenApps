@@ -170,16 +170,17 @@ styles = Style("""
        the UI-question set built from the default screenshot asserts
        ("Edit and Remove beneath each item", "Checkbox", not "Radio button").
 
-       The 80px min-height is load-bearing too. Those questions count over
-       the first 12 rows (MAX_VISIBLE_TODOS) of a 1440x1100 screenshot; at
-       this pitch row 12's title ends ~30px above the fold and row 13 starts
-       ~25px below it, as in the original 82px layout. */
+       The 76px min-height is load-bearing too. Those questions count over
+       the first 12 rows (MAX_VISIBLE_TODOS) of a 1440x1100 screenshot. The
+       first row starts at y~182 below the header strip, so 12 rows end at
+       ~1094: row 12's buttons clear the fold by ~16px and row 13's title
+       starts ~8px below it. At 80px row 12 was cut off at the fold. */
     .todo-row {
         display: flex;
         flex-direction: column;
         justify-content: center;
         gap: calc(var(--space) * 0.75);
-        min-height: 80px;
+        min-height: 76px;
         padding: var(--space) calc(var(--space) * 2);
         border-bottom: 1px solid var(--color-border);
     }
