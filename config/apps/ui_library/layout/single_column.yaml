@@ -1,0 +1,11 @@
+# @package apps.ui_library
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/ui_library/layout=single_column`.
+#
+# No nav rail; every section stacked on one page. The long-scroll reading
+# arrangement, and the one that makes a single screenshot show the whole
+# library.
+defaults:
+  - default
+
+layout: single_column

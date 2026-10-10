@@ -143,10 +143,16 @@ def resolve_theme(apps_config, app_name: str) -> dict:
     return load_theme(_DEFAULT_THEME)
 
 
-def render_theme_css(theme: dict) -> str:
+def render_theme_css(theme: dict, selector: str = ":root") -> str:
     """Build the ``:root`` CSS-variable block (plus optional import) for a theme.
 
     ``theme`` is the dict returned by :func:`resolve_theme` / :func:`load_theme`.
+
+    ``selector`` scopes the tokens to a subtree instead of the page. The global
+    window chrome needs that: the dock is painted in the *shell's* theme over a
+    page painted in the *app's* -- the code editor's default is vscode_dark --
+    and a second ``:root`` block would repaint the app underneath it. Only the
+    tokens are scoped; an ``import_url`` is page-wide by nature.
     """
     tokens = _as_plain(theme.get("tokens", {}))
 
@@ -173,7 +179,7 @@ def render_theme_css(theme: dict) -> str:
         import_url = ""
 
     import_rule = f'@import url("{import_url}");\n' if import_url else ""
-    return f"{import_rule}:root {{\n{lines}\n}}"
+    return f"{import_rule}{selector} {{\n{lines}\n}}"
 
 
 def render_theme_tokens(theme: dict) -> Style:

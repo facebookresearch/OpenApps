@@ -58,6 +58,10 @@ ROUTES = (
     RouteSpec("messages_thread", "/messages/Alice/", "#chatlist"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
+    RouteSpec("uilibrary", "/uilibrary", "#uilibrary"),
+    # The atoms section is where the knobs live, so it is the page that
+    # actually shows whether a theme repaints the components.
+    RouteSpec("uilibrary_atoms", "/uilibrary/atoms", ".uilib-story"),
     RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
@@ -69,6 +73,7 @@ THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "onlineshop",
+    "ui_library",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -86,6 +91,8 @@ LAYOUT_VARIATIONS = {
     "layout_maps_bottom_sheet": ["apps/maps/layout=bottom_sheet"],
     "layout_code_editor_sidebar_right": ["apps/code_editor/layout=sidebar_right"],
     "layout_code_editor_top_tree": ["apps/code_editor/layout=top_tree"],
+    "layout_uilibrary_single_column": ["apps/ui_library/layout=single_column"],
+    "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
 }
 
 
@@ -111,6 +118,19 @@ def build_variation_overrides() -> dict[str, list[str]]:
     for name, overrides in LAYOUT_VARIATIONS.items():
         variations[name] = list(overrides)
     return variations
+
+
+def _viewport(value: str) -> dict[str, int]:
+    """Parse a ``WxH`` viewport argument into Playwright's dict form."""
+    try:
+        width, height = (int(part) for part in value.lower().split("x", 1))
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected WxH (e.g. 1280x800), got {value!r}"
+        ) from None
+    if width <= 0 or height <= 0:
+        raise argparse.ArgumentTypeError(f"viewport must be positive, got {value!r}")
+    return {"width": width, "height": height}
 
 
 def parse_args() -> argparse.Namespace:
@@ -185,6 +205,22 @@ def parse_args() -> argparse.Namespace:
         "--headed",
         action="store_true",
         help="Show the browser while capturing screenshots.",
+    )
+    parser.add_argument(
+        "--viewport",
+        type=_viewport,
+        default=VIEWPORT,
+        metavar="WxH",
+        help=(
+            "Capture viewport, e.g. 1280x800. Defaults to "
+            f"{VIEWPORT['width']}x{VIEWPORT['height']}. Mainly useful with "
+            "--headed: Playwright sizes the window to the viewport, and the "
+            "default is taller than a laptop screen, so the top of the page "
+            "ends up off-display with no way to scroll to it. Changing this "
+            "changes the image dimensions, so a run that is going to be "
+            "compared against tests/reference_screenshots should leave it "
+            "alone."
+        ),
     )
     return parser.parse_args()
 
@@ -470,7 +506,7 @@ def main() -> int:
                     )
 
                     context = browser.new_context(
-                        viewport=VIEWPORT, device_scale_factor=1
+                        viewport=args.viewport, device_scale_factor=1
                     )
                     page = context.new_page()
 

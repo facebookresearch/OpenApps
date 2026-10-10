@@ -254,6 +254,47 @@ above, and raises a `DeprecationWarning`. It exists so existing MCP clients
 keep working for one release and will be removed — see
 [`src/open_apps/mcp/README.md`](https://github.com/facebookresearch/OpenApps/blob/main/src/open_apps/mcp/README.md).
 
+#### Window chrome
+
+Every page of every app is drawn as a desktop window: a **title bar** with
+close / minimise / maximise controls, a **dock** of app shortcuts with their
+names underneath, and a rendered **agent cursor**. None of it is drawn by the
+apps; a response middleware on the web server injects it into each full page,
+so the template-rendered apps (maps, the shop) get it too.
+
+| Selection | Result |
+| --- | --- |
+| `apps/chrome=default` | macOS-style traffic lights, dock, glowing cursor |
+| `apps/chrome=windows` | Windows-style caption buttons on the right |
+| `apps/chrome=none` | no chrome — the pages exactly as the apps draw them |
+
+The dock is the cross-app shortcut layer for long-horizon tasks: one click (or
+`Alt+1`…`Alt+9`, advertised to the accessibility tree via
+`aria-keyshortcuts`) to any app, `Alt+0` back to the desktop, and an
+**All apps** panel listing everything. It shows the desktop's pinned apps by
+default, so pinning on the desktop docks the app too.
+
+```bash
+uv run launch.py apps.chrome.dock.show=all              # every app, ignoring pins
+uv run launch.py apps.chrome.dock.exclude=[messages]    # take one out of the dock
+uv run launch.py apps.chrome.dock.labels=false          # bare icons: a visual-grounding probe
+```
+
+The cursor exists because Playwright teleports the real pointer and headless
+Chromium never draws one. The rendered cursor eases from its last position to
+each new one, so recordings show the agent's hand moving, and it persists
+across page loads, so the screenshot after a click shows where the click
+landed. It follows `fill()` into text fields too, and draws a ripple on
+click. By default (`apps.chrome.cursor.show=auto`) it only appears in an
+automated browser — agent runs, screenshot scripts, recordings — and never
+over a person's own pointer. The glide finishes inside BrowserGym's 500 ms
+post-action settle, so a screenshot never catches it mid-flight.
+
+None of this is scoreable: which apps are "running" and which windows are
+maximized are transient UI that never reaches `get_current_state()`. It changes
+the *observation*, not the reward. Compare against `apps/chrome=none` like any
+other appearance axis.
+
 #### Content
 
 /// tab | german
@@ -350,6 +391,40 @@ uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
 ![Live Agent](images/gif.gif)
+
+To record the full episode as a video instead:
+```
+uv run launch_agent.py agent=dummy record_video=True
+```
+
+Each episode is saved as `<time>_<task>_<agent>_<pass|fail>[_job<N>].webm`, at
+the device's viewport size, with the window chrome and the agent cursor in
+frame (the cursor is parked mid-screen until the agent's first move). The
+original also stays in the experiment directory under `task_video/`.
+
+Where it goes is `record_video_dir`, which defaults to `<logs_dir>/recordings`:
+
+| Launched with | Recordings land in |
+| --- | --- |
+| `launch_agent.py` | `log_outputs/<run>/recordings/` |
+| `launch_parallel_agents.py` (local) | `<sweep logs_dir>/recordings/` — one folder for every job |
+| `launch_parallel_agents.py mode=slurm_cluster` | the same, on the cluster's shared `logs_dir` |
+| `scripts/conduct.sh record_video=True` / `conduct_slurm.sh` | each run's own `logs_dir` (point them at one folder with `record_video_dir=`) |
+
+The destination is resolved once, in the process you launched, and handed to
+every job as an absolute path. A relative `record_video_dir=videos` therefore
+means `./videos` from where you ran the command, even for SLURM jobs that
+start on a compute node in another directory. Set an absolute path to collect
+recordings across launches:
+
+```
+uv run launch_parallel_agents.py mode=slurm_cluster record_video=True \
+    record_video_dir=/path/on/shared/storage/recordings
+```
+
+With `use_wandb=True` each video is also logged to its run as
+`episode_video`, which is usually the easiest way to watch cluster episodes
+from a laptop.
 
 ### Devices
 

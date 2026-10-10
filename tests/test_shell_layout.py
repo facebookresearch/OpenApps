@@ -520,6 +520,8 @@ class TestPinResolution:
         return resolve_pinned(_desktop_config(sp), sp, variant)
 
     def test_all_expands_to_every_rendered_app(self):
+        # Position order from the start page's inventory. `uilibrary` sits at
+        # position 7 and is absent because its tile is disabled by default.
         pinned = self.resolve()
         assert pinned == ["todo", "calendar", "messages", "maps", "codeeditor", "onlineshop"]
 

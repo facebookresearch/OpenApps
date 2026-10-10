@@ -20,7 +20,9 @@ defaults:
   - apps/calendar: default
   - apps/todo: default
   - apps/onlineshop: default
+  - apps/ui_library: default
   - apps/pop_ups: default
+  - apps/chrome: default
   - _self_
 
 apps:
@@ -44,6 +46,22 @@ headless: False
 
 # useful to debug configs without launching jobs
 use_wandb: False
+
+# Record each agent episode as a .webm (window chrome and agent cursor
+# included, at the device's viewport size), named
+# <time>_<task>_<agent>_<pass|fail>[_job<N>].webm. With use_wandb it is also
+# logged to the run as `episode_video` -- the easy way to watch cluster runs.
+#
+#   uv run launch_agent.py agent=dummy record_video=True
+#   uv run launch_parallel_agents.py mode=slurm_cluster record_video=True
+#
+# record_video_dir defaults to the run's logs_dir, which is shared storage on
+# the cluster. It is resolved ONCE, in the process you launched, and handed to
+# every job as an absolute path: a sweep's videos land in one folder whether
+# its jobs run locally or on SLURM, and a relative path means relative to where
+# you ran the command -- never to a compute node's working directory.
+record_video: False
+record_video_dir: ${logs_dir}/recordings
 
 # seed for the random package
 seed: 233

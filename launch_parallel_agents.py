@@ -11,7 +11,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 import submitit
 import os
-from open_apps.launcher import AgentLauncher
+from open_apps.launcher import AgentLauncher, freeze_recording_dir
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,6 +30,12 @@ def run_task(config: DictConfig) -> None:
 def main(config: DictConfig) -> None:
     """Main entry point for benchmark launcher"""
     # print("sweep configs num is", len(sweep_configs))
+
+    # Before any job config is derived: every job, local or SLURM, inherits one
+    # absolute recordings folder. See freeze_recording_dir.
+    freeze_recording_dir(config)
+    if config.get("record_video"):
+        print("Recording every episode to", config.record_video_dir)
 
     parallel_configs: list[DictConfig] = hydra.utils.instantiate(
         config.parallel_tasks

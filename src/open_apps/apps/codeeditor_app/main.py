@@ -54,7 +54,10 @@ _COMPONENT_STYLES = Style(
         --ce-selected: color-mix(in srgb, var(--color-primary) 16%, transparent);
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 6rem);
+        /* The `--oa-*` terms take off the window chrome's title bar and dock
+           when it is on (open_apps.ui.chrome) and are 0 when it is off, so
+           the editor fits the window either way. */
+        height: calc(100vh - 6rem - var(--oa-titlebar-h, 0px) - var(--oa-dock-space, 0px));
         min-height: 24rem;
         overflow: hidden;
         border: 1px solid var(--color-border);

@@ -25,6 +25,7 @@ from open_apps.apps.start_page.main import (
     app,
     initialize_routes_and_configure_task,
 )
+from open_apps.apps.uilibrary_app.main import ALL_VARIANTS
 
 
 @pytest.fixture(scope="module")
@@ -99,6 +100,48 @@ class TestApps:
 
     def test_homepage_shows_the_shop_tile(self, client):
         assert 'href="/onlineshop"' in client.get("/").text
+
+    def test_uilibrary(self, client):
+        response = client.get("/uilibrary")
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize("section", ["tokens", "atoms", "molecules", "brand"])
+    def test_uilibrary_sections(self, client, section):
+        response = client.get(f"/uilibrary/{section}")
+        assert response.status_code == 200
+
+    def test_uilibrary_state_endpoint(self, client):
+        """`/uilibrary_all` is the reward substrate: one row per component."""
+        response = client.get("/uilibrary_all")
+        assert response.status_code == 200
+        rows = response.json()
+        assert {row["component"] for row in rows} == set(ALL_VARIANTS)
+        assert all(
+            row["variant"] in ALL_VARIANTS[row["component"]] for row in rows
+        )
+
+    def test_uilibrary_variant_knob_persists(self, client):
+        """Switching a variant changes stored state, not just the fragment."""
+        response = client.post("/uilibrary/atoms/UIButton/variant/danger")
+        assert response.status_code == 200
+        assert "is-danger" in response.text
+
+        stored = {row["component"]: row for row in client.get("/uilibrary_all").json()}
+        assert stored["UIButton"]["variant"] == "danger"
+
+    def test_uilibrary_pin_toggles(self, client):
+        before = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        client.post("/uilibrary/atoms/Divider/pin")
+        after = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        assert bool(after["Divider"]["pinned"]) != bool(before["Divider"]["pinned"])
+
+    def test_uilibrary_rejects_unknown_variant(self, client):
+        """A mistyped agent action must not corrupt the scored state."""
+        before = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        response = client.post("/uilibrary/atoms/UIButton/variant/not-a-variant")
+        assert response.status_code == 200
+        after = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        assert after["UIButton"]["variant"] == before["UIButton"]["variant"]
 
 
 class TestTasks:
