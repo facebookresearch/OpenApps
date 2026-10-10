@@ -24,3 +24,6 @@ apps:
   uilibrary:
     title: "OpenUI"
     description:
+  openbanking:
+    title: "网上银行"
+    description: "通过互联网办理银行业务的平台，可以查看账户余额和交易记录。"

@@ -259,6 +259,9 @@ AVAILABLE_APPS = {
     "uilibrary": (
         "open_apps.apps.uilibrary_app",
         "get_uilibrary_routes",
+    "openbanking": (
+        "open_apps.apps.openbanking_app",
+        "get_openbanking_routes",
     ),
 }
 
@@ -268,6 +271,7 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.messenger_app": "messenger",
     "open_apps.apps.codeeditor_app": "code_editor",
     "open_apps.apps.map_app": "maps",
+    "open_apps.apps.openbanking_app": "openbanking",
     "open_apps.apps.onlineshop_app": "onlineshop",
     "open_apps.apps.uilibrary_app": "ui_library",
 }

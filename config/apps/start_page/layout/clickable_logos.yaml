@@ -20,3 +20,5 @@ apps:
     clickable_logo: true
   uilibrary:
     clickable_logo: true
+  openbanking:
+    clickable_logo: true

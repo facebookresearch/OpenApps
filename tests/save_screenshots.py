@@ -62,6 +62,13 @@ ROUTES = (
     # The atoms section is where the knobs live, so it is the page that
     # actually shows whether a theme repaints the components.
     RouteSpec("uilibrary_atoms", "/uilibrary/atoms", ".uilib-story"),
+    RouteSpec("openbanking", "/openbanking", ".ob-card"),
+    # The account detail page carries the summary figures and the ledger, so it
+    # is where a theme or layout regression actually shows up.
+    RouteSpec("openbanking_account", "/openbanking/accounts/0", ".ob-card"),
+    # The card summary is a different layout from the deposit one -- card
+    # graphic plus payment panel -- so it needs its own baseline.
+    RouteSpec("openbanking_card", "/openbanking/accounts/2", ".ob-cardface"),
     RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
@@ -72,8 +79,8 @@ ROUTES = (
 THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
-    "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "onlineshop",
-    "ui_library",
+    "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
+    "onlineshop", "ui_library",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are

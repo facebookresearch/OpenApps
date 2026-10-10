@@ -24,3 +24,6 @@ apps:
   uilibrary:
     title: "OpenUI"
     description:
+  openbanking:
+    title: "Onlinebanking" # wiki: online banking
+    description: "Abwicklung von Bankgeschäften über das Internet, einschließlich der Einsicht in Kontostände und Kontoumsätze."

@@ -25,3 +25,6 @@ apps:
   uilibrary:
     title: "OpenUI"
     description:
+  openbanking:
+    title: "OpenBanking"
+    description: # "Review your accounts and transactions"

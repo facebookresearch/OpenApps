@@ -1,0 +1,12 @@
+defaults:
+  - content: default
+  - layout: default
+
+
+database_path: ${databases_dir}/openbanking.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with e.g. `apps.openbanking.theme=dark`. There is
+# deliberately no bank-specific theme: the point of the shared theme group is
+# that a sweep can restyle every app at once.
+theme: null

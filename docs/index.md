@@ -130,6 +130,19 @@ Leaflet tile layer, the CodeMirror stylesheet. The keys are deliberately
 app-agnostic: the theme says `tone: dark` and each app picks its own dark
 asset, so a theme file never has to know which apps exist.
 
+Apps consume only the shared vocabulary in `config/apps/theme/default.yaml`.
+There are no app-specific themes or tokens: a token only one theme defines is
+undefined under every other, and a palette only one app reads would not restyle
+with the rest of the environment.
+
+One caveat worth knowing before adding a dark theme: Pico ships its own palette
+in `--pico-*` properties and applies it to elements an app rarely restyles --
+table cells, form fields and every heading. Tokens cannot reach those, so a
+dark theme alone leaves a white ledger under a dark page. `openbanking` shows
+the fix: it reads `assets.tone` to set Pico's `data-theme` on its page wrapper,
+then re-points the handful of `--pico-*` properties its markup touches at its
+own tokens.
+
 #### Layout
 
 ```shell
@@ -158,6 +171,7 @@ layout in play. Every app has `default`, plus:
 | | `bottom_sheet` | Sidebar becomes a panel under the map |
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
+| `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
 
@@ -206,6 +220,22 @@ The phone home screen is the exception: it splits apps between a grid
 grid empty. It takes `pinned_by_variant.home_screen` instead. It is not the
 composition for this experiment anyway — a phone's unpinned apps sit on the
 grid in plain view, not behind the menu.
+
+A layout carries structural knobs as well as a shape. `openbanking`'s
+`visible_transactions` (default 4) is how many ledger rows show before the
+"See more activity" toggle; the rest are one click away, so finding a figure
+takes navigating the ledger rather than reading one screenshot. Set it to `0`
+to put the whole ledger on screen:
+
+```shell
+uv run launch.py apps.openbanking.visible_transactions=0
+```
+
+The two axes compose, so structure can be varied independently of the palette:
+
+```shell
+uv run launch.py apps/todo/layout=kanban_board apps/theme=dark
+```
 
 #### Migrating from `appearance`
 
@@ -354,6 +384,28 @@ uv run launch.py apps.onlineshop.theme=dark        # just the shop
 ```
 
 Optional: to save screenshots of all apps with a specific variation for testing, we offer `tests/save_screenshots.py --variation default --output-dir outputs/2026-04-13/default/` to make this easy.
+
+##### Generating more OpenBanking transactions
+
+A bank ledger has to stay arithmetically coherent -- each row's `balance` is
+the running balance after that posting, so a row appended to the end chains off
+the oldest existing one. `openbanking-gen-txns` does that arithmetic and emits
+seed YAML in the content files' own style:
+
+```shell
+# Preview three rows for the checking account
+uv run openbanking-gen-txns --account "BUS COMPLETE CHK (...5555)" --count 3
+
+# Write two small fee/interest rows into the card, in place
+uv run openbanking-gen-txns --account 2043 --count 2 --max-amount 80 \
+    --types Fee Interest --in-place
+```
+
+The same `--seed` always produces the same rows, and nothing is written to the
+running database -- the app is read-only, and `/openbanking_all` has to stay
+byte-stable. `--types` and `--max-amount` are how you stay clear of the figures
+`config/tasks/openbanking.yaml` reads off an account; re-run
+`pytest tests/test_openbanking.py` afterwards, which checks those.
 
 ## Exposing OpenApps as an MCP server
 

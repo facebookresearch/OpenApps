@@ -647,6 +647,7 @@ _NAV_APP_URL_PREFIXES: dict[str, tuple[str, ...]] = {
     "codeeditor": ("/codeeditor",),
     "map": ("/maps",),
     "uilibrary": ("/uilibrary",),
+    "openbanking": ("/openbanking",),
 }
 
 

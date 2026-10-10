@@ -94,3 +94,12 @@ apps:
     enabled: false
     position: 7
     clickable_logo: false
+  # Position 8, not 7: OpenBanking and the UI Library were built in parallel
+  # and both claimed 7. OpenUI's tile is off by default, so OpenBanking renders
+  # seventh either way.
+  openbanking:
+    icon: ${apps.start_page.icon_path}/wallet.png
+    bw_icon: ${apps.start_page.bw_icon_path}/wallet.png
+    enabled: true
+    position: 8
+    clickable_logo: false

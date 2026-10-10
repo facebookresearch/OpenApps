@@ -23,6 +23,7 @@ nav:
   - "Intro to UI Agents": Intro to UI Agents.md
   - Agents: agents.md
   - Tasks: tasks.md
+  - "Inspecting the Databases": inspecting_databases.md
 
 markdown_extensions:
   - codehilite
