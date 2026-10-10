@@ -210,3 +210,7 @@ src/open_apps/apps/assets/img/desktop-*.png
 # full checkout inside the repo, which otherwise shows up as untracked and a
 # stray `git add -A` would commit the entire tree.
 .claude/worktrees/
+
+# A JDK the old Java-backed shop unpacked here. The rewrite needs no Java, and
+# a stray `git add -A` would otherwise publish ~370 vendor binaries.
+src/open_apps/apps/onlineshop_app/java/
