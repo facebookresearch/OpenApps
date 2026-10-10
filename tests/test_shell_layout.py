@@ -523,7 +523,9 @@ class TestPinResolution:
         # Position order from the start page's inventory. `uilibrary` sits at
         # position 7 and is absent because its tile is disabled by default.
         pinned = self.resolve()
-        assert pinned == ["todo", "calendar", "messages", "maps", "codeeditor", "onlineshop"]
+        assert pinned == [
+            "todo", "calendar", "messages", "maps", "codeeditor", "onlineshop", "openbanking",
+        ]
 
     @pytest.mark.parametrize(
         "gate", ["apps.onlineshop.enable=False", "apps/onlineshop/content=default"]

@@ -25,7 +25,8 @@ from open_apps.apps.start_page.helper import LAUNCHER_CSS
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 
 # Position order from `config/apps/start_page/default.yaml`. The online shop
-# is on by default now that it needs no JDK, so it closes the row.
+# is on by default now that it needs no JDK; OpenBanking (position 8) closes the
+# row because the UI Library's tile at 7 is disabled by default.
 EXPECTED_TILES = [
     ("/todo", "OpenTodos"),
     ("/calendar", "OpenCalendar"),
@@ -33,6 +34,7 @@ EXPECTED_TILES = [
     ("/maps", "OpenMaps"),
     ("/codeeditor", "OpenCodeEditor"),
     ("/onlineshop", "OpenShop"),
+    ("/openbanking", "OpenBanking"),
 ]
 
 TILE_RE = re.compile(
@@ -56,10 +58,14 @@ def render(monkeypatch, *overrides, rng_seed=0):
 
     Every test here is about the tile launcher, which is the `gallery` layout
     now that `desktop` is the default, so that is selected unless a test
-    picks a layout of its own.
+    picks a layout of its own. The window chrome is off for the same reason:
+    its dock injects links and tiles of its own, and tests/test_chrome.py
+    covers it.
     """
     if not any(o.startswith("apps/start_page/layout=") for o in overrides):
         overrides = ("apps/start_page/layout=gallery", *overrides)
+    if not any(o.startswith("apps/chrome=") for o in overrides):
+        overrides = ("apps/chrome=none", *overrides)
     apps = compose_apps(*overrides)
     if apps.start_page.get("shuffle_icons"):
         start_page.shuffle_icons(apps.start_page.apps, rng=random.Random(rng_seed))
@@ -99,7 +105,8 @@ def test_clickable_logos_does_not_change_the_start_page(monkeypatch):
 
 
 OWN_ICON = {"/todo": "todo", "/calendar": "calendar", "/messages": "messages",
-            "/maps": "maps", "/codeeditor": "code", "/onlineshop": "shop"}
+            "/maps": "maps", "/codeeditor": "code", "/onlineshop": "shop",
+            "/openbanking": "wallet"}
 
 
 def test_default_icons_match_their_tiles(monkeypatch):

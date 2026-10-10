@@ -271,7 +271,11 @@ def test_theme_tokens_can_be_scoped_to_a_subtree():
 # The real server
 # --------------------------------------------------------------------------
 
-APP_PAGES = ["/todo", "/calendar", "/messages", "/maps", "/codeeditor", "/uilibrary"]
+# Apps visible by default. Not /uilibrary: its tile is disabled by default,
+# so the chrome serves that page without naming it as the current app.
+APP_PAGES = [
+    "/todo", "/calendar", "/messages", "/maps", "/codeeditor", "/onlineshop", "/openbanking",
+]
 
 
 @pytest.fixture(scope="module")
