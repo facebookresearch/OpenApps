@@ -1,0 +1,12 @@
+# @package apps.ui_library
+# Text only -- no structure, no color. Select with
+# `apps/ui_library/content=<name>`.
+intro: >-
+  Every component below is rendered from the shared library, against the
+  theme that is currently active. Switch themes with `apps/theme=` to see
+  what the tokens actually do.
+section_labels:
+  tokens: Tokens
+  atoms: Atoms
+  molecules: Molecules
+  brand: Brand

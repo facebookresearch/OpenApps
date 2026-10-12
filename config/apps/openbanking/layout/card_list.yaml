@@ -1,0 +1,9 @@
+# @package apps.openbanking
+# Structure only -- colors/fonts come from the shared theme. Renders the same
+# ledger as stacked cards instead of a table, so the same information has no
+# column headers and no consistent left-to-right ordering to anchor on. Select
+# with `apps/openbanking/layout=card_list`.
+layout: card_list
+# Same truncation as `default`. Stacked cards are taller than table rows, so
+# if anything the cut matters more here.
+visible_transactions: 4

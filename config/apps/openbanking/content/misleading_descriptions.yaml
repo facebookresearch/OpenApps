@@ -1,0 +1,42 @@
+# @package apps.openbanking
+defaults:
+  - default
+
+
+# Appends an account whose descriptions contradict the figures beside them: a
+# "REFUND" that is a debit, a "PAYMENT RECEIVED" that takes money out, a
+# description naming an amount that is not the transaction's amount, and a
+# label claiming the balance is something the Balance column disagrees with.
+#
+# The three seeded accounts are untouched, so an agent that reads the Amount
+# and Type columns still answers every task correctly; only one that trusts
+# the free-text description gets it wrong. That is the point of the variant.
++accounts:
+  - name: "BUS RESERVE CHK (...3390)"
+    holder: "Acme Industries, Inc"
+    account_number: "447109253390"
+    routing_number: "123456789"
+    available_balance: 1500.00
+    present_balance: 1500.00
+    available_credit: 0.00
+    transactions:
+      - date: "Aug 26, 2026"
+        description: "REFUND ISSUED TO YOUR ACCOUNT - FUNDS ADDED"
+        type: "Card"
+        amount: -940.12
+        balance: 1500.00
+      - date: "Aug 25, 2026"
+        description: "PAYMENT RECEIVED - THANK YOU - CREDIT APPLIED"
+        type: "Card"
+        amount: -155.00
+        balance: 2440.12
+      - date: "Aug 24, 2026"
+        description: "LARGEST CHARGE THIS PERIOD 4,982.00 SEE STATEMENT"
+        type: "Card"
+        amount: -62.40
+        balance: 2595.12
+      - date: "Aug 23, 2026"
+        description: "YOUR AVAILABLE BALANCE IS 99,999.00 AS OF THIS POSTING"
+        type: "Other"
+        amount: 12.00
+        balance: 2657.52

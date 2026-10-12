@@ -1,0 +1,12 @@
+# @package apps.maps
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/maps/layout=bottom_sheet`.
+#
+# Mobile maps sheet: the map fills the page and the panel rides up over its
+# bottom edge with rounded corners and a grab handle; Saved Locations become a
+# row of chips and the layer switcher folds into a button. Ids, labels and
+# routes are unchanged (see map.html / map_controls in main.py).
+defaults:
+  - default
+
+layout: bottom_sheet

@@ -230,10 +230,10 @@ class AgentArgs(AgentLabAgentArgs):
     # Per-model-family action_parser (parser + coordinate space). See
     # open_apps.agent.action_parsers. Default preserves the flexible_parser path.
     action_parser: str = "uitars"
-    # Coordinate space the model predicts in: None = use the action_parser's default
-    # (uitars: raw viewport pixels; qwen3vl: 0-1000), or N = normalized [0, N) grid.
-    # See action_parsers.coords.rescale_xy.
-    coord_scale: int | None = None
+    # Coordinate space the model predicts in: None = raw viewport pixels,
+    # N = normalized [0, N) grid (Qwen-VL/GLM-VL use 1000). None keeps the
+    # action_parser's own default. See action_parsers.coords.rescale_xy.
+    coord_scale: int = None
     # User-message sections to render; None = legacy default. See
     # VllmMainPrompt._SECTION_RENDERERS.
     prompt_sections: list[str] = None

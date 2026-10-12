@@ -18,6 +18,7 @@ from open_apps.tasks.tasks import (
     AddToDoTask,
     CompositeTask,
     DeleteToDoTask,
+    EditFileTask,
     MarkToDoDoneTask,
     NavigateToAppTask,
     RemoveEventTask,
@@ -33,6 +34,7 @@ __all__ = [
     "AddToDoTask",
     "CompositeTask",
     "DeleteToDoTask",
+    "EditFileTask",
     "MarkToDoDoneTask",
     "NavigateToAppTask",
     "RemoveEventTask",
@@ -58,6 +60,7 @@ _TASK_CLASS_TO_APP: dict[str, str] = {
     "SendMessageTask": "messages",
     "SavePlaceTask": "map",
     "RemoveLandmarkTask": "map",
+    "EditFileTask": "codeeditor",
 }
 
 

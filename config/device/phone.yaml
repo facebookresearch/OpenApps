@@ -1,0 +1,39 @@
+# A phone. 390x844 is the iPhone 14/15 logical viewport.
+#
+#   uv run launch.py device=phone apps/start_page/layout=desktop
+#   uv run launch_agent.py agent=dummy device=phone
+#
+# `form_factor: phone` is the interesting part: the start page's desktop shell
+# renders its `home_screen` variant instead of the desktop composition -- a
+# status bar, a wordmark widget, an icon grid of the apps that are *not*
+# pinned, and a dock holding the ones that are, next to the launcher. Same
+# routes, same state, same /desktop_all, different affordances. Every other
+# app reflows to the width through its own stylesheet.
+#
+# Expect to raise `browsergym_env_args.max_steps` (default 10): a phone shows a
+# fraction of the page, so several steps go on scrolling to controls the
+# desktop puts on screen at once.
+#
+# See config/device/desktop.yaml for what every field means, including why
+# device_scale_factor stays at 1 on a device that is physically 3x.
+name: phone
+form_factor: phone
+viewport: [390, 844]
+
+device_scale_factor: 1
+is_mobile: true
+has_touch: true
+
+#: A phone UA to go with the phone viewport and input model. `is_mobile` alone
+#: leaves Chromium announcing itself as desktop Chrome, so anything that
+#: branches on the UA -- a task, a pop-up, a future app -- would see a
+#: contradiction: touch input, phone width, desktop browser.
+#:
+#: Chrome-on-Android rather than iOS Safari even though the viewport is an
+#: iPhone's: the engine really is Blink, and a UA claiming WebKit would be the
+#: same kind of lie in the other direction.
+#:
+#: The version is pinned, like the vendored pico and htmx, so a rendering does
+#: not change because the month did. It will drift from the Chromium actually
+#: installed; that is the trade, and `device.user_agent=null` opts out.
+user_agent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"

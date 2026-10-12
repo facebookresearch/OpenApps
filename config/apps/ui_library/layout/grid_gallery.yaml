@@ -1,0 +1,10 @@
+# @package apps.ui_library
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/ui_library/layout=grid_gallery`.
+#
+# Stories tile into a grid rather than stacking, for scanning the whole
+# section at once instead of reading one story at a time.
+defaults:
+  - default
+
+layout: grid_gallery

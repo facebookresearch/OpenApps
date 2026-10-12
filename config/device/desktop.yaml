@@ -1,0 +1,56 @@
+# The device the environment is rendered and driven on. Default.
+#
+# This group is the single source of truth for screen size and input model.
+# Two consumers read it:
+#
+#   * the browser -- `browsergym_env_args.task_kwargs.screen_resolution` is
+#     `${device.viewport}`, and `open_apps.agent.env_args.DeviceEnvArgs` hands
+#     the emulation flags below to the Playwright context;
+#   * the apps -- `apps.device` mirrors this node (see config/config.yaml), so
+#     a server-rendered layout can key off `form_factor` and ship a genuinely
+#     different composition rather than only a reflow. The start page's
+#     desktop shell does exactly that; see
+#     `config/apps/start_page/layout/desktop.yaml`.
+#
+# Add a device by dropping another file in this group. Nothing else has to
+# change, which is the point: screen size and input model become one more
+# variation axis alongside appearance, content and pop-ups.
+#
+#   uv run launch.py device=phone apps/start_page/layout=desktop
+#   uv run launch_parallel_agents.py device=tablet ...
+
+#: Free-form, for logs and W&B. Distinguishes two devices of the same class.
+name: desktop
+
+#: What layouts key off: desktop | tablet | phone. A layout that has no variant
+#: for the configured form factor falls back to its desktop composition, so a
+#: new device never renders a blank page.
+form_factor: desktop
+
+#: [width, height] CSS pixels.
+viewport: [1920, 1080]
+
+# --- input model -----------------------------------------------------------
+# Applied to the Playwright browser context. Chromium-only, which is what
+# BrowserGym drives.
+#
+# These are what make a phone a phone rather than a narrow window: with
+# `is_mobile` the page honours the viewport meta and gets a mobile visual
+# viewport, and with `has_touch` `@media (hover: none)` and `(pointer: coarse)`
+# finally match, so hover-only affordances correctly disappear.
+#
+# device_scale_factor stays 1 on EVERY device that ships here, retina or not,
+# and that is not an oversight. A screenshot is captured in *device* pixels
+# while every action is dispatched in *CSS* pixels, and nothing in between
+# divides by the ratio: `vLLM_prompt` takes its coordinate space straight from
+# the screenshot's shape (agent/vLLM_prompt.py:267), so at scale 2 a model
+# grounding on the image would click at twice the intended offset and miss
+# everything below and right of the origin. Raise it only if you are also
+# rescaling actions.
+device_scale_factor: 1
+is_mobile: false
+has_touch: false
+
+#: null keeps Chromium's own UA string. Set one to make the site (or a task)
+#: see a specific browser.
+user_agent: null

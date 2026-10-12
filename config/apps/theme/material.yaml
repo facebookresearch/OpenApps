@@ -9,6 +9,7 @@ tokens:
   color-muted: "#757575"
   color-border: "#e0e0e0"
   color-primary: "#6200ee"
+  color-primary-hover: "#3700b3"
   color-on-primary: "#ffffff"
   color-accent: "#03dac6"
   color-danger: "#b00020"
@@ -16,6 +17,12 @@ tokens:
   color-btn-fg: "#ffffff"
   font-family: "'Roboto', 'Helvetica Neue', sans-serif"
   font-heading: "inherit"
+  font-mono: "'Roboto Mono', ui-monospace, Menlo, Consolas, monospace"
   font-size-base: "16px"
+  font-size-sm: "14px"
+  font-size-heading: "1.5rem"
   radius: "4px"
   space: "8px"
+assets:
+  tone: light
+  icon_set: color

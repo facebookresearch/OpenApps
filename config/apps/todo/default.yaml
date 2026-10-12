@@ -1,6 +1,10 @@
 defaults:
   - content: default
-  - appearance: default
+  - layout: default
 
 
 database_path: ${databases_dir}/todo.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.todo.theme=solarized`.
+theme: null

@@ -8,8 +8,10 @@ from fasthtml.common import *
 from dataclasses import dataclass
 import json
 from typing import List
-from src.open_apps.apps.start_page.helper import create_logo_header
-from src.open_apps.frontend import local_hdrs
+from open_apps.apps.start_page.helper import create_logo_header
+from open_apps.frontend import local_hdrs
+from open_apps.theme import theme_style
+from open_apps.apps.todo_app.styles import styles
 
 
 @dataclass
@@ -21,11 +23,11 @@ class Todo:
 
 app, rt = fast_app(default_hdrs=False, hdrs=local_hdrs())
 logo_title_container = None
-styles = Style("")
+
 
 def set_environment(config):
     """Set environment variables for the todo app"""
-    global app, logo_title_container, styles
+    global app, logo_title_container
     app.config = config
     db = database(config.todo.database_path)
     global todos, kanban_status
@@ -49,111 +51,12 @@ def set_environment(config):
         current_file_path=__file__
     )
 
-    font_family = app.config.todo.font_family
-    font_size = app.config.todo.base_font_size
-    font_color = getattr(app.config.todo, "font_color", "blue")
-    edit_remove_save_button_font_color = getattr(app.config.todo, "edit_remove_save_button_font_color", "")
-    edit_button_color = app.config.todo.edit_button_color
-    remove_button_color = app.config.todo.remove_button_color
-    add_button_color = app.config.todo.add_button_color
-    save_button_color = app.config.todo.save_button_color
-    background_color = getattr(app.config.todo, "background_color", "")
-    form_background_color = getattr(app.config.todo, "form_background_color", "")
-    styles.children = [f"""
-        body {{
-            font-family: {font_family};
-            font-size: {font_size};
-            color: {font_color};
-            background-color: {background_color}
-        }}
-        .todo, .card, .group, .add-btn {{
-            background-color: {background_color}
-            color: {font_color};
-        }}
-        a {{
-            color: {font_color};
-            text-decoration: none;
-        }}
-        .todo-item, .todo-controls {{
-            list-style-type: none;
-            color: {font_color};
-        }}
-        .todo-general {{
-            background-color: {form_background_color}
-        }}
-        .todo-controls {{
-            margin-left: 12px;
-        }}
-        .todo-btn {{
-            transform: scale(.7);
-            color: {font_color};
-        }}
-        .edit-btn {{
-            background-color: {edit_button_color};
-            border: 1px solid {edit_button_color};
-            color: {edit_remove_save_button_font_color};
-        }}
-        .remove-btn {{
-            background-color: {remove_button_color};
-            border: 1px solid {remove_button_color};
-            color: {edit_remove_save_button_font_color};
-        }}
-        .add-btn {{
-            background-color: {add_button_color};
-        }}
-        .save-btn {{
-            background-color: {save_button_color};
-            border: 1px solid {save_button_color};
-            color: {edit_remove_save_button_font_color};
-        }}
-        .kanban-board {{
-            width: 100%;
-        }}
-        .kanban-columns {{
-            display: flex;
-            gap: 1rem;
-            align-items: flex-start;
-            margin-top: 1rem;
-            overflow-x: auto;
-            padding-bottom: 0.5rem;
-        }}
-        .kanban-column {{
-            flex: 0 0 450px;
-            min-width: 450px;
-            background-color: {form_background_color};
-            border-radius: 8px;
-            padding: 0.5rem 0.75rem;
-            min-height: 120px;
-        }}
-        .kanban-column-title {{
-            margin-top: 0.25rem;
-        }}
-        .kanban-card {{
-            background-color: {background_color};
-            border: 1px solid {edit_button_color};
-            border-radius: 6px;
-            padding: 0.5rem 0.75rem;
-            margin-bottom: 0.5rem;
-        }}
-        .kanban-card-title {{
-            margin-bottom: 0.4rem;
-        }}
-        .kanban-card-controls {{
-            display: flex;
-            gap: 0.25rem;
-            flex-wrap: wrap;
-        }}
-        .kanban-edit input {{
-            margin-bottom: 0.4rem;
-        }}
-        .kanban-add {{
-            margin-top: 0.5rem;
-        }}
-        .kanban-header-edit {{
-            display: flex;
-            gap: 0.25rem;
-        }}
-    """]
+
+def todo_theme():
+    """The active theme's `:root` token block, resolved per-request so live
+    `reconfigure` theme swaps take effect."""
+    return theme_style(app.config, "todo")
+
 
 id_curr = "current-todo"
 
@@ -174,10 +77,16 @@ def __ft__(self: Todo):
         hx_put=f"/todo/toggle/{self.id}",
         target_id=tid(self.id),
         hx_swap="outerHTML",
-        style="margin-right: 10px;"
+        # The title sits beside the checkbox rather than in a <label> (the
+        # row structure is part of the observation agents have always seen),
+        # so name the control explicitly.
+        aria_label=self.title,
     )
-    # show = Span(self.title, f"/todos/{self.id}", id_curr, style="text-decoration: none;")
-    show = Span(self.title, style="text-decoration: none;")
+    # Done rows are muted, not struck through or red: the UI-question set
+    # (tests/ui_questions) offers "The item is struck through" and "The item
+    # is shown in red" as *distractors* for checkbox-state questions, so
+    # either treatment would make a wrong answer visually true.
+    show = Span(self.title, cls="todo-title")
     edit = Button(
         "Edit",
         hx_get=f"/todo/edit/{self.id}",
@@ -192,7 +101,12 @@ def __ft__(self: Todo):
         hx_swap="outerHTML",
         cls="todo-btn remove-btn",
     )
-    return Div(Li(checkbox, show, cls="todo-item"), Li(edit, remove, cls="todo-controls"), id=tid(self.id))
+    return Div(
+        Li(checkbox, show, cls="todo-item"),
+        Li(edit, remove, cls="todo-controls"),
+        id=tid(self.id),
+        cls="todo-row is-done" if self.done else "todo-row",
+    )
 
 
 def mk_input(**kw):
@@ -269,7 +183,7 @@ def kanban_edit_form(todo):
     )
 
 
-def kanban_column_header(col, editing):
+def kanban_column_header(col, editing, count):
     if editing:
         return Form(
             Input(name="title", value=kanban_titles[col]),
@@ -279,7 +193,7 @@ def kanban_column_header(col, editing):
             hx_swap="outerHTML",
             cls="kanban-column-title kanban-header-edit",
         )
-    return H3(
+    title = H3(
         kanban_titles[col],
         hx_get=f"/todo/kanban/header/{col}",
         target_id="todo-board",
@@ -287,6 +201,9 @@ def kanban_column_header(col, editing):
         cls="kanban-column-title",
         style="cursor: pointer;",
     )
+    # The count lives beside the <h3>, not inside it, so the heading's text
+    # (the column name agents read and rename) is unchanged.
+    return Div(title, Span(str(count), cls="kanban-count"), cls="kanban-column-header")
 
 
 def kanban_add_form(col):
@@ -304,7 +221,7 @@ def kanban_add_form(col):
 
 def kanban_column(col, cards, edit_header):
     return Div(
-        kanban_column_header(col, editing=(edit_header == col)),
+        kanban_column_header(col, editing=(edit_header == col), count=len(cards)),
         *cards,
         kanban_add_form(col),
         cls="kanban-column",
@@ -330,17 +247,28 @@ def render_kanban_board(edit_id=None, edit_header=None):
     return Div(columns, id="todo-board", cls="kanban-board")
 
 
+def home_link(prominent: bool = False):
+    """Back-to-launcher chrome. Text, href, ``role`` and position are the same
+    in every layout (agents locate it by them).
+
+    ``prominent`` keeps it a full-size filled button: the default layout's
+    navigation tasks depend on screenshot agents finding it. Other layouts
+    demote it to a quiet link, the realistic treatment."""
+    cls = "todo-home-button" if prominent else "todo-home-link"
+    return A("Return to List of Apps", href="/", role="button", cls=cls)
+
+
 @rt("/todo")
 def get():
     if current_layout() == "kanban_board":
-        home_button = A(
-            "Return to List of Apps",
-            href="/",
-            role="button",
-            cls="contrast",
-            style="margin-top: 1rem;",
+        return Div(
+            todo_theme(),
+            styles,
+            logo_title_container,
+            render_kanban_board(),
+            home_link(),
+            cls="todo-page todo-page--board",
         )
-        return Div(styles, logo_title_container, render_kanban_board(), home_button)
     add = Form(
         Group(
             mk_input(),
@@ -349,15 +277,23 @@ def get():
         hx_post="/todo",  # Update this path
         target_id="todo-list",
         hx_swap="beforeend",
-        data_theme=app.config.todo.form_background_color,
     )
-    card = (Card(Ul(*todos(), id="todo-list"), header=add, footer=Div(id=id_curr), cls="todo-general"),)
-    home_button = A("Return to List of Apps", href="/", role="button", cls="contrast", style="margin-top: 1rem;")
+    card = Card(
+        Ul(*todos(), id="todo-list"),
+        # Shown by CSS only while #todo-list has no rows, so it tracks htmx
+        # adds/removes without a server round-trip.
+        P("No tasks yet. Add your first one above.", cls="todo-empty"),
+        header=add,
+        footer=Div(id=id_curr),
+        cls="todo-general",
+    )
     return Div(
+        todo_theme(),
         styles,
         logo_title_container,
         card,
-        home_button,
+        home_link(prominent=True),
+        cls="todo-page todo-page--list",
     )
 
 
@@ -374,8 +310,16 @@ def delete(id: int):
 def post(title: str):
     # server assigns unique id
     new_id = max([t.id for t in todos()], default=-1) + 1
-    todos.upsert(Todo(id=new_id, title=title, done=False))
-    return todos[-1], mk_input(hx_swap_oob="true")
+    # Return upsert's own result, the way the PUT handler below already does.
+    # This was `todos[-1]`, which looks like "the last row" but is not: fastlite
+    # indexes a table by PRIMARY KEY, so it asked for the row with id == -1 and
+    # raised NotFoundError. The insert on the line above had already committed,
+    # so the todo was created and only the response failed -- the write landed,
+    # the browser got a 500, htmx had nothing to swap, and the new item never
+    # appeared. State-based tests pass straight through that.
+    return todos.upsert(Todo(id=new_id, title=title, done=False)), mk_input(
+        hx_swap_oob="true"
+    )
 
 
 @rt("/todo/kanban/add/{col}")

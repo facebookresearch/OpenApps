@@ -1,0 +1,8 @@
+# @package apps.openbanking
+# Structure only -- no colors/fonts (those come from the shared theme).
+# `default` renders the transaction ledger as a five-column table
+# (Date / Description / Type / Amount / Balance).
+layout: default
+# Ledger rows shown before the "See more activity" toggle; the rest are one
+# click away. `0` disables truncation entirely.
+visible_transactions: 4

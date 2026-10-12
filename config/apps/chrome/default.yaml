@@ -1,0 +1,97 @@
+# @package apps.chrome
+# Global window chrome: a title bar with window controls, a dock of app
+# shortcuts, and a rendered agent cursor -- on every page of every app.
+#
+# None of this is drawn by the apps themselves. A response middleware on the
+# web server (open_apps.chrome_middleware) injects it into each full HTML page,
+# so the same chrome sits over the FastHTML apps and the template-rendered ones
+# (maps, the shop) alike, and an app added later gets it for free.
+#
+# Select a variant with `apps/chrome=<name>`:
+#   default   macOS-style traffic lights, dock, glowing agent cursor
+#   windows   Windows-style caption buttons on the right
+#   none      no chrome at all -- the pre-chrome observation, for comparison
+#
+# Or flip one knob: `apps.chrome.dock.show=all`, `apps.chrome.cursor.show=always`.
+#
+# NONE OF THIS IS SCOREABLE. Which apps are "running" and whether a window is
+# maximized are transient UI, held in memory and reset with the shell; nothing
+# here reaches get_current_state(), so the chrome cannot change a reward. It
+# changes the *observation*, which is the point -- sweep it like any other
+# appearance axis.
+enabled: true
+
+titlebar:
+  enabled: true
+  # mac      traffic lights on the left, title centred
+  # windows  title on the left, minimise / maximise / close on the right
+  style: mac
+  # A phone has no windows. Form factors come from config/device/.
+  form_factors: [desktop, tablet]
+
+dock:
+  enabled: true
+  # pinned   the desktop shell's pins (apps.start_page.desktop.pinned), so
+  #          pinning an app on the desktop puts it in the dock too. Falls back
+  #          to every app when the start page is not using the desktop layout,
+  #          which has no pins to read.
+  # all      every enabled app, regardless of pins.
+  show: pinned
+  # Subtracted from whatever `show` selects. The knob for navigation-pressure
+  # experiments: an excluded app can still be reached from the desktop or the
+  # dock's all-apps panel, just not in one click.
+  #   apps.chrome.dock.exclude=[messages,maps]
+  exclude: []
+  # Title under each icon. Off gives the bare-icon dock: realistic, and a
+  # harder grounding problem, since the icon is then the only identifier.
+  labels: true
+  # A "Desktop" item first, linking back to the start page.
+  home: true
+  # An "All apps" button last, opening a panel that lists every enabled app --
+  # including excluded and unpinned ones.
+  launcher: true
+  # The start page already has its own shortcuts. The dock still shows there
+  # by default: a dock that disappears on one page is a dock an agent cannot
+  # rely on being in the same place.
+  on_start_page: true
+  # Alt+1..9 opens the nth dock item; Alt+0 goes to the desktop. Advertised in
+  # the accessibility tree via aria-keyshortcuts, so an agent reading the tree
+  # can discover the shortcut without being told.
+  shortcuts: true
+  form_factors: [desktop, tablet, phone]
+
+cursor:
+  enabled: true
+  # auto     only when the browser is automated (navigator.webdriver) -- an
+  #          agent run, a screenshot script, a recording. A person browsing
+  #          `uv run launch.py` sees only their own pointer.
+  # always   also for a person, e.g. a headed demo recording.
+  # never    off.
+  show: auto
+  # glow     gradient arrow with a soft halo, in the shell's ring colours
+  # classic  white arrow, black outline -- what a native pointer looks like
+  style: glow
+  # Token *names*, read from the shell theme scoped onto the chrome. Hexes
+  # here would survive a theme swap unchanged.
+  colors: [ring-blue, ring-violet]
+  # The rendered cursor eases from its last position to each new one over at
+  # most this long (shorter for short hops). Playwright teleports the real
+  # pointer; this is what makes a recording show a hand moving. Keep it under
+  # BrowserGym's 500ms post-action settle so the screenshot never catches the
+  # cursor mid-flight. 0 disables the easing.
+  glide_ms: 240
+  # A ring that expands from the click point and fades within 400ms -- also
+  # inside the settle window, so it shows in recordings, not in screenshots.
+  click_ripple: true
+  # Glide to an element focused without a pointer move -- Playwright's fill()
+  # focuses a field directly -- so typing into a field is visible too.
+  follow_focus: true
+  # Where the cursor sits before the agent's first mouse event:
+  # center   parked mid-viewport, so the first screenshot and the start of a
+  #          recording already show it, and the first move glides out from it
+  # hidden   appears at the first pointer event instead
+  start: center
+  # Optional name tag beside the cursor, multiplayer-style: "Agent", a model
+  # name. null for none. It covers a few dozen pixels next to the pointer, so
+  # leave it off for scored runs.
+  label: null

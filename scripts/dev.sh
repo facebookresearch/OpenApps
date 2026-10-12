@@ -20,5 +20,8 @@ exec uv run uvicorn dev:app \
   --reload \
   --reload-dir src \
   --reload-dir config \
+  --reload-include '*.css' \
+  --reload-include '*.js' \
+  --reload-include '*.yaml' \
   --host localhost \
   --port "${PORT}"

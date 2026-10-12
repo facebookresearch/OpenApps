@@ -1,0 +1,11 @@
+# @package apps.start_page
+# The original html5up "Story" tile gallery. No longer the default -- `desktop`
+# is -- but one override away, and it is what the paper's figures show:
+#
+#   uv run launch.py apps/start_page/layout=gallery
+#
+# `broken_logos` and `clickable_logos` compose this file, so both are
+# variations of the tile grid rather than of the desktop shell. The tile
+# inventory and geometry live in `config/apps/start_page/default.yaml`, which
+# both compositions share; this only names the arrangement.
+layout: gallery

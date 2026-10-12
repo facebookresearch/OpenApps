@@ -1,0 +1,11 @@
+# @package apps.messenger
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/messenger/layout=compact_list`.
+#
+# Dense, avatar-less conversation rows, and thread messages flattened from
+# chat bubbles into left-aligned rows -- so sender is carried by the label
+# rather than by which side of the pane a bubble sits on.
+defaults:
+  - default
+
+layout: compact_list

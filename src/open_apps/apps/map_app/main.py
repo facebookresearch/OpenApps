@@ -14,6 +14,7 @@ import requests
 from fasthtml.common import *
 import requests
 import json
+from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from datetime import datetime, timezone
 import subprocess
 import time
@@ -98,30 +99,76 @@ async def startup_event():
 async def shutdown_event():
     stop_otp_server()
 
+def current_tile_layer() -> str:
+    """Leaflet basemap for the active theme.
+
+    Tiles are raster images served from a CDN, so no design token can recolor
+    them -- a dark theme would otherwise render a dark sidebar around a bright
+    map. The theme instead names a `tone`, and `layer_by_tone` maps that onto
+    one of the layers defined in templates/map.html; anything unmapped keeps
+    the configured `default_layer`.
+    """
+    cfg = app.config.maps
+    tone = theme_asset(app.config, "maps", "tone", "light")
+    by_tone = getattr(cfg, "layer_by_tone", None)
+    if by_tone is not None and tone in by_tone:
+        return by_tone[tone]
+    return cfg.default_layer
+
+
+def current_layout() -> str:
+    """The active structure variant from `config/apps/maps/layout/`.
+
+    Emitted as a `layout-<name>` class on <body>. map.html also emits the
+    panel in each layout's visual order (so the accessibility tree reads the
+    way the page looks) and `map_controls` places Leaflet's controls, but the
+    map's ids, labels and routes are identical across layouts and rewards --
+    which read /maps/landmarks, not the DOM -- are unaffected.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return "default"
+    return getattr(config.maps, "layout", "default")
+
+
+# Where Leaflet's zoom bar and basemap switcher sit in each layout, after the
+# product that layout imitates. `default` keeps the basemap list expanded at the
+# top right: the UI-understanding questions built from its screenshot
+# (tests/ui_questions) ask about those visible radio options. The other layouts
+# fold it into a layers button, as real maps do -- Google Maps desktop puts it
+# bottom-left with zoom bottom-right. Collapsed, the radios appear on hover or
+# click of the button; tasks only read /maps/landmarks, never the basemap.
+MAP_CONTROLS = {
+    "default": {"zoom_position": "topleft", "layers_position": "topright", "layers_collapsed": False},
+    "sidebar_left": {"zoom_position": "bottomright", "layers_position": "bottomleft", "layers_collapsed": True},
+    "bottom_sheet": {"zoom_position": "topleft", "layers_position": "topright", "layers_collapsed": True},
+}
+
+
+def map_controls(layout: str) -> dict:
+    """Leaflet control placement for `layout`; unknown layouts get the default's."""
+    return MAP_CONTROLS.get(layout, MAP_CONTROLS["default"])
+
+
 @app.get("/maps", response_class=HTMLResponse)
 async def map_page(request: Request):
     return templates.TemplateResponse(
         "map.html",
         {
             "request": request,
+            "layout": current_layout(),
+            "controls": map_controls(current_layout()),
             "enable_layer_control": app.config.maps.enable_layer_control,
-            "default_layer": app.config.maps.default_layer,
+            "default_layer": current_tile_layer(),
             "popup_display_rule": app.config.maps.popup_display_rule,
             "title": app.config.maps.title,
             "init_location": app.config.maps.init_location,
             "zoom": app.config.maps.zoom,
             "granularity": app.config.maps.granularity,
-            "font_family": app.config.maps.font_family,
-            "base_font_size": app.config.maps.base_font_size,
-            "search_button_color": app.config.maps.search_button_color,
-            "delete_button_color": app.config.maps.delete_button_color,
-            "return_button_color": app.config.maps.return_button_color,
-            "calculate_button_color": app.config.maps.calculate_button_color,
-            "delete_button_hover_color": getattr(app.config.maps, "delete_button_hover_color", "#ffecec"),
-            "search_button_hover_color": getattr(app.config.maps, "search_button_hover_color", "#2980b9"),
-            "calculate_button_hover_color": getattr(app.config.maps, "calculate_button_hover_color", "#2980b9"),
-            "sidebar_background_color": getattr(app.config.maps, "sidebar_background_color", "#f8f9fa"),
             "allow_planning": app.config.maps.allow_planning,
+            # Every color and font in the template is a var() into this block.
+            # Resolved per-request so live `reconfigure` theme swaps take effect.
+            "theme_css": render_theme_css(resolve_theme(app.config, "maps")),
         },
     )
 

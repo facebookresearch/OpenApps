@@ -12,6 +12,7 @@ task, and agent.
 
 import os
 import random
+import re
 import shutil
 import signal
 import socket
@@ -39,20 +40,61 @@ from killport import kill_ports
 from omegaconf import DictConfig, OmegaConf
 
 # Project-specific imports
+from open_apps.apps.availability import (
+    onlineshop_unavailable_reason,
+    task_needs_onlineshop,
+)
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+from open_apps.preview import open_preview
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
 from open_apps.tasks.tasks import Task
 from open_apps.utils import merge_plus_keys
 
-try:
-    # Register the custom 'now' resolver
-    OmegaConf.register_resolver(
-        "now",
-        lambda format_str="%Y-%m-%d_%H-%M-%S": datetime.now().strftime(format_str),
-    )
-except AssertionError:
-    # resolver already registered, ignore
-    pass
+# Note: the "now" interpolation resolver (used as ${now:...} in the configs)
+# is provided by Hydra's own setup at run/compose time, so we don't register
+# one here. (A local registration previously lived here but was shadowed by
+# Hydra's and never actually ran.)
+
+
+def _absolute_path(value) -> Path:
+    """Resolve a path from config the way the user meant it.
+
+    Hydra ``chdir``s into the run directory before any of this executes, so a
+    relative path typed on the command line has to be resolved against the
+    directory the command was launched from, not the one we are in now.
+    Outside a Hydra context (tests, direct instantiation) cwd is still right.
+    """
+    if hydra.core.hydra_config.HydraConfig.initialized():
+        return Path(hydra.utils.to_absolute_path(str(value))).expanduser().resolve()
+    return Path(str(value)).expanduser().resolve()
+
+
+def _filename_safe(text: str) -> str:
+    """Keep a recording's file name portable: no slashes, spaces or shell
+    metacharacters from a task or model name (``Qwen/Qwen3-VL``)."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")
+
+
+def freeze_recording_dir(config: DictConfig) -> None:
+    """Pin ``record_video_dir`` to an absolute path, in place.
+
+    Call once, in the process the user launched, before any job config is
+    derived from ``config``. It matters for two reasons:
+
+    * ``record_video_dir`` defaults to ``${logs_dir}/recordings``, and a local
+      sweep rewrites each job's ``logs_dir`` to ``<logs_dir>/<job>``. Left as an
+      interpolation, every job would record into its own folder; frozen, a
+      sweep's videos share one.
+    * SLURM jobs are unpickled on a compute node with no Hydra context, in
+      whatever directory Hydra had changed into. A relative path resolved
+      there means nothing the user typed.
+
+    A no-op when recording is off or the key is absent.
+    """
+    if not config.get("record_video") or "record_video_dir" not in config:
+        return
+    value = config.record_video_dir or Path(config.logs_dir) / "recordings"
+    config.record_video_dir = str(_absolute_path(value))
 
 
 class OpenAppsLauncher:
@@ -71,18 +113,9 @@ class OpenAppsLauncher:
         print(f"Using port {self.web_app_port} for the web app")
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
         print("Web app hostname is: ", self.web_app_url)
-        current_logs_dir_value = self.config.logs_dir
-
-        if hydra.core.hydra_config.HydraConfig.initialized():
-            # In a Hydra context, to_absolute_path resolves relative to Hydra's original working directory.
-            absolute_logs_dir = str(
-                Path(hydra.utils.to_absolute_path(current_logs_dir_value)).resolve()
-            )
-        else:
-            # Outside a Hydra context (e.g., direct instantiation for tests), resolve relative to the current working directory.
-            absolute_logs_dir = str(Path(current_logs_dir_value).resolve())
-
-        self.config.logs_dir = absolute_logs_dir
+        self.config.logs_dir = str(_absolute_path(self.config.logs_dir))
+        # After logs_dir, which the default destination interpolates.
+        freeze_recording_dir(self.config)
 
         if self.config.get("apps"):
             for app_name, app_config in self.config.apps.items():
@@ -115,10 +148,16 @@ class OpenAppsLauncher:
         # increase timeout per wandb folks' suggestion
         # to avoid FAIR cluster network issues
         os.environ["WANDB_INIT_TIMEOUT"] = "60"
-        agent_name = self.config.agent.get(
-            "model_name", self.config.agent.get("agent_name", "agent")
+        # model_pretty_name is the display name every agent config sets for
+        # exactly this purpose; model_name is the raw HF repo path, which drags
+        # the org prefix (e.g. "ByteDance-Seed/") into the run name.
+        agent_name = (
+            self.config.agent.get("model_pretty_name")
+            or self.config.agent.get("model_name")
+            or self.config.agent.get("agent_name")
+            or "agent"
         )
-        run_name = f"openapps-{agent_name}"
+        run_name = agent_name
         task_name = self.config.get("task_name")
         if task_name:
             run_name = f"{run_name}-{task_name}"
@@ -205,6 +244,14 @@ class OpenAppsLauncher:
 
         initialize_routes_and_configure_task(self.config.apps)
 
+        # Open a window on the apps, sized like `config/device/`. Off whenever
+        # something other than a person is driving: `headless=True` is passed
+        # by launch_apps_via_shell (agent runs) and by save_screenshots.py,
+        # both of which bring their own browser.
+        if not self.config.get("headless", False):
+            url = f"http://{self.web_app_host}:{self.web_app_port}/"
+            open_preview(url, self.config.get("device"))
+
         serve(
             appname="launch",
             reload=False,
@@ -227,10 +274,8 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
         )
-        if self.config.apps.onlineshop.enable:
-            command += " apps.onlineshop.enable=True"
         print("Launching web app with command: ", command)
         # Redirect the web app's output to a file rather than an unread PIPE.
         # An unread PIPE fills its OS buffer (~64KB) and blocks the web server
@@ -307,18 +352,50 @@ class AgentLauncher(OpenAppsLauncher):
         cum_reward = float(exp_record.get("cum_reward") or 0.0)
         wandb.run.summary["cum_reward"] = cum_reward
         wandb.run.summary["success"] = int(cum_reward >= 1.0)
+        steps_info = exp_result.steps_info
+
+        def action_error(i: int) -> str:
+            """BrowserGym's ``last_action_error`` for the action taken at step ``i``.
+
+            An observation describes the state *after* the preceding action, so
+            the error raised by ``steps_info[i].action`` lands in
+            ``steps_info[i + 1].obs``, not in step ``i``'s own obs. Without
+            this shift the column would blame each failure on the next action.
+            The final step has no successor (the loop ended), so its action —
+            if any — has no recorded outcome.
+            """
+            if i + 1 >= len(steps_info):
+                return ""
+            next_obs = steps_info[i + 1].obs
+            return str(next_obs.get("last_action_error", "") if next_obs else "")
+
         actions_data = [
             [
                 i,
                 str(step_info.action),
-                str(step_info.obs["open_pages_urls"]),
-                str(step_info.agent_info.get("think")),
+                str(step_info.obs.get("open_pages_urls") if step_info.obs else None),
+                str(
+                    step_info.agent_info.get("think")
+                    if step_info.agent_info
+                    else None
+                ),
+                # Whether the environment actually accepted the action. Agents
+                # routinely narrate success in `think` for a click that never
+                # landed, so without this the table reads as a win either way.
+                action_error(i),
             ]
-            for i, step_info in enumerate(exp_result.steps_info)
+            for i, step_info in enumerate(steps_info)
         ]
 
         actions_table = wandb.Table(
-            data=actions_data, columns=["step", "action", "open_pages_urls", "think"]
+            data=actions_data,
+            columns=[
+                "step",
+                "action",
+                "open_pages_urls",
+                "think",
+                "last_action_error",
+            ],
         )
         wandb.log({"actions": actions_table})
         print("logging screenshots to wandb")
@@ -346,6 +423,85 @@ class AgentLauncher(OpenAppsLauncher):
         # instantiate browsergym task
         return hydra.utils.instantiate(self.config.browsergym_env_args)
 
+    def _recording_dir(self) -> Optional[Path]:
+        """Where this episode's video goes, or ``None`` when not recording.
+
+        Recording is on when ``browsergym_env_args.record_video`` is, which
+        follows the top-level ``record_video`` switch. The destination was
+        frozen to an absolute path by :func:`freeze_recording_dir` in the
+        process that was launched; resolving it again here is a no-op then,
+        and a fallback for a launcher constructed some other way.
+        """
+        env_args = self.config.get("browsergym_env_args") or {}
+        if not env_args.get("record_video", False):
+            return None
+        value = self.config.get("record_video_dir") or Path(self.config.logs_dir) / "recordings"
+        return _absolute_path(value)
+
+    def _save_recording(self, exp_dir: Path, exp_record: dict) -> Optional[Path]:
+        """Copy the episode's video out of the experiment dir into the recordings dir.
+
+        BrowserGym writes it to ``<exp_dir>/task_video/<random>.webm``, three
+        levels into a timestamped tree and named by a hash. The copy is named
+        for what it shows -- when, which task, which agent, whether it passed,
+        which job -- so a folder of recordings can be skimmed without opening
+        run logs. The original stays where AgentLab's tooling expects it.
+        Hard-linked when the two are on one filesystem, so a sweep does not
+        store every video twice; copied otherwise (node-local disk to a shared
+        one, say).
+
+        The name is claimed with an exclusive create, not an exists() check:
+        `conduct.sh` runs several episodes of the same task concurrently with
+        no job id, and two finishing in the same second must not overwrite
+        each other.
+
+        Runs for failed episodes too: a recording of the failure is usually
+        the reason anyone wanted the recording.
+        """
+        target_dir = self._recording_dir()
+        if target_dir is None:
+            return None
+        videos = sorted((Path(exp_dir) / "task_video").glob("*.webm"))
+        if not videos:
+            print(f"record_video is on but no video was written under {exp_dir}")
+            return None
+        source = videos[-1]
+
+        outcome = "pass" if float(exp_record.get("cum_reward") or 0.0) >= 1.0 else "fail"
+        agent_cfg = self.config.get("agent") or {}
+        agent = agent_cfg.get("model_pretty_name") or agent_cfg.get("model_name") or ""
+        job = self.config.get("job_id")
+        stem = "_".join(
+            _filename_safe(str(part))
+            for part in (
+                time.strftime("%Y-%m-%d_%H-%M-%S"),
+                self.config.task_name,
+                agent,
+                outcome,
+                f"job{job}" if job is not None else "",
+            )
+            if part
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for n in range(1000):
+            target = target_dir / (f"{stem}.webm" if n == 0 else f"{stem}-{n}.webm")
+            try:
+                os.link(source, target)
+            except FileExistsError:
+                continue
+            except OSError:
+                # Different filesystems, or links not supported: copy into a
+                # file we created exclusively, so the name is still ours alone.
+                try:
+                    with open(source, "rb") as src, open(target, "xb") as dst:
+                        shutil.copyfileobj(src, dst)
+                except FileExistsError:
+                    continue
+            print(f"Recording saved to {target}")
+            return target
+        print(f"Could not find a free name for the recording in {target_dir}")
+        return None
+
     def launch_agent(self):
         """Launches the agent to perform the task in the OpenApps environment."""
         self.agent_args = hydra.utils.instantiate(self.config.agent)
@@ -370,8 +526,13 @@ class AgentLauncher(OpenAppsLauncher):
         for key, val in exp_record.items():
             print(f"{key}: {val}")
 
+        recording = self._save_recording(exp_args.exp_dir, exp_record)
+
         if self.config.use_wandb:
             self._log_agent_results_to_wandb(exp_record, exp_result)
+            if recording is not None:
+                wandb.log({"episode_video": wandb.Video(str(recording), format="webm")})
+                wandb.run.summary["video_path"] = str(recording)
 
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:
@@ -416,10 +577,30 @@ class AgentLauncher(OpenAppsLauncher):
                 "a sibling job's web app."
             )
 
+    def check_task_can_run(self):
+        """Refuse a task that needs the shop when this run does not serve it.
+
+        Otherwise the agent spends every step looking for an app whose routes
+        were never registered, and the run reads as a model failure. Checked
+        before the web app starts, so the mistake costs nothing.
+        """
+        task_name = self.config.get("task_name")
+        task_cfg = self.config.tasks.get(task_name) if task_name else None
+        if not task_needs_onlineshop(task_cfg):
+            return
+        reason = onlineshop_unavailable_reason(self.config.apps)
+        if reason:
+            raise ValueError(
+                f"Task {task_name!r} uses the online shop, but this run does not "
+                f"serve it: {reason}. Drop that override, or pick a task that "
+                f"does not touch the shop."
+            )
+
     def launch(self):
         """
         Launches open apps environment and orchestrates agent to perform the task.
         """
+        self.check_task_can_run()
         apps_process = self.launch_apps_via_shell()
         self.wait_until_apps_start(apps_process)
         # TODO: check if agent model is available in case of VLLM or API

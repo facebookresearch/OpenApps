@@ -2,7 +2,7 @@
 <div align="center">
 
  #  <img width="45" height="45" alt="image" src="https://github.com/user-attachments/assets/6c409d42-6f3a-4a62-be7f-57793d9dad9d" /> OpenApps
- 
+
 *Building Blocks for Computer-Use Agents Research*
 
 🏆 ICLR Oral, Top 1%
@@ -41,10 +41,13 @@ see [docs](https://facebookresearch.github.io/OpenApps/) for details.
 Simply run:
 
 ```bash
-uv run launch.py 
+uv run launch.py
 ```
 <img width="1440" height="822" alt="image" src="https://github.com/user-attachments/assets/46024c36-9f6d-462b-acb7-b6c148ed1754" />
 
+
+A browser opens on the apps once they are up, sized to the configured device.
+Pass `headless=True` to just serve them.
 
 Each app can be modified with variables available in `config/apps`. You can override any of these via command line:
 
@@ -52,10 +55,46 @@ Each app can be modified with variables available in `config/apps`. You can over
 uv run launch.py app.todo.title='Super Todo'
 ```
 
+### Overrides: when to use `=`, `+=` and `+`
+
+Hydra syntax, and the one thing worth memorising up front:
+
+| Form | Means | Example |
+| --- | --- | --- |
+| `key=value` | Change something that already exists | `uv run launch.py device=phone` |
+| `+key=value` | Add something not in the defaults list | `uv run launch.py +experiment=phone` |
+| `++key=value` | Add *or* change, whichever applies | `uv run launch.py ++apps.todo.title=Tasks` |
+
+A plain `=` fails on a key that does not exist yet, and a `+` fails on one that
+does — the error tells you which you needed. Groups already in the defaults
+list (`device`, `agent`, `tasks`, `apps/theme`, each app's `layout` and
+`content`) take `=`. Only `experiment` needs `+`, because it is deliberately
+not a default: an experiment config overrides *other* groups, so Hydra has to
+compose it last, and appending it is what `+` does.
+
+```bash
+uv run launch.py device=phone                    # existing group
+uv run launch.py apps/theme=dark                 # existing group
+uv run launch.py +experiment=phone               # preset bundle, not a default
+uv run launch.py +experiment=phone device=tablet # bundle, then override one part
+```
+
+An **experiment** is a named bundle that sets several groups at once, for the
+cases where the halves have to agree. `+experiment=phone` is `device=phone`
+plus the home-screen layout plus a larger step budget; `device=phone` alone
+gives you a phone-sized window still rendering the desktop layout. See
+`config/experiment/`.
+
 Learn more about to customize the content and appearance of apps in the [docs](https://facebookresearch.github.io/OpenApps/). 
 
 For a hot reloading dev server (live changes in browser):
 `scripts/dev.sh`
+
+## The online shop
+
+The shop is a Python rewrite of [WebShop](https://github.com/princeton-nlp/WebShop),
+on by default with a 999-product catalog from WebShop's item dump. See
+[Online Shop](docs/onlineshop.md) for its variations, catalog and data.
 
 ## Launch an Agent
 
@@ -65,8 +104,8 @@ Launch an agent to perform a task of *adding a meeting with Dennis to the calend
 
 
 ```
-# export OPENAI_API_KEY=""
-uv run launch_agent.py agent=GPT-5-1 task_name=add_meeting_with_dennis
+# export GPT55_API_KEY=""
+uv run launch_agent.py agent=GPT-5.5-computer-use task_name=add_meeting_with_dennis
 ```
 
 To see the agent solving the task live, add the headless argument:
@@ -79,6 +118,53 @@ uv run launch_agent.py ... browsergym_env_args.headless=False
 You can specify the agent of your choice with the `agent=` argument. For example `agent=dummy` is a simple agent that clicks randomly on any buttons, great for exploration!
 
 Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our [docs](https://facebookresearch.github.io/OpenApps/).
+
+## Environment variables
+
+Copy [`.env.example`](.env.example) and fill in what you need — `launch_agent.py` and
+`launch_parallel_agents.py` call `load_dotenv()`, so a `.env` at the repo root is picked up
+automatically, and `.env` is git-ignored so keys stay out of the configs:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Read by | Purpose |
+| --- | --- | --- |
+| `USER` | `config/config*.yaml`, `config/mode/*` | W&B `entity` and the `logs_dir` path |
+| `GPT55_API_KEY` | `config/agent/GPT-5.5-*.yaml` | key for the OpenAI-compatible endpoint |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | `config/agent/claude_4_sonnet.yaml` (`client_type: aws`) | Bedrock credentials, when left null in the config |
+| `WANDB_API_KEY`, `WANDB_BASE_URL`, `WANDB_MODE` | `wandb` | auth, self-hosted server, and `WANDB_MODE=offline` to skip online logging |
+| `EXPERIMENT_CONFIG_PATH` | `src/open_apps/configs.py` | optional path loaded by `load_config()` instead of the default config |
+
+Agent API keys are read through Hydra interpolation, so any variable name works — point the
+agent's `api_key` at the one you use:
+
+```bash
+uv run launch_agent.py agent=GPT-5.5-computer-use 'agent.api_key=${oc.env:OPENAI_API_KEY}'
+```
+
+The batch scripts take environment variables too (`AGENTS`, `COUNT`, `MAX_PARALLEL`,
+`VLLM_HOST`, …), but they are read by the shell, **not** through `.env` — export them at the
+call site, or `set -a; source .env; set +a` first. They are listed in the
+[agents docs](https://facebookresearch.github.io/OpenApps/agents/); the MCP server's
+variables are in [`src/open_apps/mcp/README.md`](src/open_apps/mcp/README.md).
+
+## Running on a cluster
+
+`config/mode/slurm_cluster.yaml` and the `#SBATCH` lines in `scripts/conduct_slurm.sh` ship
+with placeholder accounts and paths that `sbatch` will reject. Copy the mode to an
+`internal-` twin — `.gitignore` keeps any `internal-*` file untracked, so your site's paths
+and account names can't be committed by accident:
+
+```bash
+cp config/mode/slurm_cluster.yaml config/mode/internal-slurm_cluster.yaml
+uv run launch_parallel_agents.py mode=internal-slurm_cluster agent=dummy \
+    tasks=longer_horizon parallel_tasks.task_names=all use_wandb=True
+```
+
+See the [agents docs](https://facebookresearch.github.io/OpenApps/agents/) for the full
+SLURM + vLLM + W&B walkthrough.
 
 ## OpenApps in action
 
@@ -118,7 +204,7 @@ To build docs:
 ```
 mkdocs build
 mkdocs serve
-``` 
+```
 
 this will launch docs available at https://facebookresearch.github.io/OpenApps/
 
@@ -136,13 +222,12 @@ uv run -m pytest tests/
 
 ## Attribution
 
-Our apps are built on top of several excellent frameworks:  
+Our apps are built on top of several excellent frameworks:
 
 - FastHTML [framework](https://github.com/AnswerDotAI/fasthtml) and [examples](https://github.com/AnswerDotAI/fasthtml-example) which allowed us to build fully functional apps in Python, the language most familiar to AI researchers.
 - [Browser Gym](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) and [AgentLab](https://github.com/ServiceNow/AgentLab/blob/main/LICENSE):
-- [Spacy](https://github.com/innoq/spacy/blob/main/LICENSE): for natural language processing
 - Open Street Maps: https://www.openstreetmap.org/copyright for our Maps apps.
-- (and for the optional webshop) we rely on [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md) developed by Princeton 
+- (for the online shop) [WebShop](https://github.com/princeton-nlp/WebShop/blob/master/LICENSE.md), developed by Princeton University: our shop is a rewrite, and its catalog is converted from WebShop's item dump.
 
 Some icons are have been designed using resources from Flaticon.com
 

@@ -1,0 +1,8 @@
+# @package apps.onlineshop
+# Structure only -- colors/fonts come from the shared theme. Select with
+# `apps/onlineshop/layout=grid`.
+#
+# Products as a responsive card grid rather than one per row. Changes how many
+# products are on screen at once and moves the "Add to Cart" control inside
+# each card, so an agent cannot rely on a fixed row ordering.
+layout: grid

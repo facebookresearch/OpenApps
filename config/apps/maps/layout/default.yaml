@@ -1,0 +1,4 @@
+# @package apps.maps
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/maps/layout=<name>`.
+layout: default

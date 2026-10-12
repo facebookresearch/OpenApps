@@ -1,0 +1,339 @@
+/*
+ * Global window chrome: title bar, dock, agent cursor.
+ *
+ * Inlined into every page by open_apps.chrome_middleware, after the app's own
+ * styles. Three rules of the road, all forced by the fact that this lands on
+ * pages it did not write:
+ *
+ * 1. Reset first. Pico, Tailwind's preflight and the html5up stylesheet on the
+ *    start page all style bare `button`, `a`, `nav`, `img` and `form`. The reset
+ *    below unsets everything inside the chrome at id specificity, and every rule
+ *    after it is written as `#id .class` so it outranks the reset. It skips SVG
+ *    internals -- `all` would also unset `d`, `fill` and `stroke`, which
+ *    Chromium treats as CSS properties -- and <style>/<script>, whose text
+ *    would otherwise render as inline content.
+ *
+ * 2. Reserve space, never overlay. A dock floating over the bottom of a page
+ *    would sit on top of whatever button lives there, and Playwright refuses to
+ *    click an element another one covers. The space is padding on <html>, not
+ *    <body>: the messenger centres its body as a narrow column, and its padding
+ *    is part of that layout.
+ *
+ * 3. No animation at rest. A looping glow would make every screenshot
+ *    different; the only motion is the cursor glide and the click ripple, both
+ *    triggered by input and both done inside BrowserGym's 500ms settle.
+ */
+
+/* ---- reserved space ---------------------------------------------------- */
+html[data-oa-chrome] {
+  --oa-titlebar-h: 0px;
+  --oa-dock-space: 0px;
+  padding-top: var(--oa-titlebar-h);
+  padding-bottom: var(--oa-dock-space);
+  box-sizing: border-box;
+  /* Scrolling an element into view (Playwright does, before every click)
+     must not park it under the title bar or the dock. */
+  scroll-padding-top: var(--oa-titlebar-h);
+  scroll-padding-bottom: var(--oa-dock-space);
+}
+html[data-oa-titlebar] { --oa-titlebar-h: 38px; }
+/* `reserve` on app pages; `overlay` on the desktop shell, where the dock
+   floats over wallpaper with nothing under it to cover, and reserving space
+   would only push the shell's full-height surface into a scroll. */
+html[data-oa-dock="reserve"] { --oa-dock-space: 92px; }
+html[data-oa-dock="reserve"][data-oa-labels="false"] { --oa-dock-space: 74px; }
+html[data-oa-dock="reserve"][data-oa-device="phone"] { --oa-dock-space: 80px; }
+/* Maximized hands the dock's space back to the app. */
+html[data-oa-maximized] { --oa-dock-space: 0px; }
+html[data-oa-maximized] #oa-chrome .oa-dock { display: none; }
+
+/* The map pins html, body and its container to 100vh with overflow hidden,
+   so reserved padding would push its bottom edge -- the sidebar's last rows,
+   Leaflet's attribution -- off-screen with no way to scroll to it. */
+html[data-oa-chrome][data-oa-app="maps"],
+html[data-oa-chrome][data-oa-app="maps"] body,
+html[data-oa-chrome][data-oa-app="maps"] .container {
+  height: calc(100vh - var(--oa-titlebar-h) - var(--oa-dock-space));
+}
+
+/* ---- reset ------------------------------------------------------------- */
+#oa-titlebar,
+:is(#oa-titlebar, #oa-chrome) :not(svg, svg *, style, script) {
+  all: unset;
+  box-sizing: border-box;
+}
+#oa-chrome { display: contents; }
+:is(#oa-titlebar, #oa-chrome) [hidden] { display: none !important; }
+:is(#oa-titlebar, #oa-chrome) svg { display: block; flex: none; }
+:is(#oa-titlebar, #oa-chrome) form { display: contents; }
+
+/* ---- title bar --------------------------------------------------------- */
+/* Painted in the *app's* theme -- it is part of the window -- so it reads the
+   page's own :root tokens. The dock and cursor below are the desktop's, and
+   read the shell tokens scoped onto #oa-chrome instead. */
+#oa-titlebar.oa-titlebar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--oa-titlebar-h);
+  z-index: 2147483000;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 12px;
+  background: color-mix(in srgb, var(--color-surface, #f0f2f5) 88%, var(--color-bg, #ffffff));
+  border-bottom: 1px solid var(--color-border, rgb(0 0 0 / 12%));
+  color: var(--color-fg, #1c2b33);
+  font-family: var(--font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
+}
+#oa-titlebar .oa-titlebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+  color: inherit;
+}
+#oa-titlebar .oa-titlebar-title img { display: block; width: 16px; height: 16px; border-radius: 4px; }
+#oa-titlebar .oa-titlebar-title span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#oa-titlebar .oa-window-controls { display: flex; align-items: center; height: 100%; }
+#oa-titlebar .oa-win-btn { display: flex; align-items: center; justify-content: center; cursor: default; }
+
+/* macOS: traffic lights left, title centred. The three fills are the
+   platform's own and carry meaning across every theme -- like the start page's
+   tile palette, they are deliberately not tokens. Each light is a 12px dot
+   inside a 20px button, so the hit target is bigger than what it draws. */
+#oa-titlebar.is-mac .oa-window-controls { justify-self: start; }
+#oa-titlebar.is-mac .oa-titlebar-title { justify-self: center; }
+#oa-titlebar.is-mac .oa-win-btn { width: 20px; height: 20px; }
+#oa-titlebar.is-mac .oa-win-btn > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 22%);
+  color: rgb(0 0 0 / 55%);
+}
+#oa-titlebar.is-mac .is-close > span { background: #ff5f57; }
+#oa-titlebar.is-mac .is-minimize > span { background: #febc2e; }
+#oa-titlebar.is-mac .is-maximize > span { background: #28c840; }
+#oa-titlebar.is-mac .oa-win-btn svg { opacity: 0; }
+#oa-titlebar.is-mac .oa-window-controls:hover svg,
+#oa-titlebar.is-mac .oa-win-btn:focus-visible svg { opacity: 1; }
+#oa-titlebar.is-mac .oa-win-btn:focus-visible > span { outline: 2px solid var(--color-accent, #0064e0); outline-offset: 1px; }
+
+/* Windows: title left, caption buttons flush right at full bar height. */
+#oa-titlebar.is-windows { grid-template-columns: 1fr auto; padding-right: 0; }
+#oa-titlebar.is-windows .oa-titlebar-title { grid-column: 1; grid-row: 1; justify-self: start; font-weight: 400; }
+#oa-titlebar.is-windows .oa-window-controls { grid-column: 2; grid-row: 1; justify-self: end; }
+#oa-titlebar.is-windows .oa-win-btn { width: 46px; height: var(--oa-titlebar-h); color: inherit; }
+#oa-titlebar.is-windows .oa-win-btn:hover { background: color-mix(in srgb, var(--color-fg, #1c2b33) 9%, transparent); }
+#oa-titlebar.is-windows .oa-win-btn.is-close:hover { background: #c42b1c; color: #ffffff; }
+#oa-titlebar.is-windows .oa-win-btn:focus-visible { outline: 2px solid var(--color-accent, #0064e0); outline-offset: -2px; }
+
+/* ---- dock -------------------------------------------------------------- */
+#oa-chrome .oa-dock {
+  position: fixed;
+  bottom: 8px;
+  left: 0; right: 0;
+  margin: 0 auto;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  z-index: 2147483000;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-bg, #ffffff) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-fg, #1c2b33) 12%, transparent);
+  /* Shadows are an absence of light: black in both modes. See ui/styles.py. */
+  box-shadow: 0 10px 30px rgb(0 0 0 / 16%), 0 1px 3px rgb(0 0 0 / 10%);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  color: var(--color-fg, #1c2b33);
+  font-family: var(--font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
+  user-select: none;
+}
+#oa-chrome .oa-dock-sep {
+  display: block;
+  align-self: stretch;
+  width: 1px;
+  margin: 6px 4px;
+  background: color-mix(in srgb, var(--color-fg, #1c2b33) 16%, transparent);
+}
+#oa-chrome .oa-dock-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  /* Sized to the title, within limits: "OpenCodeEditor" fits whole, and a
+     long localized name ellipsizes instead of stretching the dock. */
+  min-width: 60px;
+  max-width: 108px;
+  padding: 4px 6px 7px;
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+#oa-chrome .oa-dock-item:hover { background: color-mix(in srgb, var(--color-fg, #1c2b33) 7%, transparent); }
+#oa-chrome .oa-dock-item[aria-current="page"],
+#oa-chrome .oa-dock-item[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--color-fg, #1c2b33) 11%, transparent);
+}
+#oa-chrome .oa-dock-item:focus-visible { outline: 2px solid var(--color-accent, #0064e0); outline-offset: -2px; }
+#oa-chrome .oa-dock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  transition: transform 120ms ease-out;
+}
+#oa-chrome .oa-dock-item:hover .oa-dock-icon { transform: translateY(-2px); }
+#oa-chrome .oa-dock-icon img { display: block; width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+/* Glyph items (Desktop, All apps) get a tile, so they sit in the row at the
+   same visual weight as the raster app icons beside them. */
+#oa-chrome .oa-dock-icon.is-glyph {
+  background: color-mix(in srgb, var(--color-fg, #1c2b33) 10%, var(--color-bg, #ffffff));
+  color: var(--color-fg, #1c2b33);
+}
+#oa-chrome .oa-dock-label {
+  display: block;
+  max-width: 100%;
+  font-size: 11px;
+  line-height: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, var(--color-fg, #1c2b33) 86%, transparent);
+}
+/* Running indicator: a dot under the label, as under a macOS dock icon. */
+#oa-chrome .oa-dock-item[data-running="true"]::after {
+  content: "";
+  position: absolute;
+  bottom: 1px; left: 50%;
+  width: 4px; height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+/* All-apps panel. Not the Popover API: a popover renders in the top layer,
+   above every z-index, and would paint over the agent cursor. */
+#oa-chrome .oa-dock-launcher { display: block; position: relative; }
+#oa-chrome .oa-dock-panel {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: -5px;
+  display: grid;
+  grid-template-columns: repeat(4, 92px);
+  gap: 4px;
+  padding: 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-bg, #ffffff) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-fg, #1c2b33) 12%, transparent);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 20%);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+#oa-chrome .oa-dock-panel-title {
+  display: block;
+  grid-column: 1 / -1;
+  padding: 0 4px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--color-fg, #1c2b33) 70%, transparent);
+}
+#oa-chrome .oa-dock-panel .oa-dock-item { max-width: none; }
+
+/* Bare icons: the label is gone from the page but stays as the link's name. */
+#oa-chrome .oa-dock.is-unlabelled .oa-dock-item { min-width: 52px; padding-bottom: 9px; }
+
+/* Phone: a full-width bar, items share the width, scrolls if they do not fit. */
+html[data-oa-device="phone"] #oa-chrome .oa-dock {
+  left: 8px; right: 8px;
+  width: auto;
+  max-width: none;
+  justify-content: space-around;
+  overflow-x: auto;
+  border-radius: 24px;
+}
+html[data-oa-device="phone"] #oa-chrome .oa-dock-item { min-width: 0; width: 56px; padding-inline: 2px; flex: none; }
+html[data-oa-device="phone"] #oa-chrome .oa-dock-icon,
+html[data-oa-device="phone"] #oa-chrome .oa-dock-icon img { width: 36px; height: 36px; }
+html[data-oa-device="phone"] #oa-chrome .oa-dock-label { font-size: 10px; }
+html[data-oa-device="phone"] #oa-chrome .oa-dock-panel { position: fixed; left: 8px; right: 8px; bottom: 88px; grid-template-columns: repeat(4, 1fr); }
+
+/* ---- agent cursor ------------------------------------------------------ */
+/* A zero-size box translated to the pointer position; everything it draws
+   hangs off that point. pointer-events: none on the whole subtree is what
+   keeps it out of elementFromPoint, so it can never intercept a click or
+   trip Playwright's "element is covered" check. */
+#oa-chrome .oa-cursor,
+#oa-chrome .oa-cursor-ripple {
+  position: fixed;
+  left: 0; top: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+#oa-chrome .oa-cursor { display: block; width: 0; height: 0; will-change: transform; }
+#oa-chrome .oa-cursor-halo {
+  display: block;
+  position: absolute;
+  left: -22px; top: -22px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+      color-mix(in srgb, var(--oa-cursor-a) 55%, transparent) 0%,
+      color-mix(in srgb, var(--oa-cursor-b) 26%, transparent) 42%,
+      transparent 70%);
+}
+#oa-chrome .oa-cursor svg.oa-cursor-arrow {
+  position: absolute;
+  /* The arrow's tip is at (3, 2) in its 24px box; this puts it on the point. */
+  left: -3px; top: -2px;
+  overflow: visible;
+  transform-origin: 3px 2px;
+  transition: transform 90ms ease-out;
+  filter: drop-shadow(0 0 3px var(--oa-cursor-a))
+          drop-shadow(0 0 8px color-mix(in srgb, var(--oa-cursor-b) 70%, transparent))
+          drop-shadow(0 1px 1.5px rgb(0 0 0 / 40%));
+}
+#oa-chrome .oa-cursor.is-pressed svg.oa-cursor-arrow { transform: scale(0.85); }
+#oa-chrome .oa-cursor-label {
+  display: block;
+  position: absolute;
+  left: 16px; top: 20px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--oa-cursor-a), var(--oa-cursor-b));
+  color: #ffffff;
+  font: 600 11px/14px var(--font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
+}
+/* classic: what a native pointer looks like -- no halo, no colour. */
+#oa-chrome .oa-cursor.is-classic .oa-cursor-halo { display: none; }
+#oa-chrome .oa-cursor.is-classic svg.oa-cursor-arrow { filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 45%)); }
+#oa-chrome .oa-cursor.is-classic .oa-cursor-fill { fill: #ffffff; stroke: #000000; }
+
+#oa-chrome .oa-cursor-ripple {
+  display: block;
+  width: 48px; height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  border: 2.5px solid var(--oa-cursor-a);
+  box-shadow: 0 0 10px var(--oa-cursor-b), inset 0 0 8px color-mix(in srgb, var(--oa-cursor-a) 60%, transparent);
+  animation: oa-cursor-ripple 400ms ease-out forwards;
+}
+@keyframes oa-cursor-ripple {
+  from { transform: scale(0.25); opacity: 1; }
+  to   { transform: scale(1);   opacity: 0; }
+}

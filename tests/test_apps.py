@@ -25,18 +25,20 @@ from open_apps.apps.start_page.main import (
     app,
     initialize_routes_and_configure_task,
 )
-from open_apps.apps.start_page.helper import (
-    get_java_version,
-)
+from open_apps.apps.uilibrary_app.main import ALL_VARIANTS
 
 
 @pytest.fixture(scope="module")
 def client(tmpdir_factory):
-    logs_dir = str(tmpdir_factory.getbasetemp())
+    # Its own directory, not the shared base temp: other modules seed their
+    # databases there too, and re-seeding on top of them violates UNIQUE keys.
+    logs_dir = str(tmpdir_factory.mktemp("test_apps"))
+    # Exercise a non-default selection on every axis: the shared theme
+    # (global), a per-app theme override, and per-app content.
     alt_config = [
-        "apps/messenger/appearance=challenging_font",
+        "apps/theme=challenging_font",
         "apps/messenger/content=misleading_descriptions",
-        "apps/calendar/appearance=dark_theme",
+        "apps.calendar.theme=dark",
     ]
     standard_overrides = [f"logs_dir={logs_dir}"]
 
@@ -86,13 +88,78 @@ class TestApps:
         response = client.get("/maps")
         assert response.status_code == 200
 
-    def test_onlineshop(self, client):
-        if get_java_version().startswith("21"):
-            response = client.get("/onlineshop")
-            assert response.status_code == 200
-        else:
-            # Skip the test if Java version is not 21 or higher
-            pytest.skip("Java version is not 21 or higher, skipping onlineshop test.")
+    def test_openbanking(self, client):
+        response = client.get("/openbanking")
+        assert response.status_code == 200
+
+    def test_openbanking_account(self, client):
+        response = client.get("/openbanking/accounts/0")
+        assert response.status_code == 200
+
+    def test_openbanking_all(self, client):
+        """checks url used for rewards"""
+        response = client.get("/openbanking_all")
+        assert response.status_code == 200
+
+        response_json = response.json()
+        assert set(response_json) == {"accounts", "transactions"}
+        assert response_json["accounts"]
+        assert response_json["transactions"]
+
+    def test_onlineshop_is_present_by_default(self, client):
+        """The shipped default is `content=webshop`, so the shop is there.
+
+        The catalog is committed, so no setup step stands between a clean
+        checkout and a storefront. `tests/test_onlineshop.py::TestCatalogGate`
+        covers the other side -- a `content` pack with no products leaves the
+        routes unregistered rather than serving an empty shop.
+        """
+        assert client.get("/onlineshop").status_code == 200
+
+    def test_homepage_shows_the_shop_tile(self, client):
+        assert 'href="/onlineshop"' in client.get("/").text
+
+    def test_uilibrary(self, client):
+        response = client.get("/uilibrary")
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize("section", ["tokens", "atoms", "molecules", "brand"])
+    def test_uilibrary_sections(self, client, section):
+        response = client.get(f"/uilibrary/{section}")
+        assert response.status_code == 200
+
+    def test_uilibrary_state_endpoint(self, client):
+        """`/uilibrary_all` is the reward substrate: one row per component."""
+        response = client.get("/uilibrary_all")
+        assert response.status_code == 200
+        rows = response.json()
+        assert {row["component"] for row in rows} == set(ALL_VARIANTS)
+        assert all(
+            row["variant"] in ALL_VARIANTS[row["component"]] for row in rows
+        )
+
+    def test_uilibrary_variant_knob_persists(self, client):
+        """Switching a variant changes stored state, not just the fragment."""
+        response = client.post("/uilibrary/atoms/UIButton/variant/danger")
+        assert response.status_code == 200
+        assert "is-danger" in response.text
+
+        stored = {row["component"]: row for row in client.get("/uilibrary_all").json()}
+        assert stored["UIButton"]["variant"] == "danger"
+
+    def test_uilibrary_pin_toggles(self, client):
+        before = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        client.post("/uilibrary/atoms/Divider/pin")
+        after = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        assert bool(after["Divider"]["pinned"]) != bool(before["Divider"]["pinned"])
+
+    def test_uilibrary_rejects_unknown_variant(self, client):
+        """A mistyped agent action must not corrupt the scored state."""
+        before = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        response = client.post("/uilibrary/atoms/UIButton/variant/not-a-variant")
+        assert response.status_code == 200
+        after = {r["component"]: r for r in client.get("/uilibrary_all").json()}
+        assert after["UIButton"]["variant"] == before["UIButton"]["variant"]
 
 
 class TestTasks:

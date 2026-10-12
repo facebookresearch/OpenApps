@@ -1,0 +1,203 @@
+# @package apps.openbanking
+defaults:
+  - default
+
+# As in `german`: chrome and descriptions are translated, but account names
+# and every numeric amount/balance stay identical so a task's expected answer
+# does not change with the language variant.
+nav_actions: ["开设账户"]
+# The phone number is a figure, so it stays identical across variants for the
+# same reason the amounts do.
+open_account_heading: "开设新账户"
+open_account_body: "新账户需通过电话开设。请致电我们，企业客户经理将为您办理。"
+close_label: "关闭"
+accounts_heading: "您的账户"
+back_to_accounts_label: "返回账户列表"
+
+available_balance_label: "可用余额"
+present_balance_label: "当前余额"
+available_credit_label: "可用信用额度"
+available_plus_credit_label: "可用余额加信用额度"
+account_number_label: "账号"
+routing_number_label: "路由号码"
+show_number_label: "显示完整号码"
+hide_number_label: "隐藏号码"
+
+card_number_label: "卡号"
+card_expires_label: "有效期至"
+payment_heading: "还款"
+statement_balance_label: "账单余额"
+minimum_payment_label: "最低还款额"
+payment_due_label: "还款到期日"
+statement_close_label: "账单结算日"
+available_to_spend_label: "可用额度"
+current_balance_label: "当前余额"
+credit_limit_label: "信用额度"
+
+transactions_heading: "交易记录"
+showing_label: "显示"
+showing_options:
+  - "全部交易"
+  - "存入"
+  - "支出"
+search_placeholder: "搜索交易"
+search_label: "搜索"
+see_more_label: "查看更多活动"
+see_less_label: "收起活动"
+pending_label: "待处理"
+no_results_label: "没有符合搜索条件的交易。"
+column_labels:
+  date: "日期"
+  description: "描述"
+  type: "类型"
+  amount: "金额"
+  balance: "余额"
+
+accounts:
+  - name: "BUS COMPLETE CHK (...5555)"
+    kind: deposit
+    holder: "Acme 实业有限公司"
+    account_number: "447109255555"
+    routing_number: "123456789"
+    available_balance: 6102.80
+    present_balance: 6102.80
+    available_credit: 0.00
+    transactions:
+      - date: null
+        description: "实时转账收款 来自 ABA/对方银行-123 付款方: PART CORP INC 参考号: 12345 信息: TEXT-123 IID: 555 收到时间: 12:19:04 交易号: 123ABC 银行参考: 123ABC"
+        type: "其他"
+        amount: 5000.00
+        balance: null
+      - date: "2026年8月25日"
+        description: "发起方名称:VENMO 发起方ID:123 记账日期:260824 摘要:提现 SEC:PPD 追踪号:123 EED:123 个人ID: 个人名称:ACMEIND 交易号: 123ABC"
+        type: "ACH 入账"
+        amount: 632.67
+        balance: 1102.80
+      - date: "2026年8月24日"
+        description: "企业工具 BIZTOOL.COM TX 08/23 (...5432)"
+        type: "银行卡"
+        amount: -323.36
+        balance: 470.13
+      - date: "2026年8月24日"
+        description: "COOL APPS INC. COOLAPP.COM MD 08/22 (...4321)"
+        type: "银行卡"
+        amount: -1078.81
+        balance: 793.49
+      # Behind "查看更多活动". Amounts and balances match `default` exactly --
+      # only the wording is translated.
+      - date: "2026年8月23日"
+        description: "发起方名称:PAYROLL PARTNERS 发起方ID:456 记账日期:260822 摘要:工资发放 SEC:CCD 追踪号:456 EED:260823 个人ID: 个人名称:ACMEIND 交易号: 456DEF"
+        type: "ACH 出账"
+        amount: -1500.00
+        balance: 1872.30
+      - date: "2026年8月22日"
+        description: "远程支票存入 批次 00187 笔数 003 处理时间 08/22 09:41:12 CT"
+        type: "存款"
+        amount: 2450.00
+        balance: 3372.30
+      - date: "2026年8月20日"
+        description: "44号印刷店 PRINTSHOP44.COM TX 08/19 (...5432)"
+        type: "银行卡"
+        amount: -64.20
+        balance: 922.30
+
+  - name: "BUS SELECT SAVINGS (...8891)"
+    kind: deposit
+    holder: "Northgate 供应有限公司"
+    account_number: "620833148891"
+    routing_number: "123456789"
+    available_balance: 24310.55
+    present_balance: 24310.55
+    available_credit: 0.00
+    transactions:
+      - date: "2026年8月22日"
+        description: "从支票账户 ...5555 转入"
+        type: "转账"
+        amount: 2000.00
+        balance: 24310.55
+      - date: "2026年8月1日"
+        description: "利息入账"
+        type: "利息"
+        amount: 18.42
+        balance: 22310.55
+      - date: "2026年7月15日"
+        description: "从支票账户 ...5555 转入"
+        type: "转账"
+        amount: 3500.00
+        balance: 22292.13
+      - date: "2026年7月1日"
+        description: "利息入账"
+        type: "利息"
+        amount: 15.88
+        balance: 18792.13
+      - date: "2026年6月18日"
+        description: "转出至支票账户 ...5555"
+        type: "转账"
+        amount: -1200.00
+        balance: 18776.25
+      - date: "2026年6月1日"
+        description: "从支票账户 ...5555 转入"
+        type: "转账"
+        amount: 2500.00
+        balance: 19976.25
+
+  # The two date strings are translated, like the transaction dates; the
+  # payment-due task scores on a calendar event rather than on the string.
+  - name: "INK BUSINESS CARD (...2043)"
+    kind: credit_card
+    holder: "Cardinal 货运有限公司"
+    account_number: "9024007155992043"
+    routing_number: null
+    card_brand: "Meridian"
+    card_expiration: "09/29"
+    available_balance: 0.00
+    present_balance: -1284.19
+    available_credit: 8715.81
+    credit_limit: 10000.00
+    statement_balance: 872.19
+    statement_close_date: "2026年8月21日"
+    minimum_payment: 35.00
+    payment_due_date: "2026年9月15日"
+    transactions:
+      - date: "2026年8月23日"
+        description: "CLOUD HOST LLC CLOUDHOST.IO WA 08/22 (...2043)"
+        type: "银行卡"
+        amount: -412.00
+        balance: -1284.19
+      - date: "2026年8月20日"
+        description: "办公用品公司 OFFICESUP.COM NY 08/19 (...2043)"
+        type: "银行卡"
+        amount: -212.44
+        balance: -872.19
+      - date: "2026年8月18日"
+        description: "还款 - 感谢您"
+        type: "还款"
+        amount: 900.00
+        balance: -659.75
+      # None of these is type 银行卡: the card-charges task states the account
+      # has exactly two, and that has to stay true in every language.
+      - date: "2026年8月12日"
+        description: "年费"
+        type: "手续费"
+        amount: -95.00
+        balance: -1559.75
+      - date: "2026年8月8日"
+        description: "消费利息"
+        type: "利息"
+        amount: -18.32
+        balance: -1464.75
+      - date: "2026年8月5日"
+        description: "退货入账 FLEET UNIFORM SUPPLY (...2043)"
+        type: "退款"
+        amount: 146.55
+        balance: -1446.43
+      - date: "2026年8月1日"
+        description: "消费利息"
+        type: "利息"
+        amount: -4.77
+        balance: -1592.98
+      - date: "2026年7月31日"
+        description: "消费利息"
+        type: "利息"
+        amount: -79.00
+        balance: -1588.21

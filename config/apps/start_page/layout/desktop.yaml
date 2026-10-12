@@ -1,0 +1,113 @@
+# @package apps.start_page
+# Desktop-shell landing page: a toolbar, a launcher menu and pinnable
+# shortcuts, in place of the tile gallery.
+#
+# Select with `apps/start_page/layout=desktop`. Pair with `apps/theme=meta`
+# (or meta_dark) for the Meta-branded palette.
+#
+# NOTHING HERE IS READ FROM THE CLOCK OR THE NETWORK.
+#
+# The toolbar time and weather are fixed strings. That is deliberate three
+# times over:
+#   * a live clock changes every screenshot, so reference comparison in
+#     tests/save_screenshots.py would fail on every run;
+#   * a weather lookup is egress, and the eval nodes have no outbound network;
+#   * a frozen value has a correct answer, so a task can ask "what is the
+#     temperature?" and be scored.
+# Vary them the way any other appearance axis is varied -- by adding another
+# file to this group.
+layout: desktop
+
+desktop:
+  # Composition per device form factor (see config/device/). `shell` is the
+  # desktop: toolbar, centred headline, shortcuts docked bottom-right.
+  # `home_screen` is the phone: status bar, wordmark widget, a grid of the apps
+  # that are NOT pinned, and a dock holding the ones that are.
+  #
+  # Anything unlisted -- `tablet` here -- gets `shell`, which on a tablet is
+  # the right answer: there is room for the desktop composition, and what the
+  # tablet actually changes is the input model (touch, no hover).
+  #
+  # Overridable, which is the point of it being data: rendering the desktop
+  # composition on a phone is the control condition for measuring whether the
+  # phone one helps.
+  #   uv run launch.py device=phone apps.start_page.desktop.variants.phone=shell
+  variants:
+    phone: home_screen
+
+  # Centred at the top of the desktop surface. Falls back to the start page's
+  # own `headline` when unset, so the gallery layout's copy is not disturbed.
+  headline: "An open source environment for digital agents"
+  # Toolbar clock. Leave null for the real current time. Set a string to FREEZE
+  # it -- which is what an eval wants: tests/save_screenshots.py pixel-compares
+  # the start page, and a ticking clock changes that image on every run.
+  #   time: "9:41 AM"
+  time: null
+  weather:
+    # One of: clear, sunny, cloudy, overcast, rain, rainy. Anything else falls
+    # back to the cloud glyph rather than rendering a gap.
+    condition: "clear"
+    # Celsius only, as a bare number. Fahrenheit is derived when the toolbar is
+    # toggled, rather than configured alongside -- two numbers that can
+    # disagree is a bug waiting to happen, and a task's expected answer should
+    # not depend on which unit the agent left the toolbar showing.
+    celsius: 18
+  # Initial light/dark mode. Mutable at runtime via the toolbar toggle, which
+  # is scoreable state -- this is only the starting value.
+  mode: "light"
+  # Initial temperature units: celsius | fahrenheit. Also mutable at runtime by
+  # clicking the toolbar temperature, and also scoreable.
+  units: "celsius"
+  # App keys pinned to the desktop on first load. Also mutable at runtime, and
+  # scoreable -- /desktop_all reports the list.
+  #
+  # `all` expands to every enabled app in `apps:` above, so adding an app does
+  # not silently leave it off the desktop. A list of keys works too.
+  pinned: all
+  # Subtracted from `pinned`. This is the knob for launcher experiments: an
+  # unpinned app has no shortcut on the desktop, so the only way to it is
+  # through the launcher menu. Naming the few you want hidden beats re-listing
+  # every one you still want shown.
+  #
+  #   uv run launch.py apps.start_page.desktop.unpinned=[messages,maps]
+  #   uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
+  #       apps.start_page.desktop.unpinned=[messages]
+  unpinned: []
+  # Per-composition override of `pinned`, keyed like `variants:` above.
+  #
+  # The home screen splits apps between a grid (unpinned) and a dock (pinned),
+  # so `all` there would dock every app and leave the grid empty. It is not the
+  # composition to run launcher experiments on anyway: a phone's unpinned apps
+  # are on the grid, in plain view, not behind the menu.
+  pinned_by_variant:
+    home_screen: ["todo", "calendar"]
+  # Programmatically generated background, rendered by open_apps.wallpaper
+  # with Pillow and numpy -- both already dependencies, so there is nothing to
+  # install. If rendering fails for any reason the shell falls back to a
+  # pure-CSS gradient of the same hues; nothing here can take the page down.
+  wallpaper:
+    enabled: true
+    # Each variant is a different arrangement of the same ridges and palette.
+    # Deterministic: the same variant renders byte-identically anywhere, which
+    # is what keeps screenshot comparison stable across runs.
+    variant: 0
+    # Force a re-render even when the file is already cached on disk. Leave
+    # false in evals -- regenerating on every page load is wasted work and
+    # makes the first paint depend on how fast the box is.
+    regenerate: false
+    # Overlay tuning. blur is the depth-of-field pass (gradient-masked, so it
+    # peaks at the top and bottom edges); fade is how far the whole image is
+    # pulled toward the page background. 0 = full-strength wallpaper, 1 = it
+    # disappears entirely into color-bg.
+    blur: "4px"
+    fade: 0.7
+
+  # Token names (not hex) used to tint each app's tile, so the launcher does
+  # not read as one undifferentiated blue grid. Falls back to color-primary.
+  accents:
+    todo: color-primary
+    calendar: color-accent-violet
+    messages: color-accent-teal
+    maps: color-success
+    codeeditor: color-accent-pink
+    onlineshop: color-warning
