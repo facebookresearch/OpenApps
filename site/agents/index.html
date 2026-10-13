@@ -319,6 +319,25 @@
                 
                 <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
     <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
+        data-size="default" href="/OpenApps/onlineshop/"
+        class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
+
+        
+        Online Shop
+        
+
+        
+
+        
+
+        
+    </a>
+</li>
+                
+                
+                
+                <li data-slot="sidebar-menu-item" data-sidebar="menu-item" class="group/menu-item relative">
+    <a data-slot="sidebar-menu-button" data-active="false" data-sidebar="menu-button"
         data-size="default" href="/OpenApps/Intro%20to%20UI%20Agents/"
         class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground peer/menu-button flex items-center gap-2 rounded-md p-2 text-left outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 data-[active=true]:bg-accent data-[active=true]:border-accent 3xl:fixed:w-full 3xl:fixed:max-w-48 relative h-[30px] w-fit overflow-visible border border-transparent text-[0.8rem] font-medium after:absolute after:inset-x-0 after:-inset-y-1 after:z-0 after:rounded-md">
 
@@ -588,9 +607,6 @@ uv<span class="w"> </span>sync
 uv<span class="w"> </span>run<span class="w"> </span>playwright<span class="w"> </span>install<span class="w"> </span>chromium
 uv<span class="w"> </span>run<span class="w"> </span>playwright<span class="w"> </span>install-deps<span class="w"> </span>chromium<span class="w">   </span><span class="c1"># system deps (may need sudo/module)</span>
 
-<span class="c1"># App setup (OpenJDK 21 for onlineshop, dataset via gdown, spaCy en_core_web_lg)</span>
-./setup.sh
-
 <span class="c1"># Secrets — do NOT commit this file</span>
 cat<span class="w"> </span>&gt;<span class="w"> </span>.env<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 <span class="s">OPENAI_API_KEY=sk-...</span>
@@ -599,7 +615,48 @@ cat<span class="w"> </span>&gt;<span class="w"> </span>.env<span class="w"> </sp
 <span class="s">EOF</span>
 </code></pre></div>
 
-<p><code>launch_agent.py</code> calls <code>load_dotenv()</code>, so <code>.env</code> is picked up automatically.</p>
+<p><code>launch_agent.py</code> calls <code>load_dotenv()</code>, so <code>.env</code> is picked up automatically. See
+<a href="https://github.com/facebookresearch/OpenApps/blob/main/.env.example"><code>.env.example</code></a> for the
+full set of variables read through <code>.env</code>.</p>
+<h3 id="cluster-config-the-internal-convention">Cluster config: the <code>internal-*</code> convention</h3>
+<p><code>config/mode/slurm_cluster.yaml</code> ships with placeholder values (<code>logs_dir: /example/dir</code>,
+<code>slurm_account: example_replace_me</code>, …) that <code>sbatch</code> will reject. Rather than editing it and
+risking committing your site's paths and account names, <code>.gitignore</code> carries an <code>internal-*</code>
+rule: <strong>any file named <code>internal-*</code> stays untracked</strong>. The convention is to keep a private
+twin next to the public one:</p>
+<div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>config/mode/slurm_cluster.yaml<span class="w"> </span>config/mode/internal-slurm_cluster.yaml
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="c1"># config/mode/internal-slurm_cluster.yaml  (untracked)</span>
+<span class="c1"># @package _global_</span>
+<span class="nt">project</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">open_apps</span>
+
+<span class="nt">logs_dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${agent.model_name}/${job_id}</span>
+<span class="nt">databases_dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${logs_dir}/databases</span>
+
+<span class="nt">cluster</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurm</span>
+
+<span class="nt">slurm_sweep_launcher</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">gpus_per_node</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">nodes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">tasks_per_node</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">cpus_per_task</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">timeout_min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">400</span>
+<span class="w">  </span><span class="nt">slurm_account</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">your_account</span>
+<span class="w">  </span><span class="nt">slurm_qos</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">your_qos</span>
+<span class="w">  </span><span class="nt">slurm_partition</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">your_partition</span>
+<span class="w">  </span><span class="nt">mem_gb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="nt">slurm_srun_args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;-vv&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;--cpu-bind&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;none&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">slurm_comment</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;parallel</span><span class="nv"> </span><span class="s">agent</span><span class="nv"> </span><span class="s">tasks&quot;</span>
+</code></pre></div>
+
+<p>Select it like any other Hydra mode:</p>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>launch_parallel_agents.py<span class="w"> </span><span class="nv">mode</span><span class="o">=</span>internal-slurm_cluster<span class="w"> </span><span class="nv">agent</span><span class="o">=</span>dummy<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="nv">tasks</span><span class="o">=</span>longer_horizon<span class="w"> </span>parallel_tasks.task_names<span class="o">=</span>all<span class="w"> </span><span class="nv">use_wandb</span><span class="o">=</span>True
+</code></pre></div>
+
+<p>The same pattern applies elsewhere — e.g. <code>docs/internal-notes.md</code> for cluster-specific
+instructions alongside the public <code>docs/</code>.</p>
 <h3 id="1-launch-the-persistent-vllm-serve-job">1. Launch the persistent vLLM serve job</h3>
 <p>Give it a generous <code>--time</code> so it isn't killed mid-eval. For example, an
 interactive allocation:</p>
@@ -632,9 +689,68 @@ model</em>, so it doesn't matter how the vLLM job was started (e.g. a <code>bash
 <div class="codehilite"><pre><span></span><code><span class="nv">VLLM_HOST</span><span class="o">=</span>example_host<span class="w"> </span><span class="nv">AGENTS</span><span class="o">=</span>gemma-4-e2b-it<span class="w"> </span><span class="nv">COUNT</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>sbatch<span class="w"> </span>scripts/conduct_slurm.sh
 </code></pre></div>
 
-<p>Other env overrides: <code>VLLM_MODEL</code>, <code>VLLM_PORT</code>, and <code>WANDB_MODE</code> (set
-<code>WANDB_MODE=offline</code> to skip online logging). Extra CLI args are forwarded
-verbatim to <code>launch_agent.py</code> as Hydra overrides.</p>
+<p><strong>Account/QOS/partition:</strong> the <code>#SBATCH</code> lines in <code>scripts/conduct_slurm.sh</code> are
+placeholders. Override them at submit time rather than editing the script — the
+command line takes precedence:</p>
+<div class="codehilite"><pre><span></span><code><span class="nv">AGENTS</span><span class="o">=</span>gemma-4-e2b-it<span class="w"> </span><span class="nv">COUNT</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>sbatch<span class="w"> </span>--account<span class="o">=</span>...<span class="w"> </span>--qos<span class="o">=</span>...<span class="w"> </span>--partition<span class="o">=</span>...<span class="w"> </span>scripts/conduct_slurm.sh
+</code></pre></div>
+
+<p>The worker pool and its wrapper are configured entirely through the environment.
+These are read by the shell, <strong>not</strong> through <code>.env</code> — export them at the call site,
+or <code>set -a; source .env; set +a</code> first:</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Read by</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AGENTS</code></td>
+<td><code>scripts/conduct.sh</code></td>
+<td><code>dummy</code> — space-separated <code>config/agent/&lt;name&gt;</code> stems, used round-robin</td>
+</tr>
+<tr>
+<td><code>COUNT</code></td>
+<td><code>scripts/conduct.sh</code></td>
+<td>number of agents — total runs to launch</td>
+</tr>
+<tr>
+<td><code>MAX_PARALLEL</code></td>
+<td><code>scripts/conduct.sh</code></td>
+<td><code>4</code> — concurrent runs</td>
+</tr>
+<tr>
+<td><code>HEADLESS</code></td>
+<td><code>scripts/conduct.sh</code></td>
+<td><code>True</code></td>
+</tr>
+<tr>
+<td><code>LOG_DIR</code>, <code>WANDB_GROUP</code></td>
+<td><code>scripts/conduct.sh</code></td>
+<td><code>log_outputs</code>, <code>batch-&lt;timestamp&gt;</code></td>
+</tr>
+<tr>
+<td><code>WANDB_MODE</code></td>
+<td><code>wandb</code></td>
+<td>unset — <code>offline</code> skips online logging</td>
+</tr>
+<tr>
+<td><code>VLLM_MODEL</code>, <code>VLLM_PORT</code></td>
+<td><code>scripts/conduct_slurm.sh</code></td>
+<td>the <code>served_model_name</code> and port to look for</td>
+</tr>
+<tr>
+<td><code>VLLM_HOST</code></td>
+<td><code>scripts/conduct_slurm.sh</code></td>
+<td>unset — pin a node to skip auto-discovery</td>
+</tr>
+</tbody>
+</table></div>
+<p>Extra CLI args are forwarded verbatim to <code>launch_agent.py</code> as Hydra overrides.</p>
 <p><strong>Fallback if compute→compute <code>:8000</code> is firewalled:</strong> run the eval inside the
 vLLM job's own allocation and talk to it over localhost:</p>
 <div class="codehilite"><pre><span></span><code>srun<span class="w"> </span>--overlap<span class="w"> </span>--jobid<span class="o">=</span>&lt;vllm-job&gt;<span class="w"> </span><span class="se">\</span>
@@ -707,6 +823,12 @@ vLLM job's own allocation and talk to it over localhost:</p>
                     <a class="text-2xl font-medium" href="../installation/">
                         
                         Manual Installation
+                        
+                    </a>
+                    
+                    <a class="text-2xl font-medium" href="../onlineshop/">
+                        
+                        Online Shop
                         
                     </a>
                     
@@ -810,6 +932,12 @@ vLLM job's own allocation and talk to it over localhost:</p>
             class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
             data-active="false" data-depth="3">
             One-time cluster setup
+        </a>
+        
+        <a href="#cluster-config-the-internal-convention"
+            class="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground text-[0.8rem] no-underline transition-colors data-[depth=3]:pl-4 data-[depth=4]:pl-6"
+            data-active="false" data-depth="3">
+            Cluster config: the internal-* convention
         </a>
         
         <a href="#1-launch-the-persistent-vllm-serve-job"

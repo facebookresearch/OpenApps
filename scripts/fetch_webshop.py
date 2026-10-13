@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import statistics
 import sys
 from collections import Counter
 from pathlib import Path
@@ -120,6 +121,8 @@ _FALLBACK_CATEGORY = "home_kitchen"
 
 _URL_RE = re.compile(r"https?://\S+")
 _PRICE_RE = re.compile(r"\d+(?:\.\d+)?")
+# Cheapest believable price. Below this a value is a placeholder, not a price.
+MIN_PRICE = 1.0
 
 # Caps. The listing pages paginate at ten and truncate descriptions, so a
 # 4000-character scraped description is bytes on disk and nothing on screen.
@@ -153,18 +156,49 @@ def _clean(text) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _price(raw) -> float:
+def _price(raw) -> float | None:
     """Parse WebShop's price field, which is a float, `$19.99`, or a range.
 
     Ranges (`19.99 to 29.99`) take the low end: the shop has one price per
-    product and the low end is what a listing page would advertise.
+    product and the low end is what a listing page would advertise. Values
+    under a dollar are skipped -- a few ranges open at a `$0.01` placeholder
+    (`$0.01$2.99`). Returns ``None`` when there is no usable price, which
+    `_fill_missing_prices` resolves.
     """
     if isinstance(raw, (int, float)):
-        return round(float(raw), 2)
+        return round(float(raw), 2) if raw >= MIN_PRICE else None
     # Strip thousands separators first: "$1,299.00" would otherwise match the
     # leading "1" and price a monitor at a dollar.
-    found = _PRICE_RE.findall(str(raw or "").replace(",", ""))
-    return round(float(found[0]), 2) if found else 0.0
+    found = [float(v) for v in _PRICE_RE.findall(str(raw or "").replace(",", ""))]
+    found = [v for v in found if v >= MIN_PRICE]
+    return round(found[0], 2) if found else None
+
+
+def _fill_missing_prices(products: list[dict]) -> int:
+    """Give unpriced products their category's median price, in place.
+
+    About one record in eleven in `items_shuffle_1000.json` has an empty
+    `pricing` string. Writing those out as `0.0` put free items on the
+    listing pages, which no shopping task can use. The category median is
+    deterministic and lands in a plausible range (a console table is priced
+    like furniture, a lipstick like beauty) without inventing per-product
+    detail. Falls back to the catalog-wide median for a category with no
+    priced products at all. Returns how many prices were filled.
+    """
+    priced = [p for p in products if p["price"] is not None]
+    if not priced:
+        return 0
+    overall = statistics.median(p["price"] for p in priced)
+    by_category: dict[str, list[float]] = {}
+    for p in priced:
+        by_category.setdefault(p["category"], []).append(p["price"])
+    filled = 0
+    for p in products:
+        if p["price"] is None:
+            prices = by_category.get(p["category"])
+            p["price"] = round(statistics.median(prices) if prices else overall, 2)
+            filled += 1
+    return filled
 
 
 def _match_category(text: str) -> str | None:
@@ -274,7 +308,11 @@ def _rating(record: dict, synth: bool) -> float:
 
 
 def convert(records: list[dict], limit: int, synth_ratings: bool) -> list[dict]:
-    """WebShop records -> the shop's product schema, skipping unusable rows."""
+    """WebShop records -> the shop's product schema, skipping unusable rows.
+
+    `price` is ``None`` where the record has none; `main` fills those with
+    `_fill_missing_prices`, which needs the whole catalog to compute medians.
+    """
     products, seen = [], set()
     for record in records:
         if len(products) >= limit:
@@ -504,6 +542,8 @@ def main() -> int:
             "Run with --inspect and correct `_FIELDS` in this script."
         )
 
+    filled = _fill_missing_prices(products)
+
     leaked = [(p["sku"], url_leaks(p)) for p in products if url_leaks(p)]
     if leaked:
         sku, fields = leaked[0]
@@ -529,6 +569,8 @@ def main() -> int:
         shown = args.out
     print(f"\n--> Wrote {len(products)} products to {shown}")
     print(f"    categories: {dict(Counter(p['category'] for p in products))}")
+    print(f"    prices: {filled} missing from the source, filled with the "
+          f"category median")
     print(f"    glyphs: {sum(hits.values())} matched a keyword, "
           f"{fallbacks} fell back to the category default")
     if fallbacks > len(products) // 2:

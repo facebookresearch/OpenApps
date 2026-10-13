@@ -19,6 +19,7 @@ from PIL import Image, ImageChops, ImageStat
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
+from open_apps.apps.availability import onlineshop_unavailable_reason
 from open_apps.launcher import OpenAppsLauncher
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -51,8 +52,16 @@ ROUTES = (
     RouteSpec("todo", "/todo", "#todo-list"),
     RouteSpec("calendar", "/calendar", ".calendar-table, .agenda-list"),
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
+    # An open conversation, not just the chat list. `split_inbox` and
+    # `compact_list` both change the thread view, which the list route never
+    # renders. Alice is present in every content variation.
+    RouteSpec("messages_thread", "/messages/Alice/", "#chatlist"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
+    RouteSpec("uilibrary", "/uilibrary", "#uilibrary"),
+    # The atoms section is where the knobs live, so it is the page that
+    # actually shows whether a theme repaints the components.
+    RouteSpec("uilibrary_atoms", "/uilibrary/atoms", ".uilib-story"),
     RouteSpec("openbanking", "/openbanking", ".ob-card"),
     # The account detail page carries the summary figures and the ledger, so it
     # is where a theme or layout regression actually shows up.
@@ -70,14 +79,8 @@ ROUTES = (
 THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
-    "start_page",
-    "todo",
-    "calendar",
-    "messenger",
-    "maps",
-    "code_editor",
-    "onlineshop",
-    "openbanking",
+    "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
+    "onlineshop", "ui_library",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -89,6 +92,16 @@ LAYOUT_VARIATIONS = {
     "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
     "layout_shop_grid": ["apps/onlineshop/layout=grid"],
     "layout_shop_compact_table": ["apps/onlineshop/layout=compact_table"],
+    "layout_calendar_agenda_first": ["apps/calendar/layout=agenda_first"],
+    "layout_calendar_sidebar_nav": ["apps/calendar/layout=sidebar_nav"],
+    "layout_messenger_split_inbox": ["apps/messenger/layout=split_inbox"],
+    "layout_messenger_compact_list": ["apps/messenger/layout=compact_list"],
+    "layout_maps_sidebar_left": ["apps/maps/layout=sidebar_left"],
+    "layout_maps_bottom_sheet": ["apps/maps/layout=bottom_sheet"],
+    "layout_code_editor_sidebar_right": ["apps/code_editor/layout=sidebar_right"],
+    "layout_code_editor_top_tree": ["apps/code_editor/layout=top_tree"],
+    "layout_uilibrary_single_column": ["apps/ui_library/layout=single_column"],
+    "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
 }
 
 
@@ -112,8 +125,21 @@ def build_variation_overrides() -> dict[str, list[str]]:
     for theme in available_themes():
         variations[f"theme_{theme}"] = [f"apps/theme={theme}"]
     for name, overrides in LAYOUT_VARIATIONS.items():
-        variations[name] = overrides
+        variations[name] = list(overrides)
     return variations
+
+
+def _viewport(value: str) -> dict[str, int]:
+    """Parse a ``WxH`` viewport argument into Playwright's dict form."""
+    try:
+        width, height = (int(part) for part in value.lower().split("x", 1))
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected WxH (e.g. 1280x800), got {value!r}"
+        ) from None
+    if width <= 0 or height <= 0:
+        raise argparse.ArgumentTypeError(f"viewport must be positive, got {value!r}")
+    return {"width": width, "height": height}
 
 
 def parse_args() -> argparse.Namespace:
@@ -189,6 +215,22 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Show the browser while capturing screenshots.",
     )
+    parser.add_argument(
+        "--viewport",
+        type=_viewport,
+        default=VIEWPORT,
+        metavar="WxH",
+        help=(
+            "Capture viewport, e.g. 1280x800. Defaults to "
+            f"{VIEWPORT['width']}x{VIEWPORT['height']}. Mainly useful with "
+            "--headed: Playwright sizes the window to the viewport, and the "
+            "default is taller than a laptop screen, so the top of the page "
+            "ends up off-display with no way to scroll to it. Changing this "
+            "changes the image dimensions, so a run that is going to be "
+            "compared against tests/reference_screenshots should leave it "
+            "alone."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -225,9 +267,10 @@ def launch_variation(
         "--config-name",
         launcher.config_path.name,
         "use_wandb=False",
+        # This harness drives its own Playwright browser; launch.py must not
+        # also pop one per variation.
+        "headless=True",
     ]
-    if launcher.config.apps.onlineshop.enable:
-        command.append("apps.onlineshop.enable=True")
 
     process = subprocess.Popen(
         command,
@@ -472,13 +515,21 @@ def main() -> int:
                     )
 
                     context = browser.new_context(
-                        viewport=VIEWPORT, device_scale_factor=1
+                        viewport=args.viewport, device_scale_factor=1
                     )
                     page = context.new_page()
 
+                    shop_unavailable = onlineshop_unavailable_reason(launcher.config.apps)
                     for route in routes_to_capture:
                         target_path = output_dir / variation / f"{route.name}.png"
                         print(f"  - {route.name}")
+                        # Its routes are not registered, so waiting on its
+                        # selector would only time out. Recorded as a skip.
+                        if route.path.startswith("/onlineshop") and shop_unavailable:
+                            skipped_routes.append(
+                                f"{variation}/{route.name}: online shop not served ({shop_unavailable})"
+                            )
+                            continue
                         try:
                             status = capture_route(
                                 page,

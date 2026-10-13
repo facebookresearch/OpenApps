@@ -3260,10 +3260,16 @@ dependencies = [
 dev = [
     { name = "jupyter" },
     { name = "kaleido" },
+    { name = "mkdocs" },
     { name = "mkdocs-shadcn" },
     { name = "plotly" },
     { name = "pymdown-extensions" },
     { name = "pytest-icdiff" },
+]
+docs = [
+    { name = "mkdocs" },
+    { name = "mkdocs-shadcn" },
+    { name = "pymdown-extensions" },
 ]
 
 [package.metadata]
@@ -3286,12 +3292,14 @@ requires-dist = [
     { name = "kaleido", marker = "extra == 'dev'", specifier = ">=1.2.0" },
     { name = "killport", specifier = ">=1.2.0" },
     { name = "mcp", specifier = ">=1.9.0" },
-    { name = "mkdocs-shadcn", marker = "extra == 'dev'", git = "https://github.com/asiffer/mkdocs-shadcn?rev=30-search-indexing-broken" },
+    { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6" },
+    { name = "mkdocs-shadcn", marker = "extra == 'docs'", git = "https://github.com/asiffer/mkdocs-shadcn?rev=30-search-indexing-broken" },
+    { name = "open-apps", extras = ["docs"], marker = "extra == 'dev'" },
     { name = "pillow", specifier = ">=11" },
     { name = "pip" },
     { name = "playwright", specifier = ">=1.44" },
     { name = "plotly", marker = "extra == 'dev'", specifier = ">=6.4.0" },
-    { name = "pymdown-extensions", marker = "extra == 'dev'", specifier = ">=10.16.1" },
+    { name = "pymdown-extensions", marker = "extra == 'docs'", specifier = ">=10.16.1" },
     { name = "pytest", specifier = ">=7.3.2" },
     { name = "pytest-icdiff", marker = "extra == 'dev'", specifier = ">=0.9" },
     { name = "python-fasthtml", specifier = ">=0.12.14" },
@@ -3302,7 +3310,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.34.2" },
     { name = "wandb", specifier = ">=0.19.9" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["docs", "dev"]
 
 [[package]]
 name = "openai"

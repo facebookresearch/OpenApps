@@ -2,7 +2,7 @@
 # Each app's in-page logo header becomes a link back to the start page,
 # adding a navigation affordance that does not exist by default.
 defaults:
-  - default
+  - gallery
 
 layout: clickable_logos
 apps:
@@ -17,6 +17,8 @@ apps:
   codeeditor:
     clickable_logo: true
   onlineshop:
+    clickable_logo: true
+  uilibrary:
     clickable_logo: true
   openbanking:
     clickable_logo: true

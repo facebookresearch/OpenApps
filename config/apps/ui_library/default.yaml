@@ -1,0 +1,12 @@
+defaults:
+  - content: default
+  - layout: default
+
+database_path: ${databases_dir}/uilibrary.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+# Override for just this app with `apps.ui_library.theme=solarized`.
+#
+# Worth leaving null in most cases: the point of this app is to show what the
+# *active* theme does, so pinning it to one theme defeats the purpose.
+theme: null

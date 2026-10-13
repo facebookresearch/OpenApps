@@ -14,24 +14,24 @@ The `vLLM_agent.py` implementation consists of three main components:
 
 ### 1. Agent Arguments (`AgentArgs`)
 - **Purpose**: Contains all configuration parameters from YAML files
-- **Key Functions**: 
+- **Key Functions**:
   - `make_agent()` - instantiates the actual agent
   - `make_flags()` - creates prompt flags ensuring YAML compatibility
   - `make_chat_model_flags()` - creates base LLM model configuration
 
 ### 2. Agent Class (`VLLMAgent`)
 - **Purpose**: Defines the core agent behavior
-- **Key Functions**: 
+- **Key Functions**:
   - `get_action()` - processes observations and returns actions
-  - The logic is defined in `vllm_prompt.py` 
+  - The logic is defined in `vllm_prompt.py`
 
 ### 3. Model Arguments (`ModelArgs`)
 - **Purpose**: Contains LLM-specific configuration (VLLM, API settings, etc.)
 - **Key Function**: `make_model()` - instantiates a new ChatModel
 
 ### Notes and Todos
-- To add a new base LLM, the easiest way is to write a new ModelArgs. For example: [https://github.com/ServiceNow/AgentLab/blob/main/src/agentlab/llm/chat_api.py#L96]. 
-- Base LLM args are passed as part of the agentargs right now. It might be good to rewrite it as a separate dictionary or class in the future. 
+- To add a new base LLM, the easiest way is to write a new ModelArgs. For example: [https://github.com/ServiceNow/AgentLab/blob/main/src/agentlab/llm/chat_api.py#L96].
+- Base LLM args are passed as part of the agentargs right now. It might be good to rewrite it as a separate dictionary or class in the future.
 
 ## Prompt Structure (`vllm_prompt.py`)
 
@@ -81,16 +81,16 @@ conversion happens; every parser goes through `ActionParser.rescale`.
 | normalized 0-1000 | `1000` | Qwen-VL, GLM-VL |
 | normalized [0, N) | `N` | PaliGemma/Gemma-lineage `<locNNNN>` bins are 0-1024 |
 
-Each parser family carries a default (`uitars`: raw pixels, `qwen3vl`: 1000). In the
-agent yaml, leaving `coord_scale` unset (or `null`) means "use the family default";
-set `coord_scale: N` to override. Note this is one scalar applied
+Each parser family carries a default (`uitars`: null, `qwen3vl`: 1000). Override
+per model in the agent yaml with `coord_scale: N`. Note this is one scalar applied
+against each viewport axis, which is what a *square* normalized grid means — it
 cannot express a model predicting in its own non-square resized image space.
 
 The most reliable setup is to *declare* the grid in the prompt and set
 `coord_scale` to match, rather than reverse-engineering a checkpoint's native
 convention — then the conversion is correct by construction as long as the model
-complies. `config/agent/Qwen3.6-VL-computer-use.yaml` does this with a 1000x1000
-grid.
+complies. `config/agent/Qwen3.6-VL-computer-use.yaml` and
+`config/agent/gemma-4-31B-coords.yaml` both do this with a 1000x1000 grid.
 
 Under the `uitars` grammar, rescaling applies to UI-TARS-native forms
 (`click(point=)`, `click(start_box=)`, `click(x=)`, `right_single(point=)`, and
@@ -119,7 +119,7 @@ Don't guess the scale, measure it:
 ### Observation Flags
 Controls what observational data is included in prompts:
 
-##### HTML and Structure 
+##### HTML and Structure
 - `use_html` (bool): Include raw HTML in the prompt
 - `use_axtree` (bool): Include accessibility tree in the prompt
 - `use_focused_element` (bool): Provide ID of the currently focused element
@@ -132,8 +132,8 @@ Controls what observational data is included in prompts:
 - `extract_coords` (bool): Add element coordinates
 - `filter_visible_elements_only` (bool): Show only visible elements
 
-### Prompt flags 
-#### History and Context 
+### Prompt flags
+#### History and Context
 - `use_history` (bool): Include previous steps in the prompt
 - `use_action_history` (bool): Include action history (requires `use_history=True`)
 - `use_think_history` (bool): Include thought history (requires `use_history=True`)

@@ -1,0 +1,13 @@
+# @package apps.maps
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/maps/layout=sidebar_left`.
+#
+# Google Maps-style desktop panel: search, Saved Locations and route planning
+# sit to the *left* of the map with the search field pinned at the top; the
+# layer switcher folds into a button at the bottom-left and zoom moves to the
+# bottom-right. Ids, labels and routes are unchanged (see map.html /
+# map_controls in main.py).
+defaults:
+  - default
+
+layout: sidebar_left

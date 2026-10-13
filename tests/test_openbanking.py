@@ -239,50 +239,18 @@ class TestContentInvariants:
 
 
 class TestTheme:
-    """The banking themes are ordinary members of the shared theme group."""
+    def test_no_app_specific_theme(self):
+        """Themes are global; a bank-only palette would not restyle with the rest."""
+        assert not list(_THEME_DIR.glob("openbanking*.yaml"))
 
-    BANKING_EXTRAS = [
-        "color-header-bg",
-        "color-header-fg",
-        "color-link",
-        "color-credit",
-        "color-debit",
-        "color-rule",
-    ]
-
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_theme_defines_the_shared_contract_and_the_extras(self, name):
+    def test_styles_use_only_the_shared_token_contract(self):
+        """Any token outside `default.yaml` would be undefined under every theme."""
+        from open_apps.apps.openbanking_app.main import styles
         from open_apps.theme import load_theme
 
-        default_tokens = set(load_theme("default")["tokens"])
-        theme = load_theme(name)
-        tokens = theme["tokens"]
-        assert theme["name"] == name
-        assert default_tokens <= set(tokens), "must cover the shared token contract"
-        for extra in self.BANKING_EXTRAS:
-            assert extra in tokens
-
-    def test_light_and_dark_declare_the_same_tokens(self):
-        from open_apps.theme import load_theme
-
-        assert set(load_theme("openbanking")["tokens"]) == set(
-            load_theme("openbanking_dark")["tokens"]
-        )
-
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_theme_ships_no_webfont_import(self, name):
-        """An `@import` would put a CDN back in the request path."""
-        from open_apps.theme import load_theme
-
-        assert not load_theme(name)["import_url"]
-
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_theme_renders_into_a_root_block(self, name):
-        from open_apps.theme import load_theme, render_theme_tokens
-
-        css = str(render_theme_tokens(load_theme(name)))
-        assert "--color-header-bg" in css
-        assert ":root" in css
+        used = set(re.findall(r"var\(--([a-z0-9-]+)", str(styles)))
+        used = {t for t in used if not t.startswith("pico-")}
+        assert used <= set(load_theme("default")["tokens"])
 
 
 # ---------------------------------------------------------------------------
@@ -313,15 +281,6 @@ class TestRendering:
         html = client.get("/openbanking/accounts/0").text
         assert ":root" in html
         assert "--color-fg" in html
-
-    def test_banking_tokens_have_fallbacks_for_other_themes(self, client):
-        """Under a theme that never heard of the bank, the app must still style.
-
-        The default theme defines none of the banking extras, so every use has
-        to carry a fallback or the masthead renders unpainted.
-        """
-        html = client.get("/openbanking/accounts/0").text
-        assert "var(--color-header-bg, var(--color-primary))" in html
 
     def test_card_list_layout_renders_the_same_data(self, client):
         """`layout` is read per-request, so it can be swapped like `reconfigure` does.
@@ -548,14 +507,13 @@ class TestCreditCardSummary:
         client.get(f"{self.CARD}?account=1")
         assert client.get("/openbanking_all").text == before
 
-    def test_card_graphic_survives_a_theme_without_banking_tokens(self, client):
-        """The face uses the masthead pair, which always carries a fallback."""
+    def test_card_graphic_takes_the_masthead_pair(self, client):
         from open_apps.apps.openbanking_app.main import styles
 
         css = str(styles)
         face = css.split(".ob-cardface {", 1)[1].split("}", 1)[0]
-        assert "var(--color-header-bg, var(--color-primary))" in face
-        assert "var(--color-header-fg, var(--color-on-primary))" in face
+        assert "background-color: var(--color-primary)" in face
+        assert "color: var(--color-on-primary)" in face
 
 
 class TestAccountNumbers:
@@ -771,6 +729,38 @@ class TestFiltering:
         assert "COOL APPS" not in response.text
 
 
+class TestLedgerHistory:
+    """Filtering pushes history; reloading what it pushed must render the page.
+
+    Regression: the controls used to push the `/ledger` partial's own URL, so a
+    reload after filtering showed a bare, unstyled fragment.
+    """
+
+    LEDGER = "/openbanking/accounts/0/ledger?showing=1&q=venmo&expand=0"
+    HX = {"HX-Request": "true"}
+
+    def test_the_swap_pushes_the_account_page_not_the_partial(self, client):
+        response = client.get(self.LEDGER, headers=self.HX)
+        assert response.headers["HX-Push-Url"] == (
+            "/openbanking/accounts/0?showing=1&q=venmo&expand=0"
+        )
+        assert "ob-root" not in response.text
+
+    def test_the_pushed_url_renders_the_filtered_page(self, client):
+        pushed = client.get(self.LEDGER, headers=self.HX).headers["HX-Push-Url"]
+        html = client.get(pushed).text
+        assert "ob-root" in html
+        assert "VENMO" in html
+        assert "COOL APPS" not in html
+
+    def test_a_direct_hit_on_the_partial_gets_the_full_page(self, client):
+        """Old history entries and bookmarks still point at `/ledger`."""
+        html = client.get(self.LEDGER).text
+        assert "ob-root" in html
+        assert "VENMO" in html
+        assert "COOL APPS" not in html
+
+
 class TestSeeMoreActivity:
     """The ledger is truncated, and the toggle is the only thing that opens it.
 
@@ -863,10 +853,10 @@ class TestPicoBridge:
 
         original = app.config.openbanking.theme
         try:
-            app.config.openbanking.theme = "openbanking_dark"
+            app.config.openbanking.theme = "dark"
             assert pico_theme() == "dark"
             assert 'data-theme="dark"' in client.get("/openbanking").text
-            app.config.openbanking.theme = "openbanking"
+            app.config.openbanking.theme = "default"
             assert pico_theme() == "light"
             assert 'data-theme="light"' in client.get("/openbanking").text
         finally:
@@ -909,12 +899,6 @@ class TestPicoBridge:
         not inherit the bar's foreground -- it has to be told."""
         html = client.get("/openbanking").text
         assert ".ob-masthead h1" in html
-
-    @pytest.mark.parametrize("name", ["openbanking", "openbanking_dark"])
-    def test_both_banking_themes_declare_a_tone(self, name):
-        from open_apps.theme import load_theme
-
-        assert load_theme(name)["assets"]["tone"] in {"light", "dark"}
 
 
 # ---------------------------------------------------------------------------
@@ -1007,15 +991,26 @@ class TestTaskSet:
 class TestTaskAnswersMatchTheSeed:
     """Guards the expected values against a seed edit.
 
-    Each test re-derives the answer from `config/apps/openbanking/content/
-    default.yaml` the way an agent would have to, and asserts the task set
-    still agrees. Without these, changing an amount in the seed leaves the
-    tasks syntactically valid but unsolvable.
+    Each test re-derives the answer from the seeded accounts the way an agent
+    would have to, and asserts the task set still agrees. Without these,
+    changing an amount in the seed leaves the tasks syntactically valid but
+    unsolvable. Parametrized over the content variants that append accounts,
+    because the expected answers are shared across variants -- an appended
+    account that outranks a seeded one breaks a task in that variant only.
+    german/mandarin are skipped: they translate type labels and dates, which
+    these English-keyed derivations read, and their figures are already pinned
+    to default by ``test_seeded_account_figures_are_identical``.
     """
 
-    @pytest.fixture(scope="class")
-    def accounts(self, tmp_path_factory):
-        cfg = _compose(tmp_path_factory.mktemp("seed"))
+    @pytest.fixture(
+        scope="class",
+        params=[v for v in CONTENT_VARIANTS if v not in ("german", "mandarin")],
+    )
+    def accounts(self, request, tmp_path_factory):
+        cfg = _compose(
+            tmp_path_factory.mktemp("seed"),
+            [f"apps/openbanking/content={request.param}"],
+        )
         return {a.name: a for a in cfg.apps.openbanking.accounts}
 
     def _expected(self, key, field="todo_name", index=None):

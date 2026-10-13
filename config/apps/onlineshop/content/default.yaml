@@ -4,9 +4,9 @@
 #
 # This pack is the storefront's settings without any products: the labels,
 # the category strip, the currency. It is the base the real catalogs layer
-# onto (`webshop.yaml` and the translation/adversarial packs all
-# `defaults: [default]`), and on its own it yields a shop with nothing to
-# sell -- which hides the app entirely.
+# onto (`webshop.yaml` does `defaults: [default]`, and the translation/
+# adversarial packs layer onto `webshop`), and on its own it yields a shop
+# with nothing to sell -- which hides the app entirely.
 #
 # `webshop` is the default pack, so selecting this one is how you ask for a
 # shop with no catalog:

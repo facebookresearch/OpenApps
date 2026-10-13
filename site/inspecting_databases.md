@@ -4,6 +4,24 @@ Every app keeps its state in a SQLite file. This page is about finding those
 files, reading them, and pointing a client at them without fighting the running
 app.
 
+## Usually you want the grading state, not the database
+
+If the question is "what will the task grader see?", skip SQLite entirely.
+`open_apps.state.get_current_state(url)` fetches every app's `/<app>_all`
+endpoint from a running server and returns one dict keyed by app name -- the
+exact snapshot tasks diff against to score a run:
+
+```python
+from open_apps.state import get_current_state
+
+state = get_current_state("http://localhost:5001")  # the port the launcher printed
+state["openbanking"]["accounts"]
+```
+
+Or one app at a time: `curl -s localhost:5001/openbanking_all | jq`. Reach for
+the database itself only when you need to edit rows, query across tables, or
+look at a run after the server has stopped.
+
 ## Two layers: the config seeds, the database serves
 
 It is worth being precise about this, because the two disagree the moment
@@ -66,41 +84,7 @@ you get a snapshot missing every write still sitting in the write-ahead log.
 Copying just the `.db` of a *stopped* app is fine — the WAL is checkpointed back
 into it on a clean shutdown.
 
-## The OpenBanking schema
-
-```sql
-CREATE TABLE [account] (
-   [id] INTEGER PRIMARY KEY,
-   [name] TEXT,
-   [holder] TEXT,
-   [kind] TEXT,                  -- 'deposit' | 'credit_card'
-   [account_number] TEXT,
-   [routing_number] TEXT,
-   [available_balance] FLOAT,
-   [present_balance] FLOAT,
-   [available_credit] FLOAT,
-   [credit_limit] FLOAT,
-   [card_brand] TEXT,
-   [card_expiration] TEXT,
-   [statement_balance] FLOAT,
-   [statement_close_date] TEXT,
-   [minimum_payment] FLOAT,
-   [payment_due_date] TEXT
-);
-
-CREATE TABLE [transaction] (
-   [id] INTEGER PRIMARY KEY,
-   [account_id] INTEGER,
-   [position] INTEGER,           -- ledger order; 0 is newest
-   [date] TEXT,                  -- display string, format varies by content variant
-   [description] TEXT,
-   [type] TEXT,
-   [amount] FLOAT,               -- signed: negative is money out
-   [balance] FLOAT               -- NULL means the posting is still pending
-);
-```
-
-Two things that surprise people:
+## Two schema quirks
 
 - A credit card's `available_balance` is `0.00` by design. The figures that mean
   something on a card are `present_balance`, `statement_balance`, and
@@ -108,6 +92,9 @@ Two things that surprise people:
   fields from a deposit account.
 - `transaction` is a SQL keyword, so it has to be quoted in every query:
   `SELECT ... FROM "transaction"`.
+- In `transaction`, `amount` is signed (negative is money out), `position` is
+  ledger order with 0 newest, and a `NULL` `balance` means the posting is still
+  pending.
 
 ## Reading it from the command line
 
@@ -118,7 +105,7 @@ do not want to take a write lock on a database an app is serving from.
 DB=$(ls -td log_outputs/*/databases | head -1)/openbanking.db
 
 sqlite3 -readonly "$DB" ".tables"
-sqlite3 -readonly "$DB" ".schema account"
+sqlite3 -readonly "$DB" ".schema"
 ```
 
 Balances across every account:
@@ -129,16 +116,6 @@ sqlite3 -readonly -box "$DB" \
    FROM account ORDER BY id;"
 ```
 
-```
-┌────┬──────────────────────────────┬─────────────┬───────────────────┬─────────────────┬───────────────────┐
-│ id │             name             │    kind     │ available_balance │ present_balance │ statement_balance │
-├────┼──────────────────────────────┼─────────────┼───────────────────┼─────────────────┼───────────────────┤
-│ 0  │ BUS COMPLETE CHK (...5555)   │ deposit     │ 6102.8            │ 6102.8          │                   │
-│ 1  │ BUS SELECT SAVINGS (...8891) │ deposit     │ 24310.55          │ 24310.55        │                   │
-│ 2  │ INK BUSINESS CARD (...2043)  │ credit_card │ 0.0               │ -1284.19        │ 872.19            │
-└────┴──────────────────────────────┴─────────────┴───────────────────┴─────────────────┴───────────────────┘
-```
-
 One account's ledger, in the order the page shows it:
 
 ```shell
@@ -146,10 +123,6 @@ sqlite3 -readonly -box "$DB" \
   'SELECT position, date, description, type, amount, balance
    FROM "transaction" WHERE account_id = 0 ORDER BY position LIMIT 10;'
 ```
-
-Useful `sqlite3` dot-commands: `-box` / `-table` / `-json` / `-csv` pick the
-output format, `.headers on` and `.mode column` do the same inside the shell,
-and `.dump` writes the whole database back out as SQL.
 
 ## Connecting a client
 
@@ -170,23 +143,10 @@ then connect to `./current-dbs/openbanking.db`.
 WAL mode. Reads never conflict, but a client that starts an interactive write
 transaction and then sits on it will block the app's writes.
 
-Options, roughly in order of least setup:
-
-- **DB Browser for SQLite** (`brew install --cask db-browser-for-sqlite`) —
-  free, opens a file with no configuration. Tick "Open Read Only" in the file
-  dialog.
-- **The VS Code / Cursor SQLite extensions** — convenient if you are already in
-  the editor; right-click the `.db` file and open the database explorer.
-- **TablePlus / DBeaver** — heavier, but worth it if you are already using one
-  for other work. Both take a file path as the whole connection string.
-- **Datasette**, if you want to browse in a browser and facet/filter without
-  writing SQL. It is not a project dependency; run it without installing:
-
-  ```shell
-  uvx datasette "$(ls -td log_outputs/*/databases | head -1)/openbanking.db"
-  ```
-
-  Pick a port other than the app's if you have both up.
+Any GUI that takes a file path works (DB Browser for SQLite, TablePlus,
+DBeaver, the VS Code SQLite extensions); tick its read-only option. For
+browsing in a browser without writing SQL, `uvx datasette <path>` runs Datasette
+without adding a dependency -- pick a port other than the app's.
 
 ### Do not use Python's `sqlite3` module in the app's process
 

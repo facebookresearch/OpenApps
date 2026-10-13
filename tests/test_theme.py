@@ -146,6 +146,47 @@ class TestResolveTheme:
         cfg = OmegaConf.create({"theme": "solarized"})
         assert resolve_theme(cfg, "no_such_app")["name"] == "solarized"
 
+    def test_app_default_applies_when_nothing_was_selected(self):
+        cfg = OmegaConf.create({"code_editor": {"theme_default": "vscode_dark"}})
+        assert resolve_theme(cfg, "code_editor")["name"] == "vscode_dark"
+
+    def test_global_selection_replaces_the_app_default(self):
+        """The whole point of putting it *below* the global group.
+
+        An app default that outranked `apps/theme=` would freeze that app on
+        one look across every cell of a theme sweep.
+        """
+        cfg = OmegaConf.create(
+            {"theme": "dark", "code_editor": {"theme_default": "vscode_dark"}}
+        )
+        assert resolve_theme(cfg, "code_editor")["name"] == "dark"
+
+    def test_selecting_default_explicitly_replaces_the_app_default(self):
+        """`apps/theme=default` is a selection, not the absence of one.
+
+        It is the cell a sweep compares the others against, so it has to
+        render the same for the code editor as for every other app.
+        """
+        cfg = OmegaConf.create(
+            {"theme": "default", "code_editor": {"theme_default": "vscode_dark"}}
+        )
+        assert resolve_theme(cfg, "code_editor")["name"] == "default"
+
+    def test_pin_still_outranks_everything(self):
+        cfg = OmegaConf.create(
+            {
+                "theme": "dark",
+                "code_editor": {"theme": "solarized", "theme_default": "vscode_dark"},
+            }
+        )
+        assert resolve_theme(cfg, "code_editor")["name"] == "solarized"
+
+    def test_app_default_does_not_leak_to_other_apps(self):
+        cfg = OmegaConf.create(
+            {"code_editor": {"theme_default": "vscode_dark"}, "todo": {}}
+        )
+        assert resolve_theme(cfg, "todo")["name"] == "default"
+
     def test_unknown_per_app_name_degrades_to_default(self):
         cfg = OmegaConf.create({"theme": "solarized", "todo": {"theme": "bogus"}})
         # A bad per-app override must not raise, and must not silently
@@ -191,6 +232,17 @@ class TestRenderThemeTokens:
         assert "--ok-name: 1;" in out
         assert "bad" not in out and "a b" not in out
 
+    def test_values_that_could_escape_the_style_block_are_dropped(self):
+        out = css(render_theme_tokens({"tokens": {
+            "ok": "#fff",
+            "tag": "red</style><script>x()</script>",
+            "decl": "red; color: blue",
+            "brace": "red } body { color: blue",
+        }}))
+        assert "--ok: #fff;" in out
+        assert "script" not in out and "blue" not in out
+        assert "--tag" not in out and "--decl" not in out and "--brace" not in out
+
     def test_newlines_in_values_are_flattened(self):
         out = css(render_theme_tokens({"tokens": {"font-family": "a\nb\rc"}}))
         assert "--font-family: a b c;" in out
@@ -217,3 +269,64 @@ class TestThemeStyle:
         cfg = OmegaConf.create({"theme": "default", "todo": {"theme": "solarized"}})
         assert "--color-bg: #fdf6e3;" in css(theme_style(cfg, "todo"))
         assert "--color-bg: #ffffff;" in css(theme_style(cfg, "calendar"))
+
+
+class TestMetaThemePair:
+    """The light/dark pair must stay interchangeable.
+
+    The runtime mode toggle swaps which of ``meta`` / ``meta_dark`` is
+    resolved, and no app is told which one it got. A token present in one and
+    missing from the other therefore doesn't fail loudly — that property falls
+    back to whatever Pico defaults to, and shows up as one mis-coloured element
+    in one mode only, which is exactly the kind of thing nobody notices until a
+    screenshot diff catches it months later.
+    """
+
+    CANONICAL = "default"      # the token set every theme is expected to cover
+    EDITOR_EXTRAS = {
+        "color-editor-bg",
+        "color-editor-fg",
+        "color-row-hover",
+        "color-row-active",
+    }
+
+    def test_light_and_dark_define_the_same_tokens(self):
+        light = set(load_theme("meta")["tokens"])
+        dark = set(load_theme("meta_dark")["tokens"])
+        assert light == dark, (
+            "meta / meta_dark token sets diverged. "
+            f"only in meta: {sorted(light - dark)}; "
+            f"only in meta_dark: {sorted(dark - light)}"
+        )
+
+    def test_both_cover_the_canonical_token_set(self):
+        canonical = set(load_theme(self.CANONICAL)["tokens"])
+        for name in ("meta", "meta_dark"):
+            tokens = set(load_theme(name)["tokens"])
+            assert canonical <= tokens, (
+                f"{name} is missing canonical tokens: {sorted(canonical - tokens)}"
+            )
+
+    def test_both_cover_the_editor_tokens(self):
+        """Without these the code editor falls back mid-theme, not cleanly."""
+        for name in ("meta", "meta_dark"):
+            tokens = set(load_theme(name)["tokens"])
+            assert self.EDITOR_EXTRAS <= tokens, (
+                f"{name} is missing editor tokens: "
+                f"{sorted(self.EDITOR_EXTRAS - tokens)}"
+            )
+
+    def test_neither_theme_reaches_the_network(self):
+        """No webfont, no @import. The eval nodes have no outbound network."""
+        for name in ("meta", "meta_dark"):
+            theme = load_theme(name)
+            assert theme["import_url"] == "", f"{name} sets import_url"
+            out = css(render_theme_tokens(theme))
+            assert "http" not in out, f"{name} renders an external reference"
+
+    def test_the_two_modes_actually_differ(self):
+        """Guards against a copy-paste that leaves dark mode light."""
+        light = load_theme("meta")["tokens"]
+        dark = load_theme("meta_dark")["tokens"]
+        assert light["color-bg"] != dark["color-bg"]
+        assert light["color-fg"] != dark["color-fg"]

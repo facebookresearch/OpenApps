@@ -1,0 +1,11 @@
+# @package apps.chrome
+# Windows-style chrome: title on the left, minimise / maximise / close on the
+# right. Everything else as in `default`.
+#
+#   uv run launch.py apps/chrome=windows
+defaults:
+  - default
+  - _self_
+
+titlebar:
+  style: windows

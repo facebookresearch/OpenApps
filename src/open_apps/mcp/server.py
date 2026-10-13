@@ -14,7 +14,9 @@ Observations are returned vision-first: a screenshot image content block
 plus a JSON metadata blob ``{url, reward, done, step_count, action_desc}``.
 
 Configure via env (set by ``__main__``): ``OPENAPPS_APP`` (which app to
-serve), ``OPENAPPS_MCP_HOST`` / ``OPENAPPS_MCP_PORT`` (HTTP/SSE bind).
+serve), ``OPENAPPS_DEVICE`` (a ``config/device/`` option -- browser size,
+input model and the layout the apps render), ``OPENAPPS_MCP_HOST`` /
+``OPENAPPS_MCP_PORT`` (HTTP/SSE bind).
 """
 
 from __future__ import annotations
@@ -49,7 +51,7 @@ def _require() -> Session:
 async def _lifespan(_server):
     global _session
     app_name = os.environ.get("OPENAPPS_APP", "todo")
-    _session = Session(app_name)
+    _session = Session(app_name, device=os.environ.get("OPENAPPS_DEVICE") or None)
     await _session.start()
     try:
         yield

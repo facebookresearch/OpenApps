@@ -99,9 +99,24 @@ def resolve_theme(apps_config, app_name: str) -> dict:
     """Resolve the effective theme for ``app_name``.
 
     ``apps_config`` is the ``config.apps`` node handed to every app as
-    ``app.config``. Precedence: per-app ``apps.<app_name>.theme`` (a theme
-    name string) overrides the global ``apps.theme`` group; a null/unset
-    per-app value inherits the global theme.
+    ``app.config``. Precedence, highest first:
+
+    1. ``apps.<app_name>.theme`` -- a per-app *pin*. Beats a global selection,
+       so it is for dressing one app differently on purpose.
+    2. the global ``apps.theme`` group -- what ``apps/theme=<name>`` sets.
+    3. ``apps.<app_name>.theme_default`` -- the app's own preferred look, used
+       only when nobody selected a theme. The code editor's is ``vscode_dark``.
+    4. ``default``.
+
+    3 sits *below* the global group rather than above it so that an app with a
+    strong default still moves when the theme axis is swept: a pin at that
+    level would leave one app frozen across every cell of the sweep, which is
+    the one thing the shared theme group exists to prevent.
+
+    Telling "the user chose ``default``" apart from "the user chose nothing" is
+    what makes 3 possible, and it is why ``apps/theme`` defaults to ``null`` in
+    ``config/config.yaml`` rather than to ``default``. Hydra still accepts a
+    bare ``apps/theme=dark`` with a null group default -- no ``+`` needed.
     """
     app_cfg = getattr(apps_config, app_name, None)
     per_app = getattr(app_cfg, "theme", None) if app_cfg is not None else None
@@ -121,13 +136,23 @@ def resolve_theme(apps_config, app_name: str) -> dict:
         theme["assets"] = _as_plain(theme["assets"])
         return theme
 
+    app_default = getattr(app_cfg, "theme_default", None) if app_cfg is not None else None
+    if app_default:
+        return load_theme(str(app_default))
+
     return load_theme(_DEFAULT_THEME)
 
 
-def render_theme_css(theme: dict) -> str:
+def render_theme_css(theme: dict, selector: str = ":root") -> str:
     """Build the ``:root`` CSS-variable block (plus optional import) for a theme.
 
     ``theme`` is the dict returned by :func:`resolve_theme` / :func:`load_theme`.
+
+    ``selector`` scopes the tokens to a subtree instead of the page. The global
+    window chrome needs that: the dock is painted in the *shell's* theme over a
+    page painted in the *app's* -- the code editor's default is vscode_dark --
+    and a second ``:root`` block would repaint the app underneath it. Only the
+    tokens are scoped; an ``import_url`` is page-wide by nature.
     """
     tokens = _as_plain(theme.get("tokens", {}))
 
@@ -137,17 +162,13 @@ def render_theme_css(theme: dict) -> str:
         # Allow only simple custom-property names to avoid broken CSS/injection.
         if (not key) or any(not (c.isalnum() or c in "-_") for c in key):
             continue
-        # Sanitize values to avoid breaking out of the declaration / <style> context.
-        val = (
-            str(value)
-            .replace("\n", " ")
-            .replace("\r", " ")
-            .replace(";", " ")
-            .replace("}", " ")
-            .replace("<", " ")
-            .replace(">", " ")
-            .strip()
-        )
+        val = str(value).replace("\n", " ").replace("\r", " ").strip()
+        # Drop, rather than rewrite, a value that could end the declaration
+        # (`;`, `{`, `}`) or the <style> element (`<`, `>`). A mangled value
+        # would still emit and quietly mean something else; a dropped one
+        # falls back visibly, the same way an unsafe token name does above.
+        if any(c in val for c in "<>;{}"):
+            continue
         safe_lines.append(f"  --{key}: {val};")
 
     lines = "\n".join(safe_lines)
@@ -158,7 +179,7 @@ def render_theme_css(theme: dict) -> str:
         import_url = ""
 
     import_rule = f'@import url("{import_url}");\n' if import_url else ""
-    return f"{import_rule}:root {{\n{lines}\n}}"
+    return f"{import_rule}{selector} {{\n{lines}\n}}"
 
 
 def render_theme_tokens(theme: dict) -> Style:

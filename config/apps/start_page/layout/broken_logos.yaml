@@ -3,7 +3,7 @@
 # the app and the agent has to read the label. Structure, not appearance:
 # the palette and typography are whatever the active theme says.
 defaults:
-  - default
+  - gallery
 
 layout: broken_logos
 shuffle_icons: true

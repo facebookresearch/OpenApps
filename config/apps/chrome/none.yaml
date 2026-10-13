@@ -1,0 +1,10 @@
+# @package apps.chrome
+# No window chrome, no dock, no rendered cursor: pages exactly as the apps draw
+# them. The control condition for measuring what the chrome changes.
+#
+#   uv run launch_parallel_agents.py apps/chrome=none ...
+defaults:
+  - default
+  - _self_
+
+enabled: false

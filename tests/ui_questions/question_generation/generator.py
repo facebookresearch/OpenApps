@@ -26,6 +26,7 @@ from pathlib import Path
 
 import requests
 from omegaconf import DictConfig, OmegaConf
+from omegaconf.errors import InterpolationResolutionError
 
 from tests.ui_questions.question_generation.templates import ALL_TEMPLATES, MCQuestion
 
@@ -68,15 +69,32 @@ def _fetch_state_from_client(client) -> dict:
 
 
 def _config_to_dict(config) -> dict:
-    """Convert Hydra DictConfig to a plain dict, or pass through if already dict."""
+    """Convert Hydra DictConfig to a plain dict, or pass through if already dict.
+
+    Resolution is best-effort. A config composed outside a Hydra run has
+    unresolvable interpolations in it (``logs_dir`` is ``${hydra:...}``), and
+    no template reads those -- they want titles, layout and theme. Failing the
+    whole conversion over an unrelated key would fall back to ``{}`` and
+    silently disable every config-aware question, which is the failure mode
+    this function exists to avoid.
+    """
     if isinstance(config, DictConfig):
-        return OmegaConf.to_container(config, resolve=True)
+        try:
+            return OmegaConf.to_container(config, resolve=True)
+        except InterpolationResolutionError:
+            return OmegaConf.to_container(config, resolve=False)
     return config if config else {}
 
 
 def _get_app_config(config: dict, app_name: str) -> dict:
     """Extract the sub-config for a specific app."""
+    # Normalize again rather than trusting the caller: the isinstance check
+    # below is False for a DictConfig, so an un-normalized config would return
+    # {} here and every config-aware template would quietly fall back to its
+    # defaults instead of raising.
+    config = _config_to_dict(config)
     apps_config = config.get("apps", config)
+    apps_config = _config_to_dict(apps_config)
     key_map = {
         "todo": "todo",
         "calendar": "calendar",
@@ -114,7 +132,10 @@ def generate_questions(
     Returns:
         List of MCQuestion instances.
     """
-    config = config or {}
+    # Every entry point funnels through here, so normalize in one place --
+    # `generate_questions_from_state` used to hand a DictConfig straight to
+    # the templates, which silently disabled everything that reads config.
+    config = _config_to_dict(config) or {}
     rng = random.Random(seed)
     questions = []
 

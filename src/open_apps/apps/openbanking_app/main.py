@@ -94,11 +94,9 @@ transactions = None
 # resolved per-request via `theme_style()`, so this block never needs rebuilding
 # when the theme or app config changes.
 #
-# The banking-specific tokens (--color-header-bg and friends) are only defined
-# by the `openbanking*` themes, so every use here carries a fallback to a token
-# from the shared 15-token contract. That keeps the app legible under `default`,
-# `dark`, `mono`, `challenging_font`, `solarized`, `material` and `bootstrap`
-# instead of collapsing to unstyled text.
+# Only tokens from the shared contract in `config/apps/theme/default.yaml` --
+# no app-specific ones -- so the bank restyles with every other app under any
+# global theme.
 styles = Style("""
     body {
         font-family: var(--font-family);
@@ -107,7 +105,7 @@ styles = Style("""
         background-color: var(--color-bg);
         margin: 0;
     }
-    a { color: var(--color-link, var(--color-accent)); text-decoration: none; }
+    a { color: var(--color-accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
     /* --- Pico bridge ----------------------------------------------------
@@ -173,8 +171,8 @@ styles = Style("""
         display: flex;
         align-items: center;
         gap: 1rem;
-        background-color: var(--color-header-bg, var(--color-primary));
-        color: var(--color-header-fg, var(--color-on-primary));
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
         padding: 0.75rem 1.5rem;
     }
     /* create_logo_header sets `margin-bottom: 1rem` inline for the standalone
@@ -183,30 +181,30 @@ styles = Style("""
        declaration, so this wins without forking the shared helper. */
     .ob-masthead > div, .ob-masthead > a {
         margin-bottom: 0 !important;
-        color: var(--color-header-fg, var(--color-on-primary)) !important;
+        color: var(--color-on-primary) !important;
     }
     /* The wordmark is an `H1` inside that container, and Pico colours every
        heading explicitly, so it does not inherit the masthead foreground --
-       it was rendering in body-text colour on the navy bar. It sits on the
-       header background, not the page background, so it takes the header
-       token rather than `--color-fg` like the headings in the bridge above. */
+       it was rendering in body-text colour on the bar. It sits on the
+       header background, not the page background, so it takes the
+       on-primary token rather than `--color-fg` like the headings in the
+       bridge above. */
     .ob-masthead h1 {
-        color: var(--color-header-fg, var(--color-on-primary));
+        color: var(--color-on-primary);
         margin-bottom: 0;
     }
     .ob-masthead-spacer { flex: 1 1 auto; }
     .ob-masthead-actions { display: flex; align-items: center; gap: 1rem; }
     /* Fill and text are the masthead's own pair, inverted -- not `--color-bg`
-       over `--color-header-bg`, which happens to read as white-on-navy in the
-       light theme purely because the page is white there, and collapses to
-       near-black on near-black under a dark one. */
+       over `--color-primary`, which reads fine in a light theme purely because
+       the page is white there, and loses contrast under a dark one. */
     .ob-ghost-btn {
-        border: 1px solid var(--color-header-fg, var(--color-on-primary));
+        border: 1px solid var(--color-on-primary);
         border-radius: var(--radius);
         padding: 0.4rem 0.9rem;
         font-weight: 600;
-        background-color: var(--color-header-fg, var(--color-on-primary));
-        color: var(--color-header-bg, var(--color-primary));
+        background-color: var(--color-on-primary);
+        color: var(--color-primary);
         cursor: pointer;
     }
 
@@ -218,7 +216,7 @@ styles = Style("""
         font-size: 1.75rem;
         font-weight: 600;
         letter-spacing: 0.02em;
-        color: var(--color-link, var(--color-accent));
+        color: var(--color-accent);
         margin: 1rem 0;
     }
 
@@ -248,8 +246,8 @@ styles = Style("""
         font-size: 1rem;
         font-weight: 600;
         letter-spacing: 0.04em;
-        color: var(--color-link, var(--color-accent));
-        border-bottom: 1px dotted var(--color-link, var(--color-accent));
+        color: var(--color-accent);
+        border-bottom: 1px dotted var(--color-accent);
         border-radius: 0;
         cursor: pointer;
     }
@@ -280,7 +278,7 @@ styles = Style("""
     .ob-table { width: 100%; border-collapse: collapse; }
     .ob-table th {
         text-align: left;
-        border-bottom: 2px solid var(--color-rule, var(--color-fg));
+        border-bottom: 2px solid var(--color-fg);
         padding: 0.5rem 0.75rem;
         font-weight: 600;
     }
@@ -290,8 +288,8 @@ styles = Style("""
         vertical-align: top;
     }
     .ob-num { text-align: right; white-space: nowrap; }
-    .ob-credit { color: var(--color-credit, var(--color-accent)); font-weight: 600; }
-    .ob-debit { color: var(--color-debit, var(--color-fg)); font-weight: 700; }
+    .ob-credit { color: var(--color-accent); font-weight: 600; }
+    .ob-debit { color: var(--color-fg); font-weight: 700; }
     .ob-pending td { color: var(--color-muted); }
 
     .ob-txn-card {
@@ -332,8 +330,8 @@ styles = Style("""
         gap: 0.5rem;
         padding: 1.1rem 1.25rem;
         border-radius: calc(var(--radius) * 1.5);
-        background-color: var(--color-header-bg, var(--color-primary));
-        color: var(--color-header-fg, var(--color-on-primary));
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
         border: 1px solid var(--color-border);
     }
     .ob-cardface-brand {
@@ -349,7 +347,7 @@ styles = Style("""
         top: 0.9rem;
         right: 1rem;
         background: none;
-        border: 1px solid var(--color-header-fg, var(--color-on-primary));
+        border: 1px solid var(--color-on-primary);
         border-radius: var(--radius);
         padding: 0.15rem 0.5rem;
         margin: 0;
@@ -358,7 +356,7 @@ styles = Style("""
         font-size: 0.75rem;
         font-weight: 600;
         line-height: 1.4;
-        color: var(--color-header-fg, var(--color-on-primary));
+        color: var(--color-on-primary);
         cursor: pointer;
     }
     .ob-cardface-toggle:hover { opacity: 0.75; }
@@ -1333,13 +1331,30 @@ def openbanking_account_detail(
 
 @rt("/openbanking/accounts/{account_id}/ledger")
 def openbanking_account_ledger(
-    account_id: int, showing: int = 0, q: str = "", expand: int = 0
+    htmx: HtmxHeaders,
+    account_id: int,
+    showing: int = 0,
+    q: str = "",
+    expand: int = 0,
 ):
-    """htmx partial: the filtered/searched ledger only."""
+    """htmx partial: the filtered/searched ledger only.
+
+    The filter, search box and toggle all push history, but what lands in the
+    address bar must be the account page, not this fragment -- otherwise a
+    reload renders a bare, unstyled ledger. So the swap pushes the detail URL
+    (which reads the same params), and a non-htmx hit on this route -- an old
+    history entry or a bookmark -- gets the full page.
+    """
+    if not htmx.request:
+        return openbanking_account_detail(account_id, showing, q, expand=expand)
     account = get_account(account_id)
     if account is None:
         return Div(cfg().no_results_label, cls="ob-empty", id="ob-ledger")
-    return ledger(account, showing, q, bool(expand))
+    params = urlencode({"showing": showing, "q": q, "expand": expand})
+    return (
+        ledger(account, showing, q, bool(expand)),
+        HtmxResponseHeaders(push_url=f"/openbanking/accounts/{account_id}?{params}"),
+    )
 
 
 @rt("/openbanking/accounts/{account_id}/numbers")

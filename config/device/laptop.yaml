@@ -1,0 +1,19 @@
+# A laptop screen. Same desktop layouts, less of them on screen at once.
+#
+# 1280x800 is what `browsergym_env_args=screenshot` used to hardcode: a
+# screenshot-only agent sends the image at full size, so the less the model's
+# image processor has to squash, the more legible the set-of-marks labels are.
+# Pair the two:
+#
+#   uv run launch_agent.py agent=gemma-4-31B-computer-use \
+#       browsergym_env_args=screenshot device=laptop
+#
+# See config/device/desktop.yaml for what every field means.
+name: laptop
+form_factor: desktop
+viewport: [1280, 800]
+
+device_scale_factor: 1
+is_mobile: false
+has_touch: false
+user_agent: null
