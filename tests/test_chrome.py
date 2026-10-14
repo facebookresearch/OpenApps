@@ -250,6 +250,12 @@ class TestChromeParts:
         assert 'id="oa-titlebar"' not in result.body
         assert "data-oa-titlebar" not in result.html_attrs
 
+    def test_phone_has_no_cursor_unless_asked(self):
+        assert 'id="oa-cursor"' not in parts(form_factor="phone").body
+        assert 'id="oa-cursor"' in parts(form_factor="tablet").body
+        opted_in = compose_chrome("apps.chrome.cursor.form_factors=[desktop,tablet,phone]")
+        assert 'id="oa-cursor"' in parts(opted_in, form_factor="phone").body
+
     def test_maximized_hands_back_the_dock_space(self):
         assert "data-oa-maximized" in parts(maximized=True).html_attrs
 
