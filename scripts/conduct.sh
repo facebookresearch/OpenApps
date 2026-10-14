@@ -64,10 +64,18 @@ for ((i = 0; i < COUNT; i++)); do
   agent="${AGENT_LIST[i % N_AGENTS]}"
   run_idx="$(printf '%03d' "$i")"
   log_file="${LOG_SUBDIR}/run-${run_idx}-agent-${agent}.log"
+  # Each run gets its own 100-port window (5001 + job_id*100, see
+  # AgentLauncher._job_port_offset). Without it every run in the pool scans
+  # from 5001 at once, two pick the same free port before either web app has
+  # bound it, and the loser exits with "address already in use" while its
+  # health check finds the winner's app. Wrapped at 500 so the window stays
+  # under 65535; runs 500 apart are never alive at the same time.
+  job_id=$((i % 500))
   echo "[launch] run=$i agent=$agent -> $log_file"
   (
     uv run launch_agent.py \
       "agent=${agent}" \
+      "++job_id=${job_id}" \
       "browsergym_env_args.headless=${HEADLESS}" \
       "wandb.group=${WANDB_GROUP}" \
       "wandb.job_type=${agent}" \
