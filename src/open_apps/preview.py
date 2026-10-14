@@ -4,7 +4,8 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Open a browser on the running apps, sized like the configured device.
+Open a browser on the running apps, sized like the configured device -- or
+like your screen, if the device is bigger than it.
 
 ``uv run launch.py`` serves the apps and then blocks. This opens a window on
 them so "run it and look at it" is one command instead of two plus copying a
@@ -58,8 +59,72 @@ def _wait_for_server(url: str, timeout: float = _STARTUP_TIMEOUT_S) -> bool:
     return False
 
 
+#: Read once from a throwaway page: the usable screen (minus menu bar / taskbar)
+#: and how much of the window the browser's own toolbar and frame take up.
+_MEASURE_JS = """() => ({
+  left: screen.availLeft || 0, top: screen.availTop || 0,
+  width: screen.availWidth, height: screen.availHeight,
+  frameW: Math.max(0, outerWidth - innerWidth),
+  frameH: Math.max(0, outerHeight - innerHeight),
+})"""
+
+#: Hide automation from the page, and only in this window. The chrome's
+#: ``cursor.show: auto`` draws the agent cursor when ``navigator.webdriver`` is
+#: set -- correct for an agent run, wrong for a person who opened a preview and
+#: now has a glowing arrow chasing their own pointer.
+_PERSON_DRIVING_JS = "Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false })"
+
+
+def fit_to_screen(wanted: tuple[int, int], screen: dict[str, int]) -> tuple[int, int]:
+    """The largest page size up to ``wanted`` whose window fits on ``screen``.
+
+    ``screen`` is what :data:`_MEASURE_JS` returns. Each axis is clamped on its
+    own: a 1920x1080 desktop on a 1440x900 laptop becomes as big as the laptop
+    allows, and a phone, which already fits, is untouched.
+    """
+    room_w = screen["width"] - screen["frameW"]
+    room_h = screen["height"] - screen["frameH"]
+    return max(1, min(wanted[0], room_w)), max(1, min(wanted[1], room_h))
+
+
+def _place_window(page: Any, size: tuple[int, int], screen: dict[str, int]) -> None:
+    """Resize ``page``'s window so its *page area* is ``size``, centred on screen.
+
+    ``--window-size`` can't do this: it is fixed at launch, before the screen
+    can be read, and it sizes the outer window, toolbar included.
+    """
+    outer_w, outer_h = size[0] + screen["frameW"], size[1] + screen["frameH"]
+    cdp = page.context.new_cdp_session(page)
+    window = cdp.send("Browser.getWindowForTarget")
+    cdp.send(
+        "Browser.setWindowBounds",
+        {
+            "windowId": window["windowId"],
+            "bounds": {
+                "left": screen["left"] + max(0, (screen["width"] - outer_w) // 2),
+                "top": screen["top"] + max(0, (screen["height"] - outer_h) // 2),
+                "width": outer_w,
+                "height": outer_h,
+            },
+        },
+    )
+    cdp.detach()
+
+
 def _open_with_playwright(url: str, device: dict[str, Any]) -> bool:
-    """Open a Chromium window emulating ``device``. True if it stayed open.
+    """Open a Chromium window showing ``device``, never larger than the screen.
+
+    Two shapes, depending on whether the device needs emulation:
+
+    * **desktop / laptop** -- a real window (``no_viewport``) sized to the
+      device. The page is whatever size the window is: drag it, maximise it,
+      and the layout reflows and scrolls like any browser. A fixed viewport
+      here is what made a 1920x1080 desktop run off a laptop screen with no way
+      to scroll -- the page was told it had 1080px of height it could not show.
+    * **phone / tablet** -- ``is_mobile`` and touch only exist on a fixed
+      viewport, so the device size is kept but clamped to the screen. A tablet
+      taller than the display loses height, not width: the composition is the
+      same and the rest is a scroll away.
 
     Blocks until the user closes the window, which is what keeps the browser
     alive -- Playwright tears the browser down when its context manager exits.
@@ -70,23 +135,39 @@ def _open_with_playwright(url: str, device: dict[str, Any]) -> bool:
         logger.debug("playwright not installed; falling back to the system browser")
         return False
 
-    width, height = (int(device["viewport"][0]), int(device["viewport"][1]))
+    wanted = (int(device["viewport"][0]), int(device["viewport"][1]))
     # `context_kwargs` already excludes the viewport by design -- it is passed
     # separately here, and via task_kwargs.screen_resolution on the agent path.
+    # Non-empty means touch, a mobile viewport or a UA: things only a fixed
+    # viewport can emulate.
     context_kwargs = dict(device_module.context_kwargs(device))
 
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(
-                headless=False,
-                # Ask the window to match the viewport so there is no scrollbar
-                # or letterbox around the page you came to look at.
-                args=[f"--window-size={width},{height}"],
-            )
-            context = browser.new_context(
-                viewport={"width": width, "height": height}, **context_kwargs
-            )
+            browser = pw.chromium.launch(headless=False)
+            context = browser.new_context(no_viewport=True)
             page = context.new_page()
+            screen = page.evaluate(_MEASURE_JS)
+            size = fit_to_screen(wanted, screen)
+
+            if context_kwargs:
+                emulated = browser.new_context(
+                    viewport={"width": size[0], "height": size[1]}, **context_kwargs
+                )
+                # Open the new window before closing the probe's, so the
+                # browser never sits at zero windows.
+                emulated_page = emulated.new_page()
+                context.close()
+                context, page = emulated, emulated_page
+
+            context.add_init_script(_PERSON_DRIVING_JS)
+            _place_window(page, size, screen)
+            if size != wanted:
+                print(
+                    f"Preview window fit to your screen at {size[0]}x{size[1]}; "
+                    f"the {device['name']} device (what agents see) is "
+                    f"{wanted[0]}x{wanted[1]}."
+                )
             page.goto(url)
             # Hold the window open. `page.wait_for_event("close")` would need a
             # timeout; polling is_closed costs nothing and has no ceiling.
