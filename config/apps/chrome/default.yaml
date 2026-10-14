@@ -68,6 +68,10 @@ cursor:
   # always   also for a person, e.g. a headed demo recording.
   # never    off.
   show: auto
+  # A phone has no pointer -- a finger lands, nothing hovers -- so an arrow
+  # gliding across it is the wrong picture of what the agent did. Add `phone`
+  # back for a recording that needs to show where each tap landed.
+  form_factors: [desktop, tablet]
   # glow     gradient arrow with a soft halo, in the shell's ring colours
   # classic  white arrow, black outline -- what a native pointer looks like
   style: glow
