@@ -34,6 +34,8 @@ cd "$SCRIPT_DIR/.." || exit 1
 RUN_STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 LOG_SUBDIR="${LOG_DIR}/${RUN_STAMP}"
 mkdir -p "$LOG_SUBDIR"
+# Absolute, because Hydra resolves logs_dir in each run's own process.
+BATCH_DIR="$(cd "$LOG_SUBDIR" && pwd)"
 
 # Shared W&B group so all runs from this invocation aggregate together in a
 # report. Override with WANDB_GROUP; defaults to the batch timestamp.
@@ -71,11 +73,20 @@ for ((i = 0; i < COUNT; i++)); do
   # health check finds the winner's app. Wrapped at 500 so the window stays
   # under 65535; runs 500 apart are never alive at the same time.
   job_id=$((i % 500))
+  # And its own logs_dir, which also holds its SQLite databases. The default
+  # is log_outputs/<now to the second>, so runs started in the same second
+  # shared one: their web apps read and wrote the same databases, reseeding
+  # each other mid-episode and leaking edits into each other's rewards.
+  # Recordings from the whole batch still land in one folder; the job_id
+  # suffix keeps their names apart. Forwarded args come later and win.
+  run_dir="${BATCH_DIR}/run-${run_idx}"
   echo "[launch] run=$i agent=$agent -> $log_file"
   (
     uv run launch_agent.py \
       "agent=${agent}" \
       "++job_id=${job_id}" \
+      "logs_dir=${run_dir}" \
+      "record_video_dir=${BATCH_DIR}/recordings" \
       "browsergym_env_args.headless=${HEADLESS}" \
       "wandb.group=${WANDB_GROUP}" \
       "wandb.job_type=${agent}" \
