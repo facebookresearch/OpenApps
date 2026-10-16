@@ -667,16 +667,18 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
     # Order groups as the primary config's defaults list does (then nested
     # groups after their parent, then append-only groups) -- the order the
     # command renders overrides in, and a sensible default UI order.
-    order = list(choices["config"])
-    groups = dict(
-        sorted(
-            groups.items(),
-            key=lambda kv: (
-                order.index(kv[0]) if kv[0] in order else len(order),
-                kv[0],
-            ),
-        )
-    )
+    # Hydra fills runtime.choices while unwinding the defaults tree, so the
+    # dict is in reverse defaults-list order.
+    order = list(reversed(list(choices["config"])))
+
+    def position(path: str) -> tuple[int, int, int, str]:
+        # A nested group (apps/todo/layout) sorts right after its parent.
+        parent = next((p for p in order if path.startswith(p + "/")), path)
+        rank = order.index(parent) if parent in order else len(order)
+        own = order.index(path) if path in order else 0
+        return (rank, parent != path, own, path)
+
+    groups = dict(sorted(groups.items(), key=lambda kv: position(kv[0])))
     return Catalog(
         groups=groups,
         scalars=scalars,
