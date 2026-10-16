@@ -69,7 +69,7 @@ EDGE_COMMANDS = [
     "uv run launch_parallel_agents.py parallel_tasks.task_names=[1,2]",
     "uv run launch_parallel_agents.py parallel_tasks.task_names=a,b",
     "uv run launch_parallel_agents.py 'parallel_tasks.task_names=choice(a,b)'",
-    "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[\"apps/todo/layout=kanban_board\",\"apps/theme=dark\"]]'",
+    'uv run launch_parallel_agents.py \'parallel_tasks.app_variations=[["apps/todo/layout=kanban_board","apps/theme=dark"]]\'',
     "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[apps/theme=dark],[apps/theme=mono]]'",
     "uv run launch_parallel_agents.py task_name=x agent=dummy",
     "AGENTS='dummy  claude_4_sonnet' MAX_PARALLEL=x FOO=1 ./scripts/conduct.sh mode=local",
@@ -169,9 +169,13 @@ class _QuietHandler(SimpleHTTPRequestHandler):
 def _embed_markup() -> str:
     """The ``<openapps-composer>`` tag from the docs page, with its catalog
     URL rewritten from the page-relative docs path to this server's layout."""
-    match = re.search(r"<openapps-composer\b[^>]*>\s*</openapps-composer>", DOCS_PAGE.read_text())
+    match = re.search(
+        r"<openapps-composer\b[^>]*>\s*</openapps-composer>", DOCS_PAGE.read_text()
+    )
     assert match, "docs/composer.md must embed <openapps-composer>"
-    return re.sub(r'catalog="[^"]*"', 'catalog="assets/composer/catalog.json"', match.group(0))
+    return re.sub(
+        r'catalog="[^"]*"', 'catalog="assets/composer/catalog.json"', match.group(0)
+    )
 
 
 @pytest.fixture(scope="module")
@@ -240,7 +244,9 @@ def test_run_count_parity(js, catalog, case):
     assert call(js, "runCount", case["selection"]) == {"value": expected}
 
 
-@pytest.mark.parametrize("case", COMMANDS["parse_cases"], ids=_ids(COMMANDS["parse_cases"]))
+@pytest.mark.parametrize(
+    "case", COMMANDS["parse_cases"], ids=_ids(COMMANDS["parse_cases"])
+)
 def test_parse_hand_written_parity(js, case):
     assert call(js, "parse", case["command"]) == {"value": case["selection"]}
     assert call(js, "render", case["selection"]) == {"value": case["rendered"]}
@@ -310,23 +316,46 @@ def test_apply_fix_parity(js, catalog, case):
 @pytest.mark.parametrize(
     "selection,key,value",
     [
-        ({"choices": {"task_name": ["navigate_to_onlineshop"]}}, "apps/onlineshop/content", "default"),
-        ({"choices": {"task_name": ["navigate_to_onlineshop"]}}, "apps/onlineshop/content", "german"),
-        ({"choices": {"tasks": ["longer_horizon"]}}, "browsergym_env_args.max_steps", 10),
+        (
+            {"choices": {"task_name": ["navigate_to_onlineshop"]}},
+            "apps/onlineshop/content",
+            "default",
+        ),
+        (
+            {"choices": {"task_name": ["navigate_to_onlineshop"]}},
+            "apps/onlineshop/content",
+            "german",
+        ),
+        (
+            {"choices": {"tasks": ["longer_horizon"]}},
+            "browsergym_env_args.max_steps",
+            10,
+        ),
         ({}, "tasks", "longer_horizon"),
         ({}, "agent", "gemma-4-2B-computer-use"),
     ],
 )
 def test_check_option_parity(js, catalog, selection, key, value):
-    expected = _finding_dicts(check_option(Selection.from_dict(selection), key, value, catalog))
+    expected = _finding_dicts(
+        check_option(Selection.from_dict(selection), key, value, catalog)
+    )
     assert call(js, "checkOption", selection, key, value) == {"value": expected}
 
 
 def test_extra_override_values_are_read_as_yaml(js, catalog):
     """Rules see `key=value` extras the way PyYAML reads them."""
     extras = [
-        "a.b=False", "a.c=no", "a.d=~", "a.e=", "a.f=12", "a.g=0x1f",
-        "a.h=1.5", "a.i=.inf", "a.j='quoted'", "a.k=[1, two]", "a.l=node-001",
+        "a.b=False",
+        "a.c=no",
+        "a.d=~",
+        "a.e=",
+        "a.f=12",
+        "a.g=0x1f",
+        "a.h=1.5",
+        "a.i=.inf",
+        "a.j='quoted'",
+        "a.k=[1, two]",
+        "a.l=node-001",
     ]
     selection = {"extra": extras}
     expected = facts(Selection.from_dict(selection), catalog)
@@ -416,7 +445,12 @@ def test_ticking_several_options_makes_a_sweep(ui, catalog):
         Selection.from_dict({"choices": {"apps/theme": ["dark", "mono"]}}), catalog
     )
     expect_command(page, expected)
-    assert listbox.get_by_role("option", name="Mono", exact=True).get_attribute("aria-selected") == "true"
+    assert (
+        listbox.get_by_role("option", name="Mono", exact=True).get_attribute(
+            "aria-selected"
+        )
+        == "true"
+    )
     assert "2 runs" in page.locator("openapps-composer [data-part=meta]").inner_text()
 
 
@@ -435,7 +469,9 @@ def test_switching_task_groups_keeps_a_valid_task(ui, catalog):
 def test_an_impossible_selection_shows_the_reference_error(ui, catalog):
     page = ui("index.html#device=desktop,phone")
     with pytest.raises(CommandError) as raised:
-        render(Selection.from_dict({"choices": {"device": ["desktop", "phone"]}}), catalog)
+        render(
+            Selection.from_dict({"choices": {"device": ["desktop", "phone"]}}), catalog
+        )
     error = page.locator("openapps-composer [data-part=error]")
     error.wait_for()
     assert str(raised.value) in error.inner_text()
@@ -450,7 +486,9 @@ def test_a_rule_fix_is_one_click(ui):
     )
     findings = page.locator("openapps-composer [data-part=findings]")
     assert "unwinnable by construction" in findings.inner_text()
-    page.get_by_role("button", name=re.compile("browsergym_env_args.max_steps=40")).click()
+    page.get_by_role(
+        "button", name=re.compile("browsergym_env_args.max_steps=40")
+    ).click()
     expect_command(
         page,
         "uv run launch_agent.py tasks=longer_horizon "
@@ -461,7 +499,11 @@ def test_a_rule_fix_is_one_click(ui):
 
 @pytest.mark.parametrize(
     "case",
-    [c for c in COMMANDS["cases"] if c.get("selection", {}).get("extra") or "parallel" in c["command"]],
+    [
+        c
+        for c in COMMANDS["cases"]
+        if c.get("selection", {}).get("extra") or "parallel" in c["command"]
+    ],
     ids=lambda c: c["name"],
 )
 def test_paste_a_command_round_trips(ui, case):
@@ -473,12 +515,16 @@ def test_paste_a_command_round_trips(ui, case):
 
 def test_extra_overrides_are_removable_chips(ui, catalog):
     page = ui()
-    case = next(c for c in COMMANDS["cases"] if c["name"] == "extra overrides are kept verbatim")
+    case = next(
+        c for c in COMMANDS["cases"] if c["name"] == "extra overrides are kept verbatim"
+    )
     page.get_by_label("Paste a command").fill(case["command"])
     page.get_by_role("button", name="Apply", exact=True).click()
     chips = page.locator("openapps-composer [data-part=extras]")
     assert "agent.hostname=node-001" in chips.inner_text()
-    page.get_by_role("button", name="Remove extra override agent.hostname=node-001").click()
+    page.get_by_role(
+        "button", name="Remove extra override agent.hostname=node-001"
+    ).click()
     remaining = dict(case["selection"], extra=["apps.todo.title=Super Todo"])
     expect_command(page, render(Selection.from_dict(remaining), catalog))
 
@@ -487,9 +533,10 @@ def test_a_bad_paste_reports_inline_and_keeps_the_selection(ui):
     page = ui("index.html#agent=dummy")
     page.get_by_label("Paste a command").fill("uv run train.py")
     page.get_by_role("button", name="Apply", exact=True).click()
-    assert "unknown launch script 'train.py'" in page.locator(
-        "openapps-composer [data-part=paste-error]"
-    ).inner_text()
+    assert (
+        "unknown launch script 'train.py'"
+        in page.locator("openapps-composer [data-part=paste-error]").inner_text()
+    )
     assert command_text(page) == "uv run launch_agent.py agent=dummy"
 
 
@@ -500,7 +547,10 @@ def test_c_copies_the_command(ui):
     status = page.locator("openapps-composer [data-part=copy-status]")
     status.wait_for()
     assert "Copied" in status.inner_text()
-    assert page.evaluate("navigator.clipboard.readText()") == "uv run launch_agent.py agent=dummy"
+    assert (
+        page.evaluate("navigator.clipboard.readText()")
+        == "uv run launch_agent.py agent=dummy"
+    )
 
 
 def test_local_only_buttons_need_local_capabilities(ui):
