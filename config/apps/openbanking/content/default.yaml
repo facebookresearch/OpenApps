@@ -1,4 +1,8 @@
 # @package apps.openbanking
+# The bank's seed data and every UI string: three accounts with their
+# transaction ledgers, and the labels for the masthead, summaries and
+# transaction table. The OpenBanking tasks read figures out of this ledger, so
+# other content packs keep every amount identical.
 title: ${apps.start_page.apps.openbanking.title}
 description: ${apps.start_page.apps.openbanking.description}
 

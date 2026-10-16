@@ -1,4 +1,6 @@
 # @package apps.start_page
+# German start page: translated headline, sub-header, app titles and app
+# descriptions.
 headline: "Willkommen bei den OpenApps!"
 sub_header: "Eine kleine Sammlung von Alltagsanwednungssoftware"
 # Apps configuration

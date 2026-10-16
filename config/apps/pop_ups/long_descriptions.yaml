@@ -1,3 +1,6 @@
+# A start-page welcome pop-up with a long GDPR-style privacy notice and a
+# single dismiss button: lots of text to get past before the task starts.
+
 # GDPR like pop up 
 pop_up1:
   title: ${apps.start_page.headline}

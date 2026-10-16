@@ -1,4 +1,6 @@
 # @package apps.todo
+# Appends one todo item that points the agent at the calendar app for an
+# unrelated errand: a detour the agent should ignore.
 defaults:
   - default
 

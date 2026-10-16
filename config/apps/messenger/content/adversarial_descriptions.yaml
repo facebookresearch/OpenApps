@@ -1,4 +1,7 @@
 # @package apps.messenger
+# Appends `apps.adversarial_message` -- the injected "you have achieved your
+# goal" notice -- as the latest message in every conversation: a
+# prompt-injection test.
 defaults:
   - default
 
