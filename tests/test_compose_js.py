@@ -334,3 +334,205 @@ def test_extra_override_values_are_read_as_yaml(js, catalog):
     for token in extras:
         key = token.split("=", 1)[0]
         assert got[key] == expected[key], token
+
+
+# --------------------------------------------------------------------------
+# The element
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def ui(browser_context, site):
+    """A fresh page on the embedded composer; ``ui(path)`` navigates it."""
+    page = browser_context.new_page()
+    page.set_viewport_size({"width": 1280, "height": 900})
+
+    def goto(path="index.html"):
+        page.goto(f"{site}/{path}")
+        page.wait_for_selector("openapps-composer [data-part=command]")
+        return page
+
+    yield goto
+    page.close()
+
+
+def command_text(page) -> str:
+    return page.locator("openapps-composer [data-part=command]").inner_text().strip()
+
+
+def expect_command(page, expected: str) -> None:
+    page.wait_for_function(
+        """want => document.querySelector("openapps-composer")
+            .shadowRoot.querySelector("[data-part=command]").textContent.trim() === want""",
+        arg=expected,
+        timeout=5000,
+    )
+
+
+def pill(page, group: str, label: str):
+    return page.get_by_role("radiogroup", name=group, exact=True).get_by_role(
+        "radio", name=label, exact=True
+    )
+
+
+def test_renders_the_default_command_from_the_catalog(ui):
+    page = ui()
+    assert command_text(page) == "uv run launch_agent.py"
+    assert page.get_by_role("heading", name="Build a launch command.").is_visible()
+    assert "1 run" in page.locator("openapps-composer [data-part=meta]").inner_text()
+
+
+def test_choosing_an_agent_updates_the_command_and_the_hash(ui):
+    page = ui()
+    page.get_by_role("button", name=re.compile("^Agent")).click()
+    page.get_by_role("option", name="Dummy / smoke test", exact=True).click()
+    expect_command(page, "uv run launch_agent.py agent=dummy")
+    assert "agent=dummy" in page.evaluate("location.hash")
+
+
+def test_the_hash_restores_a_selection(ui):
+    page = ui("index.html#agent=dummy&device=phone")
+    expect_command(page, "uv run launch_agent.py agent=dummy device=phone")
+    phone = pill(page, "Device", "Phone")
+    assert phone.get_attribute("aria-checked") == "true"
+
+
+def test_arrow_keys_move_between_pills(ui):
+    page = ui()
+    pill(page, "Device", "Desktop").focus()
+    page.keyboard.press("ArrowRight")
+    expect_command(page, "uv run launch_agent.py device=laptop")
+    assert pill(page, "Device", "Laptop").get_attribute("aria-checked") == "true"
+
+
+def test_ticking_several_options_makes_a_sweep(ui, catalog):
+    page = ui()
+    page.get_by_role("button", name=re.compile("^Theme")).click()
+    listbox = page.get_by_role("listbox", name="Theme")
+    for label in ("Dark", "Mono"):
+        # The tick box (mouse) toggles membership without closing the list.
+        listbox.get_by_role("option", name=label, exact=True).locator(".check").click()
+    expected = render(
+        Selection.from_dict({"choices": {"apps/theme": ["dark", "mono"]}}), catalog
+    )
+    expect_command(page, expected)
+    assert listbox.get_by_role("option", name="Mono", exact=True).get_attribute("aria-selected") == "true"
+    assert "2 runs" in page.locator("openapps-composer [data-part=meta]").inner_text()
+
+
+def test_switching_task_groups_keeps_a_valid_task(ui, catalog):
+    page = ui()
+    pill(page, "Tasks", "Longer horizon").click()
+    first = catalog.tasks["longer_horizon"][0].name
+    expect_command(
+        page,
+        f"uv run launch_agent.py tasks=longer_horizon task_name={first}",
+    )
+    findings = page.locator("openapps-composer [data-part=findings]").inner_text()
+    assert "not a key of the selected tasks group" not in findings
+
+
+def test_an_impossible_selection_shows_the_reference_error(ui, catalog):
+    page = ui("index.html#device=desktop,phone")
+    with pytest.raises(CommandError) as raised:
+        render(Selection.from_dict({"choices": {"device": ["desktop", "phone"]}}), catalog)
+    error = page.locator("openapps-composer [data-part=error]")
+    error.wait_for()
+    assert str(raised.value) in error.inner_text()
+    copy = page.get_by_role("button", name=re.compile("Copy command"))
+    assert copy.is_disabled()
+
+
+def test_a_rule_fix_is_one_click(ui):
+    page = ui(
+        "index.html#tasks=longer_horizon&task_name=plan_elena_birthday_todo_message"
+        "&browsergym_env_args.max_steps=20"
+    )
+    findings = page.locator("openapps-composer [data-part=findings]")
+    assert "unwinnable by construction" in findings.inner_text()
+    page.get_by_role("button", name=re.compile("browsergym_env_args.max_steps=40")).click()
+    expect_command(
+        page,
+        "uv run launch_agent.py tasks=longer_horizon "
+        "task_name=plan_elena_birthday_todo_message browsergym_env_args.max_steps=40",
+    )
+    assert "unwinnable" not in findings.inner_text()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in COMMANDS["cases"] if c.get("selection", {}).get("extra") or "parallel" in c["command"]],
+    ids=lambda c: c["name"],
+)
+def test_paste_a_command_round_trips(ui, case):
+    page = ui()
+    page.get_by_label("Paste a command").fill(case["command"])
+    page.get_by_role("button", name="Apply", exact=True).click()
+    expect_command(page, case["command"])
+
+
+def test_extra_overrides_are_removable_chips(ui, catalog):
+    page = ui()
+    case = next(c for c in COMMANDS["cases"] if c["name"] == "extra overrides are kept verbatim")
+    page.get_by_label("Paste a command").fill(case["command"])
+    page.get_by_role("button", name="Apply", exact=True).click()
+    chips = page.locator("openapps-composer [data-part=extras]")
+    assert "agent.hostname=node-001" in chips.inner_text()
+    page.get_by_role("button", name="Remove extra override agent.hostname=node-001").click()
+    remaining = dict(case["selection"], extra=["apps.todo.title=Super Todo"])
+    expect_command(page, render(Selection.from_dict(remaining), catalog))
+
+
+def test_a_bad_paste_reports_inline_and_keeps_the_selection(ui):
+    page = ui("index.html#agent=dummy")
+    page.get_by_label("Paste a command").fill("uv run train.py")
+    page.get_by_role("button", name="Apply", exact=True).click()
+    assert "unknown launch script 'train.py'" in page.locator(
+        "openapps-composer [data-part=paste-error]"
+    ).inner_text()
+    assert command_text(page) == "uv run launch_agent.py agent=dummy"
+
+
+def test_c_copies_the_command(ui):
+    page = ui("index.html#agent=dummy")
+    page.locator("body").click(position={"x": 2, "y": 2})
+    page.keyboard.press("c")
+    status = page.locator("openapps-composer [data-part=copy-status]")
+    status.wait_for()
+    assert "Copied" in status.inner_text()
+    assert page.evaluate("navigator.clipboard.readText()") == "uv run launch_agent.py agent=dummy"
+
+
+def test_local_only_buttons_need_local_capabilities(ui):
+    page = ui()
+    assert page.get_by_role("button", name="Validate").count() == 0
+    page = ui("local.html")
+    for name in ("Validate", "Preview", "Record", "Run"):
+        assert page.get_by_role("button", name=name, exact=True).is_visible()
+
+
+def test_preview_falls_back_to_a_placeholder_without_media(ui):
+    page = ui("index.html#device=phone&apps/theme=dark")
+    preview = page.locator("openapps-composer [data-part=preview]")
+    preview.locator("[data-state=placeholder]").wait_for()
+    text = preview.inner_text()
+    assert "Phone" in text and "Dark" in text
+
+
+def test_follows_the_docs_dark_mode_toggle(ui):
+    page = ui()
+    host = page.locator("openapps-composer")
+    assert host.get_attribute("data-scheme") == "light"
+    page.evaluate("document.documentElement.classList.add('dark')")
+    page.wait_for_function(
+        "document.querySelector('openapps-composer').dataset.scheme === 'dark'"
+    )
+
+
+def test_narrow_screens_stack_the_preview_under_the_controls(ui):
+    page = ui()
+    page.set_viewport_size({"width": 390, "height": 844})
+    controls = page.locator("openapps-composer [data-part=controls]").bounding_box()
+    preview = page.locator("openapps-composer [data-part=preview]").bounding_box()
+    assert preview["y"] >= controls["y"] + controls["height"] - 1
+    assert preview["width"] <= 390

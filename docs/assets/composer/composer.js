@@ -884,4 +884,983 @@
     checkOption: (sel, key, value, catalog) => checkOptionSel(fromDict(sel), key, value, catalog),
   };
   window.OpenAppsComposer = engine;
+
+  // -------------------------------------------------------------------------
+  // The element
+  // -------------------------------------------------------------------------
+
+  // Captured while the script runs: the stylesheet and, without a `catalog`
+  // attribute, the catalog sit next to this file.
+  const SCRIPT_URL = (document.currentScript && document.currentScript.src) || location.href;
+
+  // Where a group renders. Anything not named here still shows up -- under
+  // "Apps" for apps/*, "More options" otherwise -- so a group added under
+  // config/ (A1's apps/events, A2's benchmark) needs no change in this file.
+  const MAIN_KEYS = [
+    "agent", "device", "tasks", "task_name", "apps/theme", "apps/pop_ups",
+    "browsergym_env_args", "experiment",
+  ];
+  const RUN_KEYS = [
+    "browsergym_env_args.max_steps", "seed", "use_wandb",
+    "browsergym_env_args.headless", "record_video",
+  ];
+  const THEN_LABELS = { warn: "Warning", require: "Needs", disable: "Blocked" };
+  const LOCAL_ACTIONS = ["Validate", "Preview", "Record", "Run"];
+  // Rough screen proportions for the preview placeholder, by device option.
+  const DEVICE_RATIO = { desktop: "16 / 10", laptop: "16 / 10", phone: "9 / 18", tablet: "3 / 4" };
+  // Placeholder swatches (background, surface, ink, accent) for known themes;
+  // anything else falls back to the default look.
+  const THEME_SWATCH = {
+    default: ["#f7f7f8", "#ffffff", "#1f2328", "#2f6feb"],
+    dark: ["#16181d", "#22252c", "#e6e6e6", "#6aa7ff"],
+    meta_dark: ["#18191a", "#242526", "#e4e6eb", "#2d88ff"],
+    vscode_dark: ["#1e1e1e", "#252526", "#d4d4d4", "#3794ff"],
+    mono: ["#f2f2f2", "#ffffff", "#111111", "#555555"],
+    solarized: ["#fdf6e3", "#eee8d5", "#586e75", "#268bd2"],
+    material: ["#fafafa", "#ffffff", "#212121", "#6200ee"],
+    bootstrap: ["#f8f9fa", "#ffffff", "#212529", "#0d6efd"],
+    meta: ["#f0f2f5", "#ffffff", "#1c1e21", "#0866ff"],
+    colorblind: ["#ffffff", "#ffffff", "#000000", "#e69f00"],
+    challenging_font: ["#fbfaf5", "#ffffff", "#2a2a2a", "#8a5cf6"],
+  };
+
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k === "style") el.style.cssText = v;
+      else el.setAttribute(k, v === true ? "" : String(v));
+    }
+    for (const kid of kids.flat(Infinity)) {
+      if (kid === null || kid === undefined || kid === false) continue;
+      el.append(kid instanceof Node ? kid : String(kid));
+    }
+    return el;
+  }
+
+  const editable = (el) =>
+    el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+
+  class OpenAppsComposerElement extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" });
+      this.catalog = null;
+      this.manifest = null;
+      this.sel = fromDict({});
+      this.openSelect = null;
+      this.query = {};
+      this.multi = {};
+      this.sections = {};
+      this.info = null;
+      this.copyStatus = "";
+      this.pasteError = "";
+      this.extraError = "";
+      this.localResult = null;
+      this.writtenHash = null;
+      this.onKeydown = this.onKeydown.bind(this);
+      this.onDocClick = this.onDocClick.bind(this);
+      this.onHashChange = this.onHashChange.bind(this);
+      this.schemeObserver = new MutationObserver(() => this.syncScheme());
+    }
+
+    connectedCallback() {
+      this.syncScheme();
+      this.schemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+      document.addEventListener("keydown", this.onKeydown);
+      document.addEventListener("click", this.onDocClick);
+      window.addEventListener("hashchange", this.onHashChange);
+      const css = this.getAttribute("stylesheet") || SCRIPT_URL.replace(/\.js(\?.*)?$/, ".css");
+      this.shadowRoot.replaceChildren(
+        h("link", { rel: "stylesheet", href: new URL(css, document.baseURI).href }),
+        (this.root = h("div", { class: "oac" }, this.header(), h("p", { class: "status-line", text: "Loading the config catalog…" }))),
+      );
+      this.load();
+    }
+
+    disconnectedCallback() {
+      this.schemeObserver.disconnect();
+      document.removeEventListener("keydown", this.onKeydown);
+      document.removeEventListener("click", this.onDocClick);
+      window.removeEventListener("hashchange", this.onHashChange);
+    }
+
+    /** Light or dark: an explicit `scheme` attribute, else the docs toggle. */
+    syncScheme() {
+      const explicit = this.getAttribute("scheme");
+      const dark = explicit ? explicit === "dark" : document.documentElement.classList.contains("dark");
+      this.dataset.scheme = dark ? "dark" : "light";
+    }
+
+    async load() {
+      const attr = this.getAttribute("catalog");
+      const catalogURL = new URL(attr || "catalog.json", attr ? document.baseURI : SCRIPT_URL);
+      try {
+        const response = await fetch(catalogURL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        this.catalog = await response.json();
+      } catch (e) {
+        this.root.replaceChildren(
+          this.header(),
+          h("p", { class: "status-line", role: "alert" },
+            `Couldn't load the config catalog from ${catalogURL.pathname} (${e.message}). Build it with `,
+            h("code", { text: "uv run -m open_apps.compose.catalog --out docs/assets/composer/catalog.json" }), "."),
+        );
+        return;
+      }
+      this.readHash();
+      this.render();
+      // Preview media is optional: no manifest means the placeholder.
+      const mediaAttr = this.getAttribute("media");
+      this.manifestURL = new URL(mediaAttr || "media/manifest.json", mediaAttr ? document.baseURI : catalogURL);
+      try {
+        const response = await fetch(this.manifestURL);
+        this.manifest = response.ok ? await response.json() : null;
+      } catch (e) {
+        this.manifest = null;
+      }
+      if (this.manifest) this.renderPreview();
+    }
+
+    // -- state ---------------------------------------------------------------
+
+    target() {
+      try {
+        return resolveTarget(this.sel, this.catalog);
+      } catch (e) {
+        return "single";
+      }
+    }
+
+    /** The values a key shows as selected: the choice, else the default. */
+    current(key) {
+      if (has(this.sel.choices, key)) return this.sel.choices[key];
+      return [defaultFor(key, this.target(), this.catalog)];
+    }
+
+    canVary(key) {
+      const group = has(this.catalog.groups, key) ? this.catalog.groups[key] : null;
+      return key === "agent" || key === "task_name" || Boolean(group && group.sweepable);
+    }
+
+    normalized(sel) {
+      try {
+        return normalizeSel(sel, this.catalog);
+      } catch (e) {
+        if (e instanceof CommandError) return sel;
+        throw e;
+      }
+    }
+
+    /**
+     * The selection after choosing `values` for `key` (null = back to the
+     * default). Changing the tasks group re-points task_name at a task that
+     * group has, so a group switch never leaves an unregisterable task.
+     */
+    withChoice(sel, key, values) {
+      const choices = { ...sel.choices };
+      if (!values || !values.length || (values.length === 1 && values[0] === null)) delete choices[key];
+      else choices[key] = values;
+      if (key === "tasks") {
+        const probe = { ...sel, choices };
+        let target;
+        try { target = resolveTarget(probe, this.catalog); } catch (e) { target = "single"; }
+        const option = (choices.tasks || [defaultFor("tasks", target, this.catalog)])[0];
+        const names = (this.catalog.tasks[option] || []).map((t) => t.name);
+        const fallback = this.catalog.scalars.task_name.defaults.config;
+        const chosen = choices.task_name || [fallback];
+        if (!listEq(chosen, [ALL_TASKS]) && !chosen.every((n) => names.includes(n))) {
+          const kept = chosen.filter((n) => names.includes(n));
+          const next = kept.length ? kept : [names.includes(fallback) ? fallback : names[0]];
+          if (next[0] === undefined) delete choices.task_name;
+          else choices.task_name = next;
+        }
+      }
+      return this.normalized({ ...sel, choices });
+    }
+
+    update(sel) {
+      this.sel = this.normalized(sel);
+      this.writeHash();
+      this.render();
+    }
+
+    choose(key, values) {
+      this.update(this.withChoice(this.sel, key, values));
+    }
+
+    toggle(key, value) {
+      const base = (has(this.sel.choices, key) ? this.sel.choices[key] : this.current(key)).filter((v) => v !== null);
+      const next = base.some((v) => pyEq(v, value)) ? base.filter((v) => !pyEq(v, value)) : [...base, value];
+      this.choose(key, next.length ? next : null);
+    }
+
+    // -- URL hash: #agent=dummy&apps/theme=dark,mono ---------------------------
+
+    writeHash() {
+      const enc = (v) => encodeURIComponent(v).replace(/%2F/gi, "/").replace(/%3A/gi, ":").replace(/%40/g, "@");
+      const parts = [];
+      const d = toDict(this.sel);
+      if (d.target) parts.push(`target=${enc(d.target)}`);
+      for (const [k, values] of Object.entries(d.choices || {})) {
+        parts.push(`${enc(k)}=${values.map((v) => enc(formatValue(v))).join(",")}`);
+      }
+      for (const k of ["count", "max_parallel"]) if (d[k] != null) parts.push(`${k}=${d[k]}`);
+      for (const [k, field] of [["extra", "extra"], ["env", "env"], ["sbatch", "sbatch_args"]]) {
+        for (const v of d[field] || []) parts.push(`${k}=${enc(v)}`);
+      }
+      const hash = parts.join("&");
+      this.writtenHash = hash;
+      const url = location.pathname + location.search + (hash ? "#" + hash : "");
+      if (location.hash.slice(1) !== hash) history.replaceState(history.state, "", url);
+    }
+
+    readHash() {
+      const raw = location.hash.slice(1);
+      // A plain #anchor (a heading link) is not composer state.
+      if (!raw.includes("=")) return;
+      const sel = fromDict({});
+      for (const part of raw.split("&")) {
+        const at = part.indexOf("=");
+        if (at < 0) continue;
+        let key;
+        try { key = decodeURIComponent(part.slice(0, at)); } catch (e) { continue; }
+        const value = part.slice(at + 1);
+        const dec = (v) => { try { return decodeURIComponent(v); } catch (e) { return v; } };
+        if (key === "target") sel.target = has(this.catalog.targets, dec(value)) ? dec(value) : null;
+        else if (key === "count" || key === "max_parallel") {
+          if (/^\d+$/.test(value)) sel[key] = Number(value);
+        } else if (key === "extra") sel.extra.push(dec(value));
+        else if (key === "env") sel.env.push(dec(value));
+        else if (key === "sbatch") sel.sbatch_args.push(dec(value));
+        else if (has(this.catalog.groups, key)) {
+          const names = this.catalog.groups[key].options.map((o) => o.name);
+          const values = value.split(",").map(dec).filter((v) => names.includes(v));
+          if (values.length) sel.choices[key] = values;
+        } else if (has(this.catalog.scalars, key)) {
+          const values = [];
+          for (const v of value.split(",").map(dec)) {
+            try { values.push(parseScalar(v, this.catalog.scalars[key].type)); } catch (e) { /* skip */ }
+          }
+          if (values.length) sel.choices[key] = values;
+        }
+      }
+      this.sel = this.normalized(sel);
+      this.writtenHash = raw;
+    }
+
+    onHashChange() {
+      if (!this.catalog || location.hash.slice(1) === this.writtenHash) return;
+      this.sel = fromDict({});
+      this.readHash();
+      this.render();
+    }
+
+    // -- events --------------------------------------------------------------
+
+    onKeydown(event) {
+      if (!this.catalog) return;
+      const path = event.composedPath();
+      const inside = path.includes(this);
+      if (event.key === "Escape" && this.openSelect && inside) {
+        const key = this.openSelect;
+        this.openSelect = null;
+        this.render();
+        this.focusKey(`trigger:${key}`);
+        return;
+      }
+      if (event.key !== "c" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (editable(path[0])) return;
+      const active = document.activeElement;
+      if (inside || !active || active === document.body || active === this) {
+        event.preventDefault();
+        this.copy();
+      }
+    }
+
+    onDocClick(event) {
+      // The path holds the elements as they were at dispatch; a click inside a
+      // select may already have re-rendered it, so match by class, not node.
+      if (!this.openSelect) return;
+      const inSelect = event.composedPath().some((el) => el.classList && el.classList.contains("select"));
+      if (!inSelect) {
+        this.openSelect = null;
+        this.render();
+      }
+    }
+
+    async copy() {
+      const text = this.command;
+      if (!text) return;
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch (e) {
+        const area = h("textarea", { style: "position:fixed;opacity:0" });
+        area.value = text;
+        this.shadowRoot.append(area);
+        area.select();
+        try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+        area.remove();
+      }
+      this.copyStatus = ok ? "Copied" : "Copy failed: select the command and copy it by hand";
+      this.renderOutput();
+      clearTimeout(this.copyTimer);
+      this.copyTimer = setTimeout(() => { this.copyStatus = ""; this.renderOutput(); }, 2500);
+    }
+
+    focusKey(fk) {
+      const el = fk && this.shadowRoot.querySelector(`[data-fk="${CSS.escape(fk)}"]`);
+      if (el) el.focus();
+      return el;
+    }
+
+    showInfo(info) {
+      this.info = info;
+      const about = this.shadowRoot.querySelector("[data-part=about]");
+      if (about) about.replaceWith(this.about());
+    }
+
+    // -- render ----------------------------------------------------------------
+
+    render() {
+      const active = this.shadowRoot.activeElement;
+      const fk = active && active.dataset ? active.dataset.fk : null;
+      const caret = active && "selectionStart" in active ? [active.selectionStart, active.selectionEnd] : null;
+      const list = this.shadowRoot.querySelector("[role=listbox]");
+      const scroll = list ? [this.openSelect, list.scrollTop] : null;
+      // Before the controls: blockedReason compares against these.
+      this.findingIds = new Set(evaluateSel(this.sel, this.catalog).map((f) => f.rule_id));
+
+      this.root.replaceChildren(
+        this.header(),
+        h("div", { class: "body" },
+          h("div", { class: "controls", "data-part": "controls" }, this.controls()),
+          h("aside", { class: "side" }, h("div", { "data-part": "preview" }), this.about()),
+        ),
+        h("section", { class: "output", "data-part": "output", "aria-label": "Command" }),
+        this.footnote(),
+      );
+      this.renderOutput();
+      this.renderPreview();
+
+      const el = this.focusKey(fk);
+      if (el && caret) { try { el.setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text field */ } }
+      const newList = this.shadowRoot.querySelector("[role=listbox]");
+      if (newList && scroll && scroll[0] === this.openSelect) newList.scrollTop = scroll[1];
+    }
+
+    header() {
+      return h("header", { class: "head" },
+        h("p", { class: "eyebrow", text: "Config composer" }),
+        h("h2", { class: "headline", text: "Build a launch command." }),
+        h("p", { class: "lede" },
+          "Most experiments require no Python edits.", h("br"),
+          "Compose Hydra groups and overrides first."),
+      );
+    }
+
+    footnote() {
+      const code = (t) => h("code", { text: t });
+      return h("p", { class: "footnote" },
+        "Hydra shorthand: use ", code("key=value"), " to replace existing config, ",
+        code("+key=value"), " to append a group absent from defaults, and ",
+        code("++key=value"), " to add or replace.");
+    }
+
+    controls() {
+      const catalog = this.catalog;
+      const placed = new Set(["mode", ...MAIN_KEYS, ...RUN_KEYS]);
+      const target = this.target();
+      const auto = (() => { try { return resolveTarget({ ...this.sel, target: null }, catalog); } catch (e) { return "single"; } })();
+
+      const main = [
+        this.field("target", "Target", this.pills("target", [
+          { value: null, label: `Auto (${catalog.targets[auto].label.toLowerCase()})` },
+          ...Object.values(catalog.targets).map((t) => ({ value: t.name, label: t.label })),
+        ], [this.sel.target], (v) => this.update({ ...this.sel, target: v }))),
+      ];
+      if (has(catalog.groups, "mode")) main.push(this.groupField("mode"));
+      for (const key of MAIN_KEYS) {
+        if (key === "task_name") main.push(this.taskField());
+        else if (has(catalog.groups, key)) main.push(this.groupField(key));
+      }
+
+      // Per-app axes (apps/todo/layout, ...) grouped by app; other apps/* groups too.
+      const apps = [];
+      const shell = [];
+      for (const [path, group] of Object.entries(catalog.groups)) {
+        if (placed.has(path) || !path.startsWith("apps/")) continue;
+        const parts = path.split("/");
+        if (parts.length === 2) {
+          const nested = Object.keys(catalog.groups).some((p) => p.startsWith(path + "/"));
+          if (!nested && group.options.length > 1) shell.push(this.groupField(path));
+          continue;
+        }
+        const parent = parts.slice(0, 2).join("/");
+        let row = apps.find((r) => r.parent === parent);
+        if (!row) apps.push((row = { parent, fields: [] }));
+        row.fields.push(this.groupField(path, humanAxis(parts.slice(2).join(" "))));
+      }
+      const more = [];
+      for (const path of Object.keys(catalog.groups)) {
+        if (!placed.has(path) && !path.startsWith("apps/")) more.push(this.groupField(path));
+      }
+      for (const key of Object.keys(catalog.scalars)) {
+        if (!placed.has(key) && key !== "task_name") more.push(this.scalarField(key));
+      }
+
+      const changed = (keys) => keys.filter((k) => has(this.sel.choices, k)).length;
+      const appKeys = Object.keys(catalog.groups).filter((p) => p.startsWith("apps/") && !placed.has(p));
+      const runFields = RUN_KEYS.filter((k) => has(catalog.scalars, k)).map((k) => this.scalarField(k));
+      runFields.push(this.countField("count", "Count", "Worker pools: total runs, round-robin over the agents."));
+      runFields.push(this.countField("max_parallel", "Max parallel", "Worker pools: how many runs at once."));
+      const runChanged = changed(RUN_KEYS) + (this.sel.count !== null) + (this.sel.max_parallel !== null);
+
+      return [
+        h("div", { class: "grid" }, main),
+        this.section("apps", "Apps", "per-app layout and content", changed(appKeys), [
+          ...apps.map((row) => h("div", { class: "app-row" },
+            h("h3", { class: "app-name", text: catalog.groups[row.parent] ? catalog.groups[row.parent].label : row.parent }),
+            h("div", { class: "grid" }, row.fields))),
+          shell.length ? h("div", { class: "app-row" }, h("h3", { class: "app-name", text: "Shell" }), h("div", { class: "grid" }, shell)) : null,
+        ]),
+        this.section("run", "Run settings", "steps, seed, logging, worker pool", runChanged, [h("div", { class: "grid" }, runFields)]),
+        more.length ? this.section("more", "More options", "", 0, [h("div", { class: "grid" }, more)]) : null,
+        this.extrasField(),
+        this.pasteField(),
+      ];
+    }
+
+    section(id, title, hint, changed, body) {
+      const details = h("details", {
+        class: "section",
+        open: Boolean(this.sections[id]),
+        ontoggle: () => { this.sections[id] = details.open; },
+      },
+      h("summary", {},
+        h("span", { class: "section-title", text: title }),
+        hint ? h("span", { class: "section-hint", text: hint }) : null,
+        changed ? h("span", { class: "badge", text: `${changed} changed` }) : null),
+      body);
+      return details;
+    }
+
+    field(key, label, control, opts = {}) {
+      return h("div", { class: "field" + (opts.wide ? " wide" : ""), "data-key": key },
+        h("div", { class: "field-head" },
+          h("span", { class: "label", id: `label-${key}`, text: label }),
+          opts.aside || null),
+        control);
+    }
+
+    groupField(path, label) {
+      const group = this.catalog.groups[path];
+      label = label || group.label;
+      const options = group.options.map((o) => ({
+        value: o.name, label: o.label, summary: o.summary, details: o.details,
+        blocked: this.blockedReason(path, o.name),
+      }));
+      if (group.nullable) {
+        options.unshift({ value: null, label: "None", summary: `No ${label.toLowerCase()} option: the config's own defaults apply.` });
+      }
+      if (group.control === "pills") {
+        const varies = this.canVary(path);
+        const multi = varies && (this.multi[path] || this.current(path).length > 1);
+        const aside = varies
+          ? h("button", {
+            class: "multi", type: "button", "aria-pressed": String(Boolean(multi)),
+            "data-fk": `multi:${path}`, title: "Pick several values to sweep over them",
+            onclick: () => { this.multi[path] = !multi; this.render(); },
+          }, "Sweep")
+          : null;
+        return this.field(path, label, this.pills(path, options, this.current(path), (v) => this.choose(path, [v]), multi, label), { aside });
+      }
+      return this.field(path, label, this.selectControl(path, label, options, group.searchable));
+    }
+
+    taskField() {
+      const target = this.target();
+      const option = this.current("tasks")[0] || defaultFor("tasks", target, this.catalog);
+      const tasks = this.catalog.tasks[option] || [];
+      const options = [
+        { value: ALL_TASKS, label: `All ${tasks.length} tasks in ${option}`, summary: "Every task in the group: a sweep.", single: true },
+        ...tasks.map((t) => ({ value: t.name, label: t.label, summary: t.goal, details: `${t.kind} · touches ${t.apps.join(", ") || "no app state"}` })),
+      ];
+      return this.field("task_name", "Task", this.selectControl("task_name", "Task", options, true), { wide: false });
+    }
+
+    blockedReason(key, value) {
+      if (!this.disableKeys) {
+        this.disableKeys = new Set();
+        for (const rule of this.catalog.rules.filter((r) => r.then === "disable")) {
+          for (const k of Object.keys(rule.when)) {
+            if (has(this.catalog.groups, k)) this.disableKeys.add(k);
+            if (k === "task_app" || k === "task_in_tasks") this.disableKeys.add("tasks");
+          }
+        }
+      }
+      if (!this.disableKeys.has(key) || this.current(key).includes(value)) return null;
+      const next = this.withChoice(this.sel, key, [value]);
+      const found = evaluateSel(next, this.catalog).find((f) =>
+        f.then === "disable" && (!this.findingIds.has(f.rule_id) || ruleKeys(f.rule_id, this.catalog).has(key)));
+      return found ? found.reason : null;
+    }
+
+    pills(key, options, selected, onPick, multi = false, label = null) {
+      const labelId = `label-${key}`;
+      const checked = (o) => selected.some((v) => pyEq(v, o.value));
+      const focusable = Math.max(0, options.findIndex(checked));
+      const pick = (o, event) => {
+        if (o.blocked) return;
+        if (o.value !== null && this.canVary(key) && (multi || (event && event.shiftKey))) this.toggle(key, o.value);
+        else onPick(o.value);
+      };
+      const buttons = options.map((o, i) => h("button", {
+        type: "button",
+        class: "pill",
+        role: multi ? "checkbox" : "radio",
+        "aria-checked": String(checked(o)),
+        "aria-disabled": o.blocked ? "true" : null,
+        title: o.blocked || o.summary || null,
+        tabindex: multi || i === focusable ? "0" : "-1",
+        "data-fk": `pill:${key}:${o.value}`,
+        onclick: (event) => pick(o, event),
+        onmouseenter: () => this.showInfo(this.infoFor(key, o, label)),
+        onfocus: () => this.showInfo(this.infoFor(key, o, label)),
+        onkeydown: (event) => {
+          const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+          let j = null;
+          if (step) j = (i + step + options.length) % options.length;
+          else if (event.key === "Home") j = 0;
+          else if (event.key === "End") j = options.length - 1;
+          if (j === null) return;
+          event.preventDefault();
+          const next = options[j];
+          // Radios follow focus (the WAI-ARIA radio pattern); checkboxes don't.
+          if (!multi && !next.blocked) pick(next, null);
+          this.focusKey(`pill:${key}:${next.value}`);
+        },
+      }, o.label));
+      return h("div", {
+        class: "pills",
+        role: multi ? "group" : "radiogroup",
+        "aria-labelledby": labelId,
+      }, buttons);
+    }
+
+    infoFor(key, option, label) {
+      return {
+        title: option.label,
+        token: option.value === null ? `${key}: unset` : `${key}=${formatValue(option.value)}`,
+        summary: option.blocked ? `Unavailable: ${option.blocked}` : option.summary || "",
+        details: option.details && option.details !== option.summary ? option.details : "",
+        group: label,
+      };
+    }
+
+    selectControl(key, label, options, searchable) {
+      const selected = this.current(key);
+      const open = this.openSelect === key;
+      const varies = this.canVary(key);
+      const chosen = options.filter((o) => selected.some((v) => pyEq(v, o.value)));
+      const summary = chosen.length === 0 ? "None"
+        : chosen.length === 1 ? chosen[0].label
+        : `${chosen[0].label} + ${chosen.length - 1} more`;
+      const listId = `list-${key}`;
+      const trigger = h("button", {
+        type: "button",
+        class: "select-trigger",
+        "aria-haspopup": "listbox",
+        "aria-expanded": String(open),
+        "aria-controls": open ? listId : null,
+        "aria-label": `${label}: ${summary}`,
+        "data-fk": `trigger:${key}`,
+        onclick: () => {
+          this.openSelect = open ? null : key;
+          this.render();
+          if (!open) this.focusKey(searchable ? `search:${key}` : `opt:${key}:${selected[0]}`) || this.focusKey(`trigger:${key}`);
+        },
+      },
+      h("span", { class: "select-value", text: summary }),
+      chosen.length > 1 ? h("span", { class: "badge", text: String(chosen.length) }) : null,
+      h("span", { class: "caret", "aria-hidden": "true" }));
+      if (!open) return h("div", { class: "select" }, trigger);
+
+      const q = (this.query[key] || "").trim().toLowerCase();
+      const visible = q
+        ? options.filter((o) => [o.label, o.value, o.summary].some((t) => t != null && String(t).toLowerCase().includes(q)))
+        : options;
+      const rows = visible.map((o) => {
+        const isChecked = selected.some((v) => pyEq(v, o.value));
+        const box = varies && !o.single && o.value !== null
+          // Decorative for assistive tech: in a multi-select listbox
+          // aria-selected already says "in the sweep", and Space toggles it
+          // (the WAI-ARIA pattern). The box is the mouse's way to do that.
+          ? h("span", { class: "check", "aria-hidden": "true", "data-checked": String(isChecked) })
+          : null;
+        return h("div", {
+          class: "option" + (o.blocked ? " blocked" : ""),
+          role: "option",
+          "aria-selected": String(isChecked),
+          "aria-disabled": o.blocked ? "true" : null,
+          "aria-label": o.label,
+          tabindex: "-1",
+          title: o.blocked || null,
+          "data-fk": `opt:${key}:${o.value}`,
+          onmouseenter: () => this.showInfo(this.infoFor(key, o, label)),
+          onfocus: () => this.showInfo(this.infoFor(key, o, label)),
+          onclick: (event) => {
+            if (o.blocked) return;
+            if (box && event.composedPath().includes(box)) {
+              this.toggle(key, o.value);
+              this.focusKey(`opt:${key}:${o.value}`);
+            } else {
+              this.openSelect = null;
+              this.choose(key, [o.value]);
+              this.focusKey(`trigger:${key}`);
+            }
+          },
+          onkeydown: (event) => this.optionKey(event, key, o, box),
+        },
+        box,
+        h("span", { class: "option-label", text: o.label }),
+        o.value !== null && o.value !== o.label ? h("code", { class: "option-key", text: String(o.value) }) : null);
+      });
+      const search = searchable
+        ? h("input", {
+          type: "search", class: "search", placeholder: `Search ${options.length} options`,
+          "aria-label": `Search ${label}`, "aria-controls": listId, "data-fk": `search:${key}`,
+          value: this.query[key] || "",
+          oninput: (event) => { this.query[key] = event.target.value; this.render(); },
+          onkeydown: (event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              const first = this.shadowRoot.querySelector(`#${CSS.escape(listId)} [role=option]`);
+              if (first) first.focus();
+            } else if (event.key === "Enter") {
+              event.preventDefault();
+              if (visible[0]) { this.openSelect = null; this.choose(key, [visible[0].value]); this.focusKey(`trigger:${key}`); }
+            }
+          },
+        })
+        : null;
+      return h("div", { class: "select", "data-open": "" },
+        trigger,
+        h("div", { class: "popover" },
+          search,
+          h("div", {
+            class: "listbox", role: "listbox", id: listId, "aria-label": label,
+            "aria-multiselectable": varies ? "true" : null,
+          }, rows.length ? rows : h("p", { class: "empty", text: "No match." })),
+          h("p", { class: "popover-hint" },
+            varies ? "Click a row to choose it · tick boxes to sweep · Esc closes" : "Click a row to choose it · Esc closes")));
+    }
+
+    optionKey(event, key, option, box) {
+      const rows = [...this.shadowRoot.querySelectorAll(`.select[data-open] [role=option]`)];
+      const i = rows.indexOf(event.currentTarget);
+      const move = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+      if (move) {
+        event.preventDefault();
+        if (i + move < 0) this.focusKey(`search:${key}`);
+        else if (rows[i + move]) rows[i + move].focus();
+      } else if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        rows[event.key === "Home" ? 0 : rows.length - 1].focus();
+      } else if (event.key === " " && box && !option.blocked) {
+        event.preventDefault();
+        this.toggle(key, option.value);
+        this.focusKey(`opt:${key}:${option.value}`);
+      } else if ((event.key === "Enter" || event.key === " ") && !option.blocked) {
+        event.preventDefault();
+        this.openSelect = null;
+        this.choose(key, [option.value]);
+        this.focusKey(`trigger:${key}`);
+      }
+    }
+
+    scalarField(key) {
+      const scalar = this.catalog.scalars[key];
+      const value = this.current(key)[0];
+      let control;
+      if (scalar.type === "bool") {
+        control = h("button", {
+          type: "button", role: "switch", class: "switch", "aria-checked": String(Boolean(value)),
+          "aria-labelledby": `label-${key}`, "data-fk": `switch:${key}`, title: scalar.summary,
+          onclick: () => this.choose(key, [!value]),
+        }, h("span", { class: "switch-knob", "aria-hidden": "true" }), h("span", { text: value ? "On" : "Off" }));
+      } else {
+        const explicit = has(this.sel.choices, key);
+        control = h("input", {
+          type: scalar.type === "int" ? "number" : "text", class: "text-input",
+          inputmode: scalar.type === "int" ? "numeric" : null, min: scalar.type === "int" ? "0" : null,
+          "aria-labelledby": `label-${key}`, "data-fk": `input:${key}`, title: scalar.summary,
+          placeholder: value === null || value === undefined ? "" : String(value),
+          value: explicit ? String(value) : "",
+          oninput: (event) => {
+            const raw = event.target.value.trim();
+            if (!raw) return this.choose(key, null);
+            try { this.choose(key, [parseScalar(raw, scalar.type)]); } catch (e) { /* mid-edit */ }
+          },
+        });
+      }
+      return this.field(key, scalar.label, control);
+    }
+
+    countField(name, label, summary) {
+      return this.field(name, label, h("input", {
+        type: "number", class: "text-input", inputmode: "numeric", min: "1",
+        "aria-labelledby": `label-${name}`, "data-fk": `input:${name}`, title: summary,
+        placeholder: name === "count" ? "agents" : "all", value: this.sel[name] === null ? "" : String(this.sel[name]),
+        oninput: (event) => {
+          const raw = event.target.value.trim();
+          this.update({ ...this.sel, [name]: /^\d+$/.test(raw) ? Number(raw) : null });
+        },
+      }));
+    }
+
+    extrasField() {
+      const chip = (kind, field, token) => h("span", { class: "chip" },
+        h("span", { class: "chip-kind", text: kind }),
+        h("code", { text: token }),
+        h("button", {
+          type: "button", class: "chip-x", "data-fk": `chip:${field}:${token}`,
+          "aria-label": `Remove ${kind} ${token}`,
+          onclick: () => this.update({ ...this.sel, [field]: this.sel[field].filter((t) => t !== token) }),
+        }, "×"));
+      const chips = [
+        ...this.sel.extra.map((t) => chip("extra override", "extra", t)),
+        ...this.sel.env.map((t) => chip("env", "env", t)),
+        ...this.sel.sbatch_args.map((t) => chip("sbatch", "sbatch_args", t)),
+      ];
+      const input = h("input", {
+        type: "text", class: "text-input mono", placeholder: "agent.hostname=node-001",
+        "aria-label": "Add an extra override", "data-fk": "add-extra",
+        onkeydown: (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          const token = event.target.value.trim();
+          if (!OVERRIDE.test(token)) {
+            this.extraError = "An override looks like key=value, +key=value or ++key=value.";
+            this.render();
+            return;
+          }
+          this.extraError = "";
+          this.update({ ...this.sel, extra: [...this.sel.extra, token] });
+        },
+      });
+      return h("div", { class: "field wide extras" },
+        h("div", { class: "field-head" }, h("span", { class: "label", text: "Extra overrides" })),
+        h("div", { class: "chips", "data-part": "extras" }, chips),
+        input,
+        this.extraError ? h("p", { class: "inline-error", role: "alert", text: this.extraError }) : null);
+    }
+
+    pasteField() {
+      const area = h("textarea", {
+        id: "paste", class: "text-input mono", rows: "2", spellcheck: "false", "data-fk": "paste",
+        placeholder: "uv run launch_agent.py agent=dummy device=phone",
+        onkeydown: (event) => {
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); apply(); }
+        },
+      });
+      const apply = () => {
+        try {
+          const sel = parseCommand(area.value, this.catalog);
+          this.pasteError = "";
+          this.update(sel);
+        } catch (e) {
+          if (!(e instanceof CommandError)) throw e;
+          this.pasteError = e.message;
+          const keep = area.value;
+          this.render();
+          const again = this.shadowRoot.querySelector("#paste");
+          if (again) again.value = keep;
+        }
+      };
+      return h("div", { class: "field wide paste" },
+        h("div", { class: "field-head" }, h("label", { class: "label", for: "paste", text: "Paste a command" })),
+        h("div", { class: "paste-row" }, area,
+          h("button", { type: "button", class: "button", "data-fk": "paste-apply", onclick: apply }, "Apply")),
+        this.pasteError ? h("p", { class: "inline-error", role: "alert", "data-part": "paste-error", text: this.pasteError }) : null);
+    }
+
+    renderOutput() {
+      const out = this.shadowRoot.querySelector("[data-part=output]");
+      if (!out) return;
+      const catalog = this.catalog;
+      let error = null;
+      let count = null;
+      this.command = null;
+      try {
+        this.command = renderSel(this.sel, catalog);
+        count = runCountSel(this.sel, catalog);
+      } catch (e) {
+        if (!(e instanceof CommandError)) throw e;
+        error = e.message;
+      }
+      const findings = evaluateSel(this.sel, catalog);
+      this.findingIds = new Set(findings.map((f) => f.rule_id));
+      const target = this.target();
+      const auto = !this.sel.target;
+
+      const copy = h("button", {
+        type: "button", class: "copy", "aria-keyshortcuts": "c", "data-fk": "copy",
+        disabled: !this.command, onclick: () => this.copy(),
+      }, "Copy command");
+      const bar = h("div", { class: "bar", "data-state": error ? "error" : "ok" },
+        h("span", { class: "prompt", "aria-hidden": "true", text: "$" }),
+        h("code", { class: "cmd", "data-part": "command", "aria-label": "Launch command" },
+          this.command || "# this selection cannot be one command (see below)"),
+        copy);
+      const meta = h("div", { class: "meta" },
+        h("span", { "data-part": "meta" },
+          count === null ? "—" : `${count} run${count === 1 ? "" : "s"}`,
+          " · ", catalog.targets[target].label, auto ? " (auto)" : ""),
+        this.copyStatus ? h("span", { class: "copy-status", role: "status", "data-part": "copy-status", text: this.copyStatus }) : null,
+        h("span", { class: "spacer" }),
+        h("button", {
+          type: "button", class: "link", "data-fk": "reset",
+          onclick: () => { this.multi = {}; this.update(fromDict({})); },
+        }, "Reset"));
+      const list = h("ul", { class: "findings", "data-part": "findings" },
+        findings.map((f) => h("li", { class: `finding finding-${f.then}` },
+          h("span", { class: "finding-tag", text: THEN_LABELS[f.then] || f.then }),
+          h("span", { class: "finding-reason", text: f.reason }),
+          f.fix ? h("button", {
+            type: "button", class: "fix", "data-fk": `fix:${f.rule_id}`,
+            onclick: () => this.update(applyFixSel(this.sel, f.fix, catalog)),
+          }, "Fix: set ", Object.entries(f.fix).map(([k, v]) => `${k}=${formatValue(v)}`).join(" ")) : null)));
+      out.replaceChildren(...[
+        bar,
+        meta,
+        error ? h("p", { class: "inline-error", role: "alert", "data-part": "error" }, "Can't build this command: ", error) : null,
+        list,
+        catalog.capabilities === "local" ? this.localActions() : null,
+      ].filter(Boolean)); // replaceChildren would print a null as "null"
+    }
+
+    localActions() {
+      const slurm = this.current("mode").includes("slurm_cluster");
+      return h("div", { class: "local" },
+        h("span", { class: "label", text: "Local" }),
+        LOCAL_ACTIONS.map((name) => h("button", {
+          type: "button", class: "button", "data-fk": `local:${name}`,
+          disabled: !this.command || (name === "Run" && slurm),
+          title: name === "Run" && slurm ? "The browser never launches cluster jobs; copy the command instead." : null,
+          onclick: () => this.runLocal(name),
+        }, name)),
+        this.localResult ? h("pre", { class: "local-result", "data-part": "local-result", role: "status", text: this.localResult }) : null);
+    }
+
+    async runLocal(name) {
+      const base = this.getAttribute("endpoint") || location.origin + "/";
+      this.localResult = `${name}…`;
+      this.renderOutput();
+      try {
+        const response = await fetch(new URL(name.toLowerCase(), base), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: this.command, selection: toDict(this.sel) }),
+        });
+        const text = await response.text();
+        this.localResult = response.ok ? text : `${name} failed (HTTP ${response.status}): ${text}`;
+      } catch (e) {
+        this.localResult = `${name} failed: ${e.message}`;
+      }
+      this.renderOutput();
+    }
+
+    renderPreview() {
+      const slot = this.shadowRoot.querySelector("[data-part=preview]");
+      if (!slot) return;
+      const device = this.current("device")[0] || "desktop";
+      const theme = (has(this.catalog.groups, "apps/theme") && this.current("apps/theme")[0]) || "default";
+      const label = (key, value) => {
+        const group = this.catalog.groups[key];
+        const option = group && group.options.find((o) => o.name === value);
+        return option ? option.label : String(value);
+      };
+      const deviceLabel = label("device", device);
+      const themeLabel = label("apps/theme", theme);
+      const clip = this.manifest && this.manifest.clips && this.manifest.clips[`${device}/${theme}`];
+
+      let screen;
+      let caption;
+      if (clip) {
+        const src = new URL(clip, this.manifestURL).href;
+        screen = h("div", { class: "screen", "data-state": "media", style: `aspect-ratio:${DEVICE_RATIO[device] || "16 / 10"}` },
+          h("video", {
+            src, autoplay: true, muted: true, loop: true, playsinline: true,
+            "aria-label": `${deviceLabel}, ${themeLabel} theme`,
+            onerror: () => {
+              screen.dataset.state = "error";
+              screen.replaceChildren(h("p", { class: "screen-note", text: `Couldn't load preview media (${clip}).` }));
+            },
+          }));
+        caption = "Approximate — run locally for an exact preview.";
+      } else {
+        const [bg, surface, ink, accent] = THEME_SWATCH[theme] || THEME_SWATCH.default;
+        screen = h("div", {
+          class: "screen", "data-state": "placeholder", role: "img",
+          "aria-label": `Placeholder preview: ${deviceLabel}, ${themeLabel} theme`,
+          style: `aspect-ratio:${DEVICE_RATIO[device] || "16 / 10"};--p-bg:${bg};--p-surface:${surface};--p-ink:${ink};--p-accent:${accent}`,
+        },
+        h("div", { class: "mock" },
+          h("div", { class: "mock-bar" }, h("i"), h("i"), h("i")),
+          h("div", { class: "mock-body" },
+            h("div", { class: "mock-side" }),
+            h("div", { class: "mock-main" }, h("b"), h("span"), h("span"), h("span"), h("em")))),
+        h("p", { class: "screen-tag" }, h("strong", { text: deviceLabel }), " · ", themeLabel));
+        caption = "Preview media isn't rendered yet; this sketch shows the device and theme you picked.";
+      }
+      slot.replaceChildren(
+        h("figure", { class: "preview" },
+          h("div", { class: "frame", "data-device": device }, screen),
+          h("figcaption", { text: caption })));
+    }
+
+    about() {
+      const info = this.info;
+      if (!info) {
+        return h("div", { class: "about", "data-part": "about" },
+          h("p", { class: "label", text: "About an option" }),
+          h("p", { class: "about-empty", text: "Hover or focus any option to read its description, straight from the YAML header comment." }));
+      }
+      return h("div", { class: "about", "data-part": "about", "aria-live": "polite" },
+        h("p", { class: "label", text: info.group || "About" }),
+        h("p", { class: "about-title", text: info.title }),
+        h("code", { class: "about-token", text: info.token }),
+        info.summary ? h("p", { class: "about-summary", text: info.summary }) : null,
+        info.details ? h("div", { class: "about-details" }, detailBlocks(info.details)) : null);
+    }
+  }
+
+  /**
+   * A YAML header comment as readable blocks: prose paragraphs are reflowed
+   * (the comment is hard-wrapped at ~80 columns), while paragraphs holding
+   * indented lines, lists or commands keep their line breaks.
+   */
+  function detailBlocks(text) {
+    return text.split(/\n\s*\n/).map((para) => {
+      const lines = para.split("\n");
+      const literal = lines.some((l) => /^(\s|[-*>$]|uv |python |\.\/)/.test(l));
+      return literal
+        ? h("pre", { text: para })
+        : h("p", { text: lines.map((l) => l.trim()).join(" ") });
+    });
+  }
+
+  function humanAxis(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
+  }
+
+  if (!customElements.get("openapps-composer")) {
+    customElements.define("openapps-composer", OpenAppsComposerElement);
+  }
 })();
