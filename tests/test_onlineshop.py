@@ -320,6 +320,33 @@ class TestCheckout:
         assert after["cart"] == before["cart"]
         assert "declined" in response.text.lower()
 
+    @pytest.mark.parametrize("typed,message", [
+        ("08/26", None),               # the bank's current month: still good
+        ("07/26", "has passed"),
+        ("12/2025", "has passed"),
+        ("13/29", "MM/YY"),
+        ("soon", "MM/YY"),
+    ])
+    def test_expiry_is_checked_before_the_bank_is_asked(self, client, typed, message):
+        """A past or malformed expiry is refused by the form itself, with a
+        message about the date -- not the bank's vague decline -- and the
+        bank's ledger is never touched."""
+        rows_before = len(bank.txns_for(CARD_ACCOUNT_ID))
+        before = state(client)
+        response = client.post(
+            "/onlineshop/checkout",
+            data={"name": "A", "address": "B", **GOOD_CARD, "card_expiry": typed},
+            follow_redirects=True,
+        )
+        assert state(client)["orders"] == before["orders"]
+        assert len(bank.txns_for(CARD_ACCOUNT_ID)) == rows_before
+        if message is None:
+            # A real future date that is not this card's: the bank declines.
+            assert "declined" in response.text.lower()
+        else:
+            assert message in response.text
+            assert "declined" not in response.text.lower()
+
     def test_a_decline_does_not_touch_the_card(self, client):
         headroom_before = bank.get_account(CARD_ACCOUNT_ID).available_credit
         client.post("/onlineshop/checkout",

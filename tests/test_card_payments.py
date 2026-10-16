@@ -106,9 +106,16 @@ class TestCardDetails:
     def test_pan_punctuation_is_ignored(self, ob, typed):
         assert charge(10.0, number=typed).approved
 
-    @pytest.mark.parametrize("typed", ["09/29", "9/29", "09 / 2029", "0929"])
+    @pytest.mark.parametrize(
+        "typed", ["09/29", "9/29", "09 / 2029", "9/2029", "0929", "092029"]
+    )
     def test_expiry_is_accepted_in_the_forms_a_form_receives(self, ob, typed):
         assert charge(10.0, expiration=typed).approved
+
+    @pytest.mark.parametrize("typed", ["13/29", "00/29", "09/029", "929", "09-29-01", "soon"])
+    def test_an_expiry_that_is_not_a_date_declines(self, ob, typed):
+        """Not a lucky digit match: "13/29" is no month at all."""
+        assert not charge(10.0, expiration=typed).approved
 
     def test_holder_match_ignores_case_and_spacing(self, ob):
         assert charge(10.0, holder="  cardinal   freight llc ").approved
@@ -120,11 +127,55 @@ class TestCardDetails:
         assert not charge(10.0, number=deposit.account_number).approved
 
     def test_a_declined_charge_writes_nothing(self, ob):
+        """Detail mismatches are typos; fixing one must not cost the task."""
         before_rows = len(ledger(ob))
         before_credit = card(ob).available_credit
         charge(10.0, cvv="999")
         assert len(ledger(ob)) == before_rows
         assert card(ob).available_credit == before_credit
+
+
+class TestExpiry:
+    @pytest.mark.parametrize("typed,parsed", [
+        ("09/29", (2029, 9)),
+        ("9/29", (2029, 9)),
+        ("09 / 2029", (2029, 9)),
+        ("9/2029", (2029, 9)),
+        ("0929", (2029, 9)),
+        ("092029", (2029, 9)),
+        ("12/30", (2030, 12)),
+    ])
+    def test_parse_expiry(self, typed, parsed):
+        assert bank.parse_expiry(typed) == parsed
+
+    @pytest.mark.parametrize("typed", ["", None, "13/29", "0/29", "1/2/29", "929", "abcd"])
+    def test_parse_expiry_rejects_non_dates(self, typed):
+        assert bank.parse_expiry(typed) is None
+
+    def test_the_bank_date_is_pinned_by_config(self, ob):
+        assert str(ob.as_of_date()) == "2026-08-26"
+
+    def test_a_card_is_good_through_its_expiry_month(self, tmp_path):
+        ob = seed(tmp_path, ["apps.openbanking.as_of_date=2029-09-30"])
+        assert not ob.expiry_has_passed((2029, 9))
+        assert charge(10.0).approved
+
+    def test_an_expired_card_declines_and_writes_nothing(self, tmp_path):
+        ob = seed(tmp_path, ["apps.openbanking.as_of_date=2029-10-01"])
+        assert ob.expiry_has_passed((2029, 9))
+        before_rows = len(ledger(ob))
+        result = charge(10.0)
+        assert not result.approved
+        assert result.code == "expired"
+        # Same vague message as every other detail decline.
+        assert result.message == ob.cfg().charge_declined_message
+        assert len(ledger(ob)) == before_rows
+
+    def test_null_falls_back_to_the_wall_clock(self, tmp_path):
+        from datetime import date
+
+        ob = seed(tmp_path, ["apps.openbanking.as_of_date=null"])
+        assert ob.as_of_date() == date.today()
 
 
 class TestCreditLimit:
@@ -152,10 +203,12 @@ class TestCreditLimit:
 
     def test_a_cent_past_the_grace_declines(self, ob):
         headroom = card(ob).available_credit
+        owed = card(ob).present_balance
         result = charge(round(headroom + 10.01, 2))
         assert not result.approved
         assert result.code == "insufficient_credit"
         assert card(ob).available_credit == headroom
+        assert card(ob).present_balance == owed
 
     def test_the_grace_is_configurable(self, tmp_path):
         """`overlimit_grace: 0` is a hard limit again."""
@@ -229,6 +282,37 @@ class TestLedgerRows:
         charge(round(card(ob).available_credit + 5.0, 2))
         ids = [t.id for t in ob.transactions()]
         assert len(ids) == len(set(ids))
+
+    def test_a_refusal_for_credit_posts_one_declined_row(self, ob):
+        """So a refused checkout is distinguishable from one never attempted."""
+        before = len(ledger(ob))
+        attempted = round(card(ob).available_credit + 5000.0, 2)
+        charge(attempted, merchant="OPENAPPS SHOP")
+        rows = ledger(ob)
+        assert len(rows) == before + 1
+        row = rows[0]
+        assert row.type == ob.cfg().declined_type
+        assert row.amount == 0.0
+        assert row.date is None and row.balance is None
+        assert row.description == (
+            f"DECLINED - OPENAPPS SHOP {ob.fmt_money(attempted)} - "
+            "insufficient available credit"
+        )
+
+    def test_the_declined_row_names_the_attempt_not_the_shortfall(self, ob):
+        charge(round(card(ob).available_credit + 5000.0, 2), merchant="OPENAPPS SHOP")
+        assert "5,000.00" not in ledger(ob)[0].description
+
+    def test_the_declined_row_falls_back_to_the_descriptor(self, ob):
+        charge(round(card(ob).available_credit + 5000.0, 2))
+        assert DESCRIPTOR in ledger(ob)[0].description
+
+    def test_each_refusal_posts_its_own_row(self, ob):
+        before = len(ledger(ob))
+        too_much = round(card(ob).available_credit + 5000.0, 2)
+        charge(too_much)
+        charge(too_much)
+        assert len(ledger(ob)) == before + 2
 
     def test_the_descriptor_carries_the_order_id(self, ob):
         charge(50.0, descriptor="OPENAPPS SHOP 7F3A1B22")

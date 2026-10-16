@@ -241,8 +241,9 @@ report_the_card_statement_balance_and_headroom:
 #   .. 8725.81         approved, inside the $10      `buy_the_mirrors_*`
 #                      grace, plus an OVERLIMIT
 #                      NOTICE row naming the overage
-#   above that         declined outright, and the    `attempt_the_copier_*`
-#                      app writes nothing at all
+#   above that         declined outright: no order,  `attempt_the_copier_*`
+#                      balances untouched, one
+#                      zero-amount DECLINED row
 #
 # `overlimit_grace` on both task classes mirrors
 # `apps.openbanking.overlimit_grace`; move one and the others have to follow.
@@ -324,15 +325,17 @@ attempt_the_copier_far_over_the_card_limit:
   _target_: open_apps.tasks.tasks.CompositeTask
   _convert_: all
   # 5 x 4299.99 = 21499.95 against 8715.81 -- 12784.14 over, far past the
-  # grace band, so `authorize_card_purchase` returns insufficient_credit and
-  # the shop writes nothing: no order, no ledger row, the cart untouched.
+  # grace band, so `authorize_card_purchase` returns insufficient_credit: no
+  # order, the card's balances untouched, the copiers left in the cart. The
+  # bank posts one zero-amount row, 'DECLINED - OPENAPPS SHOP $21,499.95 -
+  # insufficient available credit'.
   #
-  # The cart is the only thing that moves, which is why the purchase half
-  # scores on it. The todo is what stops a do-nothing run from passing, and
-  # the figure is not readable anywhere: `charge_insufficient_message` says
-  # only 'Card declined for insufficient available credit', so the agent has
-  # to take the cart total, read available credit off the card page, and
-  # subtract.
+  # The purchase half scores on both. The cart line fails a do-nothing run;
+  # the declined row fails a run that filled the cart and never submitted
+  # the checkout, which would otherwise leave identical state. The todo's
+  # figure is not readable anywhere: neither `charge_insufficient_message`
+  # nor the declined row names the shortfall, so the agent has to take the
+  # total, read available credit off the card page, and subtract.
   goal: In the online shop, find the 'Xerox AltaLink B8055 A3 Mono Laser
     Multifunction Copier' and try to order 5 of them, paying with the business
     credit card held in the OpenBanking app — its number, expiry date and

@@ -47,7 +47,9 @@ allowed_credit_cards:
   - 'Meridian'
 
 # What the charge is called in the bank's ledger. `{order_id}` is substituted
-# with the shop's order id, so a ledger row can be traced back to an order.
+# with the shop's order id, so a ledger row can be traced back to an order. A
+# refused charge is recorded under the same string with the order id dropped
+# ('OPENAPPS SHOP'), since a declined checkout never writes the order.
 card_descriptor: 'OPENAPPS SHOP {order_id}'
 
 # Products per page in listings and search results.

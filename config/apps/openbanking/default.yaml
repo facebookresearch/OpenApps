@@ -20,3 +20,11 @@ theme: null
 #
 # Set to 0 for a strict limit.
 overlimit_grace: 10.00
+
+# The bank's "today", ISO format. Decides whether a card has expired -- at
+# checkout a past expiry is refused before the bank is asked, and a card whose
+# expiry on file has passed declines. Pinned to the seeded statement cycle
+# (closed Aug 21, latest posting Aug 25) rather than the wall clock, so the
+# seeded 09/29 card cannot expire under a task and rescore it as a decline.
+# null = use the real date.
+as_of_date: "2026-08-26"

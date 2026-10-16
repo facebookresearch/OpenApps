@@ -202,7 +202,7 @@ now has a task for each. The seeded card carries 8715.81 of headroom and
 | --- | --- | --- |
 | ≤ 8715.81 | approves | `BuyWithCardTask` |
 | ≤ 8725.81 | approves, **plus** an `OVERLIMIT NOTICE` row naming the overage | `BuyWithCardTask` with `overlimit_grace` |
-| above | declines; writes nothing at all | `DeclinedCardPurchaseTask` |
+| above | declines: no order, balances untouched, one zero-amount `DECLINED` row | `DeclinedCardPurchaseTask` |
 
 Both task classes take an `overlimit_grace` mirroring the app's, and both refuse
 to build a target for a total in the wrong band — pricing a purchase into a
@@ -222,13 +222,23 @@ buy_the_mirrors_just_over_the_card_limit:
   overlimit_grace: 10.00
 ```
 
-A decline is the harder reward to write, because the app writes *nothing*: no
-order, no ledger row, the card untouched. A diff against the initial state would
-therefore also pass for an agent that never opened a browser. The scorable delta
-is the **cart**, which keeps the line precisely because checkout refused to clear
-it — and `charge_insufficient_message` deliberately does not name the shortfall,
-so pairing the attempt with a todo makes the agent read the card's available
-credit and subtract:
+A decline is the harder reward to write, because almost nothing moves: no order,
+the card's balances untouched. The target scores two things:
+
+- the **cart**, which keeps the line precisely because checkout refused to clear
+  it, so an agent that never opened a browser fails;
+- the **declined authorization** the bank posts on the card: one zero-amount row,
+  `DECLINED - OPENAPPS SHOP $21,499.95 - insufficient available credit`. Without
+  it, an agent that filled the cart and never submitted the checkout would leave
+  exactly the same state.
+
+Only a refusal for insufficient credit posts that row. A wrong CVV or expiry
+writes nothing, so an agent can fix a typo and resubmit without failing the
+task. A second refused attempt posts a second row and fails the diff.
+`declined_type` and `declined_description` mirror the bank's content pack, like
+the overlimit strings. Neither `charge_insufficient_message` nor the row names
+the shortfall, so pairing the attempt with a todo makes the agent read the card's
+available credit and subtract:
 
 ```yaml
 attempt_the_copier_far_over_the_card_limit:

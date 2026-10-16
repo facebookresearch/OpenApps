@@ -141,10 +141,11 @@ class AppStateComparison:
         # every conversation exactly.
         self.reply_contacts = dict(reply_contacts or {})
         self.coords_tolerance_km = coords_tolerance_km
-        # Opt-in, and only correct for a task that actually buys something --
+        # Opt-in, and only correct for a task that actually checks out --
         # see ``_normalize_purchases`` for what it removes and why nothing
         # else should pay for it. ``CompositeTask`` sets it automatically when
-        # one of its sub-tasks is a ``BuyWithCardTask``.
+        # one of its sub-tasks is a ``BuyWithCardTask`` or a
+        # ``DeclinedCardPurchaseTask``.
         self.normalize_purchases = normalize_purchases
 
         self.state1 = self.preprocess(self.raw_state1)
@@ -802,9 +803,9 @@ class BuyWithCardTask(Task):
         account = self._card_account(bank.get("accounts") or [])
 
         # Refuse to build a target for a charge the bank would decline. Past
-        # the grace band `authorize_card_purchase` writes nothing at all -- no
-        # order, no ledger row -- so the target below would describe a state
-        # the app cannot reach. That case is `DeclinedCardPurchaseTask`.
+        # the grace band `authorize_card_purchase` posts only a declined row
+        # and the shop writes no order, so the target below would describe a
+        # state the app cannot reach. That case is `DeclinedCardPurchaseTask`.
         headroom = round(float(account.get("available_credit") or 0.0), 2)
         over_by = round(total - headroom, 2)
         grace = round(float(self.overlimit_grace), 2)
@@ -914,18 +915,24 @@ class DeclinedCardPurchaseTask(Task):
     The mirror image of ``BuyWithCardTask``. Past the grace band
     ``authorize_card_purchase`` returns ``insufficient_credit`` and the shop
     bounces back to ``/onlineshop/checkout`` with the reason in the query
-    string, returning before it writes anything -- so the bank does not move,
-    no order appears, and the cart keeps the line it was about to buy. What
-    the agent is being measured on is reaching that wall --
-    finding the product, carrying the PAN, expiry and CVV over from the bank,
-    and submitting a checkout that gets refused.
+    string, writing no order -- so the card's balances do not move and the
+    cart keeps the line it was about to buy. What the agent is being measured
+    on is reaching that wall -- finding the product, carrying the PAN, expiry
+    and CVV over from the bank, and submitting a checkout that gets refused.
 
-    That "nothing happened" is exactly what makes the reward delicate: a diff
-    against the initial state would also pass for an agent that never opened
-    a browser. The scorable delta is therefore the **cart**, which only holds
-    the line because the agent put it there and checkout refused to clear it.
-    Pair this with a todo or a message naming the shortfall -- see
-    ``config/tasks/openbanking.yaml`` -- and doing nothing cannot score.
+    The target therefore has two parts:
+
+    - the **cart line**, which only exists because the agent put it there and
+      checkout refused to clear it -- this is what fails a do-nothing run;
+    - the **declined authorization** the bank posts on the card: one
+      zero-amount row naming the merchant and the attempted total. This is
+      what fails a run that filled the cart and never submitted the checkout.
+      Without it the two leave identical state, and the shortfall a paired
+      todo asks for is computable from the cart total and the card page alone.
+
+    A second refused attempt posts a second row, and fails the diff the same
+    way a second message to a contact would. Detail typos (wrong CVV, wrong
+    expiry) post nothing, so fixing a typo and resubmitting is free.
 
     ``title`` and ``unit_price`` are pinned here for the reason the rest of
     the purchase tasks pin their figures: ``/onlineshop_all`` reports the cart
@@ -937,9 +944,9 @@ class DeclinedCardPurchaseTask(Task):
     unit_price: float
     # The catalog title, which `/onlineshop_all` joins onto every cart line.
     title: str
-    # Last four of the card the checkout must be attempted against. Only used
-    # to find the account whose headroom decides whether this really declines;
-    # a refused charge leaves no last four anywhere in the state.
+    # Last four of the card the checkout must be attempted against: the
+    # account whose headroom decides whether this really declines, and the
+    # one whose ledger carries the declined row.
     card_last4: str
     quantity: int = 1
     options: Optional[dict] = None
@@ -947,6 +954,13 @@ class DeclinedCardPurchaseTask(Task):
     # total has to clear `available_credit` *and* this, or the bank approves
     # and the task is describing something that cannot happen.
     overlimit_grace: float = 10.0
+    # The declined row, mirroring `declined_type` / `declined_description` in
+    # the bank's content pack and the shop's `card_descriptor` with the order
+    # id dropped. A run on the german/mandarin packs has to override the two
+    # strings, the same as BuyWithCardTask's overlimit wording.
+    merchant: str = "OPENAPPS SHOP"
+    declined_type: str = "Declined"
+    declined_description: str = "DECLINED - {merchant} {amount} - insufficient available credit"
 
     @property
     def total(self) -> float:
@@ -1021,6 +1035,24 @@ class DeclinedCardPurchaseTask(Task):
                 }
             )
 
+        # The record of the refused attempt, on the card it was attempted on.
+        # Appended last because `/openbanking_all` sorts by id and this is the
+        # newest row; `id` and `position` are dropped by the normalizer.
+        bank.setdefault("transactions", []).append(
+            {
+                "id": None,
+                "account_id": account.get("id"),
+                "position": None,
+                "date": None,
+                "description": self.declined_description.format(
+                    merchant=self.merchant, amount=_fmt_money(total)
+                ),
+                "type": self.declined_type,
+                "amount": 0.0,
+                "balance": None,
+            }
+        )
+
         # Everything else is left exactly as it was found. Orders and the card's
         # balances stay untouched on purpose: a target that merely *omitted*
         # them would pass for a run that bought the thing on a second card.
@@ -1033,11 +1065,12 @@ class DeclinedCardPurchaseTask(Task):
             target_state = self.get_target_state(initial_state)
         except ValueError:
             return False
-        # `normalize_purchases` stays off, unlike BuyWithCardTask: a decline
-        # mints no order id and no ledger row, so there is nothing volatile to
-        # forgive -- and leaving it off means a spurious order fails the diff
-        # with its id and timestamp intact.
-        app_state_comparison = AppStateComparison(target_state, current_state)
+        # `normalize_purchases` is on for the declined row's `id` and
+        # `position`, which follow the bank's numbering. A spurious order still
+        # fails: the normalizer drops its id and date, not the order itself.
+        app_state_comparison = AppStateComparison(
+            target_state, current_state, normalize_purchases=True
+        )
         return app_state_comparison.compare()
 
 
@@ -1140,8 +1173,11 @@ class CompositeTask(Task):
         return counts
 
     def _has_purchase(self) -> bool:
-        """Whether a sub-task buys, and so mints ids no target can predict."""
-        return any(isinstance(subtask, BuyWithCardTask) for subtask in self.subtasks)
+        """Whether a sub-task checks out, and so mints ids no target can predict."""
+        return any(
+            isinstance(subtask, (BuyWithCardTask, DeclinedCardPurchaseTask))
+            for subtask in self.subtasks
+        )
 
     def get_target_state(self, initial_state: dict) -> dict:
         """Apply every sub-task's change in order to build the combined target.

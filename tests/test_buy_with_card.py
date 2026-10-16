@@ -64,8 +64,8 @@ GRACE_QTY = 23
 GRACE_OPTIONS = {"size": "27 inch"}
 GRACE_TITLE = "27-inch Monitor"
 
-# 20 x 899.00 = 17980.00, far past headroom + grace, so the charge is refused
-# and the app writes nothing at all.
+# 20 x 899.00 = 17980.00, far past headroom + grace, so the charge is refused:
+# no order, balances untouched, one zero-amount DECLINED row on the card.
 DECLINE_SKU = "furn-table-201"
 DECLINE_PRICE = 899.0
 DECLINE_QTY = 20
@@ -126,8 +126,8 @@ def buy_expecting_decline(shop_client, **overrides):
 
     A decline bounces back to `/onlineshop/checkout` with the reason in the
     query string, rather than on to `/onlineshop/orders`. The cart survives
-    because the handler returns before it writes anything: it only clears the
-    lines it managed to turn into an order.
+    because the handler returns before it writes an order: it only clears the
+    lines it managed to turn into one.
     """
     form = {"name": SHIP_TO["ship_to_name"], "address": SHIP_TO["ship_to_address"]}
     form.update(GOOD_CARD)
@@ -486,7 +486,7 @@ class TestTheGraceBand:
 
 
 class TestADeclinedPurchase:
-    """Past the grace band the app writes nothing, so the cart is the reward."""
+    """Past the grace band: the cart line and the bank's declined row are the reward."""
 
     def declined_task(self, **overrides) -> DeclinedCardPurchaseTask:
         fields = {
@@ -513,8 +513,7 @@ class TestADeclinedPurchase:
             initial, cross_state(empty_shop)
         )
 
-    def test_the_app_really_wrote_nothing(self, empty_shop):
-        """What makes the cart the only scorable delta."""
+    def test_a_refusal_moves_only_the_cart_and_one_ledger_row(self, empty_shop):
         initial = cross_state(empty_shop)
         add_to_cart(empty_shop, DECLINE_SKU, quantity=DECLINE_QTY)
         location = buy_expecting_decline(empty_shop)
@@ -522,8 +521,53 @@ class TestADeclinedPurchase:
 
         assert "insufficient+available+credit" in location
         assert current["online_shop"]["orders"] == initial["online_shop"]["orders"]
-        assert current["openbanking"] == initial["openbanking"]
         assert current["online_shop"]["cart"][0]["quantity"] == DECLINE_QTY
+        assert current["openbanking"]["accounts"] == initial["openbanking"]["accounts"]
+
+        before = initial["openbanking"]["transactions"]
+        after = current["openbanking"]["transactions"]
+        assert after[: len(before)] == before
+        (declined,) = after[len(before):]
+        total = DECLINE_PRICE * DECLINE_QTY
+        assert declined["amount"] == 0.0
+        assert declined["type"] == "Declined"
+        # The merchant, not the descriptor: no order id, because no order.
+        assert declined["description"] == (
+            f"DECLINED - OPENAPPS SHOP ${total:,.2f} - insufficient available credit"
+        )
+
+    def test_filling_the_cart_without_checking_out_fails(self, empty_shop):
+        """The reported hole: before the declined row, this state was
+        identical to a refused checkout and scored as one."""
+        initial = cross_state(empty_shop)
+        add_to_cart(empty_shop, DECLINE_SKU, quantity=DECLINE_QTY)
+        assert fails(
+            lambda: self.declined_task().check_if_task_is_complete(
+                initial, cross_state(empty_shop)
+            )
+        ) is False
+
+    def test_a_typo_before_the_refusal_still_scores(self, empty_shop):
+        """A wrong CVV writes nothing, so correcting it costs nothing."""
+        initial = cross_state(empty_shop)
+        add_to_cart(empty_shop, DECLINE_SKU, quantity=DECLINE_QTY)
+        location = buy_expecting_decline(empty_shop, card_cvv="999")
+        assert "insufficient" not in location
+        buy_expecting_decline(empty_shop)
+        assert self.declined_task().check_if_task_is_complete(
+            initial, cross_state(empty_shop)
+        )
+
+    def test_a_second_refused_attempt_fails(self, empty_shop):
+        initial = cross_state(empty_shop)
+        add_to_cart(empty_shop, DECLINE_SKU, quantity=DECLINE_QTY)
+        buy_expecting_decline(empty_shop)
+        buy_expecting_decline(empty_shop)
+        assert fails(
+            lambda: self.declined_task().check_if_task_is_complete(
+                initial, cross_state(empty_shop)
+            )
+        ) is False
 
     def test_the_decline_does_not_name_the_shortfall(self, empty_shop):
         """Why the reporting sub-task is worth points: the figure is not on
@@ -600,6 +644,12 @@ class TestADeclinedPurchase:
         )
 
         add_to_cart(empty_shop, DECLINE_SKU, quantity=DECLINE_QTY)
+        # The todo without the attempt is not enough: the figure is computable
+        # from the cart total and the card page without ever checking out.
+        current = cross_state(empty_shop)
+        current["todo"] = [{"title": f"Card short {shortfall}", "done": False}]
+        assert fails(lambda: composite.check_if_task_is_complete(initial, current)) is False
+
         buy_expecting_decline(empty_shop)
         # The decline alone is not enough.
         assert fails(
@@ -738,6 +788,19 @@ class TestShippedTaskConfigs:
             apps_cfg.apps.onlineshop.card_descriptor
         )
         assert cfg.get("charge_type", "Card") == apps_cfg.apps.openbanking.purchase_type
+
+    def test_the_declined_row_matches_the_apps(self, tasks_cfg, apps_cfg):
+        """The declined task's defaults mirror the bank's content pack and the
+        shop's descriptor with the order id dropped -- what checkout passes
+        as `merchant`."""
+        purchase = instantiate(
+            tasks_cfg["attempt_the_copier_far_over_the_card_limit"].subtasks[0]
+        )
+        bank_cfg = apps_cfg.apps.openbanking
+        descriptor = apps_cfg.apps.onlineshop.card_descriptor
+        assert purchase.merchant == " ".join(descriptor.format(order_id="").split())
+        assert purchase.declined_type == bank_cfg.declined_type
+        assert purchase.declined_description == bank_cfg.declined_description
 
     def test_the_composites_todo_states_the_headroom_after_the_purchase(
         self, tasks_cfg, apps_cfg

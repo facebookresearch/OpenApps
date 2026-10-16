@@ -60,6 +60,8 @@ column_labels:
 purchase_type: "银行卡"
 overlimit_type: "手续费"
 overlimit_description: "超限通知 - 超出信用额度 {amount}"
+declined_type: "已拒绝"
+declined_description: "已拒绝 - {merchant} {amount} - 可用信用额度不足"
 charge_approved_message: "付款已批准。"
 charge_declined_message: "银行卡被拒绝。请检查卡片信息后重试。"
 charge_insufficient_message: "银行卡被拒绝：可用信用额度不足。"

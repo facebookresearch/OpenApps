@@ -2030,14 +2030,26 @@ def post(
                 f"{card.card_brand} is not accepted. Allowed: {', '.join(allowed)}."
             )
 
+        # Expiry is checked here, before the issuer is asked, the way a real
+        # payment form does. It tells the shopper nothing about the card on
+        # file -- only that what they typed is not a date that is still good.
+        expiry = bank.parse_expiry(card_expiry)
+        if expiry is None:
+            return _checkout_error("Enter the card's expiry date as MM/YY.")
+        if bank.expiry_has_passed(expiry):
+            return _checkout_error("That expiry date has passed. Check the card and try again.")
+
+        descriptor = str(getattr(_cfg(), "card_descriptor", "ONLINE SHOP {order_id}"))
         result = bank.authorize_card_purchase(
             number=card_number,
             expiration=card_expiry,
             cvv=card_cvv,
             holder=card_name,
             amount=total,
-            descriptor=str(getattr(_cfg(), "card_descriptor", "ONLINE SHOP {order_id}"))
-            .format(order_id=order_id.upper()),
+            descriptor=descriptor.format(order_id=order_id.upper()),
+            # What a refused charge is recorded under: the same name with the
+            # order id left out, since a declined checkout writes no order.
+            merchant=" ".join(descriptor.format(order_id="").split()),
         )
         if not result.approved:
             return _checkout_error(result.message)

@@ -17,16 +17,19 @@ inject a spurious diff into every unrelated todo/calendar task's reward.
 The one write path is ``authorize_card_purchase``: the online shop calls it to
 charge a card at checkout (see ``openbanking_app.main`` imports in
 ``onlineshop_app``). It is deliberately the only one, it only fires on an
-explicit purchase, and it posts *pending* rows -- ``date=None``,
+explicit checkout, and it posts *pending* rows -- ``date=None``,
 ``balance=None`` -- so the payload still gains nothing but the rows the
-purchase actually added. A task that involves a shop purchase therefore has to
+checkout actually added: the charge, or the declined authorization when the
+card could not cover it. A task that involves a shop purchase therefore has to
 expect a delta in the ``openbanking`` slice as well as ``online_shop``; a task
 that does not involve one still sees a byte-identical bank.
 """
 
 from fasthtml.common import *
 from dataclasses import dataclass
+from datetime import date
 import json
+import re
 from typing import List, Optional
 from urllib.parse import urlencode
 from open_apps.apps.start_page.helper import create_logo_header
@@ -644,18 +647,44 @@ def _norm_holder(value) -> str:
     return " ".join(str(value or "").split()).casefold()
 
 
-def _norm_expiry(value) -> str:
-    """Card expiry as four digits, MMYY.
+def parse_expiry(value) -> Optional[tuple]:
+    """Card expiry as ``(year, month)``, or None when it is not a real date.
 
     Accepts what a checkout form realistically receives -- "09/29", "9/29",
-    "09 / 2029", "0929" -- so a correct card is not declined over punctuation.
+    "09 / 2029", "0929", "092029" -- so a correct card is not declined over
+    punctuation. Rejects anything that is not a month 1-12 with a two- or
+    four-digit year, so "13/29" cannot slip through as a lucky digit match.
     """
-    digits = _digits(value)
-    if len(digits) == 3:  # M/YY
-        return "0" + digits
-    if len(digits) == 6:  # MM/YYYY
-        return digits[:2] + digits[4:]
-    return digits
+    parts = re.findall(r"\d+", str(value or ""))
+    if len(parts) == 1 and len(parts[0]) in (4, 6):  # MMYY / MMYYYY, unseparated
+        parts = [parts[0][:2], parts[0][2:]]
+    if len(parts) != 2:
+        return None
+    month, year = parts
+    if len(month) > 2 or len(year) not in (2, 4) or not 1 <= int(month) <= 12:
+        return None
+    return (int(year) + (2000 if len(year) == 2 else 0), int(month))
+
+
+def as_of_date() -> date:
+    """The bank's "today", which decides whether a card has expired.
+
+    Pinned in config (`as_of_date`) rather than read off the wall clock so a
+    seeded card does not quietly expire under a task years from now and turn
+    every purchase on it into a decline. Null falls back to the real date.
+    """
+    value = getattr(cfg(), "as_of_date", None)
+    return date.fromisoformat(str(value)) if value else date.today()
+
+
+def expiry_has_passed(expiry: tuple) -> bool:
+    """Whether a parsed ``(year, month)`` is before the bank's current month.
+
+    A card is good through the last day of its expiry month, so 08/26 still
+    works on 2026-08-31 and stops on 2026-09-01.
+    """
+    today = as_of_date()
+    return expiry < (today.year, today.month)
 
 
 def overlimit_grace() -> float:
@@ -691,6 +720,18 @@ def _next_position(account_id: int) -> int:
     return min(positions) - 1 if positions else 0
 
 
+def _post(account_id: int, rows: List[Transaction]) -> None:
+    """Insert `rows` above the account's existing ledger, first row on top."""
+    base = _next_position(account_id)
+    next_id = _next_txn_id()
+    for offset, row in enumerate(reversed(rows)):
+        row.position = base - offset
+    for row in rows:
+        row.id = next_id
+        next_id += 1
+        transactions.insert(row)
+
+
 def authorize_card_purchase(
     number: str,
     expiration: str,
@@ -698,17 +739,31 @@ def authorize_card_purchase(
     holder: str,
     amount: float,
     descriptor: str,
+    merchant: Optional[str] = None,
 ) -> ChargeResult:
     """Authorize `amount` against a seeded credit card and post it.
 
     Every detail has to match the card on file: PAN, expiry, CVV and cardholder
-    name. A mismatch declines without saying *which* field was wrong beyond the
-    coarse reason -- enumerating the failure would let an agent brute-force the
-    CVV three digits at a time.
+    name, and the card must not have expired. A mismatch declines without
+    saying *which* field was wrong beyond the coarse reason -- enumerating the
+    failure would let an agent brute-force the CVV three digits at a time.
 
     Approves when `amount` fits inside `available_credit + overlimit_grace()`.
     A charge that lands in the grace band still goes through, and posts a second
     row naming the overage so the ledger reports it.
+
+    A charge past the grace band is refused, but not silently: it posts one
+    zero-amount row recording the declined authorization, as a real card's
+    activity feed does. Without it a refused checkout left both apps exactly as
+    they were before the attempt, so a task could not tell "tried to pay and
+    was refused" from "never tried". That row names `merchant` rather than
+    `descriptor`, because a descriptor carries an order id and a refused
+    checkout never creates the order it would point to. `merchant` defaults to
+    `descriptor` for callers that have no order id to leave out.
+
+    Detail mismatches still write nothing. Those are typos, and a ledger row
+    per typo would fail every purchase task whose agent mistyped the CVV once
+    before getting it right.
     """
     c = cfg()
     if accounts is None or transactions is None:
@@ -719,8 +774,11 @@ def authorize_card_purchase(
         return ChargeResult(False, "unknown_card", c.charge_declined_message)
 
     last4 = _digits(account.account_number)[-4:]
-    if _norm_expiry(expiration) != _norm_expiry(account.card_expiration):
+    on_file = parse_expiry(account.card_expiration)
+    if on_file is None or parse_expiry(expiration) != on_file:
         return ChargeResult(False, "bad_details", c.charge_declined_message, account.id, last4)
+    if expiry_has_passed(on_file):
+        return ChargeResult(False, "expired", c.charge_declined_message, account.id, last4)
     if _digits(cvv) != _digits(account.card_cvv):
         return ChargeResult(False, "bad_details", c.charge_declined_message, account.id, last4)
     if _norm_holder(holder) != _norm_holder(account.holder):
@@ -733,6 +791,24 @@ def authorize_card_purchase(
     headroom = round(account.available_credit, 2)
     over_by = round(amount - headroom, 2)
     if over_by > round(overlimit_grace(), 2):
+        # No money moves and the balances stay put; the row is the record that
+        # the attempt happened. The attempted amount is in the text, the
+        # shortfall is not -- the decline still does not tell you the balance.
+        _post(account.id, [
+            Transaction(
+                id=None,
+                account_id=account.id,
+                position=0,
+                date=None,
+                description=c.declined_description.format(
+                    merchant=merchant if merchant is not None else descriptor,
+                    amount=fmt_money(amount),
+                ),
+                type=c.declined_type,
+                amount=0.0,
+                balance=None,
+            )
+        ])
         return ChargeResult(
             False, "insufficient_credit", c.charge_insufficient_message, account.id, last4
         )
@@ -766,14 +842,7 @@ def authorize_card_purchase(
             )
         )
 
-    base = _next_position(account.id)
-    next_id = _next_txn_id()
-    for offset, row in enumerate(reversed(rows)):
-        row.position = base - offset
-    for row in rows:
-        row.id = next_id
-        next_id += 1
-        transactions.insert(row)
+    _post(account.id, rows)
 
     # A card's `present_balance` is what is owed, carried negative, so a charge
     # pushes it further down while eating the same amount of headroom.

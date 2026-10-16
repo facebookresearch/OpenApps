@@ -104,6 +104,10 @@ column_labels:
 purchase_type: "Card"
 overlimit_type: "Fee"
 overlimit_description: "OVERLIMIT NOTICE - credit limit exceeded by {amount}"
+# A refused charge posts one zero-amount row so the attempt is on record.
+# `{amount}` is what was attempted, never the shortfall.
+declined_type: "Declined"
+declined_description: "DECLINED - {merchant} {amount} - insufficient available credit"
 charge_approved_message: "Payment approved."
 charge_declined_message: "Card declined. Check the card details and try again."
 charge_insufficient_message: "Card declined for insufficient available credit."
