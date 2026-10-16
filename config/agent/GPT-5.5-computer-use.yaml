@@ -2,7 +2,7 @@ defaults:
   - default
   - _self_
 
-model_name: "gpt-5-5-genai-responses"
+model_name: "gpt-5-genai-responses"
 model_pretty_name: "gpt-5.5-computer-use"
 api_version: null
 client_type: "openai"

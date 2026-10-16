@@ -106,6 +106,30 @@ _TASK_CFG = OmegaConf.load(_TASKS_PATH)
 _TASK_KEYS = list(_TASK_CFG.keys())
 
 
+def _buys(key) -> bool:
+    """Whether a task (or one of its sub-tasks) builds its target at checkout.
+
+    Those need the shop's *and* the bank's slice in the state they are handed,
+    and the captured `initial_state.json` predates both apps -- it carries
+    `online_shop: []` and no `openbanking` key at all. Rather than refresh a
+    fixture every other task in the repo diffs against, their self-consistency
+    is checked in `tests/test_buy_with_card.py`, where the state comes from
+    both apps actually running.
+
+    `DeclinedCardPurchaseTask` counts even though its checkout is refused: it
+    still scores on the cart the refusal leaves behind, which is the shop's
+    slice.
+    """
+    serialized = json.dumps(OmegaConf.to_container(_TASK_CFG[key], resolve=False))
+    return any(
+        name in serialized
+        for name in ("BuyWithCardTask", "DeclinedCardPurchaseTask")
+    )
+
+
+_PURCHASE_TASK_KEYS = [k for k in _TASK_KEYS if _buys(k)]
+
+
 @pytest.fixture(scope="module")
 def client(tmp_path_factory):
     # A dedicated temp dir rather than the shared ``getbasetemp()``: the apps
@@ -930,7 +954,12 @@ class TestTaskSet:
         assert instantiate(_TASK_CFG[key]) is not None
 
     @pytest.mark.parametrize(
-        "key", [k for k in _TASK_KEYS if k != "navigate_to_openbanking"]
+        "key",
+        [
+            k
+            for k in _TASK_KEYS
+            if k != "navigate_to_openbanking" and k not in _PURCHASE_TASK_KEYS
+        ],
     )
     def test_target_passes_and_initial_fails(self, key):
         """Self-consistency: the task's own target state satisfies its check,
