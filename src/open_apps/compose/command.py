@@ -110,6 +110,10 @@ class Selection:
 def resolve_target(selection: Selection, catalog: Catalog) -> str:
     """Which command runs this selection: single, sweep, pool or slurm_pool."""
     if selection.target:
+        if selection.target not in TARGETS:
+            raise CommandError(
+                f"unknown target {selection.target!r}; one of {', '.join(TARGETS)}"
+            )
         return selection.target
     choices = selection.choices
     slurm = "slurm_cluster" in choices.get("mode", [])
@@ -159,7 +163,7 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
             choices[key] = unique
     sel = replace(selection, choices=choices)
 
-    target = sel.target or resolve_target(sel, catalog)
+    target = resolve_target(sel, catalog)
     if target == "slurm_pool" and "mode" not in choices:
         # The canonical way to say "SLURM worker pool" is mode=slurm_cluster.
         choices["mode"] = ["slurm_cluster"]
@@ -262,7 +266,7 @@ def _has_extra(sel: Selection, key: str) -> bool:
 def render(selection: Selection, catalog: Catalog) -> str:
     """The shell command for ``selection`` (normalized first)."""
     sel = normalize(selection, catalog)
-    target = sel.target or resolve_target(sel, catalog)
+    target = resolve_target(sel, catalog)
     _check_expressible(sel, target, catalog)
 
     env: list[str] = []
@@ -323,7 +327,7 @@ def _quote_assignment(assignment: str) -> str:
 def run_count(selection: Selection, catalog: Catalog) -> int:
     """How many episodes the rendered command launches."""
     sel = normalize(selection, catalog)
-    target = sel.target or resolve_target(sel, catalog)
+    target = resolve_target(sel, catalog)
     if target in POOL_TARGETS:
         if sel.count is not None:
             return sel.count

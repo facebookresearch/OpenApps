@@ -141,6 +141,11 @@ def test_resolve_target(catalog, selection, target):
     assert resolve_target(Selection.from_dict(selection), catalog) == target
 
 
+def test_unknown_target_is_an_error(catalog):
+    with pytest.raises(CommandError, match="unknown target"):
+        render(Selection(target="cluster"), catalog)
+
+
 def test_normalize_drops_defaults_of_the_resolved_target(catalog):
     sel = Selection.from_dict({"choices": {"agent": ["default"], "seed": [233]}})
     assert normalize(sel, catalog) == Selection()
