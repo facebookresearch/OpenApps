@@ -190,7 +190,7 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
 # ---------------------------------------------------------------------------
 
 
-def _format_value(value: Any) -> str:
+def format_value(value: Any) -> str:
     if isinstance(value, bool):
         return "True" if value else "False"  # the repo's own spelling
     return str(value)
@@ -199,7 +199,7 @@ def _format_value(value: Any) -> str:
 def _override(key: str, value: Any, catalog: Catalog) -> str:
     group = catalog.groups.get(key)
     prefix = "+" if group is not None and group.append else ""
-    return f"{prefix}{key}={_format_value(value)}"
+    return f"{prefix}{key}={format_value(value)}"
 
 
 def _ordered_keys(choices: dict[str, list[Any]], catalog: Catalog) -> list[str]:
@@ -275,7 +275,7 @@ def render(selection: Selection, catalog: Catalog) -> str:
         elif pool and key == "mode":
             continue  # chose the script
         elif pool and key in catalog.scalars and catalog.scalars[key].pool_env:
-            env.append(f"{catalog.scalars[key].pool_env}={_format_value(values[0])}")
+            env.append(f"{catalog.scalars[key].pool_env}={format_value(values[0])}")
         elif target == "sweep" and (
             key == "task_name"
             or (key in catalog.groups and catalog.groups[key].sweepable)
