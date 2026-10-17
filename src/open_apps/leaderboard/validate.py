@@ -64,7 +64,7 @@ class BundleReport:
         return PARTIAL if self.missing else OK
 
     def format(self) -> str:
-        head = f"{self.status.upper():<7} {self.bundle_id or self.path}"
+        head = f"{self.status.upper():<7} {self.path.name}"
         lines = [
             head,
             f"        {self.n_records} episodes; {self.n_expected - len(self.missing)}"
