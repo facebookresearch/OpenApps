@@ -64,11 +64,13 @@ class BundleReport:
         return PARTIAL if self.missing else OK
 
     def format(self) -> str:
-        head = f"{self.status.upper():<7} {self.path.name}"
+        covered = self.n_expected - len(self.missing)
         lines = [
-            head,
-            f"        {self.n_records} episodes; {self.n_expected - len(self.missing)}"
-            f"/{self.n_expected} suite cells covered ({self.suite or '?'})",
+            f"{self.status.upper():<7} {self.path.name}",
+            (
+                f"        {self.n_records} episodes; {covered}/{self.n_expected} "
+                f"suite cells covered ({self.suite or '?'})"
+            ),
         ]
         for msg in self.errors[:_MAX_LISTED]:
             lines.append(f"  error: {msg}")

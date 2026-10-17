@@ -141,12 +141,12 @@ def redact(node: Any) -> tuple[Any, list[str]]:
             out = {}
             for k, v in value.items():
                 sub = f"{path}.{k}" if path else str(k)
-                if is_secret_key(k) and v not in (None, "", REDACTED):
-                    if not isinstance(v, (dict, list)):
-                        out[k] = REDACTED
-                        paths.append(sub)
-                        continue
-                out[k] = walk(v, sub)
+                leaf = not isinstance(v, (dict, list))
+                if leaf and is_secret_key(k) and v not in (None, "", REDACTED):
+                    out[k] = REDACTED
+                    paths.append(sub)
+                else:
+                    out[k] = walk(v, sub)
             return out
         if isinstance(value, list):
             return [walk(v, f"{path}[{i}]") for i, v in enumerate(value)]

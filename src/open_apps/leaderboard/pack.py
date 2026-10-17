@@ -152,9 +152,10 @@ def _prefer(a: Collected, b: Collected) -> Collected:
     b_err = b.record.termination.reason == "error"
     if a_err != b_err:
         return b if a_err else a
-    mtime = lambda c: max(  # noqa: E731
-        (p.stat().st_mtime for p in c.exp_dir.iterdir() if p.is_file()), default=0.0
-    )
+
+    def mtime(c: Collected) -> float:
+        return max((p.stat().st_mtime for p in c.exp_dir.iterdir() if p.is_file()), default=0.0)
+
     return b if (mtime(b), str(b.exp_dir)) >= (mtime(a), str(a.exp_dir)) else a
 
 

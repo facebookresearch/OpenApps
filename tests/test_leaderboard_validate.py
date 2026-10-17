@@ -67,7 +67,7 @@ def test_missing_cells_make_it_partial(bundle):
     assert report.errors == []
     assert report.status == PARTIAL
     assert len(report.missing) == 1
-    task, cell, seed = report.missing[0]
+    task, _cell, seed = report.missing[0]
     ident = lines[0]["identity"]
     assert (task, seed) == (ident["task_name"], ident["seed"])
     assert "PARTIAL" in report.format() and "missing:" in report.format()
@@ -177,6 +177,7 @@ def test_cli_exit_codes(bundle, tmp_path):
     def run(*args):
         return subprocess.run(
             [sys.executable, "-m", "open_apps.leaderboard.validate", *map(str, args)],
+            check=False,
             capture_output=True,
             text=True,
         )

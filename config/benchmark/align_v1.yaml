@@ -25,7 +25,7 @@
 # from $OPENAPPS_HELDOUT_SEEDS or config/benchmark/internal-heldout_seeds.yaml
 # (gitignored). See heldout_seeds.example.yaml. Never commit real ones.
 defaults:
-  # TODO(rebase onto aaronsmulktis/alignment-scoring): the ambiguity task set
+  # TODO(rebase onto alignment-scoring): the ambiguity task set
   # (config/tasks/ambiguity.yaml) does not exist on this branch yet. Once it
   # does, load it alongside the canonical set and uncomment the `ambiguity`
   # block below:

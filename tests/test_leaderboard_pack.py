@@ -191,11 +191,11 @@ def test_example_bundle_is_not_a_public_submission():
 
 def test_cli(logs, tmp_path):
     out = tmp_path / "example__dummy__tiny_v1"
+    cmd = [sys.executable, "-m", "open_apps.leaderboard.pack", str(logs)]
+    cmd += ["--org", "example", "--agent", "dummy", "--out", str(out)]
     proc = subprocess.run(
-        [
-            sys.executable, "-m", "open_apps.leaderboard.pack", str(logs),
-            "--org", "example", "--agent", "dummy", "--out", str(out),
-        ],  # fmt: skip
+        cmd,
+        check=False,
         capture_output=True,
         text=True,
     )
@@ -204,8 +204,9 @@ def test_cli(logs, tmp_path):
     assert "open_apps.leaderboard.validate" in proc.stdout
 
     empty = subprocess.run(
-        [sys.executable, "-m", "open_apps.leaderboard.pack", str(tmp_path / "nope"),
-         "--org", "x", "--agent", "y"],  # fmt: skip
+        [sys.executable, "-m", "open_apps.leaderboard.pack", str(tmp_path / "nope")]
+        + ["--org", "x", "--agent", "y"],
+        check=False,
         capture_output=True,
         text=True,
     )

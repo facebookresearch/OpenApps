@@ -178,7 +178,7 @@ def test_cli_writes_leaderboard_and_comment(submissions, tmp_path):
         "--comment-for", str(submissions / "worse__dummy__tiny_v1"),
         "--comment-out", str(comment),
     ]  # fmt: skip
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "2 ranked, 1 partial" in proc.stdout
     doc = json.loads(out.read_text())
@@ -187,7 +187,7 @@ def test_cli_writes_leaderboard_and_comment(submissions, tmp_path):
 
     # Byte-identical on a rebuild.
     first = out.read_bytes()
-    assert subprocess.run(cmd, capture_output=True).returncode == 0
+    assert subprocess.run(cmd, check=False, capture_output=True).returncode == 0
     assert out.read_bytes() == first
 
 

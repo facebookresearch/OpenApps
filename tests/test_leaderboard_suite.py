@@ -186,7 +186,7 @@ def test_example_seeds_are_placeholders_and_internal_file_is_ignored():
     assert OmegaConf.load(example).seeds == [1, 2]
     rel = "config/benchmark/internal-heldout_seeds.yaml"
     ignored = subprocess.run(
-        ["git", "check-ignore", "-q", rel], cwd=config_dir().parent
+        ["git", "check-ignore", "-q", rel], cwd=config_dir().parent, check=False
     ).returncode
     assert ignored == 0, f"{rel} must be gitignored"
 
