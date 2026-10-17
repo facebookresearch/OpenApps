@@ -1,0 +1,85 @@
+# Checks leaderboard submissions on every PR that touches leaderboard/:
+# validates the changed bundles (schema, coverage, re-score), rebuilds
+# leaderboard.json from every bundle, and comments the row(s) the PR would add.
+#
+# The same checks run locally:
+#   uv run -m open_apps.leaderboard.validate leaderboard/submissions/<bundle>
+#   uv run -m open_apps.leaderboard.build
+#
+# Fork PRs get a read-only GITHUB_TOKEN, so the comment step can fail there;
+# the would-be row is always written to the job summary as well.
+name: Leaderboard
+
+on:
+  pull_request:
+    paths:
+      - "leaderboard/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: leaderboard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The merge base is needed to tell which bundles the PR changed.
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync
+
+      - name: Find changed bundles
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # leaderboard/submissions/<bundle>/... -> leaderboard/submissions/<bundle>,
+          # keeping only bundles that still exist (a deletion has nothing to check).
+          bundles=$(git diff --name-only "$BASE_SHA"...HEAD -- leaderboard/submissions/ \
+            | cut -d/ -f1-3 | sort -u \
+            | while read -r dir; do [ -f "$dir/meta.yaml" ] && echo "$dir"; done \
+            | tr '\n' ' ')
+          echo "bundles=$bundles" >> "$GITHUB_OUTPUT"
+          echo "Changed bundles: ${bundles:-none}"
+
+      - name: Validate changed bundles
+        if: steps.changed.outputs.bundles != ''
+        env:
+          BUNDLES: ${{ steps.changed.outputs.bundles }}
+        run: |
+          set -f  # bundle names come from the PR: split on spaces, never glob
+          uv run -m open_apps.leaderboard.validate $BUNDLES
+
+      - name: Build leaderboard.json
+        # Runs even when validation failed: build re-validates everything and
+        # still writes the comment, so the PR is told why.
+        if: always() && steps.changed.outcome == 'success'
+        env:
+          BUNDLES: ${{ steps.changed.outputs.bundles }}
+        run: |
+          set -f
+          uv run -m open_apps.leaderboard.build --comment-for $BUNDLES --comment-out comment.md
+
+      - name: Comment the would-be row
+        if: always() && steps.changed.outputs.bundles != '' && hashFiles('comment.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+          # Edit this workflow's previous comment rather than stacking a new one per push.
+          gh pr comment "$PR" --edit-last --body-file comment.md 2>/dev/null \
+            || gh pr comment "$PR" --body-file comment.md \
+            || echo "::warning::Could not comment on the PR (read-only token on fork PRs); the row is in the job summary."

@@ -43,6 +43,15 @@ jobs:
         run: |
           source .venv/bin/activate 
           mkdocs build
+      - name: Add leaderboard data
+        # Placed as-is: leaderboard.json is rebuilt and checked on the PRs that
+        # change it (leaderboard.yml + tests). The schemas land where their
+        # $id URLs point.
+        run: |
+          mkdir -p site/leaderboard site/schemas
+          cp leaderboard/leaderboard.json site/leaderboard/leaderboard.json
+          cp leaderboard/schema/episode.schema.json site/schemas/episode-record-v1.json
+          cp leaderboard/schema/meta.schema.json site/schemas/leaderboard-meta-v1.json
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
