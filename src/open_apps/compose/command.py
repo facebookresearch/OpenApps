@@ -109,14 +109,17 @@ class Selection:
 
 def resolve_target(selection: Selection, catalog: Catalog) -> str:
     """Which command runs this selection: single, sweep, pool or slurm_pool."""
+    choices = selection.choices
+    slurm = "slurm_cluster" in choices.get("mode", [])
     if selection.target:
         if selection.target not in TARGETS:
             raise CommandError(
                 f"unknown target {selection.target!r}; one of {', '.join(TARGETS)}"
             )
+        if selection.target == "pool" and slurm:
+            # The Worker pool pill on the SLURM mode (see Target.pill).
+            return "slurm_pool"
         return selection.target
-    choices = selection.choices
-    slurm = "slurm_cluster" in choices.get("mode", [])
     if (
         len(choices.get("agent", [])) > 1
         or (selection.count or 0) > 1
@@ -162,6 +165,11 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
         if unique:
             choices[key] = unique
     sel = replace(selection, choices=choices)
+    if sel.target == "slurm_pool":
+        # Not a pill: spell it the way the UI does, Worker pool + the SLURM
+        # mode. Keeps old `#target=slurm_pool` links working.
+        choices.setdefault("mode", ["slurm_cluster"])
+        sel = replace(sel, target="pool")
 
     target = resolve_target(sel, catalog)
     if target == "slurm_pool" and "mode" not in choices:
@@ -184,7 +192,7 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
             del choices[key]
 
     sel = replace(sel, choices=choices)
-    if sel.target and resolve_target(replace(sel, target=None), catalog) == sel.target:
+    if sel.target and resolve_target(replace(sel, target=None), catalog) == target:
         sel = replace(sel, target=None)
     return sel
 

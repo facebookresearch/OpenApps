@@ -13,7 +13,8 @@
 #           an extra override (`apps.onlineshop.enable`), or a derived fact:
 #             task_app       config/apps apps the selected task(s) touch
 #             task_in_tasks  every selected task_name is in the tasks group
-#             target         single | sweep | pool | slurm_pool
+#             target         single | sweep | pool | slurm_pool (the resolved
+#                            target: Worker pool + mode=slurm_cluster is slurm_pool)
 #           Values: a literal, a list (any of), null, or a comparison string
 #           ("<30", ">=5", "!=default"). A multi-valued selection matches if
 #           any of its values does.

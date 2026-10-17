@@ -141,6 +141,36 @@ def test_resolve_target(catalog, selection, target):
     assert resolve_target(Selection.from_dict(selection), catalog) == target
 
 
+def test_the_worker_pool_pill_follows_the_mode_row(catalog):
+    """There is no separate SLURM-pool pill: Worker pool + Mode=slurm_cluster
+    is the SLURM pool, so forcing ``pool`` never fights the Mode row."""
+    forced = Selection.from_dict(
+        {
+            "target": "pool",
+            "choices": {
+                "mode": ["slurm_cluster"],
+                "agent": ["gemma-4-2B-computer-use"],
+            },
+        }
+    )
+    assert resolve_target(forced, catalog) == "slurm_pool"
+    assert (
+        render(forced, catalog)
+        == "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh"
+    )
+    # Auto-selection lands there anyway, so the forced target is redundant.
+    assert normalize(forced, catalog).target is None
+
+
+def test_a_forced_slurm_pool_normalizes_to_the_pool_pill(catalog):
+    """Old links (``#target=slurm_pool``) keep working, spelled the new way."""
+    sel = Selection.from_dict({"target": "slurm_pool", "choices": {"seed": [1, 2]}})
+    with pytest.raises(CommandError):
+        render(sel, catalog)  # a pool still cannot vary the seed
+    old = Selection.from_dict({"target": "slurm_pool"})
+    assert normalize(old, catalog) == Selection(choices={"mode": ["slurm_cluster"]})
+
+
 def test_unknown_target_is_an_error(catalog):
     with pytest.raises(CommandError, match="unknown target"):
         render(Selection(target="cluster"), catalog)

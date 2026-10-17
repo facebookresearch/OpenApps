@@ -204,6 +204,10 @@ class Target:
     command: str
     #: Where the script's own defaults differ from ``config_name``'s.
     defaults: dict[str, Any] = field(default_factory=dict)
+    #: Offered as a Target pill. The SLURM pool is not: Mode already says
+    #: "on SLURM", so a pill of its own could only agree with the Mode row or
+    #: contradict it. Worker pool + ``mode=slurm_cluster`` resolves to it.
+    pill: bool = True
 
 
 TARGETS: dict[str, Target] = {
@@ -231,6 +235,7 @@ TARGETS: dict[str, Target] = {
         # and its AGENTS default names no config that exists, so there is no
         # usable agent default -- the command always spells AGENTS out.
         defaults={"agent": None, "use_wandb": True},
+        pill=False,
     ),
 }
 

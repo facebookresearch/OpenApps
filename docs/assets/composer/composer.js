@@ -375,16 +375,18 @@
 
   function resolveTarget(sel, catalog) {
     const targets = catalog.targets;
+    const choices = sel.choices;
+    const slurm = (choices.mode || []).includes("slurm_cluster");
     if (sel.target) {
       if (!has(targets, sel.target)) {
         throw new CommandError(
           `unknown target ${pyRepr(sel.target)}; one of ${Object.keys(targets).join(", ")}`
         );
       }
+      // The Worker pool pill on the SLURM mode (see Target.pill).
+      if (sel.target === "pool" && slurm) return "slurm_pool";
       return sel.target;
     }
-    const choices = sel.choices;
-    const slurm = (choices.mode || []).includes("slurm_cluster");
     if ((choices.agent || []).length > 1 || (sel.count || 0) > 1 || sel.max_parallel !== null) {
       return slurm ? "slurm_pool" : "pool";
     }
@@ -412,6 +414,11 @@
       if (unique.length) choices[key] = unique;
     }
     let sel = { ...selection, choices };
+    if (sel.target === "slurm_pool") {
+      // Not a pill: Worker pool + the SLURM mode. Keeps old links working.
+      if (!has(choices, "mode")) choices.mode = ["slurm_cluster"];
+      sel = { ...sel, target: "pool" };
+    }
     const target = resolveTarget(sel, catalog);
     if (target === "slurm_pool" && !has(choices, "mode")) choices.mode = ["slurm_cluster"];
     if (!POOL_TARGETS.includes(target)) sel = { ...sel, count: null, max_parallel: null, sbatch_args: [] };
@@ -425,7 +432,7 @@
       }
       if (values.length === 1 && pyEq(values[0], defaultFor(key, target, catalog))) delete choices[key];
     }
-    if (sel.target && resolveTarget({ ...sel, target: null }, catalog) === sel.target) {
+    if (sel.target && resolveTarget({ ...sel, target: null }, catalog) === target) {
       sel = { ...sel, target: null };
     }
     return sel;
@@ -1280,8 +1287,9 @@
 
       const main = [
         this.field("target", "Target", this.pills("target", [
-          { value: null, label: `Auto (${catalog.targets[auto].label.toLowerCase()})` },
-          ...Object.values(catalog.targets).map((t) => ({ value: t.name, label: t.label })),
+          { value: null, label: `Auto (${lowerFirst(catalog.targets[auto].label)})` },
+          ...Object.values(catalog.targets).filter((t) => t.pill !== false)
+            .map((t) => ({ value: t.name, label: t.label })),
         ], [this.sel.target], (v) => this.update({ ...this.sel, target: v }))),
       ];
       if (has(catalog.groups, "mode")) main.push(this.groupField("mode"));
@@ -1855,6 +1863,9 @@
         : h("p", { text: lines.map((l) => l.trim()).join(" ") });
     });
   }
+
+  /** "Worker pool on SLURM" -> "worker pool on SLURM": acronyms survive. */
+  const lowerFirst = (text) => text.charAt(0).toLowerCase() + text.slice(1);
 
   function humanAxis(text) {
     return text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");

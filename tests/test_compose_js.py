@@ -88,6 +88,9 @@ EDGE_SELECTIONS = [
     {"target": "sweep", "choices": {"apps/theme": ["default"]}},
     {"target": "cluster"},
     {"target": "pool", "choices": {"mode": ["slurm_cluster"]}},
+    {"target": "pool", "choices": {"mode": ["slurm_cluster"], "agent": ["dummy"]}},
+    {"target": "slurm_pool"},
+    {"target": "slurm_pool", "choices": {"mode": ["local"]}},
     {"choices": {"task_name": ["all"]}, "target": "single"},
     {"choices": {"agent": ["dummy", "dummy"]}},
     {"choices": {"agent": ["dummy", "claude_4_sonnet"], "seed": [1, 2]}},
@@ -550,6 +553,27 @@ def test_c_copies_the_command(ui):
     assert (
         page.evaluate("navigator.clipboard.readText()")
         == "uv run launch_agent.py agent=dummy"
+    )
+
+
+def test_target_pills_leave_slurm_to_the_mode_row(ui):
+    page = ui("index.html#mode=slurm_cluster&agent=dummy")
+    targets = page.get_by_role("radiogroup", name="Target", exact=True)
+    labels = [t.strip() for t in targets.get_by_role("radio").all_inner_texts()]
+    assert labels == [
+        "Auto (worker pool on SLURM)",
+        "Single run",
+        "Sweep",
+        "Worker pool",
+    ]
+    expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
+
+    page = ui("index.html#agent=gemma-4-2B-computer-use")
+    pill(page, "Target", "Worker pool").click()
+    expect_command(page, "AGENTS=gemma-4-2B-computer-use ./scripts/conduct.sh")
+    pill(page, "Mode", "Slurm cluster").click()
+    expect_command(
+        page, "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh"
     )
 
 

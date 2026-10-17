@@ -330,6 +330,13 @@ def test_option_sets_record_watched_values(catalog):
 
 def test_targets(catalog):
     assert set(catalog.targets) == {"single", "sweep", "pool", "slurm_pool"}
+    # The SLURM pool is the Worker pool pill with Mode=slurm_cluster, not a
+    # pill of its own.
+    assert [t.name for t in catalog.targets.values() if t.pill] == [
+        "single",
+        "sweep",
+        "pool",
+    ]
     assert catalog.targets["sweep"].config_name == "config_parallel_tasks"
     assert catalog.targets["single"].config_name == "config"
 
