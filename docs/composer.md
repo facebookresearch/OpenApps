@@ -1,6 +1,8 @@
 ---
 title: Config Composer
-summary: Pick an agent, tasks and app variations; get the shortest command that runs them.
+# Not `summary:`: the theme prints that under the (hidden) H1, where it would
+# repeat the component's own lede. `description:` still feeds the meta tags.
+description: Pick an agent, tasks and app variations; get the shortest command that runs them.
 extra_css:
   - assets/composer/composer.css
 extra_javascript:

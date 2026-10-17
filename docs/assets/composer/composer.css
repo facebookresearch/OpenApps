@@ -43,6 +43,23 @@ body:has(openapps-composer) article .typography > :not(.composer-host) {
   max-width: 42rem;
 }
 
+/* The component's own header (the CONFIG COMPOSER eyebrow over "Build a
+   launch command.") is this page's visible title, so the theme's "Config
+   Composer" H1 above it would say the same thing twice. Hidden visually only:
+   it still titles the page for screen readers and the heading outline, and
+   the tab title, nav and search index come from the page's `title:` anyway. */
+body:has(openapps-composer) #page-header > h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* -- Shadow root ---------------------------------------------------------- */
 
 :host {

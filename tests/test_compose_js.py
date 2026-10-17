@@ -156,6 +156,14 @@ def site(tmp_path_factory, catalog):
     local_embed = embed.replace("catalog.json", "catalog-local.json")
     (root / "local.html").write_text(f"<!doctype html>{head}{local_embed}{script}")
     (root / "blank.html").write_text(f"<!doctype html>{head}{script}")
+    # The shadcn theme's page header, as mkdocs renders it around the page.
+    theme_header = (
+        '<div id="page-header"><h1>Config Composer</h1>'
+        '<a id="next-button" href="#">Next</a></div>'
+    )
+    (root / "docs.html").write_text(
+        f"<!doctype html>{head}<article>{theme_header}{embed}</article>{script}"
+    )
 
     handler = functools.partial(_QuietHandler, directory=str(root))
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -554,6 +562,18 @@ def test_c_copies_the_command(ui):
         page.evaluate("navigator.clipboard.readText()")
         == "uv run launch_agent.py agent=dummy"
     )
+
+
+def test_the_docs_h1_gives_way_to_the_component_header(ui):
+    """One visible title on the docs page: the component's eyebrow and
+    headline. The theme's H1 stays in the accessibility tree."""
+    page = ui("docs.html")
+    h1 = page.get_by_role("heading", name="Config Composer", level=1)
+    assert h1.count() == 1
+    box = h1.bounding_box()
+    assert box is None or (box["width"] <= 1 and box["height"] <= 1)
+    assert page.get_by_role("heading", name="Build a launch command.").is_visible()
+    assert page.locator("#next-button").is_visible()
 
 
 def test_the_unset_theme_reads_app_defaults(ui):
