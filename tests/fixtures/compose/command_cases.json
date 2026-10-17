@@ -163,6 +163,30 @@
       },
       "command": "AGENTS=gemma-4-2B-computer-use VLLM_HOST=node-007 sbatch --account=my_account --qos=my_qos scripts/conduct_slurm.sh",
       "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
+    },
+    {
+      "name": "worker pool on SLURM spells out the agent, even conduct.sh's default",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy"]}},
+      "command": "AGENTS=dummy sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test"]}
+    },
+    {
+      "name": "worker pool spells out the agent equal to the script's default",
+      "selection": {"target": "pool", "choices": {"agent": ["dummy"]}},
+      "command": "AGENTS=dummy ./scripts/conduct.sh",
+      "labels": {"agent": ["Dummy / smoke test"]}
+    },
+    {
+      "name": "worker pool on SLURM with no agent picked runs config.yaml's, not the script's",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["default"]}},
+      "command": "AGENTS=default sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Base agent (no model)"]}
+    },
+    {
+      "name": "worker pool on SLURM runs every agent once, not conduct_slurm.sh's COUNT=1",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy", "claude_4_sonnet"]}},
+      "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"]}
     }
   ],
   "parse_cases": [
@@ -197,8 +221,26 @@
     {
       "name": "COUNT=1 pins the worker-pool target",
       "command": "COUNT=1 AGENTS=dummy ./scripts/conduct.sh",
-      "selection": {"target": "pool", "count": 1},
-      "rendered": "COUNT=1 ./scripts/conduct.sh"
+      "selection": {"target": "pool", "choices": {"agent": ["dummy"]}, "count": 1},
+      "rendered": "AGENTS=dummy COUNT=1 ./scripts/conduct.sh"
+    },
+    {
+      "name": "a bare conduct.sh runs its own AGENTS default, now spelled out",
+      "command": "COUNT=2 ./scripts/conduct.sh",
+      "selection": {"choices": {"agent": ["dummy"]}, "count": 2},
+      "rendered": "AGENTS=dummy COUNT=2 ./scripts/conduct.sh"
+    },
+    {
+      "name": "a SLURM pool without COUNT runs once, as conduct_slurm.sh does, now spelled out",
+      "command": "AGENTS='dummy claude_4_sonnet' sbatch scripts/conduct_slurm.sh",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}, "count": 1},
+      "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=1 sbatch scripts/conduct_slurm.sh"
+    },
+    {
+      "name": "COUNT equal to the agents is the SLURM pool's default",
+      "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}},
+      "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh"
     }
   ],
   "errors": [

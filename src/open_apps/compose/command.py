@@ -22,12 +22,15 @@ picked automatically unless forced:
   ``mode=slurm_cluster``                   -> ``AGENTS=... sbatch scripts/conduct_slurm.sh``
 
 A sweep on SLURM stays ``launch_parallel_agents.py mode=slurm_cluster``
-(submitit). Only non-default values are emitted, with two deliberate
-exceptions in sweeps, which always spell out ``app_variations`` and
-``task_names``: config_parallel_tasks.yaml's built-in lists are a demo grid,
-and create_configs rebuilds each job's ``apps`` from config.yaml plus the
-cell's overrides only, so an ``apps/*`` choice anywhere but inside every cell
-would be silently dropped.
+(submitit). Only non-default values are emitted, with deliberate exceptions.
+Sweeps always spell out ``app_variations`` and ``task_names``:
+config_parallel_tasks.yaml's built-in lists are a demo grid, and
+create_configs rebuilds each job's ``apps`` from config.yaml plus the cell's
+overrides only, so an ``apps/*`` choice anywhere but inside every cell would
+be silently dropped. Worker pools always spell out ``AGENTS`` (and the SLURM
+pool ``COUNT`` for several agents): a script's env-var default is not the
+Hydra config's -- conduct_slurm.sh's AGENTS default has named a config that
+no longer exists -- so leaving one out would run something not on screen.
 
 ``parse(render(s)) == s`` for any normalized selection; ``render(parse(cmd))``
 keeps every token of ``cmd`` except values the target applies by default.
@@ -175,6 +178,13 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
     if target == "slurm_pool" and "mode" not in choices:
         # The canonical way to say "SLURM worker pool" is mode=slurm_cluster.
         choices["mode"] = ["slurm_cluster"]
+    if target in POOL_TARGETS:
+        # render always spells out AGENTS, so the agent is never dropped as a
+        # default: that would lose it on a switch to the other pool, whose
+        # script defaults differ. Fill in the one the UI shows instead.
+        choices.setdefault("agent", [default_for("agent", target, catalog)])
+        if target == "slurm_pool" and sel.count == len(choices["agent"]):
+            sel = replace(sel, count=None)  # what render emits without one
     if target not in POOL_TARGETS:
         sel = replace(sel, count=None, max_parallel=None, sbatch_args=[])
     if target != "slurm_pool":
@@ -188,6 +198,8 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
             if values == ["local"]:
                 del choices[key]
             continue
+        if key == "agent" and target in POOL_TARGETS:
+            continue  # always emitted, see above
         if len(values) == 1 and values[0] == default_for(key, target, catalog):
             del choices[key]
 
@@ -297,8 +309,12 @@ def render(selection: Selection, catalog: Catalog) -> str:
             overrides.append(_override(key, values[0], catalog))
 
     if pool:
-        if sel.count is not None:
-            env.append(f"COUNT={sel.count}")
+        count = sel.count
+        if count is None and target == "slurm_pool" and len(sel.choices["agent"]) > 1:
+            # conduct_slurm.sh defaults COUNT to 1, not to one run per agent.
+            count = len(sel.choices["agent"])
+        if count is not None:
+            env.append(f"COUNT={count}")
         if sel.max_parallel is not None:
             env.append(f"MAX_PARALLEL={sel.max_parallel}")
         # AGENTS, COUNT, MAX_PARALLEL, HEADLESS: the order conduct.sh reads them.
@@ -339,8 +355,7 @@ def run_count(selection: Selection, catalog: Catalog) -> int:
     if target in POOL_TARGETS:
         if sel.count is not None:
             return sel.count
-        agents = len(sel.choices.get("agent", [])) or 1
-        return agents if target == "pool" else 1  # conduct_slurm.sh: COUNT=1
+        return len(sel.choices["agent"])  # COUNT, rendered or the default
     if target == "sweep":
         names = sel.choices.get("task_name") or [None]
         if names == [ALL_TASKS]:
@@ -469,6 +484,8 @@ def parse(command: str, catalog: Catalog) -> Selection:
             sel.env.append(f"{name}={value}")
     if target == "slurm_pool":
         choices["mode"] = ["slurm_cluster"]
+        if sel.count is None:
+            sel.count = 1  # conduct_slurm.sh: COUNT="${COUNT:-1}"
 
     for token in rest:
         if not _parse_override(token, target, choices, catalog):

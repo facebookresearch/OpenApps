@@ -617,6 +617,16 @@ def test_target_pills_leave_slurm_to_the_mode_row(ui):
     )
 
 
+def test_a_pool_agent_equal_to_the_script_default_carries_over_to_slurm(ui):
+    """agent=dummy is conduct.sh's own default; it must still reach
+    conduct_slurm.sh, whose AGENTS default is a different (stale) name."""
+    page = ui("index.html#agent=dummy")
+    pill(page, "Target", "Worker pool").click()
+    expect_command(page, "AGENTS=dummy ./scripts/conduct.sh")
+    pill(page, "Mode", "Slurm cluster").click()
+    expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
+
+
 def test_local_only_buttons_need_local_capabilities(ui):
     page = ui()
     assert page.get_by_role("button", name="Validate").count() == 0

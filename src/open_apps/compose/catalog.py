@@ -228,7 +228,9 @@ TARGETS: dict[str, Target] = {
         "Worker pool",
         "config",
         "./scripts/conduct.sh",
-        # conduct.sh: AGENTS="${AGENTS:-dummy}".
+        # conduct.sh: AGENTS="${AGENTS:-dummy}" -- the agent a pool shows when
+        # none is picked (and what a bare ./scripts/conduct.sh runs). The
+        # command spells it out all the same; see command.normalize.
         defaults={"agent": "dummy"},
     ),
     "slurm_pool": Target(
@@ -236,10 +238,12 @@ TARGETS: dict[str, Target] = {
         "Worker pool on SLURM",
         "config",
         "sbatch scripts/conduct_slurm.sh",
-        # conduct_slurm.sh passes `use_wandb=True` ahead of the user's args,
-        # and its AGENTS default names no config that exists, so there is no
-        # usable agent default -- the command always spells AGENTS out.
-        defaults={"agent": None, "use_wandb": True},
+        # conduct_slurm.sh passes `use_wandb=True` ahead of the user's args.
+        # Its own AGENTS and COUNT defaults are not modelled: AGENTS has named
+        # a config that no longer exists, and COUNT=1 would run only the first
+        # of several agents. The command always spells both out instead, so
+        # the agent shown is config.yaml's, as on a single run.
+        defaults={"use_wandb": True},
         pill=False,
     ),
 }

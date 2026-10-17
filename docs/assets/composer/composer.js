@@ -421,6 +421,13 @@
     }
     const target = resolveTarget(sel, catalog);
     if (target === "slurm_pool" && !has(choices, "mode")) choices.mode = ["slurm_cluster"];
+    if (POOL_TARGETS.includes(target)) {
+      // render always spells out AGENTS, so the agent is never dropped as a
+      // default: that would lose it on a switch to the other pool, whose
+      // script defaults differ. Fill in the one the UI shows instead.
+      if (!has(choices, "agent")) choices.agent = [defaultFor("agent", target, catalog)];
+      if (target === "slurm_pool" && sel.count === choices.agent.length) sel = { ...sel, count: null };
+    }
     if (!POOL_TARGETS.includes(target)) sel = { ...sel, count: null, max_parallel: null, sbatch_args: [] };
     if (target !== "slurm_pool") sel = { ...sel, sbatch_args: [] };
 
@@ -430,6 +437,7 @@
         if (listEq(values, ["local"])) delete choices[key];
         continue;
       }
+      if (key === "agent" && POOL_TARGETS.includes(target)) continue; // always emitted, see above
       if (values.length === 1 && pyEq(values[0], defaultFor(key, target, catalog))) delete choices[key];
     }
     if (sel.target && resolveTarget({ ...sel, target: null }, catalog) === target) {
@@ -519,7 +527,10 @@
     }
 
     if (pool) {
-      if (sel.count !== null) env.push(`COUNT=${sel.count}`);
+      let count = sel.count;
+      // conduct_slurm.sh defaults COUNT to 1, not to one run per agent.
+      if (count === null && target === "slurm_pool" && sel.choices.agent.length > 1) count = sel.choices.agent.length;
+      if (count !== null) env.push(`COUNT=${count}`);
       if (sel.max_parallel !== null) env.push(`MAX_PARALLEL=${sel.max_parallel}`);
       const order = ["AGENTS=", "COUNT=", "MAX_PARALLEL=", "HEADLESS="];
       const rank = (a) => order.findIndex((p) => a.startsWith(p));
@@ -557,8 +568,7 @@
     const target = resolveTarget(sel, catalog);
     if (POOL_TARGETS.includes(target)) {
       if (sel.count !== null) return sel.count;
-      const agents = (sel.choices.agent || []).length || 1;
-      return target === "pool" ? agents : 1;
+      return sel.choices.agent.length; // COUNT, rendered or the default
     }
     if (target === "sweep") {
       let names = sel.choices.task_name || [null];
@@ -663,7 +673,10 @@
         choices["browsergym_env_args.headless"] = [value.toLowerCase() === "true"];
       } else sel.env.push(`${name}=${value}`);
     }
-    if (target === "slurm_pool") choices.mode = ["slurm_cluster"];
+    if (target === "slurm_pool") {
+      choices.mode = ["slurm_cluster"];
+      if (sel.count === null) sel.count = 1; // conduct_slurm.sh: COUNT="${COUNT:-1}"
+    }
 
     for (const token of rest) {
       if (!parseOverride(token, target, choices, catalog)) sel.extra.push(token);
@@ -1648,7 +1661,7 @@
       return this.field(name, label, h("input", {
         type: "number", class: "text-input", inputmode: "numeric", min: "1",
         "aria-labelledby": `label-${name}`, "data-fk": `input:${name}`, title: summary,
-        placeholder: name === "count" ? "agents" : "all", value: this.sel[name] === null ? "" : String(this.sel[name]),
+        placeholder: name === "count" ? "agents" : "4", // conduct*.sh: MAX_PARALLEL=4 value: this.sel[name] === null ? "" : String(this.sel[name]),
         oninput: (event) => {
           const raw = event.target.value.trim();
           this.update({ ...this.sel, [name]: /^\d+$/.test(raw) ? Number(raw) : null });

@@ -15,6 +15,7 @@ rendered command passes must actually compose against the real config tree.
 
 import json
 import shlex
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -168,7 +169,30 @@ def test_a_forced_slurm_pool_normalizes_to_the_pool_pill(catalog):
     with pytest.raises(CommandError):
         render(sel, catalog)  # a pool still cannot vary the seed
     old = Selection.from_dict({"target": "slurm_pool"})
-    assert normalize(old, catalog) == Selection(choices={"mode": ["slurm_cluster"]})
+    assert normalize(old, catalog) == Selection(
+        choices={"mode": ["slurm_cluster"], "agent": ["default"]}
+    )
+
+
+def test_a_pool_agent_survives_the_switch_to_slurm(catalog):
+    """The UI holds the normalized selection. If the pool dropped agent=dummy
+    as conduct.sh's default, Mode=Slurm would then render no AGENTS and run
+    conduct_slurm.sh's own default -- an agent nobody picked."""
+    pool = normalize(
+        Selection.from_dict({"target": "pool", "choices": {"agent": ["dummy"]}}),
+        catalog,
+    )
+    assert pool.choices == {"agent": ["dummy"]}
+    on_slurm = replace(pool, choices={**pool.choices, "mode": ["slurm_cluster"]})
+    assert render(on_slurm, catalog) == "AGENTS=dummy sbatch scripts/conduct_slurm.sh"
+
+
+@pytest.mark.parametrize("target", ["pool", "slurm_pool"])
+def test_worker_pools_always_spell_out_agents(catalog, target):
+    """Whatever is (or is not) chosen, the agent on screen is in AGENTS."""
+    sel = normalize(Selection(target=target), catalog)
+    shown = sel.choices["agent"]
+    assert render(sel, catalog).startswith(f"AGENTS={shown[0]} ")
 
 
 def test_unknown_target_is_an_error(catalog):
@@ -223,6 +247,8 @@ def test_selection_json_round_trip():
         ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}}, 2),
         ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 6}, 6),
         ({"choices": {"mode": ["slurm_cluster"]}}, 1),
+        ({"choices": {"mode": ["slurm_cluster"], "agent": ["a", "b"]}}, 2),
+        ({"choices": {"mode": ["slurm_cluster"], "agent": ["a", "b"]}, "count": 1}, 1),
     ],
 )
 def test_run_count(catalog, selection, runs):
