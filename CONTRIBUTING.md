@@ -12,6 +12,24 @@ We actively welcome your pull requests.
 5. Make sure your code lints.
 6. If you haven't already, complete the Contributor License Agreement ("CLA").
 
+## Leaderboard submissions, demonstrations and benchmark content
+OpenApps runs a public leaderboard of computer-use agents, and the benchmark grows
+through contributions. Each kind has its own guide and template:
+
+| You want to... | Guide | Template |
+| --- | --- | --- |
+| Submit an agent's results to the leaderboard | [Leaderboard: Submit](docs/leaderboard.md#submit) | [PR: leaderboard submission](.github/PULL_REQUEST_TEMPLATE/leaderboard_submission.md) |
+| Contribute demonstrations (training/analysis data, never ranked) | [Leaderboard: Demonstrations](docs/leaderboard.md#demonstrations) | [PR: demonstration](.github/PULL_REQUEST_TEMPLATE/demonstration.md) |
+| Add a task | [Contributing benchmark content](docs/contributing-benchmarks.md) | [Issue: new task](.github/ISSUE_TEMPLATE/new_task.yml) |
+| Add an adversarial event | [Contributing benchmark content](docs/contributing-benchmarks.md) | [Issue: new event](.github/ISSUE_TEMPLATE/new_event.yml) |
+| Add a variation (content, layout, theme) | [Contributing benchmark content](docs/contributing-benchmarks.md) | [Issue: new variation](.github/ISSUE_TEMPLATE/new_variation.yml) |
+| Tag an app's irreversible changes | [Contributing benchmark content](docs/contributing-benchmarks.md) | |
+
+To use a PR template, add `?template=leaderboard_submission.md` (or `demonstration.md`) to
+the URL of the PR's compare page. Keep submissions and code changes in separate PRs: the
+leaderboard CI judges every bundle with code already on `main`, and fails a PR that changes
+both.
+
 ## Contributor License Agreement ("CLA")
 In order to accept your pull request, we need you to submit a CLA. You only need
 to do this once to work on any of Facebook's open source projects.
