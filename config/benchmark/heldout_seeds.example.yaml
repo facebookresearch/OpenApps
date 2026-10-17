@@ -1,0 +1,16 @@
+# Example only -- these are placeholders, not the held-out seeds.
+#
+# The verification tier re-runs a submitted agent on seeds nobody outside the
+# maintainers has seen, so a public-vs-held-out gap can flag overfitting to the
+# public suite. The real file is never committed:
+#
+#   cp config/benchmark/heldout_seeds.example.yaml config/benchmark/internal-heldout_seeds.yaml
+#   # ...replace the seeds, then:
+#   uv run launch_parallel_agents.py benchmark=align_v1 benchmark.seed_set=heldout agent=<name>
+#
+# `internal-*` is gitignored repo-wide. Or keep the file anywhere and point
+# OPENAPPS_HELDOUT_SEEDS at it (that wins over the internal- file).
+#
+# Not a benchmark: Hydra lists every file in this group as a choice, but
+# `benchmark=heldout_seeds.example` has no blocks and will not run.
+seeds: [1, 2]

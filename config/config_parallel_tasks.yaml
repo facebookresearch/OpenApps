@@ -27,6 +27,10 @@ defaults:
   - apps/events: default
   - apps/chrome: default
   - _self_
+  # A frozen leaderboard suite (config/benchmark/), e.g. `benchmark=align_v1`.
+  # After _self_ on purpose: a suite pins parallel_tasks, seeds, max_steps and
+  # task_termination, so it must win over this file's ad-hoc defaults.
+  - benchmark: null
 
 # runs multiple tasks for each app variation in parallel
 parallel_tasks:
