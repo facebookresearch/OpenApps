@@ -1374,7 +1374,12 @@
         blocked: this.blockedReason(path, o.name),
       }));
       if (group.nullable) {
-        options.unshift({ value: null, label: "None", summary: `No ${label.toLowerCase()} option: the config's own defaults apply.` });
+        // The catalog names the unset choice ("App defaults" for the theme).
+        options.unshift({
+          value: null,
+          label: group.null_label || `No ${label.toLowerCase()}`,
+          summary: group.null_summary || "",
+        });
       }
       if (group.control === "pills") {
         const varies = this.canVary(path);

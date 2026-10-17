@@ -155,6 +155,11 @@ class Group:
     targets: list[str]
     control: Literal["pills", "select"]
     searchable: bool
+    #: What the unset choice of a nullable group is called, and what it
+    #: means; ``None`` when the group always has an option. See
+    #: :func:`_null_option`.
+    null_label: str | None = None
+    null_summary: str | None = None
 
     def option(self, name: str) -> Option:
         for option in self.options:
@@ -425,6 +430,33 @@ def _group_label(path: str) -> str:
     return humanize("_".join(parts))
 
 
+# What leaving a nullable group unset means, where "No <group>" undersells
+# it. A null apps/theme is not "no theme": every app falls back to the look it
+# prefers (config.yaml's defaults-list comment), which is a choice in itself.
+_NULL_OPTIONS = {
+    "apps/theme": (
+        "App defaults",
+        "No shared theme: each app keeps its own default look (the code "
+        "editor's is VS Code dark).",
+    ),
+}
+
+
+def _null_option(path: str, label: str) -> tuple[str, str]:
+    """``(label, summary)`` for a nullable group's unset choice.
+
+    Lives in the catalog, not the UI, so the docs page and compose.py -- and
+    anything else reading catalog.json -- call it the same thing.
+    """
+    if path in _NULL_OPTIONS:
+        return _NULL_OPTIONS[path]
+    noun = label.lower()
+    return (
+        f"No {noun}",
+        f"Leave {noun} unset: the options the rest of the config picks apply.",
+    )
+
+
 def _goal_label(goal: str) -> str:
     return _first_sentence(" ".join(goal.split()))
 
@@ -623,18 +655,25 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
                     )
                 )
             defaults = {c: choices[c].get(group_path) for c in PRIMARY_CONFIGS}
+            label = _group_label(group_path)
+            nullable = any(v is None for v in defaults.values())
+            null_label, null_summary = (
+                _null_option(group_path, label) if nullable else (None, None)
+            )
             groups[group_path] = Group(
                 path=group_path,
-                label=_group_label(group_path),
+                label=label,
                 package=package or "",
                 options=options,
                 defaults=defaults,
-                nullable=any(v is None for v in defaults.values()),
+                nullable=nullable,
                 append=append,
                 sweepable=group_path.startswith("apps/"),
                 targets=list(ALL_TARGETS),
                 control="pills" if len(options) <= PILLS_MAX else "select",
                 searchable=len(options) > SEARCHABLE_MIN,
+                null_label=null_label,
+                null_summary=null_summary,
             )
 
         tasks = {}

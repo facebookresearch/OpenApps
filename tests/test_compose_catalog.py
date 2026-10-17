@@ -131,6 +131,18 @@ def test_group_absent_from_defaults_needs_append(catalog):
     assert experiment.defaults == {"config": None, "config_parallel_tasks": None}
 
 
+def test_a_nullable_group_names_its_unset_option(catalog):
+    """The unset choice says what it means rather than "None": no shared
+    theme means each app keeps its own look."""
+    theme = catalog.groups["apps/theme"]
+    assert theme.null_label == "App defaults"
+    assert "own" in theme.null_summary
+    assert catalog.groups["experiment"].null_label == "No experiment"
+    for group in catalog.groups.values():
+        assert (group.null_label is not None) == group.nullable, group.path
+        assert group.null_label != "None"
+
+
 def test_only_apps_groups_are_sweepable(catalog):
     """create_configs copies only `apps` out of each variation's composition,
     so a device or agent in app_variations would silently do nothing."""

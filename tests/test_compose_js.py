@@ -556,6 +556,16 @@ def test_c_copies_the_command(ui):
     )
 
 
+def test_the_unset_theme_reads_app_defaults(ui):
+    page = ui()
+    trigger = page.get_by_role("button", name=re.compile("^Theme"))
+    assert trigger.get_attribute("aria-label") == "Theme: App defaults"
+    trigger.click()
+    listbox = page.get_by_role("listbox", name="Theme")
+    assert listbox.get_by_role("option", name="App defaults", exact=True).count() == 1
+    assert listbox.get_by_role("option", name="None", exact=True).count() == 0
+
+
 def test_target_pills_leave_slurm_to_the_mode_row(ui):
     page = ui("index.html#mode=slurm_cluster&agent=dummy")
     targets = page.get_by_role("radiogroup", name="Target", exact=True)
