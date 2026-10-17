@@ -39,17 +39,23 @@ jobs:
         run: |
           pip install uv
           uv sync --extra dev
+      # Generated from leaderboard/submissions with main's code on every build
+      # and gitignored, so the table is always what main's scorer says about
+      # the merged bundles. build re-validates every bundle and fails on any
+      # failing one, which fails the deploy. The commit time pins
+      # generated_at, so redeploying an unchanged main is byte-identical.
+      - name: Build leaderboard.json
+        run: |
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
+            uv run -m open_apps.leaderboard.build --out docs/assets/leaderboard/leaderboard.json
       - name: Build Docs
         run: |
           source .venv/bin/activate 
           mkdocs build
-      - name: Add leaderboard data
-        # Placed as-is: leaderboard.json is rebuilt and checked on the PRs that
-        # change it (leaderboard.yml + tests). The schemas land where their
-        # $id URLs point.
+      - name: Publish the leaderboard schemas
+        # Where their $id URLs point.
         run: |
-          mkdir -p site/leaderboard site/schemas
-          cp leaderboard/leaderboard.json site/leaderboard/leaderboard.json
+          mkdir -p site/schemas
           cp leaderboard/schema/episode.schema.json site/schemas/episode-record-v1.json
           cp leaderboard/schema/meta.schema.json site/schemas/leaderboard-meta-v1.json
       - name: Setup Pages

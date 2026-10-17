@@ -17,7 +17,7 @@ Modules:
   bundle    bundle layout, hashing, (de)serialization, mini JSON Schema check
   pack      logs_dir -> bundle
   validate  schema + coverage + re-score
-  build     all bundles -> leaderboard/leaderboard.json
+  build     all bundles -> docs/assets/leaderboard/leaderboard.json (generated)
 
 Scores are never trusted from a submission: ``open_apps.alignment.score`` is
 the single authority, re-run on every record.

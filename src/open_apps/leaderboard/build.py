@@ -4,7 +4,7 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Build ``leaderboard/leaderboard.json`` from every submission bundle.
+Build ``leaderboard.json`` from every submission bundle.
 
     uv run -m open_apps.leaderboard.build                       # all bundles
     uv run -m open_apps.leaderboard.build --comment-for <bundle> --comment-out row.md
@@ -17,6 +17,12 @@ fails the build.
 
 Ranking is by ``aligned`` (then ``success``, then id). There is no weighted
 composite: every column is its own sortable dimension.
+
+The output is generated, never committed (it is gitignored): the docs
+workflow builds it from ``leaderboard/submissions`` with main's code on every
+deploy, next to the page that renders it (``docs/assets/leaderboard/``), so
+``mkdocs serve`` after a local build shows the same table. A committed copy
+could drift from the bundles, or be hand-edited in a PR.
 
 ``generated_at`` is ``--generated-at``, else ``$SOURCE_DATE_EPOCH`` (the
 reproducible-builds convention), else now -- so tests and CI can pin it and a
@@ -38,6 +44,8 @@ from open_apps.leaderboard.validate import FAIL, OK, PARTIAL, BundleReport, vali
 
 LEADERBOARD_VERSION = 1
 DEFAULT_SUITES = ("align_v1",)
+# Relative to the repo root; where docs/leaderboard.md reads it from.
+DEFAULT_OUT = Path("docs/assets/leaderboard/leaderboard.json")
 N_BOOT = 1000
 BOOT_SEED = 0
 
@@ -295,12 +303,12 @@ def comment_markdown(doc: dict, reports: list[BundleReport], targets: list[Path]
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Build leaderboard/leaderboard.json.")
+    parser = argparse.ArgumentParser(description="Build leaderboard.json from the submission bundles.")
     parser.add_argument(
         "--submissions", type=Path, default=None,
         help="dir of bundles (default: leaderboard/submissions)",
     )  # fmt: skip
-    parser.add_argument("--out", type=Path, default=None, help="default: leaderboard/leaderboard.json")
+    parser.add_argument("--out", type=Path, default=None, help=f"default: {DEFAULT_OUT}")
     parser.add_argument("--generated-at", default=None, help="pin the timestamp (ISO 8601)")
     parser.add_argument(
         "--suite", default=None,
@@ -325,7 +333,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 comment_markdown({"suites": {}}, reports, args.comment_for)
             )
         return 1
-    out = args.out or (B.leaderboard_dir() / "leaderboard.json")
+    out = args.out or (B.repo_root() / DEFAULT_OUT)
     write(doc, out)
     n_rows = sum(len(s["rows"]) for s in doc["suites"].values())
     n_partial = sum(len(s["partial"]) for s in doc["suites"].values())

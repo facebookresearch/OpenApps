@@ -190,11 +190,3 @@ def test_cli_writes_leaderboard_and_comment(submissions, tmp_path):
     assert subprocess.run(cmd, check=False, capture_output=True).returncode == 0
     assert out.read_bytes() == first
 
-
-def test_committed_leaderboard_matches_the_submissions(tmp_path):
-    """leaderboard/leaderboard.json is what build produces from
-    leaderboard/submissions (timestamp aside)."""
-    committed = json.loads((B.leaderboard_dir() / "leaderboard.json").read_text())
-    reports = [validate_bundle(p) for p in B.find_bundles([B.submissions_dir()])]
-    fresh = build(reports, when=committed["generated_at"])
-    assert fresh == committed, "stale: uv run -m open_apps.leaderboard.build"
