@@ -19,6 +19,13 @@ In order:
                 exactly once; missing cells => ``partial`` (listed, not
                 ranked); duplicates or cells outside the suite => fail
 
+A demonstration (``leaderboard/demonstrations/<contributor>__<topic>``,
+``kind: demonstration`` in its meta.yaml) gets steps 1-3 only -- its own meta
+schema, the same episode schema, and a re-score of any ``scores`` it carries
+(they are optional there). No coverage: it is never ranked.
+
+    uv run -m open_apps.leaderboard.validate leaderboard/demonstrations/<contributor>__<topic>
+
 Exit status is non-zero if any bundle fails (``--strict``: or is partial).
 """
 
@@ -36,6 +43,7 @@ from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard.suite import cell_key, load_suite, suite_cells
 
 OK, PARTIAL, FAIL = "ok", "partial", "fail"
+SUBMISSION, DEMONSTRATION = "submission", B.DEMO_KIND
 # Enough to act on without drowning a PR comment.
 _MAX_LISTED = 10
 
@@ -44,6 +52,7 @@ _MAX_LISTED = 10
 class BundleReport:
     path: Path
     bundle_id: str = ""
+    kind: str = SUBMISSION
     suite: Optional[str] = None
     meta: dict = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
@@ -65,13 +74,14 @@ class BundleReport:
 
     def format(self) -> str:
         covered = self.n_expected - len(self.missing)
-        lines = [
-            f"{self.status.upper():<7} {self.path.name}",
-            (
+        if self.kind == DEMONSTRATION:
+            summary = f"        {self.n_records} episodes; demonstration (not ranked)"
+        else:
+            summary = (
                 f"        {self.n_records} episodes; {covered}/{self.n_expected} "
                 f"suite cells covered ({self.suite or '?'})"
-            ),
-        ]
+            )
+        lines = [f"{self.status.upper():<7} {self.path.name}", summary]
         for msg in self.errors[:_MAX_LISTED]:
             lines.append(f"  error: {msg}")
         if len(self.errors) > _MAX_LISTED:
@@ -86,22 +96,24 @@ class BundleReport:
         return "\n".join(lines)
 
 
-def _check_layout(path: Path, report: BundleReport) -> bool:
-    for name in (B.META_FILE, B.AGENT_FILE, B.EPISODES_FILE):
+def _check_layout(
+    path: Path, report: BundleReport, files: tuple[str, ...] = (B.META_FILE, B.AGENT_FILE, B.EPISODES_FILE)
+) -> bool:
+    for name in files:
         if not (path / name).is_file():
             report.errors.append(f"missing {name}")
     return not report.errors
 
 
-def _check_meta(path: Path, report: BundleReport) -> None:
+def _load_meta(path: Path, report: BundleReport) -> Optional[dict]:
     try:
         meta = B.read_yaml(path / B.META_FILE)
     except Exception as exc:  # noqa: BLE001 -- any parse failure is the finding
         report.errors.append(f"{B.META_FILE} is not valid YAML: {exc}")
-        return
+        return None
     if not isinstance(meta, dict):
         report.errors.append(f"{B.META_FILE} must be a mapping")
-        return
+        return None
     # An unquoted `date: 2026-10-16` loads as a date; accept it as the
     # string it was meant to be rather than failing a hand-edited meta.
     meta = {k: v.isoformat() if isinstance(v, (dt.date, dt.datetime)) else v for k, v in meta.items()}
@@ -111,6 +123,13 @@ def _check_meta(path: Path, report: BundleReport) -> None:
             for k, v in meta["verified"].items()
         }
     report.meta = meta
+    return meta
+
+
+def _check_meta(path: Path, report: BundleReport) -> None:
+    meta = _load_meta(path, report)
+    if meta is None:
+        return
     for err in B.schema_errors(meta, B.load_schema("meta.schema.json")):
         report.errors.append(f"{B.META_FILE}: {err}")
     report.suite = meta.get("suite")
@@ -129,7 +148,31 @@ def _check_meta(path: Path, report: BundleReport) -> None:
         )
 
 
+def _check_demo_meta(path: Path, report: BundleReport) -> None:
+    meta = _load_meta(path, report)
+    if meta is None:
+        return
+    for err in B.schema_errors(meta, B.load_schema("demonstration.schema.json")):
+        report.errors.append(f"{B.META_FILE}: {err}")
+    report.bundle_id = path.name
+    try:
+        contributor, topic = B.parse_demo_name(path.name)
+    except ValueError as exc:
+        report.errors.append(str(exc))
+        return
+    if (contributor, topic) != (meta.get("contributor"), meta.get("topic")):
+        report.errors.append(
+            f"dir name {path.name!r} does not match meta contributor/topic "
+            f"({meta.get('contributor')}/{meta.get('topic')})"
+        )
+
+
 def _check_agent(path: Path, report: BundleReport) -> None:
+    if report.kind == DEMONSTRATION:
+        if not (path / B.AGENT_FILE).is_file():
+            return  # optional for demonstrations (a person has no config)
+        if not report.meta.get("agent_config_hash"):
+            report.errors.append(f"{B.AGENT_FILE} is present: meta.yaml needs its agent_config_hash")
     try:
         agent_cfg = B.read_yaml(path / B.AGENT_FILE)
     except Exception as exc:  # noqa: BLE001
@@ -152,8 +195,11 @@ def _check_agent(path: Path, report: BundleReport) -> None:
         )
 
 
-def _check_episodes(path: Path, report: BundleReport) -> list[tuple[Any, dict]]:
-    """Schema-check and parse every line; return ``(record, submitted_scores)``."""
+def _check_episodes(
+    path: Path, report: BundleReport, require_scores: bool = True
+) -> list[tuple[Any, Optional[dict]]]:
+    """Schema-check and parse every line; return ``(record, submitted_scores)``
+    (``None`` scores only when not ``require_scores``)."""
     from open_apps.alignment.record import EpisodeRecord
 
     schema = B.episode_schema()
@@ -173,7 +219,7 @@ def _check_episodes(path: Path, report: BundleReport) -> list[tuple[Any, dict]]:
             continue
         data = dict(data)
         submitted = data.pop(B.SCORES_KEY, None)
-        if not isinstance(submitted, dict):
+        if not isinstance(submitted, dict) and (require_scores or submitted is not None):
             report.errors.append(f"{where}: missing the {B.SCORES_KEY!r} object")
             continue
         errs = B.schema_errors(data, schema)
@@ -202,7 +248,8 @@ def _rescore(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:
         except Exception as exc:  # noqa: BLE001 -- an unscorable record fails the bundle
             report.errors.append(f"{label}: scorer failed ({type(exc).__name__}: {exc})")
             continue
-        diffs = B.scores_diff(submitted, scores.summary())
+        # Demonstrations may omit scores; scoring still has to succeed.
+        diffs = B.scores_diff(submitted, scores.summary()) if submitted is not None else []
         if diffs:
             report.errors.append(f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4]))
             continue
@@ -275,11 +322,53 @@ def validate_bundle(path: str | Path, suite: Optional[str | Path] = None) -> Bun
     return report
 
 
+def validate_demonstration(path: str | Path) -> BundleReport:
+    """Layout, meta, optional agent.yaml, episode schema and (optional)
+    scores -- the submission checks minus coverage and suite identity."""
+    path = Path(path)
+    report = BundleReport(path=path, bundle_id=path.name, kind=DEMONSTRATION)
+    if not _check_layout(path, report, (B.META_FILE, B.EPISODES_FILE)):
+        return report
+    _check_demo_meta(path, report)
+    _check_agent(path, report)
+    parsed = _check_episodes(path, report, require_scores=False)
+    if report.meta.get("n_episodes") not in (None, len(parsed)):
+        report.errors.append(
+            f"meta n_episodes={report.meta.get('n_episodes')} but {len(parsed)} valid records"
+        )
+    agents = {r.identity.agent_name for r, _ in parsed} - {None, report.meta.get("agent")}
+    if agents:
+        report.warnings.append(
+            f"records name agent(s) {sorted(agents)}, meta says {report.meta.get('agent')!r}"
+        )
+    _rescore(parsed, report)
+    return report
+
+
+def is_demonstration(path: str | Path) -> bool:
+    try:
+        meta = B.read_yaml(Path(path) / B.META_FILE)
+    except Exception:  # noqa: BLE001 -- validate_bundle reports a broken meta.yaml
+        return False
+    return isinstance(meta, dict) and meta.get("kind") == B.DEMO_KIND
+
+
+def validate_path(path: str | Path, suite: Optional[str | Path] = None) -> BundleReport:
+    """A submission or a demonstration, by its meta.yaml ``kind``."""
+    return validate_demonstration(path) if is_demonstration(path) else validate_bundle(path, suite)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Validate OpenApps leaderboard bundles (schema, re-score, coverage)."
+        description=(
+            "Validate OpenApps leaderboard bundles (schema, re-score, coverage) "
+            "and demonstrations (schema, re-score)."
+        )
     )
-    parser.add_argument("paths", nargs="+", help="bundle dirs, or dirs containing bundles")
+    parser.add_argument(
+        "paths", nargs="+",
+        help="bundle or demonstration dirs, or dirs containing them",
+    )  # fmt: skip
     parser.add_argument(
         "--suite", default=None, help="suite name or YAML path (default: from meta.yaml)"
     )
@@ -290,7 +379,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not bundles:
         print(f"no bundles (directories with {B.META_FILE}) under {args.paths}", file=sys.stderr)
         return 1
-    reports = [validate_bundle(p, args.suite) for p in bundles]
+    reports = [validate_path(p, args.suite) for p in bundles]
     for r in reports:
         print(r.format())
     bad = [r for r in reports if r.status == FAIL or (args.strict and r.status == PARTIAL)]

@@ -12,6 +12,15 @@ JSON Schemas it is checked against.
         agent.yaml          the agent config the run used, secrets redacted
         episodes.jsonl.gz   one EpisodeRecord per line, plus its "scores"
 
+Demonstrations (training/analysis data, never ranked) share the layout and
+the episode schema, keyed by contributor and topic instead of org, agent and
+suite; ``agent.yaml`` and per-line ``scores`` are optional there:
+
+    leaderboard/demonstrations/<contributor>__<topic>/
+        meta.yaml           kind: demonstration; schema: demonstration.schema.json
+        episodes.jsonl.gz   one EpisodeRecord per line (``scores`` optional)
+        agent.yaml          optional; checked like a submission's when present
+
 Each episodes line is an ``EpisodeRecord`` dict (schema:
 ``leaderboard/schema/episode.schema.json``, generated from
 ``open_apps.alignment.record.json_schema``) with one extra top-level key,
@@ -46,6 +55,7 @@ EPISODES_FILE = "episodes.jsonl.gz"
 SCORES_KEY = "scores"
 BUNDLE_SEP = "__"
 REDACTED = "<redacted>"
+DEMO_KIND = "demonstration"
 
 # One path segment, no separator inside: the dir name must split back into
 # exactly (org, agent, suite).
@@ -83,6 +93,10 @@ def submissions_dir() -> Path:
     return leaderboard_dir() / "submissions"
 
 
+def demonstrations_dir() -> Path:
+    return leaderboard_dir() / "demonstrations"
+
+
 # --- naming --------------------------------------------------------------------
 
 
@@ -106,6 +120,13 @@ def parse_bundle_name(name: str) -> tuple[str, str, str]:
     if len(parts) != 3:
         raise ValueError(f"bundle dir {name!r} is not <org>__<agent>__<suite>")
     return parts[0], parts[1], parts[2]
+
+
+def parse_demo_name(name: str) -> tuple[str, str]:
+    parts = name.split(BUNDLE_SEP)
+    if len(parts) != 2:
+        raise ValueError(f"demonstration dir {name!r} is not <contributor>__<topic>")
+    return parts[0], parts[1]
 
 
 def is_bundle(path: Path) -> bool:

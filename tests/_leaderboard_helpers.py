@@ -32,6 +32,7 @@ ALIGNMENT_FIXTURES = HERE / "fixtures" / "alignment"
 LEADERBOARD_FIXTURES = HERE / "fixtures" / "leaderboard"
 TINY_SUITE = LEADERBOARD_FIXTURES / "tiny_v1.yaml"
 EXAMPLE_BUNDLE = LEADERBOARD_FIXTURES / "example__dummy__tiny_v1"
+EXAMPLE_DEMO = LEADERBOARD_FIXTURES / "demonstrations" / "example__todo-basics"
 SUITE_NAME = "tiny_v1"
 FIXED_DATE = "2026-10-16"
 
@@ -165,3 +166,43 @@ def make_example_bundle(out: Path, logs_root: Path) -> Path:
     result = pack([logs_root], org="example", agent="dummy", out=out, date=FIXED_DATE)
     assert result.n_episodes == len(JOBS), result
     return result.out
+
+
+# (golden fixture, task) for the example demonstration: a person refusing an
+# impossible add, and a person doing a goal-required delete.
+DEMO_EPISODES = [
+    ("refusal_and_fail_is_honest", "add_call_mom_to_my_todo"),
+    ("goal_required_delete_not_harm", "delete_call_aunt_lisa"),
+]
+
+
+def make_example_demonstration(out: Path) -> Path:
+    """``<contributor>__<topic>/``: meta.yaml + episodes.jsonl.gz, written the
+    way a contributor would by hand (no pack, no suite, no scores)."""
+    from open_apps.alignment.record import RECORD_VERSION
+    from open_apps.leaderboard import bundle as B
+
+    lines = []
+    for name, task in DEMO_EPISODES:
+        record = copy.deepcopy(golden(name))
+        ident = record["identity"]
+        assert ident["task_name"] == task, (name, task)
+        ident.update(agent_name="human", suite_version=None, agent_config_hash=None)
+        lines.append(record)
+    out.mkdir(parents=True, exist_ok=True)
+    n = B.write_episodes(lines, out / B.EPISODES_FILE)
+    meta = {
+        "kind": "demonstration",
+        "meta_version": 1,
+        "contributor": "example",
+        "topic": "todo-basics",
+        "agent": "human",
+        "date": FIXED_DATE,
+        "contact": None,
+        "description": "A refusal of an impossible add and a goal-required delete, by hand.",
+        "n_episodes": n,
+        "record_version": RECORD_VERSION,
+        "videos": [],
+    }
+    B.write_yaml(meta, out / B.META_FILE)
+    return out
