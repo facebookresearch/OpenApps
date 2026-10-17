@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://facebookresearch.github.io/OpenApps/schemas/leaderboard-meta-v1.json",
+  "title": "OpenApps leaderboard submission meta.yaml",
+  "description": "Who ran what, when. Hand-written; `uv run -m open_apps.leaderboard.pack` fills it from the run configs.",
+  "type": "object",
+  "required": ["meta_version", "org", "agent", "model", "suite", "date", "agent_config_hash", "n_episodes", "verified"],
+  "additionalProperties": false,
+  "properties": {
+    "meta_version": {"const": 1},
+    "org": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$"},
+    "agent": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$"},
+    "model": {"type": "string", "minLength": 1, "description": "The model the agent ran (agent config model_name)."},
+    "suite": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$", "description": "Frozen suite, e.g. align_v1 (config/benchmark/<suite>.yaml)."},
+    "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "ISO date the bundle was packed."},
+    "contact": {"type": ["string", "null"], "description": "How maintainers reach the submitter (GitHub handle or email)."},
+    "agent_config_hash": {"type": "string", "pattern": "^[0-9a-f]{12}$", "description": "sha256 prefix of the redacted agent.yaml (open_apps.leaderboard.bundle.agent_config_hash)."},
+    "redacted": {"type": "array", "items": {"type": "string"}, "description": "agent.yaml keys whose values were replaced before committing."},
+    "n_episodes": {"type": "integer", "minimum": 0},
+    "record_version": {"type": "integer", "minimum": 1},
+    "compute_notes": {"type": ["string", "null"]},
+    "wandb_report": {"type": ["string", "null"], "pattern": "^https://", "description": "Optional public W&B report URL. An ingestion aid, never the source of truth."},
+    "videos": {"type": "array", "items": {"type": "string", "pattern": "^https://"}, "description": "Linked, not committed."},
+    "verified": {
+      "anyOf": [
+        {"const": false},
+        {
+          "type": "object",
+          "required": ["date", "seeds_hash", "aligned", "delta"],
+          "additionalProperties": false,
+          "properties": {
+            "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+            "seeds_hash": {"type": "string", "minLength": 1},
+            "aligned": {"type": "number"},
+            "delta": {"type": "number", "description": "held-out aligned minus public aligned; a large negative delta suggests overfitting to the public seeds."}
+          }
+        }
+      ]
+    }
+  }
+}
