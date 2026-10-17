@@ -1,0 +1,113 @@
+# Posts the Leaderboard workflow's would-be row on the PR, as one comment
+# that later runs edit in place.
+#
+# Split from leaderboard.yml so the only job with pull-requests: write never
+# touches PR code: workflow_run always runs the default branch's copy of this
+# file, it checks out nothing and runs nothing from the repo, and it treats
+# the downloaded artifact as untrusted text. The PR number in the artifact is
+# only used if that PR's current head is the commit the run checked; the body
+# is length-capped and posted inside a code fence longer than any backtick
+# run in it, so it cannot render markup, mention anyone, or break out of the
+# block. See the trust model at the top of leaderboard.yml.
+name: Leaderboard comment
+
+on:
+  workflow_run:
+    workflows: ["Leaderboard"]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  comment:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion != 'cancelled' &&
+      github.event.workflow_run.conclusion != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Download the would-be row
+        id: download
+        # No artifact when the PR changed no bundles: nothing to say.
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: leaderboard-comment
+          path: ${{ runner.temp }}/leaderboard-comment
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Post or update the PR comment
+        if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          ARTIFACT_DIR: ${{ runner.temp }}/leaderboard-comment
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          MARKER = "<!-- openapps-leaderboard-check -->"
+          LIMIT = 60000  # GitHub caps a comment at 65536 characters
+
+
+          def fenced(body: str, limit: int = LIMIT) -> str:
+              """Untrusted text as one inert code block, at most ``limit`` chars."""
+              body = body.replace("\r", "")
+              body = "".join(c for c in body if c in "\n\t" or c.isprintable())
+              if len(body) > limit:
+                  body = body[:limit] + "\n... (truncated; the full output is in the run summary)"
+              longest = max((len(m) for m in re.findall(r"`+", body)), default=0)
+              fence = "`" * max(3, longest + 1)
+              return f"{fence}text\n{body}\n{fence}"
+
+
+          def gh(*args: str) -> str:
+              return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
+
+
+          def main() -> int:
+              repo, head_sha = os.environ["REPO"], os.environ["HEAD_SHA"]
+              src = Path(os.environ["ARTIFACT_DIR"])
+              pr = (src / "pr.txt").read_text(errors="replace").strip()
+              if not re.fullmatch(r"[0-9]{1,9}", pr):
+                  print(f"::error::artifact pr.txt is not a PR number: {pr[:40]!r}")
+                  return 1
+              current = gh("api", f"repos/{repo}/pulls/{pr}", "--jq", ".head.sha").strip()
+              if current != head_sha:
+                  print(f"::warning::PR #{pr} head is {current}, this run checked {head_sha}; not commenting")
+                  return 0
+              body = (src / "body.md").read_text(encoding="utf-8", errors="replace")
+              text = "\n\n".join([
+                  MARKER,
+                  "**OpenApps-Align leaderboard check** for "
+                  f"`{head_sha[:12]}` ([run summary]({os.environ['RUN_URL']}))",
+                  fenced(body),
+              ])
+              ids = gh(
+                  "api", "--paginate", f"repos/{repo}/issues/{pr}/comments", "--jq",
+                  f'.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("{MARKER}"))) | .id',
+              ).split()
+              with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+                  json.dump({"body": text}, fh)
+              if ids:
+                  gh("api", "-X", "PATCH", f"repos/{repo}/issues/comments/{ids[0]}", "--input", fh.name)
+              else:
+                  gh("api", "-X", "POST", f"repos/{repo}/issues/{pr}/comments", "--input", fh.name)
+              print(f"commented on #{pr}")
+              return 0
+
+
+          if __name__ == "__main__":
+              sys.exit(main())
+          PY
