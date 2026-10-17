@@ -914,7 +914,11 @@
   const THEN_LABELS = { warn: "Warning", require: "Needs", disable: "Blocked" };
   const LOCAL_ACTIONS = ["Validate", "Preview", "Record", "Run"];
   // Rough screen proportions for the preview placeholder, by device option.
-  const DEVICE_RATIO = { desktop: "16 / 10", laptop: "16 / 10", phone: "9 / 18", tablet: "3 / 4" };
+  const DEVICE_RATIO = { desktop: "16 / 9", laptop: "16 / 10", phone: "9 / 19.5", tablet: "41 / 59" };
+  // Per-app axes whose still the preview insets: apps/<app>/<axis>.
+  const STILL_KEY = /^apps\/([^/]+)\/(layout|content)$/;
+  const HEARTBEAT_MS = 5000;
+  const LOG_LINES = 400;
   // Placeholder swatches (background, surface, ink, accent) for known themes;
   // anything else falls back to the default look.
   const THEME_SWATCH = {
@@ -967,6 +971,11 @@
       this.pasteError = "";
       this.extraError = "";
       this.localResult = null;
+      this.live = null;
+      this.touched = null;
+      this.realAgent = false;
+      this.heartbeat = null;
+      this.onPageHide = this.onPageHide.bind(this);
       this.writtenHash = null;
       this.onKeydown = this.onKeydown.bind(this);
       this.onDocClick = this.onDocClick.bind(this);
@@ -989,6 +998,7 @@
     }
 
     disconnectedCallback() {
+      this.onPageHide();
       this.schemeObserver.disconnect();
       document.removeEventListener("keydown", this.onKeydown);
       document.removeEventListener("click", this.onDocClick);
@@ -1096,10 +1106,17 @@
     }
 
     choose(key, values) {
+      this.noteTouched(key);
       this.update(this.withChoice(this.sel, key, values));
     }
 
+    /** Remember the last per-app axis changed: its still is the inset. */
+    noteTouched(key) {
+      if (STILL_KEY.test(key)) this.touched = key;
+    }
+
     toggle(key, value) {
+      this.noteTouched(key);
       const base = (has(this.sel.choices, key) ? this.sel.choices[key] : this.current(key)).filter((v) => v !== null);
       const next = base.some((v) => pyEq(v, value)) ? base.filter((v) => !pyEq(v, value)) : [...base, value];
       this.choose(key, next.length ? next : null);
@@ -1157,6 +1174,8 @@
       }
       this.sel = this.normalized(sel);
       this.writtenHash = raw;
+      // A shared link: inset the last per-app axis it sets.
+      for (const key of Object.keys(this.sel.choices)) this.noteTouched(key);
     }
 
     onHashChange() {
@@ -1760,59 +1779,210 @@
 
     localActions() {
       const slurm = this.current("mode").includes("slurm_cluster");
-      return h("div", { class: "local" },
-        h("span", { class: "label", text: "Local" }),
-        LOCAL_ACTIONS.map((name) => h("button", {
-          type: "button", class: "button", "data-fk": `local:${name}`,
-          disabled: !this.command || (name === "Run" && slurm),
-          title: name === "Run" && slurm ? "The browser never launches cluster jobs; copy the command instead." : null,
-          onclick: () => this.runLocal(name),
-        }, name)),
-        this.localResult ? h("pre", { class: "local-result", "data-part": "local-result", role: "status", text: this.localResult }) : null);
+      const busy = Boolean(this.busy);
+      const result = this.localResult;
+      return h("div", { class: "local", "data-part": "local" },
+        h("div", { class: "local-buttons" },
+          h("span", { class: "label", text: "Local" }),
+          LOCAL_ACTIONS.map((name) => h("button", {
+            type: "button", class: "button", "data-fk": `local:${name}`,
+            disabled: !this.command || busy || (name === "Run" && slurm),
+            title: name === "Run" && slurm ? "The browser never launches cluster jobs; copy the command instead." : null,
+            onclick: () => this.runLocal(name),
+          }, name)),
+          h("label", { class: "tick", title: "Record with the selected agent instead of agent=dummy (it may call a paid API)." },
+            h("input", {
+              type: "checkbox", "data-fk": "local:real-agent", checked: this.realAgent,
+              onchange: (event) => { this.realAgent = event.target.checked; },
+            }),
+            " record with the selected agent")),
+        result ? this.localResultView(result) : null);
+    }
+
+    /** The outcome of the last local action: text, a config diff, or a log. */
+    localResultView(result) {
+      const common = { class: `local-result local-${result.kind}`, "data-part": "local-result", role: "status" };
+      if (result.kind === "diff") {
+        return h("div", common,
+          h("p", { text: result.diff.length
+            ? `Valid. ${result.diff.length} value${result.diff.length === 1 ? "" : "s"} differ from ${result.config}.yaml's defaults:`
+            : `Valid. Nothing differs from ${result.config}.yaml's defaults.` }),
+          result.diff.length ? h("dl", { class: "diff" }, result.diff.map((d) => [
+            h("dt", { text: d.key }),
+            h("dd", {}, h("s", { text: d.default }), " → ", h("b", { text: d.value })),
+          ])) : null);
+      }
+      if (result.kind === "refused") {
+        return h("div", common, h("p", { text: result.text }), h("code", { class: "refused-cmd", text: result.command }));
+      }
+      return h("pre", { ...common, text: result.text });
+    }
+
+    /** An endpoint URL; the `endpoint` attribute may be relative ("/"). */
+    endpoint(path) {
+      return new URL(path, new URL(this.getAttribute("endpoint") || "/", document.baseURI));
+    }
+
+    /** POST JSON with the page's token; -> {status, data}. */
+    async post(path, payload) {
+      const response = await fetch(this.endpoint(path), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Composer-Token": this.getAttribute("token") || "" },
+        body: JSON.stringify(payload || {}),
+      });
+      let data;
+      try { data = await response.json(); } catch (e) { data = { error: `HTTP ${response.status}` }; }
+      return { status: response.status, data };
+    }
+
+    setResult(result) {
+      this.localResult = result;
+      this.renderOutput();
     }
 
     async runLocal(name) {
-      const base = this.getAttribute("endpoint") || location.origin + "/";
-      this.localResult = `${name}…`;
-      this.renderOutput();
+      const action = name.toLowerCase();
+      const selection = toDict(this.sel);
+      this.busy = action;
+      this.setResult({ kind: "text", text: {
+        validate: "Composing with Hydra…",
+        preview: "Starting the apps (about 20 s)…",
+        record: "Starting an episode…",
+        run: "Starting…",
+      }[action] });
       try {
-        const response = await fetch(new URL(name.toLowerCase(), base), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: this.command, selection: toDict(this.sel) }),
-        });
-        const text = await response.text();
-        this.localResult = response.ok ? text : `${name} failed (HTTP ${response.status}): ${text}`;
+        const payload = { selection };
+        if (action === "record") payload.real_agent = this.realAgent;
+        const { status, data } = await this.post(action, payload);
+        if (action === "validate") this.showValidation(status, data);
+        else if (action === "preview") this.showPreview(status, data);
+        else if (status === 409 && data.refused) {
+          this.setResult({ kind: "refused", text: data.error, command: data.command });
+        } else if (data.ok && data.events) {
+          this.busy = null;
+          this.stream(data, action);
+          return;
+        } else this.setResult({ kind: "error", text: `${name} failed: ${data.error || `HTTP ${status}`}` });
       } catch (e) {
-        this.localResult = `${name} failed: ${e.message}`;
+        this.setResult({ kind: "error", text: `${name} failed: ${e.message}` });
       }
+      this.busy = null;
       this.renderOutput();
+    }
+
+    showValidation(status, data) {
+      if (data.ok) this.setResult({ kind: "diff", diff: data.diff || [], config: data.config || "config" });
+      else if (data.override) {
+        this.setResult({ kind: "error", text: `Hydra rejected ${data.override}:\n${data.error}` });
+      } else this.setResult({ kind: "error", text: data.error || `HTTP ${status}` });
+    }
+
+    showPreview(status, data) {
+      if (!data.ok) {
+        this.setResult({ kind: "error", text: `Preview failed: ${data.error || `HTTP ${status}`}${data.log ? "\n\n" + data.log : ""}` });
+        return;
+      }
+      this.live = { kind: "preview", url: data.url, viewport: data.viewport || [1280, 800], device: data.device };
+      this.setResult({ kind: "text", text: `Live preview at ${data.url}` });
+      this.startHeartbeat();
+      this.renderPreview();
+    }
+
+    /** Follow a job's log over SSE; a recording ends by playing its video. */
+    stream(job, action) {
+      if (this.events) this.events.close();
+      const lines = [`$ ${job.command}`];
+      const result = { kind: "log", text: lines.join("\n") };
+      this.setResult(result);
+      const events = (this.events = new EventSource(this.endpoint(job.events)));
+      const flush = () => {
+        result.text = lines.slice(-LOG_LINES).join("\n");
+        const pre = this.shadowRoot.querySelector("[data-part=local-result]");
+        if (pre && this.localResult === result) {
+          pre.textContent = result.text;
+          pre.scrollTop = pre.scrollHeight;
+        }
+      };
+      events.onmessage = (event) => {
+        lines.push(JSON.parse(event.data).line);
+        flush();
+      };
+      events.addEventListener("done", (event) => {
+        events.close();
+        const done = JSON.parse(event.data);
+        lines.push(done.returncode === 0 ? "— finished" : `— exited with ${done.returncode}`);
+        flush();
+        if (action === "record" && done.video) {
+          this.live = { kind: "video", src: this.endpoint(done.video).href };
+          this.renderPreview();
+        } else if (action === "record") {
+          lines.push("No video was written; see the log above.");
+          flush();
+        }
+      });
+      events.onerror = () => {
+        if (events.readyState === EventSource.CLOSED) return;
+        events.close();
+        lines.push("— lost the connection to compose.py");
+        flush();
+      };
+    }
+
+    startHeartbeat() {
+      clearInterval(this.heartbeat);
+      window.addEventListener("pagehide", this.onPageHide);
+      this.heartbeat = setInterval(async () => {
+        try {
+          const { data } = await this.post("preview/heartbeat");
+          if (data.ok && !data.alive && this.live && this.live.kind === "preview") this.stopPreview(false);
+        } catch (e) { /* the next beat retries; the server's TTL is the backstop */ }
+      }, HEARTBEAT_MS);
+    }
+
+    /** Closing the tab: a beacon, since a fetch may not outlive the page. */
+    onPageHide() {
+      if (!this.live || this.live.kind !== "preview") return;
+      clearInterval(this.heartbeat);
+      const token = encodeURIComponent(this.getAttribute("token") || "");
+      try { navigator.sendBeacon(this.endpoint(`preview/stop?token=${token}`)); } catch (e) { /* TTL */ }
+    }
+
+    async stopPreview(tellServer = true) {
+      clearInterval(this.heartbeat);
+      window.removeEventListener("pagehide", this.onPageHide);
+      this.live = null;
+      this.renderPreview();
+      if (tellServer) {
+        try { await this.post("preview/stop"); } catch (e) { /* TTL */ }
+      }
     }
 
     renderPreview() {
       const slot = this.shadowRoot.querySelector("[data-part=preview]");
       if (!slot) return;
+      if (this.live) {
+        slot.replaceChildren(this.liveView());
+        this.fitLive();
+        return;
+      }
       const device = this.current("device")[0] || "desktop";
       const theme = (has(this.catalog.groups, "apps/theme") && this.current("apps/theme")[0]) || "default";
-      const label = (key, value) => {
-        const group = this.catalog.groups[key];
-        const option = group && group.options.find((o) => o.name === value);
-        return option ? option.label : String(value);
-      };
-      const deviceLabel = label("device", device);
-      const themeLabel = label("apps/theme", theme);
+      const deviceLabel = this.optionLabel("device", device);
+      const themeLabel = this.optionLabel("apps/theme", theme);
       const clip = this.manifest && this.manifest.clips && this.manifest.clips[`${device}/${theme}`];
+      const inset = this.inset();
 
       let screen;
       let caption;
       if (clip) {
-        const src = new URL(clip, this.manifestURL).href;
-        screen = h("div", { class: "screen", "data-state": "media", style: `aspect-ratio:${DEVICE_RATIO[device] || "16 / 10"}` },
+        // No fixed aspect ratio: the clip was recorded at this device's own.
+        screen = h("div", { class: "screen", "data-state": "media" },
           h("video", {
-            src, autoplay: true, muted: true, loop: true, playsinline: true,
+            src: new URL(clip, this.manifestURL).href, autoplay: true, muted: true, loop: true, playsinline: true,
             "aria-label": `${deviceLabel}, ${themeLabel} theme`,
             onerror: () => {
               screen.dataset.state = "error";
+              screen.style.aspectRatio = DEVICE_RATIO[device] || "16 / 10";
               screen.replaceChildren(h("p", { class: "screen-note", text: `Couldn't load preview media (${clip}).` }));
             },
           }));
@@ -1830,12 +2000,81 @@
             h("div", { class: "mock-side" }),
             h("div", { class: "mock-main" }, h("b"), h("span"), h("span"), h("span"), h("em")))),
         h("p", { class: "screen-tag" }, h("strong", { text: deviceLabel }), " · ", themeLabel));
-        caption = "Preview media isn't rendered yet; this sketch shows the device and theme you picked.";
+        caption = inset
+          ? "Approximate — run locally for an exact preview."
+          : "Preview media isn't rendered yet; this sketch shows the device and theme you picked.";
       }
       slot.replaceChildren(
         h("figure", { class: "preview" },
-          h("div", { class: "frame", "data-device": device }, screen),
+          // The inset sits on the frame, not the screen: on a phone the screen
+          // is too narrow to hold a desktop-shaped still without hiding it.
+          h("div", { class: "frame", "data-device": device }, screen, inset),
           h("figcaption", { text: caption })));
+    }
+
+    optionLabel(key, value) {
+      const group = this.catalog.groups[key];
+      const option = group && group.options.find((o) => o.name === value);
+      if (option) return option.label;
+      return value === null && group && group.null_label ? group.null_label : String(value);
+    }
+
+    /** The still of the last app axis touched, if the manifest has one. */
+    inset() {
+      const stills = this.manifest && this.manifest.stills;
+      if (!stills || !this.touched) return null;
+      const [, app, axis] = STILL_KEY.exec(this.touched);
+      const value = this.current(this.touched)[0];
+      const src = stills[`${app}/${axis}/${value}`];
+      if (!src) return null;
+      const appGroup = this.catalog.groups[`apps/${app}`];
+      const appLabel = appGroup ? appGroup.label : app;
+      const label = `${appLabel} · ${humanAxis(axis)}: ${this.optionLabel(this.touched, value)}`;
+      return h("figure", { class: "inset", "data-part": "inset" },
+        h("img", {
+          src: new URL(src, this.manifestURL).href, alt: label, loading: "lazy",
+          onerror: (event) => event.target.closest("figure").remove(),
+        }),
+        h("figcaption", { text: label }));
+    }
+
+    /** Local mode: the live apps in a frame, or the episode just recorded. */
+    liveView() {
+      const live = this.live;
+      const controls = h("div", { class: "live-controls" },
+        live.kind === "preview" ? h("a", { class: "link", href: live.url, target: "_blank", rel: "noopener", text: "Open in a tab" }) : null,
+        h("button", {
+          type: "button", class: "link", "data-fk": "live:close",
+          onclick: () => (live.kind === "preview" ? this.stopPreview() : (this.live = null, this.renderPreview())),
+        }, live.kind === "preview" ? "Stop preview" : "Close"));
+      if (live.kind === "video") {
+        return h("figure", { class: "preview" },
+          h("div", { class: "frame" },
+            h("div", { class: "screen", "data-state": "recorded" },
+              h("video", { src: live.src, controls: true, autoplay: true, muted: true, playsinline: true, "data-part": "recording" }))),
+          h("figcaption", {}, "Recorded episode. ", controls));
+      }
+      const [width, height] = live.viewport;
+      return h("figure", { class: "preview" },
+        h("div", { class: "frame", "data-device": live.device },
+          h("div", { class: "screen", "data-state": "live", style: `aspect-ratio:${width} / ${height}` },
+            h("iframe", {
+              src: live.url, title: "Live preview of the apps", "data-part": "live",
+              style: `width:${width}px;height:${height}px`,
+            }))),
+        h("figcaption", {}, `Live — the apps at ${width}×${height}, as an agent sees them. `, controls));
+    }
+
+    /** Scale the iframe's device-sized viewport down to the panel. */
+    fitLive() {
+      const screen = this.shadowRoot.querySelector(".screen[data-state=live]");
+      if (!screen) return;
+      const frame = screen.querySelector("iframe");
+      const fit = () => { frame.style.transform = `scale(${screen.clientWidth / this.live.viewport[0]})`; };
+      if (this.liveObserver) this.liveObserver.disconnect();
+      this.liveObserver = new ResizeObserver(fit);
+      this.liveObserver.observe(screen);
+      fit();
     }
 
     about() {

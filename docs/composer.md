@@ -28,3 +28,19 @@ The selection lives in the page URL, so a link reproduces it. Paste an existing 
 **Paste a command** to load it; anything the composer does not model is kept as an extra
 override and stays in the output. Warnings come from `config/compose_rules.yaml`, and the
 **Fix** button applies the suggested change. Press `c` to copy the command.
+
+The preview is approximate: a short recording for each device and theme, with a still of the
+last app layout or content pack you changed (`scripts/render_composer_media.py` renders them).
+For the exact thing, run the composer locally:
+
+```bash
+uv run compose.py        # http://127.0.0.1:8765
+```
+
+The local page adds four buttons. **Validate** composes the selection with Hydra and lists what
+differs from the defaults, or names the override Hydra rejected. **Preview** serves the apps for
+the selection and frames them live (one preview at a time; closing the tab stops it). **Record**
+runs one episode with the dummy agent and plays the video; tick the box to use the selected agent
+instead. **Run** runs the command with a streaming log, except on SLURM, where it gives you the
+command to submit yourself.
+

@@ -52,6 +52,7 @@ COMPOSER_JS = ASSETS / "composer.js"
 COMPOSER_CSS = ASSETS / "composer.css"
 DOCS_PAGE = ROOT / "docs" / "composer.md"
 FIXTURES = Path(__file__).parent / "fixtures" / "compose"
+LOCAL_TOKEN = "t0ken"
 COMMANDS = json.loads((FIXTURES / "command_cases.json").read_text())
 RULES = json.loads((FIXTURES / "rules_cases.json").read_text())
 
@@ -153,9 +154,18 @@ def site(tmp_path_factory, catalog):
     )
     script = '<script src="assets/composer/composer.js"></script>'
     (root / "index.html").write_text(f"<!doctype html>{head}{embed}{script}")
-    local_embed = embed.replace("catalog.json", "catalog-local.json")
+    local_embed = embed.replace("catalog.json", "catalog-local.json").replace(
+        "<openapps-composer ", f'<openapps-composer token="{LOCAL_TOKEN}" endpoint="/" '
+    )
     (root / "local.html").write_text(f"<!doctype html>{head}{local_embed}{script}")
     (root / "blank.html").write_text(f"<!doctype html>{head}{script}")
+    # The committed media, off to the side so index.html keeps its placeholder.
+    shutil.copytree(ASSETS / "media", root / "assets" / "composer-media")
+    media_embed = embed.replace(
+        "<openapps-composer ",
+        '<openapps-composer media="assets/composer-media/manifest.json" ',
+    )
+    (root / "media.html").write_text(f"<!doctype html>{head}{media_embed}{script}")
     # The shadcn theme's page header, as mkdocs renders it around the page.
     theme_header = (
         '<div id="page-header"><h1>Config Composer</h1>'
@@ -640,3 +650,196 @@ def test_narrow_screens_stack_the_preview_under_the_controls(ui):
     preview = page.locator("openapps-composer [data-part=preview]").bounding_box()
     assert preview["y"] >= controls["y"] + controls["height"] - 1
     assert preview["width"] <= 390
+
+
+# --------------------------------------------------------------------------
+# Preview media (static host)
+# --------------------------------------------------------------------------
+
+MANIFEST = json.loads((ASSETS / "media" / "manifest.json").read_text())
+
+
+def test_preview_plays_the_device_and_theme_clip(ui):
+    page = ui("media.html#device=phone&apps/theme=dark")
+    video = page.locator("openapps-composer [data-part=preview] video")
+    video.wait_for()
+    assert video.get_attribute("src").endswith(MANIFEST["clips"]["phone/dark"])
+    caption = page.locator("openapps-composer [data-part=preview] figcaption").last
+    assert caption.inner_text() == "Approximate — run locally for an exact preview."
+    # The clip really decodes (not just a src that 404s into the error state).
+    page.wait_for_function(
+        """() => document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=preview] video").readyState >= 2"""
+    )
+
+
+def test_the_last_touched_app_still_is_inset(ui):
+    page = ui("media.html#apps/todo/layout=kanban_board")
+    inset = page.locator("openapps-composer [data-part=inset]")
+    inset.wait_for()
+    img = inset.locator("img")
+    assert img.get_attribute("src").endswith(
+        MANIFEST["stills"]["todo/layout/kanban_board"]
+    )
+    assert "Kanban board" in inset.inner_text()
+    # Touching another app's axis moves the inset to that app.
+    page.locator("openapps-composer details.section summary").first.click()
+    page.get_by_role("radiogroup", name="Layout").filter(
+        has=page.get_by_role("radio", name="Sidebar left", exact=True)
+    ).get_by_role("radio", name="Sidebar left", exact=True).click()
+    page.wait_for_function(
+        """want => {
+            const img = document.querySelector("openapps-composer").shadowRoot
+                .querySelector("[data-part=inset] img");
+            return img && img.getAttribute("src").endsWith(want);
+        }""",
+        arg=MANIFEST["stills"]["maps/layout/sidebar_left"],
+    )
+
+
+def test_an_unknown_combination_keeps_the_placeholder(ui):
+    page = ui("index.html#device=phone")
+    preview = page.locator("openapps-composer [data-part=preview]")
+    preview.locator("[data-state=placeholder]").wait_for()
+    assert preview.locator("[data-part=inset]").count() == 0
+
+
+# --------------------------------------------------------------------------
+# Local host: the buttons drive compose.py's endpoints (fetch mocked)
+# --------------------------------------------------------------------------
+
+
+def _mock(page, path: str, body: dict, status: int = 200, calls=None):
+    def handle(route):
+        if calls is not None:
+            calls.append(route.request)
+        route.fulfill(
+            status=status, content_type="application/json", body=json.dumps(body)
+        )
+
+    page.route(f"**/{path}", handle)
+
+
+def _result(page):
+    result = page.locator("openapps-composer [data-part=local-result]")
+    result.wait_for()
+    return result
+
+
+def test_validate_posts_the_selection_with_the_token(ui):
+    page = ui("local.html#device=phone")
+    calls = []
+    diff = [{"key": "device.name", "default": '"desktop"', "value": '"phone"'}]
+    _mock(page, "validate", {"ok": True, "config": "config", "diff": diff}, calls=calls)
+    page.get_by_role("button", name="Validate", exact=True).click()
+    page.wait_for_function(
+        """() => document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=local-result] dl") !== null"""
+    )
+    text = _result(page).inner_text()
+    assert "device.name" in text and '"phone"' in text
+    request = calls[0]
+    assert request.method == "POST"
+    assert request.headers["x-composer-token"] == LOCAL_TOKEN
+    assert request.headers["content-type"] == "application/json"
+    assert json.loads(request.post_data) == {
+        "selection": {"choices": {"device": ["phone"]}}
+    }
+
+
+def test_validate_shows_the_offending_override(ui):
+    page = ui("local.html")
+    _mock(
+        page,
+        "validate",
+        {"ok": False, "override": "apps.todo.x=1", "error": "Could not override"},
+        status=422,
+    )
+    page.get_by_role("button", name="Validate", exact=True).click()
+    page.wait_for_function(
+        """() => (document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=local-result]") || {}).textContent
+            ?.includes("Hydra rejected apps.todo.x=1")"""
+    )
+
+
+def test_run_is_disabled_on_slurm_and_a_refusal_shows_the_command(ui):
+    page = ui("local.html#mode=slurm_cluster&agent=dummy")
+    assert page.get_by_role("button", name="Run", exact=True).is_disabled()
+    page = ui("local.html#agent=dummy")
+    _mock(
+        page,
+        "run",
+        {"ok": False, "refused": True, "error": "nope", "command": "sbatch x"},
+        status=409,
+    )
+    page.get_by_role("button", name="Run", exact=True).click()
+    page.locator("openapps-composer .refused-cmd").wait_for()
+    assert page.locator("openapps-composer .refused-cmd").inner_text() == "sbatch x"
+
+
+def test_preview_frames_the_live_apps_and_stops_them(ui, site):
+    page = ui("local.html#device=phone")
+    stops = []
+    _mock(
+        page,
+        "preview",
+        {
+            "ok": True,
+            "url": f"{site}/blank.html",
+            "viewport": [390, 844],
+            "device": "phone",
+        },
+    )
+    _mock(page, "preview/heartbeat", {"ok": True, "alive": True})
+    _mock(page, "preview/stop", {"ok": True, "stopped": True}, calls=stops)
+    page.get_by_role("button", name="Preview", exact=True).click()
+    frame = page.locator("openapps-composer iframe[data-part=live]")
+    frame.wait_for()
+    assert frame.get_attribute("src") == f"{site}/blank.html"
+    # Scaled from the device's 390 CSS px down to the panel.
+    assert frame.bounding_box()["width"] < 390
+    page.get_by_role("button", name="Stop preview").click()
+    page.locator("openapps-composer [data-state=placeholder]").wait_for()
+    assert stops and stops[0].method == "POST"
+
+
+def test_record_streams_progress_and_plays_the_video(ui):
+    page = ui("local.html")
+    calls = []
+    _mock(
+        page,
+        "record",
+        {
+            "ok": True,
+            "job": "j1",
+            "command": "uv run launch_agent.py agent=dummy record_video=True",
+            "events": "/jobs/j1/events?token=x",
+        },
+        calls=calls,
+    )
+    events = (
+        'data: {"line": "step 1: click"}\n\n'
+        "event: done\n"
+        'data: {"returncode": 0, "video": "/jobs/j1/video?token=x"}\n\n'
+    )
+    page.route(
+        "**/jobs/j1/events*",
+        lambda route: route.fulfill(
+            status=200, content_type="text/event-stream", body=events
+        ),
+    )
+    clip = ASSETS / "media" / MANIFEST["clips"]["desktop/default"]
+    page.route(
+        "**/jobs/j1/video*",
+        lambda route: route.fulfill(
+            status=200, content_type="video/webm", body=clip.read_bytes()
+        ),
+    )
+    page.get_by_label("record with the selected agent").check()
+    page.get_by_role("button", name="Record", exact=True).click()
+    video = page.locator("openapps-composer video[data-part=recording]")
+    video.wait_for()
+    assert "/jobs/j1/video" in video.get_attribute("src")
+    assert "step 1: click" in _result(page).inner_text()
+    assert json.loads(calls[0].post_data)["real_agent"] is True

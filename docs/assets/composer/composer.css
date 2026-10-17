@@ -892,27 +892,80 @@ textarea.text-input {
 }
 
 .local {
+  margin-top: 16px;
+}
+
+.local-buttons {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
 }
 
 .local .label {
   margin-right: 4px;
 }
 
+.tick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
 .local-result {
-  flex-basis: 100%;
-  max-height: 220px;
-  margin: 4px 0 0;
+  max-height: 260px;
+  margin: 10px 0 0;
   padding: 10px 12px;
   overflow: auto;
   border: 1px solid var(--line-soft);
   background: var(--control);
+  font-family: var(--mono);
   font-size: 12px;
+  line-height: 1.5;
   white-space: pre-wrap;
+}
+
+.local-result p {
+  margin: 0 0 6px;
+}
+
+.local-error {
+  border-left: 3px solid var(--block);
+}
+
+.diff {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 2px 14px;
+  margin: 0;
+  white-space: normal;
+}
+
+.diff dt {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.diff dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.diff s {
+  color: var(--muted);
+}
+
+.refused-cmd {
+  display: block;
+  padding: 8px 10px;
+  background: var(--bar);
+  color: var(--bar-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .footnote {
@@ -1069,6 +1122,67 @@ textarea.text-input {
   color: #fff;
   font-family: var(--mono);
   font-size: 11px;
+}
+
+/* The still of the last app axis touched, over the device x theme clip. */
+.frame {
+  position: relative;
+}
+
+.inset {
+  position: absolute;
+  right: 26px;
+  bottom: 26px;
+  width: 44%;
+  margin: 0;
+  border: 1px solid var(--line);
+  background: var(--control);
+  box-shadow: 3px 3px 0 var(--shadow);
+}
+
+/* Beside a narrow screen, overlapping its edge, rather than over it. */
+.frame[data-device="phone"] .inset,
+.frame[data-device="tablet"] .inset {
+  right: auto;
+  left: 10px;
+  bottom: 10px;
+  width: 50%;
+}
+
+.inset img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.preview .inset figcaption {
+  margin: 0;
+  padding: 3px 6px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+/* Local mode: the live apps at their device viewport, scaled to the panel. */
+.screen[data-state="live"] {
+  background: #fff;
+}
+
+.screen[data-state="live"] iframe {
+  display: block;
+  border: 0;
+  transform-origin: 0 0;
+}
+
+.screen[data-state="media"] video,
+.screen[data-state="recorded"] video {
+  height: auto;
+}
+
+.live-controls {
+  display: inline-flex;
+  gap: 12px;
 }
 
 .preview figcaption {
