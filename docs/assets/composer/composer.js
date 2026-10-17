@@ -850,6 +850,11 @@
   }
 
   function applyFixSel(selection, fix, catalog) {
+    return normalizeSel(withFix(selection, fix, catalog), catalog);
+  }
+
+  /** applyFixSel before normalizing: what the UI keeps as its raw state. */
+  function withFix(selection, fix, catalog) {
     const choices = {};
     for (const [k, v] of Object.entries(selection.choices)) choices[k] = [...v];
     const extra = [...selection.extra];
@@ -863,7 +868,7 @@
         else extra.push(token);
       }
     }
-    return normalizeSel({ ...selection, choices, extra }, catalog);
+    return { ...selection, choices, extra };
   }
 
   function checkOptionSel(selection, key, value, catalog) {
@@ -974,7 +979,10 @@
       this.attachShadow({ mode: "open" });
       this.catalog = null;
       this.manifest = null;
-      this.sel = fromDict({});
+      // What the user chose, un-normalized: a value equal to the current
+      // target's default stays put, so switching target or mode never loses
+      // it. `sel` is the normalized view the command and the hash use.
+      this.raw = fromDict({});
       this.openSelect = null;
       this.query = {};
       this.multi = {};
@@ -1057,6 +1065,16 @@
 
     // -- state ---------------------------------------------------------------
 
+    /** The normalized selection (cached per raw state, which is replaced, never mutated). */
+    get sel() {
+      if (this.selFor !== this.raw || this.selCatalog !== this.catalog) {
+        this.selFor = this.raw;
+        this.selCatalog = this.catalog;
+        this.selCache = this.normalized(this.raw);
+      }
+      return this.selCache;
+    }
+
     target() {
       try {
         return resolveTarget(this.sel, this.catalog);
@@ -1067,7 +1085,7 @@
 
     /** The values a key shows as selected: the choice, else the default. */
     current(key) {
-      if (has(this.sel.choices, key)) return this.sel.choices[key];
+      if (has(this.raw.choices, key)) return this.raw.choices[key];
       return [defaultFor(key, this.target(), this.catalog)];
     }
 
@@ -1109,18 +1127,23 @@
           else choices.task_name = next;
         }
       }
-      return this.normalized({ ...sel, choices });
+      return { ...sel, choices };
     }
 
     update(sel) {
-      this.sel = this.normalized(sel);
+      const choices = {};
+      for (const [key, values] of Object.entries(sel.choices)) {
+        const unique = dedupe(values);
+        if (unique.length) choices[key] = unique;
+      }
+      this.raw = { ...sel, choices };
       this.writeHash();
       this.render();
     }
 
     choose(key, values) {
       this.noteTouched(key);
-      this.update(this.withChoice(this.sel, key, values));
+      this.update(this.withChoice(this.raw, key, values));
     }
 
     /** Remember the last per-app axis changed: its still is the inset. */
@@ -1130,7 +1153,7 @@
 
     toggle(key, value) {
       this.noteTouched(key);
-      const base = (has(this.sel.choices, key) ? this.sel.choices[key] : this.current(key)).filter((v) => v !== null);
+      const base = this.current(key).filter((v) => v !== null);
       const next = base.some((v) => pyEq(v, value)) ? base.filter((v) => !pyEq(v, value)) : [...base, value];
       this.choose(key, next.length ? next : null);
     }
@@ -1185,15 +1208,15 @@
           if (values.length) sel.choices[key] = values;
         }
       }
-      this.sel = this.normalized(sel);
+      this.raw = this.normalized(sel);
       this.writtenHash = raw;
       // A shared link: inset the last per-app axis it sets.
-      for (const key of Object.keys(this.sel.choices)) this.noteTouched(key);
+      for (const key of Object.keys(this.raw.choices)) this.noteTouched(key);
     }
 
     onHashChange() {
       if (!this.catalog || location.hash.slice(1) === this.writtenHash) return;
-      this.sel = fromDict({});
+      this.raw = fromDict({});
       this.readHash();
       this.render();
     }
@@ -1315,14 +1338,14 @@
       const catalog = this.catalog;
       const placed = new Set(["mode", ...MAIN_KEYS, ...RUN_KEYS]);
       const target = this.target();
-      const auto = (() => { try { return resolveTarget({ ...this.sel, target: null }, catalog); } catch (e) { return "single"; } })();
+      const auto = (() => { try { return resolveTarget({ ...this.raw, target: null }, catalog); } catch (e) { return "single"; } })();
 
       const main = [
         this.field("target", "Target", this.pills("target", [
           { value: null, label: `Auto (${lowerFirst(catalog.targets[auto].label)})` },
           ...Object.values(catalog.targets).filter((t) => t.pill !== false)
             .map((t) => ({ value: t.name, label: t.label })),
-        ], [this.sel.target], (v) => this.update({ ...this.sel, target: v }))),
+        ], [this.raw.target], (v) => this.update({ ...this.raw, target: v }))),
       ];
       if (has(catalog.groups, "mode")) main.push(this.groupField("mode"));
       for (const key of MAIN_KEYS) {
@@ -1450,7 +1473,7 @@
         }
       }
       if (!this.disableKeys.has(key) || this.current(key).includes(value)) return null;
-      const next = this.withChoice(this.sel, key, [value]);
+      const next = this.normalized(this.withChoice(this.raw, key, [value]));
       const found = evaluateSel(next, this.catalog).find((f) =>
         f.then === "disable" && (!this.findingIds.has(f.rule_id) || ruleKeys(f.rule_id, this.catalog).has(key)));
       return found ? found.reason : null;
@@ -1640,7 +1663,7 @@
           onclick: () => this.choose(key, [!value]),
         }, h("span", { class: "switch-knob", "aria-hidden": "true" }), h("span", { text: value ? "On" : "Off" }));
       } else {
-        const explicit = has(this.sel.choices, key);
+        const explicit = has(this.raw.choices, key);
         control = h("input", {
           type: scalar.type === "int" ? "number" : "text", class: "text-input",
           inputmode: scalar.type === "int" ? "numeric" : null, min: scalar.type === "int" ? "0" : null,
@@ -1661,10 +1684,12 @@
       return this.field(name, label, h("input", {
         type: "number", class: "text-input", inputmode: "numeric", min: "1",
         "aria-labelledby": `label-${name}`, "data-fk": `input:${name}`, title: summary,
-        placeholder: name === "count" ? "agents" : "4", // conduct*.sh: MAX_PARALLEL=4 value: this.sel[name] === null ? "" : String(this.sel[name]),
+        // MAX_PARALLEL: conduct.sh and conduct_slurm.sh both default to 4.
+        placeholder: name === "count" ? "agents" : "4",
+        value: this.sel[name] === null ? "" : String(this.sel[name]),
         oninput: (event) => {
           const raw = event.target.value.trim();
-          this.update({ ...this.sel, [name]: /^\d+$/.test(raw) ? Number(raw) : null });
+          this.update({ ...this.raw, [name]: /^\d+$/.test(raw) ? Number(raw) : null });
         },
       }));
     }
@@ -1676,7 +1701,7 @@
         h("button", {
           type: "button", class: "chip-x", "data-fk": `chip:${field}:${token}`,
           "aria-label": `Remove ${kind} ${token}`,
-          onclick: () => this.update({ ...this.sel, [field]: this.sel[field].filter((t) => t !== token) }),
+          onclick: () => this.update({ ...this.raw, [field]: this.raw[field].filter((t) => t !== token) }),
         }, "×"));
       const chips = [
         ...this.sel.extra.map((t) => chip("extra override", "extra", t)),
@@ -1696,7 +1721,7 @@
             return;
           }
           this.extraError = "";
-          this.update({ ...this.sel, extra: [...this.sel.extra, token] });
+          this.update({ ...this.raw, extra: [...this.raw.extra, token] });
         },
       });
       return h("div", { class: "field wide extras" },
@@ -1752,7 +1777,7 @@
       const findings = evaluateSel(this.sel, catalog);
       this.findingIds = new Set(findings.map((f) => f.rule_id));
       const target = this.target();
-      const auto = !this.sel.target;
+      const auto = !this.raw.target;
 
       const copy = h("button", {
         type: "button", class: "copy", "aria-keyshortcuts": "c", "data-fk": "copy",
@@ -1779,7 +1804,7 @@
           h("span", { class: "finding-reason", text: f.reason }),
           f.fix ? h("button", {
             type: "button", class: "fix", "data-fk": `fix:${f.rule_id}`,
-            onclick: () => this.update(applyFixSel(this.sel, f.fix, catalog)),
+            onclick: () => this.update(withFix(this.raw, f.fix, catalog)),
           }, "Fix: set ", Object.entries(f.fix).map(([k, v]) => `${k}=${formatValue(v)}`).join(" ")) : null)));
       out.replaceChildren(...[
         bar,

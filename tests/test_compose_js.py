@@ -627,6 +627,63 @@ def test_a_pool_agent_equal_to_the_script_default_carries_over_to_slurm(ui):
     expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
 
 
+def wandb_switch(page):
+    return page.get_by_role("switch", name="W&B logging", exact=True)
+
+
+def test_a_choice_equal_to_a_target_default_survives_a_mode_round_trip(ui):
+    """use_wandb=True is the SLURM pool's default. Setting it under Worker
+    pool, then Slurm and back, must not quietly turn it off again."""
+    page = ui("index.html#agent=dummy")
+    pill(page, "Target", "Worker pool").click()
+    page.locator("openapps-composer details.section summary").filter(
+        has_text="Run settings"
+    ).click()
+    wandb_switch(page).click()
+    expect_command(page, "AGENTS=dummy ./scripts/conduct.sh use_wandb=True")
+    pill(page, "Mode", "Slurm cluster").click()
+    expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
+    assert wandb_switch(page).get_attribute("aria-checked") == "true"
+    pill(page, "Mode", "Local").click()
+    expect_command(page, "AGENTS=dummy ./scripts/conduct.sh use_wandb=True")
+    assert wandb_switch(page).get_attribute("aria-checked") == "true"
+    assert pill(page, "Target", "Worker pool").get_attribute("aria-checked") == "true"
+
+
+def test_an_app_choice_survives_a_sweep_single_round_trip(ui):
+    page = ui("index.html#apps/theme=dark")
+    pill(page, "Target", "Sweep").click()
+    expect_command(
+        page,
+        "uv run launch_parallel_agents.py "
+        "'parallel_tasks.app_variations=[[\"apps/theme=dark\"]]' "
+        "'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+    )
+    pill(page, "Target", "Single run").click()
+    expect_command(page, "uv run launch_agent.py apps/theme=dark")
+
+
+def test_the_count_fields_show_their_values(ui):
+    page = ui("index.html#count=3&max_parallel=2")
+    page.locator("openapps-composer details.section summary").filter(
+        has_text="Run settings"
+    ).click()
+    field = page.locator("openapps-composer [data-fk='input:count']")
+    assert field.input_value() == "3"
+    field = page.locator("openapps-composer [data-fk='input:max_parallel']")
+    assert field.input_value() == "2"
+    assert field.get_attribute("placeholder") == "4"
+
+
+def test_an_agent_equal_to_the_sweep_default_survives_a_switch_to_single(ui):
+    """agent=dummy is config_parallel_tasks' default, not config.yaml's."""
+    page = ui("index.html#target=sweep")
+    page.get_by_role("button", name=re.compile("^Agent")).click()
+    page.get_by_role("option", name="Dummy / smoke test", exact=True).click()
+    pill(page, "Target", "Single run").click()
+    expect_command(page, "uv run launch_agent.py agent=dummy")
+
+
 def test_local_only_buttons_need_local_capabilities(ui):
     page = ui()
     assert page.get_by_role("button", name="Validate").count() == 0
