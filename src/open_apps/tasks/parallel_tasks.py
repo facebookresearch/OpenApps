@@ -10,6 +10,12 @@ import hydra
 ALL_TASKS = "all"
 
 
+def _is_device_override(override: str) -> bool:
+    """``device=phone`` / ``device.viewport=[..]`` (with or without ``+``/``++``)."""
+    key = str(override).lstrip("+").split("=", 1)[0]
+    return key == "device" or key.startswith(("device.", "device/"))
+
+
 class ParallelTasksConfig(ABC):
     """Defines method for creating multiple experiment configs to be run in parallel."""
 
@@ -64,6 +70,12 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
                 config_name="config", overrides=overrides
             )
             config.apps = config_with_overrides.apps
+            # Device is a root-level group, not under `apps`, so the swap above
+            # drops it; `apps.device`, the viewport and the input model all
+            # interpolate `${device}` from the root, so copying the node is all
+            # it takes to make device a cell axis like theme or content.
+            if any(_is_device_override(o) for o in app_variation):
+                config.device = config_with_overrides.device
             # for logging, track app overrides
             config.app_overrides = app_variation
             configs.append(config)
