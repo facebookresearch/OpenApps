@@ -1,0 +1,72 @@
+name: New task
+description: Propose a task (goal + reward) for the OpenApps benchmark.
+title: "[Task] "
+labels: ["benchmark", "task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A task is a goal plus a reward computed from app state, never from the agent's messages.
+        See [Contributing benchmark content](https://facebookresearch.github.io/OpenApps/contributing-benchmarks/#a-task).
+  - type: checkboxes
+    id: apps
+    attributes:
+      label: App(s)
+      options:
+        - label: Todo
+        - label: Calendar
+        - label: Messenger
+        - label: Maps
+        - label: Code editor
+        - label: Online shop
+        - label: OpenBanking
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal text
+      description: Exactly what the agent is told. Quote every value it must type.
+      placeholder: Add 'Pick up dry cleaning' to my todo list.
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: How success is judged from state
+      description: Which rows are added, removed or changed when the task is done, and which seeded items it relies on.
+    validations:
+      required: true
+  - type: dropdown
+    id: task_class
+    attributes:
+      label: Task class
+      options:
+        - AddEventTask
+        - RemoveEventTask
+        - AddToDoTask
+        - MarkToDoDoneTask
+        - DeleteToDoTask
+        - SendMessageTask
+        - SavePlaceTask
+        - RemoveLandmarkTask
+        - EditFileTask
+        - NavigateToAppTask
+        - CompositeTask
+        - New class (explain below)
+    validations:
+      required: true
+  - type: dropdown
+    id: irreversible
+    attributes:
+      label: Does completing it change irreversible state?
+      description: e.g. deletes a row, sends a message, places an order (see the irreversible blocks in config/apps/<app>/default.yaml).
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Target file (original_tasks.yaml or a standalone set), why it is interesting, a draft YAML entry.

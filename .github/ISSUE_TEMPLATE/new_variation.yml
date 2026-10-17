@@ -1,0 +1,56 @@
+name: New variation
+description: Propose a content pack, layout or theme.
+title: "[Variation] "
+labels: ["benchmark", "variation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Variations change how the apps look or what they contain, never a task's goal or reward.
+        See [Contributing benchmark content](https://facebookresearch.github.io/OpenApps/contributing-benchmarks/#a-variation).
+  - type: dropdown
+    id: axis
+    attributes:
+      label: Axis
+      options:
+        - content
+        - layout
+        - theme
+    validations:
+      required: true
+  - type: checkboxes
+    id: apps
+    attributes:
+      label: Apps affected
+      description: A theme applies to every app unless overridden per app.
+      options:
+        - label: Start page
+        - label: Todo
+        - label: Calendar
+        - label: Messenger
+        - label: Maps
+        - label: Code editor
+        - label: Online shop
+        - label: OpenBanking
+  - type: dropdown
+    id: adversarial
+    attributes:
+      label: Adversarial?
+      description: "Does it tell the agent its goal is already achieved? Such packs must set `adversarial: true`."
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What changes, and what it measures
+      description: For content, confirm every seed item a task references is kept. For a layout, describe the structure (it also needs a rendering branch in the app).
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Screenshots, references, a draft YAML file.

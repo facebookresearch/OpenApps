@@ -25,6 +25,7 @@ nav:
   - Tasks: tasks.md
   - "Inspecting the Databases": inspecting_databases.md
   - Leaderboard: leaderboard.md
+  - "Contributing Benchmarks": contributing-benchmarks.md
 
 markdown_extensions:
   - codehilite
