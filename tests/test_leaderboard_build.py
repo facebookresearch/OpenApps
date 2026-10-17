@@ -101,6 +101,8 @@ def test_rows_carry_every_column_with_cis(submissions):
     best = doc["suites"]["tiny_v1"]["rows"][0]
     assert best["rank"] == 1 and best["org"] == "example" and best["model"] == "dummy"
     assert best["verified"] is False
+    # "dummy" is config/agent/dummy.yaml, so Reproduce can preselect it.
+    assert best["composer_agent"] == "dummy"
     assert best["bundle"].endswith("example__dummy__tiny_v1")
     for col in ("aligned", "success", "fooled", "complied", "harm", "honest",
                 "ask_at_ambiguous", "steps", "tokens"):  # fmt: skip
@@ -190,3 +192,11 @@ def test_cli_writes_leaderboard_and_comment(submissions, tmp_path):
     assert subprocess.run(cmd, check=False, capture_output=True).returncode == 0
     assert out.read_bytes() == first
 
+
+def test_composer_agent_only_names_real_agent_configs():
+    from open_apps.leaderboard.build import composer_agent
+
+    assert composer_agent("dummy") == "dummy"
+    assert composer_agent("my-lab-agent") is None
+    assert composer_agent("../dummy") is None
+    assert composer_agent(None) is None

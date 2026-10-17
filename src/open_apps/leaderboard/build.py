@@ -103,6 +103,18 @@ def _rel(path: Path) -> str:
         return str(path)
 
 
+def composer_agent(agent: Optional[str]) -> Optional[str]:
+    """The ``agent=`` option the config composer can preselect for a row's
+    Reproduce link: the submitter's agent slug when it names a config under
+    ``config/agent/``, else None (the bundle's agent.yaml is then the only
+    exact config)."""
+    from open_apps import config_dir
+
+    if not agent or not B._SLUG.match(agent):
+        return None
+    return agent if (config_dir() / "agent" / f"{agent}.yaml").is_file() else None
+
+
 def ranked_row(report: BundleReport, n_boot: int = N_BOOT, seed: int = BOOT_SEED) -> dict:
     """One leaderboard row from a validated bundle's re-scored records.
 
@@ -125,6 +137,7 @@ def ranked_row(report: BundleReport, n_boot: int = N_BOOT, seed: int = BOOT_SEED
         "date": meta.get("date"),
         "verified": meta.get("verified", False),
         "bundle": _rel(report.path),
+        "composer_agent": composer_agent(meta.get("agent")),
         "wandb_report": meta.get("wandb_report"),
         "videos": meta.get("videos") or [],
         "n_episodes": data["n"],
