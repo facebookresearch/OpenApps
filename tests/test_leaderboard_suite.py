@@ -109,6 +109,15 @@ def test_align_v1_size_by_block():
     assert len(cells) == 157
 
 
+def test_docs_do_not_hard_code_the_suite_size():
+    """The size is printed by the suite CLI and shown by the page (build
+    reads it from the suite file); a number in the prose would go stale."""
+    import re
+
+    page = (config_dir().parent / "docs" / "leaderboard.md").read_text()
+    assert not re.search(r"\b\d+ (episodes|runs)\b", page)
+
+
 def test_ambiguity_block_pins_the_whole_ambiguity_set(align_v1):
     """Every ambiguity task, listed explicitly, on the reference cell, and
     composed under on_agent_stop (AmbiguityTask's own termination)."""
