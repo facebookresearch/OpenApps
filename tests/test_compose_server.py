@@ -13,6 +13,7 @@ group is gone afterwards -- the point of the endpoint is that nothing it
 starts outlives it.
 """
 
+import json
 import time
 import urllib.request
 
@@ -28,6 +29,7 @@ from open_apps.compose.server import (
     checked_selection,
     create_app,
     plan,
+    run_refusal,
     single_view,
 )
 
@@ -174,6 +176,69 @@ def test_run_refuses_a_slurm_sweep_too(client, composer):
     assert response.json()["command"].startswith(
         "uv run launch_parallel_agents.py mode=slurm_cluster"
     )
+
+
+@pytest.mark.parametrize(
+    "selection",
+    [
+        # Forced target: renders `sbatch scripts/conduct_slurm.sh`.
+        {"target": "slurm_pool"},
+        {"target": "slurm_pool", "choices": {"agent": ["dummy"]}},
+        # The config key launch_parallel_agents.py actually reads.
+        {"choices": {"apps/theme": ["dark", "mono"]}, "extra": ["cluster=slurm"]},
+        {"extra": ["cluster=slurm"]},
+        # Quoted: Hydra unquotes it, a string match does not.
+        {
+            "choices": {"apps/theme": ["dark", "mono"]},
+            "extra": ["mode='slurm_cluster'"],
+        },
+        {"extra": ['mode="slurm_cluster"']},
+        {"extra": ["cluster='slurm'"]},
+    ],
+    ids=json.dumps,
+)
+def test_run_refuses_every_spelling_of_slurm(client, composer, selection):
+    before = dict(composer.jobs)
+    response = post(client, "/run", selection)
+    assert response.status_code == 409, response.text
+    result = response.json()
+    assert result["refused"] and result["command"]
+    assert composer.jobs == before
+
+
+def test_run_refusal_sees_a_hydra_launcher_plugin(catalog):
+    """Hydra's own overrides are refused at the door (see Token validation);
+    the resolved-plan check would refuse a SLURM launcher even past it."""
+    extra = ["hydra.mode=MULTIRUN", "hydra/launcher=submitit_slurm"]
+    assert "launcher" in run_refusal(Selection(extra=extra), catalog)
+
+
+def test_run_refusal_allows_the_local_scripts(catalog):
+    assert run_refusal(Selection(), catalog) is None
+    assert (
+        run_refusal(Selection(choices={"apps/theme": ["dark", "mono"]}), catalog)
+        is None
+    )
+    assert (
+        run_refusal(Selection(choices={"agent": ["dummy", "claude_4_sonnet"]}), catalog)
+        is None
+    )
+    assert run_refusal(Selection(extra=["mode=local"]), catalog) is None
+
+
+def test_run_refusal_needs_a_known_program(catalog, monkeypatch):
+    import open_apps.compose.server as server
+
+    real = server.plan
+
+    def sbatch_plan(selection, catalog):
+        p = real(selection, catalog)
+        p.argv = ["sbatch", *p.argv]
+        p.first_override += 1
+        return p
+
+    monkeypatch.setattr(server, "plan", sbatch_plan)
+    assert "sbatch" in run_refusal(Selection(), catalog)
 
 
 # --------------------------------------------------------------------------

@@ -264,26 +264,39 @@ def single_view(selection: Selection, catalog: Catalog) -> Selection:
     return Selection(choices=choices, target="single", extra=extra)
 
 
-def is_slurm(selection: Selection) -> bool:
-    """Whether the selection asks for the cluster, by pill or by extra."""
-    if "slurm_cluster" in selection.choices.get("mode", []):
-        return True
-    return any(
-        t.split("=", 1)[0].lstrip("+") == "mode" and t.endswith("slurm_cluster")
-        for t in selection.extra
-    )
-
-
 # ---------------------------------------------------------------------------
 # Validate: compose in-process, diff against the defaults
 # ---------------------------------------------------------------------------
 
 
-def _compose(config_name: str, overrides: list[str]) -> Any:
+def _compose(config_name: str, overrides: list[str], **kwargs: Any) -> Any:
     from hydra import compose
 
     with HYDRA_LOCK, hydra_context():
-        return compose(config_name=config_name, overrides=overrides)
+        return compose(config_name=config_name, overrides=overrides, **kwargs)
+
+
+def composition(p: "Plan", selection: Selection) -> tuple[str, list[str]]:
+    """The config name and overrides the planned command would compose.
+
+    Pools compose config.yaml under the first agent with what conduct.sh puts
+    in front of the forwarded overrides (and conduct_slurm.sh its
+    ``use_wandb=True``); the other targets compose exactly their argv.
+    """
+    config_name = TARGETS[p.target].config_name
+    overrides = list(p.overrides)
+    if p.target in POOL_TARGETS:
+        agents = selection.choices.get("agent") or [
+            TARGETS[p.target].defaults.get("agent") or "dummy"
+        ]
+        overrides = [
+            f"agent={agents[0]}",
+            "browsergym_env_args.headless=True",
+            *overrides,
+        ]
+        if p.target == "slurm_pool":
+            overrides = ["use_wandb=True", *overrides]
+    return config_name, overrides
 
 
 def _short(value: Any, limit: int = 120) -> str:
@@ -366,20 +379,7 @@ def validate(selection: Selection, catalog: Catalog) -> dict[str, Any]:
     what conduct.sh puts in front of the forwarded overrides.
     """
     p = plan(selection, catalog)
-    config_name = TARGETS[p.target].config_name
-    overrides = list(p.overrides)
-    composed = list(overrides)
-    if p.target in POOL_TARGETS:
-        agents = selection.choices.get("agent") or [
-            TARGETS[p.target].defaults.get("agent") or "dummy"
-        ]
-        composed = [
-            f"agent={agents[0]}",
-            "browsergym_env_args.headless=True",
-            *overrides,
-        ]
-        if p.target == "slurm_pool":
-            composed = ["use_wandb=True", *composed]
+    config_name, composed = composition(p, selection)
     try:
         cfg = _compose(config_name, composed)
         if p.target == "sweep":
@@ -414,6 +414,52 @@ def _default_composition(config_name: str) -> Any:
     if config_name not in _DEFAULTS:
         _DEFAULTS[config_name] = _compose(config_name, [])
     return _DEFAULTS[config_name]
+
+
+# ---------------------------------------------------------------------------
+# Run: what the browser may start
+# ---------------------------------------------------------------------------
+
+#: The programs /run may start, as the argv words before the first override.
+#: Everything else -- ``sbatch`` above all -- comes back as a command to copy.
+LOCAL_PROGRAMS = (
+    ("uv", "run", "launch_agent.py"),
+    ("uv", "run", "launch_parallel_agents.py"),
+    ("./scripts/conduct.sh",),
+)
+_BASIC_LAUNCHER = "hydra._internal.core_plugins.basic_launcher.BasicLauncher"
+
+
+def run_refusal(selection: Selection, catalog: Catalog) -> str | None:
+    """Why /run will not start ``selection`` here, or None if it may.
+
+    Decided from the resolved plan, not from how the selection spells it:
+    the rendered program must be one of :data:`LOCAL_PROGRAMS`, the target
+    must not be the SLURM pool, and the config the command would compose
+    must say ``cluster: local`` (the key launch_parallel_agents.py dispatches
+    on; ``mode=`` is just the group that usually sets it) with Hydra's own
+    basic, single-run launcher. A pill, a quoted ``mode='slurm_cluster'``, a
+    bare ``cluster=slurm`` or a forced target all end up in the same place.
+    Raises Hydra's exception when the selection does not compose at all.
+    """
+    p = plan(selection, catalog)
+    if p.target == "slurm_pool":
+        return "A SLURM worker pool is submitted with sbatch."
+    program = tuple(p.argv[: p.first_override])
+    if program not in LOCAL_PROGRAMS:
+        return f"The browser only starts local launchers, not {shlex.join(program)}."
+    config_name, overrides = composition(p, selection)
+    cfg = _compose(config_name, overrides, return_hydra_config=True)
+    cluster = cfg.get("cluster")
+    if cluster != "local":
+        return f"The composed config runs on cluster={cluster}."
+    hydra = cfg.hydra
+    if (
+        str(hydra.mode).endswith("MULTIRUN")
+        or hydra.launcher.get("_target_") != _BASIC_LAUNCHER
+    ):
+        return "The composed config hands the run to a Hydra launcher plugin."
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -739,13 +785,15 @@ def create_app(
         return job_json(composer.record(selection, bool(data.get("real_agent"))))
 
     def do_run(selection: Selection, data: dict) -> Response | dict:
-        if is_slurm(selection):
+        why = run_refusal(selection, composer.catalog)
+        if why:
             command = plan(selection, composer.catalog).command
             return JSONResponse(
                 {
                     "ok": False,
                     "refused": True,
-                    "error": "The browser never launches cluster jobs; run this yourself.",
+                    "error": f"{why} The browser never launches cluster jobs; "
+                    "run this yourself.",
                     "command": command,
                 },
                 409,
