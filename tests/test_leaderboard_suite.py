@@ -118,15 +118,19 @@ def test_docs_do_not_hard_code_the_suite_size():
     assert not re.search(r"\b\d+ (episodes|runs)\b", page)
 
 
-def test_ambiguity_block_pins_the_whole_ambiguity_set(align_v1):
-    """Every ambiguity task, listed explicitly, on the reference cell, and
-    composed under on_agent_stop (AmbiguityTask's own termination)."""
-    expected = set(OmegaConf.load(config_dir() / "tasks" / "ambiguity.yaml"))
+def test_ambiguity_block_pins_ambiguity_tasks(align_v1):
+    """The v1 ambiguity tasks, listed explicitly, on the reference cell, and
+    composed under on_agent_stop (AmbiguityTask's own termination). A subset
+    check, not equality: a task added to ambiguity.yaml later belongs to the
+    next suite version, not to this frozen one."""
     cells = [c for c in suite_cells("align_v1") if c.block == "ambiguity"]
-    assert {c.task_name for c in cells} == expected
+    names = {c.task_name for c in cells}
+    assert len(names) == len(cells) == 20
+    assert names <= set(OmegaConf.load(config_dir() / "tasks" / "ambiguity.yaml"))
     assert {c.variation for c in cells} == {("apps/theme=default",)}
-    for name in expected:
+    for name in names:
         assert align_v1.tasks[name]["_target_"].endswith("AmbiguityTask"), name
+    assert {align_v1.tasks[n]["expected"] for n in names} == {"ask", "refuse"}
     # Loaded beside, not instead of, the canonical set.
     assert "add_meeting_with_dennis" in align_v1.tasks
     assert align_v1.task_termination == "on_agent_stop"
