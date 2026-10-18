@@ -111,12 +111,68 @@ _BEACONS = re.compile(r"^/(preview|jobs/[^/]+)/stop$")
 #: allowed -- it is OmegaConf interpolation (``${oc.env:HOME}``) -- ``$(`` not.
 SHELL_META = re.compile(r"[;&|`<>\\\n\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\$\(")
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-#: Environment variables a request may not set for /run: each changes what
-#: gets executed or loaded, not how a run is configured.
-_ENV_DENY = re.compile(
-    r"^(PATH|IFS|ENV|BASH_ENV|SHELLOPTS|PS4|PROMPT_COMMAND|HOME|"
-    r"LD_\w*|DYLD_\w*|PYTHON\w*|UV_\w*|VIRTUAL_ENV)$"
+
+#: W&B variables a request may set: where a run is filed and how it is
+#: labelled. Explicit rather than ``WANDB_*``: ``WANDB_BASE_URL`` and
+#: ``WANDB_API_KEY`` would send the run (config, screenshots, logs) to
+#: someone else's server or account, and the directory variables move where
+#: files are written and read.
+WANDB_ENV = frozenset(
+    {
+        "WANDB_PROJECT",
+        "WANDB_ENTITY",
+        "WANDB_GROUP",
+        "WANDB_RUN_GROUP",
+        "WANDB_JOB_TYPE",
+        "WANDB_NAME",
+        "WANDB_NOTES",
+        "WANDB_TAGS",
+        "WANDB_MODE",
+        "WANDB_SILENT",
+        "WANDB_CONSOLE",
+    }
 )
+#: Environment variables a request may set. An allowlist, not a denylist:
+#: the variables that change what gets executed or loaded (``PATH``,
+#: ``LD_PRELOAD``, ``PYTHONSTARTUP``, ``BROWSER``, ``GIT_SSH_COMMAND``, ...)
+#: are an open-ended set, while the ones a run is configured with are few.
+#: These are what ``scripts/conduct*.sh`` read as ``${NAME:-default}`` --
+#: the worker-pool knobs the composer renders plus the vLLM node -- and the
+#: W&B labels above; a test keeps the list in step with the scripts.
+ENV_ALLOWLIST = (
+    frozenset(
+        {
+            "AGENTS",
+            "COUNT",
+            "MAX_PARALLEL",
+            "HEADLESS",
+            "LOG_DIR",
+            "WANDB_GROUP",
+            "VLLM_HOST",
+            "VLLM_MODEL",
+            "VLLM_PORT",
+        }
+    )
+    | WANDB_ENV
+)
+
+#: Config keys an extra override may not touch (after ``+``/``++``/``~``):
+#: Hydra's own settings -- callbacks, launchers, sweepers, search path --
+#: name classes to import and run.
+_HYDRA_KEY = re.compile(r"^(_global_\.)?hydra([./]|$)")
+#: Keys ``hydra.utils.instantiate`` acts on. The repo instantiates ``agent``,
+#: ``browsergym_env_args``, ``parallel_tasks`` and task configs, so one of
+#: these anywhere in an override -- key path or dict value -- can name any
+#: callable to run.
+INSTANTIATE_KEYS = ("_target_", "_args_", "_partial_", "_recursive_")
+#: Resolvers an interpolation may call: read-only lookups. Everything else
+#: (``oc.decode``, ``oc.create``, ...) builds config nodes from strings,
+#: which is a way around the checks above. The repo registers no resolvers of
+#: its own; ``hydra`` is Hydra's read-only view of its runtime config
+#: (``${hydra:runtime.cwd}``, as config/mode/local.yaml uses).
+SAFE_RESOLVERS = frozenset({"oc.env", "now", "oc.select", "hydra"})
+#: ``${name:`` -> a resolver call; ``${a.b}`` (no colon) is a plain reference.
+_RESOLVER = re.compile(r"\$\{\s*([^:}\s]*)\s*(:?)")
 # The cheap stand-in for the shop's 999-product pack (see catalog._FAST_OVERRIDES).
 _FAST = "apps/onlineshop/content=default"
 
@@ -145,12 +201,36 @@ def check_token(token: str, what: str) -> str:
 
 
 def check_override(token: str) -> str:
-    """An extra override: safe characters, and valid Hydra override grammar."""
+    """An extra override that configures a run and cannot run code.
+
+    Valid Hydra override grammar; no key under ``hydra`` (as the key or the
+    ``@package``); no :data:`INSTANTIATE_KEYS` anywhere in it; and no
+    interpolation calling a resolver outside :data:`SAFE_RESOLVERS`. A link
+    can carry any override into the page, so this -- not the page -- is what
+    stands between a crafted URL and ``+hydra.callbacks.x._target_=os.system``.
+    """
     check_token(token, "override")
     try:
-        OverridesParser.create().parse_override(token)
+        override = OverridesParser.create().parse_override(token)
     except HydraException as exc:
         raise RequestError(f"{token!r} is not a Hydra override: {exc}") from None
+    for path in (override.key_or_group, override.package or ""):
+        if _HYDRA_KEY.match(path):
+            raise RequestError(
+                f"{token!r} sets Hydra's own config (launchers, callbacks), "
+                "which can run code; run it yourself"
+            )
+    for key in INSTANTIATE_KEYS:
+        if key in token:
+            raise RequestError(
+                f"{token!r} contains {key}, which names code for Hydra to run"
+            )
+    for name, call in _RESOLVER.findall(token):
+        if call and name not in SAFE_RESOLVERS:
+            raise RequestError(
+                f"{token!r} calls the resolver {name!r}; only "
+                f"{', '.join(sorted(SAFE_RESOLVERS))} are allowed here"
+            )
     return token
 
 
@@ -158,9 +238,10 @@ def checked_selection(data: Any, catalog: Catalog) -> Selection:
     """A :class:`Selection` from request JSON, every value checked.
 
     Group values must be options of the group, scalars must have the
-    catalog's type (and ``task_name`` must name a task), extras must parse as
-    overrides, env names must be plain and not on :data:`_ENV_DENY`. What
-    passes is exactly what the static page could have produced.
+    catalog's type (and ``task_name`` must name a task), extras must pass
+    :func:`check_override`, env names must be on :data:`ENV_ALLOWLIST`. What
+    passes is a subset of what the static page can produce: the page renders
+    any extra or env a link brings in, but only these may reach a process.
     """
     if not isinstance(data, dict):
         raise RequestError("selection must be an object")
@@ -208,8 +289,11 @@ def checked_selection(data: Any, catalog: Catalog) -> Selection:
     env = []
     for assignment in data.get("env") or []:
         name, sep, value = str(assignment).partition("=")
-        if not sep or not _ENV_NAME.match(name) or _ENV_DENY.match(name):
-            raise RequestError(f"env {assignment!r} is not allowed")
+        if not sep or not _ENV_NAME.match(name) or name not in ENV_ALLOWLIST:
+            raise RequestError(
+                f"env {assignment!r} is not allowed; the browser may set "
+                f"{', '.join(sorted(ENV_ALLOWLIST))}"
+            )
         if value:
             check_token(value, f"env {name}")
         env.append(f"{name}={value}")

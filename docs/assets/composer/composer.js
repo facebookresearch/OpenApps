@@ -996,6 +996,7 @@
       this.touched = null;
       this.realAgent = false;
       this.heartbeat = null;
+      this.linkReview = null;
       this.onPageHide = this.onPageHide.bind(this);
       this.writtenHash = null;
       this.onKeydown = this.onKeydown.bind(this);
@@ -1210,6 +1211,11 @@
       }
       this.raw = this.normalized(sel);
       this.writtenHash = raw;
+      // Locally, a link's extras, env and sbatch options reach a process, and
+      // anyone can craft a link: hold Preview / Record / Run until the user
+      // has looked at them (compose.py re-checks them all the same).
+      const brought = [...sel.extra, ...sel.env, ...sel.sbatch_args];
+      this.linkReview = this.catalog.capabilities === "local" && brought.length ? brought : null;
       // A shared link: inset the last per-app axis it sets.
       for (const key of Object.keys(this.raw.choices)) this.noteTouched(key);
     }
@@ -1815,16 +1821,31 @@
       ].filter(Boolean)); // replaceChildren would print a null as "null"
     }
 
+    /** The overrides a link brought in that are still selected and unreviewed. */
+    pendingReview() {
+      if (!this.linkReview) return [];
+      const present = new Set([...this.raw.extra, ...this.raw.env, ...this.raw.sbatch_args]);
+      return this.linkReview.filter((t) => present.has(t));
+    }
+
     localActions() {
       const slurm = this.current("mode").includes("slurm_cluster");
       const busy = Boolean(this.busy);
       const result = this.localResult;
+      const review = this.pendingReview();
       return h("div", { class: "local", "data-part": "local" },
+        review.length ? h("div", { class: "link-review", role: "alert", "data-part": "link-review" },
+          h("p", { text: "This link adds overrides — review before running:" }),
+          h("ul", {}, review.map((t) => h("li", {}, h("code", { text: t })))),
+          h("button", {
+            type: "button", class: "button", "data-fk": "local:reviewed",
+            onclick: () => { this.linkReview = null; this.renderOutput(); },
+          }, "I've reviewed them")) : null,
         h("div", { class: "local-buttons" },
           h("span", { class: "label", text: "Local" }),
           LOCAL_ACTIONS.map((name) => h("button", {
             type: "button", class: "button", "data-fk": `local:${name}`,
-            disabled: !this.command || busy || (name === "Run" && slurm),
+            disabled: !this.command || busy || (name === "Run" && slurm) || (name !== "Validate" && review.length > 0),
             title: name === "Run" && slurm ? "The browser never launches cluster jobs; copy the command instead." : null,
             onclick: () => this.runLocal(name),
           }, name)),
@@ -1880,6 +1901,7 @@
 
     async runLocal(name) {
       const action = name.toLowerCase();
+      if (action !== "validate" && this.pendingReview().length) return;
       const selection = toDict(this.sel);
       this.busy = action;
       this.setResult({ kind: "text", text: {

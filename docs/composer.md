@@ -47,3 +47,9 @@ runs one episode with the dummy agent and plays the video; tick the box to use t
 instead. **Run** runs the command with a streaming log, except on SLURM, where it gives you the
 command to submit yourself.
 
+Because a link can carry extra overrides and environment variables, the local page holds Preview,
+Record and Run until you confirm the ones a link brought in. The server refuses anything that could
+run code regardless: Hydra's own settings (`hydra.*`, `hydra/launcher=...`), instantiation keys
+(`_target_` and friends), resolvers other than `oc.env`, `oc.select`, `now` and `hydra`, and
+environment variables other than the worker-pool knobs and W&B labels.
+

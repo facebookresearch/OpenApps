@@ -910,3 +910,56 @@ def test_record_streams_progress_and_plays_the_video(ui):
     assert "/jobs/j1/video" in video.get_attribute("src")
     assert "step 1: click" in _result(page).inner_text()
     assert json.loads(calls[0].post_data)["real_agent"] is True
+
+
+# --------------------------------------------------------------------------
+# Local host: a crafted link cannot run anything unreviewed
+# --------------------------------------------------------------------------
+
+RUNNERS = ("Preview", "Record", "Run")
+
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "extra=apps.todo.title%3DX",
+        "env=WANDB_GROUP%3Dg",
+        "mode=slurm_cluster&agent=dummy&sbatch=--qos%3Dq",
+    ],
+)
+def test_a_link_with_overrides_needs_review_before_running(ui, fragment):
+    page = ui(f"local.html#agent=dummy&{fragment}")
+    banner = page.locator("openapps-composer [data-part=link-review]")
+    banner.wait_for()
+    assert "This link adds overrides" in banner.inner_text()
+    for name in RUNNERS:
+        assert page.get_by_role("button", name=name, exact=True).is_disabled(), name
+    # Validate only composes; it is how you review them.
+    assert page.get_by_role("button", name="Validate", exact=True).is_enabled()
+    page.get_by_role("button", name="I've reviewed them").click()
+    assert banner.count() == 0
+    run_ok = "slurm" not in fragment  # Run stays off on SLURM regardless
+    assert page.get_by_role("button", name="Preview", exact=True).is_enabled()
+    assert page.get_by_role("button", name="Run", exact=True).is_enabled() == run_ok
+
+
+def test_a_link_without_overrides_runs_straight_away(ui):
+    page = ui("local.html#agent=dummy&device=phone")
+    assert page.locator("openapps-composer [data-part=link-review]").count() == 0
+    for name in RUNNERS:
+        assert page.get_by_role("button", name=name, exact=True).is_enabled(), name
+
+
+def test_overrides_you_add_yourself_need_no_review(ui):
+    page = ui("local.html")
+    box = page.get_by_label("Add an extra override")
+    box.fill("apps.todo.title=Mine")
+    box.press("Enter")
+    expect_command(page, "uv run launch_agent.py apps.todo.title=Mine")
+    assert page.locator("openapps-composer [data-part=link-review]").count() == 0
+    assert page.get_by_role("button", name="Run", exact=True).is_enabled()
+
+
+def test_the_static_page_shows_no_review_banner(ui):
+    page = ui("index.html#extra=apps.todo.title%3DX")
+    assert page.locator("openapps-composer [data-part=link-review]").count() == 0

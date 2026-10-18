@@ -895,6 +895,26 @@ textarea.text-input {
   margin-top: 16px;
 }
 
+.link-review {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--block);
+  background: var(--note-bg);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.link-review p,
+.link-review ul {
+  margin: 0 0 8px;
+}
+
+.link-review code {
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .local-buttons {
   display: flex;
   flex-wrap: wrap;

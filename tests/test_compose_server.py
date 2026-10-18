@@ -23,10 +23,12 @@ from starlette.testclient import TestClient
 
 from open_apps.compose.catalog import build_catalog
 from open_apps.compose.command import Selection
-from open_apps.compose.live import group_alive
+from open_apps.compose.live import REPO_ROOT, group_alive
 from open_apps.compose.server import (
     Composer,
     RequestError,
+    ENV_ALLOWLIST,
+    WANDB_ENV,
     checked_selection,
     cookie_name,
     create_app,
@@ -351,6 +353,103 @@ def test_token_validation_rejects_shell_metacharacters(catalog, client, selectio
     with pytest.raises(RequestError):
         checked_selection(selection, catalog)
     assert post(client, "/run", selection).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        # Hydra's own config: callbacks, launchers and sweepers are code.
+        "+hydra.callbacks.x._target_=os.system",
+        "hydra.mode=MULTIRUN",
+        "hydra/launcher=submitit_slurm",
+        "~hydra.output_subdir",
+        "++hydra.job.chdir=True",
+        "hydra=x",
+        "apps/theme@hydra.callbacks=dark",
+        # Instantiation keys anywhere: agent, tasks, browsergym_env_args and
+        # parallel_tasks all go through hydra.utils.instantiate.
+        "agent._target_=os.system",
+        "+parallel_tasks._args_=[id]",
+        "agent._partial_=true",
+        "browsergym_env_args._recursive_=false",
+        "agent={_target_:os.system,_args_:[id]}",
+        # Resolvers outside the safe set.
+        "logs_dir=${oc.decode:'{a: 1}'}",
+        "logs_dir=${oc.create:{}}",
+        "logs_dir=${ oc.decode :x}",
+        "apps.todo.title=${oc.env:HOME}${oc.decode:x}",
+        "apps.todo.title=[${oc.dict.keys:apps}]",
+    ],
+)
+def test_overrides_that_could_run_code_are_refused(catalog, client, token):
+    with pytest.raises(RequestError):
+        checked_selection({"extra": [token]}, catalog)
+    for path in ("/validate", "/run"):
+        assert post(client, path, {"extra": [token]}).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "logs_dir=${oc.env:HOME}/runs",
+        "logs_dir=/tmp/${now:%Y-%m-%d}",
+        "apps.todo.title=${oc.select:apps.todo.name,Todo}",
+        "logs_dir=${hydra:runtime.cwd}/runs",
+        "databases_dir=${logs_dir}/db",
+        "apps.todo.title=target practice",
+    ],
+)
+def test_safe_interpolations_pass(catalog, token):
+    assert checked_selection({"extra": [token]}, catalog).extra == [token]
+
+
+@pytest.mark.parametrize(
+    "assignment",
+    [
+        "LD_PRELOAD=/tmp/x.so",
+        "DYLD_INSERT_LIBRARIES=/tmp/x.dylib",
+        "PATH=/tmp",
+        "PYTHONSTARTUP=/tmp/x.py",
+        "BROWSER=/tmp/x",
+        "GIT_SSH_COMMAND=id",
+        "NODE_OPTIONS=--require=/tmp/x.js",
+        "WANDB_BASE_URL=http://evil.example",
+        "WANDB_API_KEY=someone-elses",
+        "UV_PYTHON=/tmp/python",
+    ],
+)
+def test_env_outside_the_allowlist_is_refused(catalog, client, assignment):
+    with pytest.raises(RequestError):
+        checked_selection({"env": [assignment]}, catalog)
+    assert post(client, "/run", {"env": [assignment]}).status_code == 400
+
+
+@pytest.mark.parametrize(
+    "assignment",
+    [
+        "AGENTS=dummy",
+        "COUNT=2",
+        "MAX_PARALLEL=1",
+        "HEADLESS=False",
+        "LOG_DIR=runs",
+        "WANDB_GROUP=g",
+        "WANDB_PROJECT=p",
+        "WANDB_MODE=offline",
+        "VLLM_HOST=node-007",
+    ],
+)
+def test_allowlisted_env_passes(catalog, assignment):
+    assert checked_selection({"env": [assignment]}, catalog).env == [assignment]
+
+
+def test_the_env_allowlist_covers_what_the_scripts_read():
+    """Derived from the scripts: every ``${NAME:-default}`` they read is
+    settable (and nothing else from them, beyond the documented W&B list)."""
+    read = set()
+    for script in (REPO_ROOT / "scripts").glob("conduct*.sh"):
+        read |= set(re.findall(r"\$\{([A-Z_][A-Z0-9_]*):-", script.read_text()))
+    assert read and read <= ENV_ALLOWLIST
+    assert ENV_ALLOWLIST - read <= WANDB_ENV
 
 
 @pytest.mark.parametrize(
