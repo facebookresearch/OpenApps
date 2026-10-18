@@ -45,7 +45,8 @@ differs from the defaults, or names the override Hydra rejected. **Preview** ser
 the selection and frames them live (one preview at a time; closing the tab stops it). **Record**
 runs one episode with the dummy agent and plays the video; tick the box to use the selected agent
 instead. **Run** runs the command with a streaming log, except on SLURM, where it gives you the
-command to submit yourself.
+command to submit yourself. While a recording or run is going, **Stop** ends it (with everything it
+started, the apps included), and closing the tab stops it too.
 
 Because a link can carry extra overrides and environment variables, the local page holds Preview,
 Record and Run until you confirm the ones a link brought in. The server refuses anything that could

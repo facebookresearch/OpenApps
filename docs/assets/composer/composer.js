@@ -997,7 +997,9 @@
       this.realAgent = false;
       this.heartbeat = null;
       this.linkReview = null;
+      this.job = null;
       this.onPageHide = this.onPageHide.bind(this);
+      this.onVisibility = this.onVisibility.bind(this);
       this.writtenHash = null;
       this.onKeydown = this.onKeydown.bind(this);
       this.onDocClick = this.onDocClick.bind(this);
@@ -1011,6 +1013,8 @@
       document.addEventListener("keydown", this.onKeydown);
       document.addEventListener("click", this.onDocClick);
       window.addEventListener("hashchange", this.onHashChange);
+      window.addEventListener("pagehide", this.onPageHide);
+      document.addEventListener("visibilitychange", this.onVisibility);
       const css = this.getAttribute("stylesheet") || SCRIPT_URL.replace(/\.js(\?.*)?$/, ".css");
       this.shadowRoot.replaceChildren(
         h("link", { rel: "stylesheet", href: new URL(css, document.baseURI).href }),
@@ -1025,6 +1029,8 @@
       document.removeEventListener("keydown", this.onKeydown);
       document.removeEventListener("click", this.onDocClick);
       window.removeEventListener("hashchange", this.onHashChange);
+      window.removeEventListener("pagehide", this.onPageHide);
+      document.removeEventListener("visibilitychange", this.onVisibility);
     }
 
     /** Light or dark: an explicit `scheme` attribute, else the docs toggle. */
@@ -1845,10 +1851,16 @@
           h("span", { class: "label", text: "Local" }),
           LOCAL_ACTIONS.map((name) => h("button", {
             type: "button", class: "button", "data-fk": `local:${name}`,
-            disabled: !this.command || busy || (name === "Run" && slurm) || (name !== "Validate" && review.length > 0),
+            disabled: !this.command || busy || (name === "Run" && slurm) || (name !== "Validate" && review.length > 0)
+              || (Boolean(this.job) && (name === "Run" || name === "Record")),
             title: name === "Run" && slurm ? "The browser never launches cluster jobs; copy the command instead." : null,
             onclick: () => this.runLocal(name),
           }, name)),
+          this.job ? h("button", {
+            type: "button", class: "button stop", "data-fk": "local:stop",
+            "aria-label": "Stop", title: `Stop the running ${this.job.action}`,
+            onclick: () => this.stopJob(),
+          }, "Stop") : null,
           h("label", { class: "tick", title: "Record with the selected agent instead of agent=dummy (it may call a paid API)." },
             h("input", {
               type: "checkbox", "data-fk": "local:real-agent", checked: this.realAgent,
@@ -1902,6 +1914,7 @@
     async runLocal(name) {
       const action = name.toLowerCase();
       if (action !== "validate" && this.pendingReview().length) return;
+      if (this.job && (action === "run" || action === "record")) return; // one job at a time
       const selection = toDict(this.sel);
       this.busy = action;
       this.setResult({ kind: "text", text: {
@@ -1953,7 +1966,13 @@
       if (this.events) this.events.close();
       const lines = [`$ ${job.command}`];
       const result = { kind: "log", text: lines.join("\n") };
+      // Running: Stop shows, Run and Record wait (renderOutput reads this).
+      this.job = { id: job.job, action };
       this.setResult(result);
+      const finish = () => {
+        if (this.job && this.job.id === job.job) this.job = null;
+        this.renderOutput();
+      };
       const events = (this.events = new EventSource(this.endpoint(job.events)));
       const flush = () => {
         result.text = lines.slice(-LOG_LINES).join("\n");
@@ -1971,7 +1990,8 @@
         events.close();
         const done = JSON.parse(event.data);
         lines.push(done.returncode === 0 ? "— finished" : `— exited with ${done.returncode}`);
-        flush();
+        result.text = lines.slice(-LOG_LINES).join("\n");
+        finish();
         if (action === "record" && done.video) {
           this.live = { kind: "video", src: this.endpoint(done.video).href };
           this.renderPreview();
@@ -1984,32 +2004,61 @@
         if (events.readyState === EventSource.CLOSED) return;
         events.close();
         lines.push("— lost the connection to compose.py");
-        flush();
+        result.text = lines.slice(-LOG_LINES).join("\n");
+        finish();
       };
+    }
+
+    /** Stop the running Record / Run job; its stream then ends with `done`. */
+    async stopJob() {
+      if (!this.job) return;
+      try {
+        const { data } = await this.post(`jobs/${encodeURIComponent(this.job.id)}/stop`);
+        if (!data.ok) this.setResult({ kind: "error", text: `Stop failed: ${data.error}` });
+      } catch (e) {
+        this.setResult({ kind: "error", text: `Stop failed: ${e.message}` });
+      }
     }
 
     startHeartbeat() {
       clearInterval(this.heartbeat);
-      window.addEventListener("pagehide", this.onPageHide);
-      this.heartbeat = setInterval(async () => {
-        try {
-          const { data } = await this.post("preview/heartbeat");
-          if (data.ok && !data.alive && this.live && this.live.kind === "preview") this.stopPreview(false);
-        } catch (e) { /* the next beat retries; the server's TTL is the backstop */ }
-      }, HEARTBEAT_MS);
+      this.heartbeat = setInterval(() => this.beat(), HEARTBEAT_MS);
     }
 
-    /** Closing the tab: a beacon, since a fetch may not outlive the page. */
-    onPageHide() {
+    async beat() {
       if (!this.live || this.live.kind !== "preview") return;
-      clearInterval(this.heartbeat);
-      // A beacon cannot set headers; compose.py accepts its session cookie here.
-      try { navigator.sendBeacon(this.endpoint("preview/stop")); } catch (e) { /* TTL */ }
+      try {
+        const { data } = await this.post("preview/heartbeat");
+        if (data.ok && !data.alive && this.live && this.live.kind === "preview") this.stopPreview(false);
+      } catch (e) { /* the next beat retries; the server's TTL is the backstop */ }
+    }
+
+    /**
+     * Back from a background tab: beat now. Browsers throttle hidden tabs'
+     * timers to about once a minute, so the last beat may be old; the server
+     * waits minutes (PREVIEW_TTL_S), and this resets its clock at once.
+     */
+    onVisibility() {
+      if (document.visibilityState === "visible") this.beat();
+    }
+
+    /**
+     * Closing the tab: beacons, since a fetch may not outlive the page. A
+     * beacon cannot set headers; compose.py accepts its session cookie on
+     * these two routes.
+     */
+    onPageHide() {
+      if (this.live && this.live.kind === "preview") {
+        clearInterval(this.heartbeat);
+        try { navigator.sendBeacon(this.endpoint("preview/stop")); } catch (e) { /* TTL */ }
+      }
+      if (this.job) {
+        try { navigator.sendBeacon(this.endpoint(`jobs/${encodeURIComponent(this.job.id)}/stop`)); } catch (e) { /* stop it from the terminal */ }
+      }
     }
 
     async stopPreview(tellServer = true) {
       clearInterval(this.heartbeat);
-      window.removeEventListener("pagehide", this.onPageHide);
       this.live = null;
       this.renderPreview();
       if (tellServer) {

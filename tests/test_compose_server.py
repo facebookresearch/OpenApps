@@ -146,6 +146,7 @@ def test_the_page_trades_the_url_token_for_a_cookie(composer):
     assert browser.get("/assets/composer/composer.js").status_code == 200
     # ...and the beacons, which cannot set headers.
     assert browser.post("/preview/stop").json()["ok"]
+    assert browser.post("/jobs/nope/stop").status_code == 404  # past the guard
     # A JSON endpoint also wants the header (double submit).
     assert browser.post("/validate", json={"selection": {}}).status_code == 403
     response = browser.post(

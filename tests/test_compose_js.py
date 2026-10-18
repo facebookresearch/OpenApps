@@ -963,3 +963,101 @@ def test_overrides_you_add_yourself_need_no_review(ui):
 def test_the_static_page_shows_no_review_banner(ui):
     page = ui("index.html#extra=apps.todo.title%3DX")
     assert page.locator("openapps-composer [data-part=link-review]").count() == 0
+
+
+# --------------------------------------------------------------------------
+# Local host: running jobs can be stopped; previews survive background tabs
+# --------------------------------------------------------------------------
+
+
+def _start_hanging_job(page, action="run"):
+    """Start a job whose event stream never ends (it is still running)."""
+    _mock(
+        page,
+        action,
+        {
+            "ok": True,
+            "job": "j9",
+            "command": "uv run launch_agent.py",
+            "events": "/jobs/j9/events",
+        },
+    )
+    page.route("**/jobs/j9/events*", lambda route: None)  # never answered
+    page.get_by_role("button", name=action.capitalize(), exact=True).click()
+    page.get_by_role("button", name="Stop", exact=True).wait_for()
+
+
+def test_a_running_job_has_a_stop_button_and_blocks_run_and_record(ui):
+    page = ui("local.html#agent=dummy")
+    stops = []
+    _mock(page, "jobs/j9/stop", {"ok": True}, calls=stops)
+    _start_hanging_job(page)
+    for name in ("Run", "Record"):
+        assert page.get_by_role("button", name=name, exact=True).is_disabled(), name
+    page.get_by_role("button", name="Stop", exact=True).click()
+    page.wait_for_timeout(300)  # let the click's fetch go out
+    assert stops and stops[0].method == "POST"
+    assert stops[0].headers["x-composer-token"] == LOCAL_TOKEN
+
+
+def test_closing_the_page_stops_a_running_job(ui):
+    page = ui("local.html#agent=dummy")
+    stops = []
+    _mock(page, "jobs/j9/stop", {"ok": True}, calls=stops)
+    _start_hanging_job(page, "record")
+    page.evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide'))")
+    page.wait_for_timeout(300)
+    assert stops and stops[0].method == "POST"
+
+
+def test_a_finished_job_frees_run_again(ui):
+    page = ui("local.html#agent=dummy")
+    _mock(
+        page,
+        "run",
+        {
+            "ok": True,
+            "job": "j8",
+            "command": "uv run launch_agent.py",
+            "events": "/jobs/j8/events",
+        },
+    )
+    page.route(
+        "**/jobs/j8/events*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/event-stream",
+            body='event: done\ndata: {"returncode": 0, "video": null}\n\n',
+        ),
+    )
+    page.get_by_role("button", name="Run", exact=True).click()
+    page.wait_for_function(
+        """() => (document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=local-result]") || {}).textContent
+            ?.includes("finished")"""
+    )
+    assert page.get_by_role("button", name="Stop", exact=True).count() == 0
+    assert page.get_by_role("button", name="Run", exact=True).is_enabled()
+
+
+def test_a_preview_beats_as_soon_as_its_tab_is_visible_again(ui, site):
+    page = ui("local.html#device=phone")
+    beats = []
+    _mock(
+        page,
+        "preview",
+        {
+            "ok": True,
+            "url": f"{site}/blank.html",
+            "viewport": [390, 844],
+            "device": "phone",
+        },
+    )
+    _mock(page, "preview/heartbeat", {"ok": True, "alive": True}, calls=beats)
+    _mock(page, "preview/stop", {"ok": True, "stopped": True})
+    page.get_by_role("button", name="Preview", exact=True).click()
+    page.locator("openapps-composer iframe[data-part=live]").wait_for()
+    before = len(beats)  # the interval is 5 s: none yet
+    page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+    page.wait_for_timeout(500)
+    assert len(beats) == before + 1
