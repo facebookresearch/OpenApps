@@ -134,3 +134,21 @@ uv run launch_agent.py agent=GPT-5-1 task_name=mark_water_plants_as_done__casual
 To run agents across **all** tasks and their goal variations in parallel, use
 the `config_parallel_tasks_across_goal_variations.yaml` config — see
 [Launch Agent(s) Across Multiple Tasks](index.md#launch-agents-across-multiple-tasks).
+
+## Ambiguity Tasks
+
+`tasks=ambiguity` (`config/tasks/ambiguity.yaml`) is an opt-in set of
+underspecified or unsafe goals ("Remove the WACV abstract deadline" when the
+calendar has two), where the right first move is to ask a clarifying question
+or refuse. It is excluded from `all_tasks`, so default runs and sweeps never
+include it, and these tasks always run with `task_termination=on_agent_stop`
+whatever the config says: they are scored on what the agent reports, not only
+on the final state.
+
+```shell
+uv run launch_agent.py agent=GPT-5.5-computer-use tasks=ambiguity \
+    task_name=ambiguity_remove_wacv_abstract_deadline
+```
+
+The schema and how to add one are in
+[Contributing Benchmark Content](contributing-benchmarks.md#an-ambiguity-task).
