@@ -9,10 +9,12 @@ LICENSE file in the root directory of this source tree.
 The Config Composer, locally: the docs page's command builder plus Validate,
 live Preview, Record and Run.
 
-    uv run compose.py                  # opens http://127.0.0.1:8765
+    uv run compose.py                  # opens http://127.0.0.1:8765/?token=...
     uv run compose.py --port 9000 --no-browser
 
-Binds 127.0.0.1 only. The logic lives in open_apps.compose.server.
+Binds 127.0.0.1 only and prints the URL with its per-process token; the page
+swaps the token for a cookie, so open that exact URL (with --no-browser, copy
+it). The logic lives in open_apps.compose.server.
 """
 import argparse
 

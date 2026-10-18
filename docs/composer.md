@@ -34,8 +34,11 @@ last app layout or content pack you changed (`scripts/render_composer_media.py` 
 For the exact thing, run the composer locally:
 
 ```bash
-uv run compose.py        # http://127.0.0.1:8765
+uv run compose.py        # opens http://127.0.0.1:8765/?token=…
 ```
+
+It prints the URL with a per-process token, like Jupyter; open that exact URL. The page trades the
+token for a cookie, and the server only answers to that cookie on `127.0.0.1`/`localhost`.
 
 The local page adds four buttons. **Validate** composes the selection with Hydra and lists what
 differs from the defaults, or names the override Hydra rejected. **Preview** serves the apps for

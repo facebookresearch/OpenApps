@@ -14,6 +14,7 @@ starts outlives it.
 """
 
 import json
+import re
 import time
 import urllib.request
 
@@ -27,6 +28,7 @@ from open_apps.compose.server import (
     Composer,
     RequestError,
     checked_selection,
+    cookie_name,
     create_app,
     plan,
     run_refusal,
@@ -67,7 +69,6 @@ def test_serves_the_component_with_local_capabilities(client, composer):
     page = client.get("/")
     assert page.status_code == 200
     assert "<openapps-composer" in page.text
-    assert f'token="{composer.token}"' in page.text
     assert "cdn." not in page.text  # nothing from outside (see open_apps.frontend)
     catalog = client.get("/catalog.json").json()
     assert catalog["capabilities"] == "local"
@@ -75,22 +76,108 @@ def test_serves_the_component_with_local_capabilities(client, composer):
     assert client.get("/assets/composer/composer.js").status_code == 200
 
 
-def test_endpoints_need_the_token_and_a_loopback_host(composer, client):
-    app = create_app(composer, allowed_hosts=("testserver",))
-    with TestClient(app) as anonymous:
-        response = anonymous.post("/validate", json={"selection": {}})
-        assert response.status_code == 403
-        # The beacon's spelling: token in the query string.
-        stop = anonymous.post(f"/preview/stop?token={composer.token}")
-        assert stop.status_code == 200
-    with TestClient(create_app(composer)) as rebound:  # Host: testserver
-        response = rebound.post(
-            "/validate",
-            json={"selection": {}},
-            headers={"X-Composer-Token": composer.token},
-        )
-        assert response.status_code == 403
-        assert "loopback" in response.json()["error"]
+#: Every route, as (method, path): pages, the catalog, assets, endpoints, SSE.
+ROUTES = [
+    ("GET", "/"),
+    ("GET", "/catalog.json"),
+    ("GET", "/assets/composer/composer.js"),
+    ("GET", "/assets/composer/media/manifest.json"),
+    ("POST", "/validate"),
+    ("POST", "/preview"),
+    ("POST", "/preview/stop"),
+    ("POST", "/preview/heartbeat"),
+    ("POST", "/record"),
+    ("POST", "/run"),
+    ("GET", "/jobs/nope/events"),
+    ("GET", "/jobs/nope/video"),
+    ("POST", "/jobs/nope/stop"),
+]
+LOCAL = "http://127.0.0.1:8765"
+
+
+def _request(client, method, path, **kwargs):
+    if method == "POST":
+        kwargs.setdefault("json", {"selection": {}})
+    return client.request(method, path, **kwargs)
+
+
+@pytest.mark.parametrize("method,path", ROUTES)
+def test_a_foreign_host_is_refused_on_every_route(composer, method, path):
+    """DNS rebinding: the right token, the wrong Host."""
+    rebound = TestClient(create_app(composer), base_url="http://evil.example:8765")
+    rebound.cookies.set(cookie_name(8765), composer.token)
+    response = _request(
+        rebound,
+        method,
+        path + f"?token={composer.token}",
+        headers={"X-Composer-Token": composer.token},
+    )
+    assert response.status_code == 403
+    assert "loopback" in response.json()["error"]
+
+
+@pytest.mark.parametrize("method,path", ROUTES)
+def test_every_route_needs_the_token(composer, method, path):
+    anonymous = TestClient(create_app(composer), base_url=LOCAL)
+    assert _request(anonymous, method, path).status_code == 403
+
+
+def test_the_page_trades_the_url_token_for_a_cookie(composer):
+    browser = TestClient(create_app(composer), base_url=LOCAL)
+    assert browser.get("/?token=wrong").status_code == 403
+    login = browser.get(f"/?token={composer.token}", follow_redirects=False)
+    assert login.status_code == 303
+    assert login.headers["location"] == "/"  # the token leaves the address bar
+    cookie = login.headers["set-cookie"]
+    assert cookie.startswith(f"{cookie_name(8765)}={composer.token};")
+    for attribute in ("HttpOnly", "SameSite=strict", "Path=/"):
+        assert attribute.lower() in cookie.lower(), attribute
+    # The cookie alone opens every page and asset...
+    assert browser.get("/").status_code == 200
+    assert browser.get("/catalog.json").status_code == 200
+    assert browser.get("/assets/composer/composer.js").status_code == 200
+    # ...and the beacons, which cannot set headers.
+    assert browser.post("/preview/stop").json()["ok"]
+    # A JSON endpoint also wants the header (double submit).
+    assert browser.post("/validate", json={"selection": {}}).status_code == 403
+    response = browser.post(
+        "/validate",
+        json={"selection": {}},
+        headers={"X-Composer-Token": composer.token},
+    )
+    assert response.status_code == 200
+
+
+def test_the_cookie_is_per_port(composer):
+    """Cookies ignore the port: two composers on one host must not share one."""
+    other = TestClient(create_app(composer), base_url="http://127.0.0.1:9000")
+    other.cookies.set(cookie_name(8765), composer.token)
+    assert other.get("/catalog.json").status_code == 403
+
+
+def test_serve_prints_the_tokenized_url(monkeypatch, capsys, catalog):
+    import uvicorn
+    import webbrowser
+
+    import open_apps.compose.server as server
+
+    opened = []
+    monkeypatch.setattr(server, "build_catalog", lambda **_: catalog)
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: None)
+    monkeypatch.setattr(webbrowser, "open", opened.append)
+    monkeypatch.setattr(server.threading, "Timer", lambda _t, fn, args: _Now(fn, args))
+    server.serve(port=8765, open_browser=True)
+    out = capsys.readouterr().out
+    url = re.search(r"http://127\.0\.0\.1:8765/\?token=\S+", out).group(0)
+    assert opened == [url]
+
+
+class _Now:
+    def __init__(self, fn, args):
+        self.fn, self.args = fn, args
+
+    def start(self):
+        self.fn(*self.args)
 
 
 def test_a_cross_site_simple_post_is_refused(client):

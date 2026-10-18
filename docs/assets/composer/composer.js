@@ -1861,7 +1861,7 @@
       return new URL(path, new URL(this.getAttribute("endpoint") || "/", document.baseURI));
     }
 
-    /** POST JSON with the page's token; -> {status, data}. */
+    /** POST JSON with the page's token (the header compose.py wants on top of its cookie); -> {status, data}. */
     async post(path, payload) {
       const response = await fetch(this.endpoint(path), {
         method: "POST",
@@ -1981,8 +1981,8 @@
     onPageHide() {
       if (!this.live || this.live.kind !== "preview") return;
       clearInterval(this.heartbeat);
-      const token = encodeURIComponent(this.getAttribute("token") || "");
-      try { navigator.sendBeacon(this.endpoint(`preview/stop?token=${token}`)); } catch (e) { /* TTL */ }
+      // A beacon cannot set headers; compose.py accepts its session cookie here.
+      try { navigator.sendBeacon(this.endpoint("preview/stop")); } catch (e) { /* TTL */ }
     }
 
     async stopPreview(tellServer = true) {

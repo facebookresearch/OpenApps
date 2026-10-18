@@ -7,7 +7,7 @@ LICENSE file in the root directory of this source tree.
 
 """The composer's local host: the docs component plus things only a laptop can do.
 
-    uv run compose.py                 # http://127.0.0.1:8765
+    uv run compose.py                 # http://127.0.0.1:8765/?token=...
 
 Serves the same ``<openapps-composer>`` the docs site embeds, with a freshly
 built catalog whose ``capabilities`` is ``local`` -- which is what makes the
@@ -30,10 +30,16 @@ endpoints behind them:
 What may reach a process is narrow on purpose. The client sends a selection,
 never a command: the server re-checks every value against the catalog, every
 extra override against Hydra's grammar, renders the command itself and splits
-it with ``shlex`` into an argv for ``Popen`` -- no shell anywhere. Requests
-must carry the per-process token embedded in the page and a loopback Host, so
-another site open in the same browser cannot drive the endpoints (a plain
-cross-origin POST needs no preflight) and DNS rebinding gets nowhere.
+it with ``shlex`` into an argv for ``Popen`` -- no shell anywhere.
+
+Who may ask is narrow too, the way Jupyter does it. ``serve()`` prints (and
+opens) ``http://127.0.0.1:PORT/?token=...``; that one GET trades the token for
+an HttpOnly, SameSite=Strict cookie and redirects to the bare URL. Every
+request -- page, catalog, assets, endpoints, SSE -- must then name a loopback
+Host (DNS rebinding gets nowhere) and carry the cookie or the token header,
+and the JSON endpoints want the header as well (double submit): another site
+open in the same browser can neither read the page nor drive the endpoints,
+and another local user cannot fetch the token from ``GET /``.
 """
 
 import asyncio
@@ -61,6 +67,7 @@ from starlette.responses import (
     FileResponse,
     HTMLResponse,
     JSONResponse,
+    RedirectResponse,
     Response,
     StreamingResponse,
 )
@@ -91,8 +98,13 @@ DEFAULT_PORT = 8765
 #: A preview whose page has not sent a heartbeat for this long is stopped: the
 #: tab was closed without its beacon arriving (crash, sleep, killed browser).
 PREVIEW_TTL_S = 20.0
-#: Hosts a request may name. Anything else is a rebound DNS name.
-LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "[::1]")
+#: Hosts a request may name. Anything else is a rebound DNS name. (No
+#: ``[::1]``: the server binds 127.0.0.1 only.)
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
+#: POSTs that may authenticate with the cookie alone: the ``pagehide``
+#: beacons, which cannot set headers. SameSite=Strict keeps the cookie off
+#: cross-site requests, so another site still cannot send them.
+_BEACONS = re.compile(r"^/(preview|jobs/[^/]+)/stop$")
 
 #: What a token may not contain, even though no shell ever sees it: command
 #: separators, redirections, substitution and control characters. ``${`` is
@@ -655,6 +667,42 @@ _PAGE = """<!doctype html>
 """
 
 
+def cookie_name(port: int | None) -> str:
+    """The session cookie for the composer on ``port``.
+
+    Per port because cookies ignore ports: two ``compose.py`` on one host
+    would otherwise overwrite each other's token in the browser.
+    """
+    return f"openapps_composer_{port or 80}"
+
+
+def _same(sent: str | None, token: str) -> bool:
+    # Bytes: compare_digest raises on a non-ASCII str, which a header can be.
+    return bool(sent) and secrets.compare_digest(sent.encode(), token.encode())
+
+
+class _Guard:
+    """ASGI middleware: the loopback Host and the token, before any route.
+
+    Middleware rather than a check per handler so nothing mounted later
+    (static files, a new endpoint) can forget it.
+    """
+
+    def __init__(self, app: Any, check: Any) -> None:
+        self.app = app
+        self.check = check
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] == "http":
+            try:
+                self.check(Request(scope))
+            except RequestError as exc:
+                response = JSONResponse({"ok": False, "error": str(exc)}, exc.status)
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
 def create_app(
     composer: Composer | None = None, allowed_hosts: tuple[str, ...] = LOOPBACK_HOSTS
 ):
@@ -663,6 +711,26 @@ def create_app(
     from fasthtml.common import FastHTML
 
     composer = composer or Composer(build_catalog(capabilities="local"))
+
+    def authorize(request: Request) -> None:
+        """Raise :class:`RequestError` (403) unless the request may proceed."""
+        host = (request.headers.get("host") or "").rsplit(":", 1)[0]
+        if host not in allowed_hosts:
+            raise RequestError(f"host {host!r} is not a loopback name", 403)
+        path = request.url.path
+        if request.method == "GET" and path == "/" and "token" in request.query_params:
+            return  # the login: index() checks the token and sets the cookie
+        header = request.headers.get("x-composer-token")
+        cookie = request.cookies.get(cookie_name(request.url.port))
+        if request.method == "POST" and not _BEACONS.match(path):
+            authorized = _same(header, composer.token)
+        else:
+            authorized = _same(header, composer.token) or _same(cookie, composer.token)
+        if not authorized:
+            raise RequestError(
+                "missing or wrong composer token: open the URL compose.py printed",
+                403,
+            )
 
     @contextlib.asynccontextmanager
     async def lifespan(app):
@@ -676,16 +744,7 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.composer = composer
-
-    def guard(request: Request, query_token: bool = False) -> None:
-        host = (request.headers.get("host") or "").rsplit(":", 1)[0]
-        if host not in allowed_hosts:
-            raise RequestError(f"host {host!r} is not a loopback name", 403)
-        sent = request.headers.get("x-composer-token")
-        if sent is None and query_token:
-            sent = request.query_params.get("token")
-        if not sent or not secrets.compare_digest(sent, composer.token):
-            raise RequestError("missing or wrong composer token", 403)
+    app.add_middleware(_Guard, check=authorize)
 
     async def body(request: Request) -> dict[str, Any]:
         if request.headers.get("content-type", "").split(";")[0] != "application/json":
@@ -704,7 +763,6 @@ def create_app(
         # No return annotation: FastHTML would wrap the response in that class.
         async def handler(request: Request):
             try:
-                guard(request)
                 data = await body(request)
                 selection = checked_selection(
                     data.get("selection") or {}, composer.catalog
@@ -726,7 +784,26 @@ def create_app(
 
     @app.route("/", methods=["GET"])
     def index(request: Request):
-        return HTMLResponse(_PAGE.format(token=composer.token))
+        sent = request.query_params.get("token")
+        if sent is not None:
+            if not _same(sent, composer.token):
+                return JSONResponse({"ok": False, "error": "wrong composer token"}, 403)
+            # Trade the URL's token for a cookie and drop it from the address
+            # bar (and the history); the hash, if any, survives the redirect.
+            response = RedirectResponse("/", 303)
+            response.set_cookie(
+                cookie_name(request.url.port),
+                composer.token,
+                httponly=True,
+                samesite="strict",
+                path="/",
+            )
+            return response
+        # The page still carries the token, for the header the JSON endpoints
+        # want; only a request that already holds it can read the page.
+        return HTMLResponse(
+            _PAGE.format(token=composer.token), headers={"Cache-Control": "no-store"}
+        )
 
     @app.route("/catalog.json", methods=["GET"])
     def catalog_json(request: Request):
@@ -756,19 +833,11 @@ def create_app(
 
     @app.route("/preview/stop", methods=["POST"])
     def preview_stop(request: Request):
-        # Also the pagehide beacon, which cannot set headers: token in the query.
-        try:
-            guard(request, query_token=True)
-        except RequestError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, exc.status)
+        # Also the pagehide beacon: it carries the cookie (see _BEACONS).
         return JSONResponse({"ok": True, "stopped": composer.stop_preview()})
 
     @app.route("/preview/heartbeat", methods=["POST"])
     def preview_heartbeat(request: Request):
-        try:
-            guard(request)
-        except RequestError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, exc.status)
         return JSONResponse({"ok": True, "alive": composer.heartbeat()})
 
     # -- record / run ----------------------------------------------------
@@ -778,7 +847,8 @@ def create_app(
             "ok": True,
             "job": job.id,
             "command": job.command,
-            "events": f"/jobs/{job.id}/events?token={composer.token}",
+            # EventSource sends the cookie (same origin); no token in URLs.
+            "events": f"/jobs/{job.id}/events",
         }
 
     def do_record(selection: Selection, data: dict) -> dict:
@@ -805,13 +875,9 @@ def create_app(
 
     @app.route("/jobs/{job_id}/events", methods=["GET"])
     async def job_events(request: Request):
-        try:
-            guard(request, query_token=True)
-            job = composer.jobs.get(request.path_params["job_id"])
-            if job is None:
-                raise RequestError("no such job", 404)
-        except RequestError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, exc.status)
+        job = composer.jobs.get(request.path_params["job_id"])
+        if job is None:
+            return JSONResponse({"ok": False, "error": "no such job"}, 404)
 
         async def stream():
             with open(job.log_path, "rb") as fh:
@@ -830,9 +896,7 @@ def create_app(
                         video = job.video()
                         done = {
                             "returncode": job.process.returncode,
-                            "video": f"/jobs/{job.id}/video?token={composer.token}"
-                            if video
-                            else None,
+                            "video": f"/jobs/{job.id}/video" if video else None,
                         }
                         yield f"event: done\ndata: {json.dumps(done)}\n\n"
                         return
@@ -847,10 +911,6 @@ def create_app(
 
     @app.route("/jobs/{job_id}/video", methods=["GET"])
     def job_video(request: Request):
-        try:
-            guard(request, query_token=True)
-        except RequestError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, exc.status)
         job = composer.jobs.get(request.path_params["job_id"])
         video = job.video() if job else None
         if video is None:
@@ -859,10 +919,7 @@ def create_app(
 
     @app.route("/jobs/{job_id}/stop", methods=["POST"])
     def job_stop(request: Request):
-        try:
-            guard(request)
-        except RequestError as exc:
-            return JSONResponse({"ok": False, "error": str(exc)}, exc.status)
+        # Also the pagehide beacon: it carries the cookie (see _BEACONS).
         job = composer.jobs.get(request.path_params["job_id"])
         if job is None:
             return JSONResponse({"ok": False, "error": "no such job"}, 404)
@@ -884,7 +941,8 @@ def serve(port: int = DEFAULT_PORT, open_browser: bool = True) -> None:
     composer = Composer(build_catalog(capabilities="local"))
     atexit.register(composer.shutdown)  # in case the lifespan never runs
     app = create_app(composer)
-    url = f"http://{HOST}:{port}/"
+    # The one URL that carries the token; the page swaps it for a cookie.
+    url = f"http://{HOST}:{port}/?token={composer.token}"
     print(f"Config Composer (local): {url}")
     if open_browser:
         threading.Timer(1.0, webbrowser.open, [url]).start()
