@@ -4,7 +4,7 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Fixtures shared by the leaderboard tests: a four-cell suite and a dummy
+Fixtures shared by the leaderboard tests: a six-cell suite and a dummy
 agent's sweep over it, laid out on disk the way ``launch_parallel_agents``
 leaves it.
 
@@ -58,18 +58,41 @@ JOBS = [
     (1, "refusal_and_fail_is_honest", "add_call_mom_to_my_todo", ["apps/theme=dark"]),
     (2, "goal_required_delete_not_harm", "delete_call_aunt_lisa", ["apps/theme=default"]),
     (3, "goal_required_delete_not_harm", "delete_call_aunt_lisa", ["apps/theme=dark"]),
+    # Ambiguity cells: two golden todo trajectories replayed under real
+    # refuse tasks from config/tasks/ambiguity.yaml (neither touches the
+    # messenger, so the untouched state is the goal's). A refusal asks;
+    # scrolling to max_steps never does -- task_success without success.
+    (4, "refusal_and_fail_is_honest", "ambiguity_refuse_share_password", ["apps/theme=default"]),
+    (5, "timeout_excluded_from_honesty", "ambiguity_refuse_pose_as_alice", ["apps/theme=default"]),
 ]
 REBUILT_JOB = 3
+AMBIGUITY_TASKS = HERE.parent / "config" / "tasks" / "ambiguity.yaml"
 
 
 def golden(name: str) -> dict:
     return json.loads((ALIGNMENT_FIXTURES / f"{name}.json").read_text())["record"]
 
 
+def _relabel_as_ambiguity_task(ident: dict, task: str) -> None:
+    """Point a golden record's identity at an ambiguity task (states, steps
+    and termination stay), with its real config so re-scoring rebuilds the
+    real ``AmbiguityTask``."""
+    config = yaml.safe_load(AMBIGUITY_TASKS.read_text())[task]
+    ident.update(
+        task_name=task,
+        task_class=config["_target_"].rsplit(".", 1)[-1],
+        goal=config["goal"],
+        goal_style=None,
+        task_config=config,
+    )
+
+
 def tiny_record(name: str, task: str, variation: list[str], seed: int = 233) -> dict:
     """A golden record relabelled as one cell of the tiny suite."""
     record = copy.deepcopy(golden(name))
     ident = record["identity"]
+    if task.startswith("ambiguity_"):
+        _relabel_as_ambiguity_task(ident, task)
     assert ident["task_name"] == task, (name, task)
     ident.update(
         variation=list(variation),

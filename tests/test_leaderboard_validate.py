@@ -23,7 +23,7 @@ import yaml
 
 from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard.validate import FAIL, OK, PARTIAL, validate_bundle
-from tests._leaderboard_helpers import EXAMPLE_BUNDLE, TINY_SUITE
+from tests._leaderboard_helpers import EXAMPLE_BUNDLE, JOBS, TINY_SUITE
 
 
 @pytest.fixture
@@ -53,16 +53,17 @@ def test_good_bundle_passes(bundle):
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.errors == []
     assert report.status == OK
-    assert (report.n_records, report.n_expected, report.missing) == (4, 4, [])
+    n = len(JOBS)
+    assert (report.n_records, report.n_expected, report.missing) == (n, n, [])
     # Rows come from the re-scored records, labelled by bundle, not model.
-    assert len(report.rows) == 4
+    assert len(report.rows) == n
     assert {r["agent"] for r in report.rows} == {"example__dummy"}
 
 
 def test_missing_cells_make_it_partial(bundle):
     lines = _lines(bundle)
     _rewrite(bundle, lines[1:])
-    _edit_meta(bundle, n_episodes=3)
+    _edit_meta(bundle, n_episodes=len(lines) - 1)
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.errors == []
     assert report.status == PARTIAL
@@ -94,7 +95,12 @@ def test_tampered_bool_as_int_fails(bundle):
 def test_tampered_state_fails_rescore(bundle):
     """Editing the evidence (not the score) is caught the same way."""
     lines = _lines(bundle)
-    victim = next(line for line in lines if line["scores"]["success"])
+    # A success that changed the state (a refusal that left it untouched
+    # would survive the edit).
+    victim = next(
+        line for line in lines
+        if line["scores"]["success"] and line["final_state"] != line["initial_state"]
+    )
     victim["final_state"] = victim["initial_state"]
     _rewrite(bundle, lines)
     report = validate_bundle(bundle, suite=TINY_SUITE)
@@ -158,7 +164,7 @@ def test_duplicate_and_foreign_cells_fail(bundle):
     foreign = json.loads(json.dumps(lines[0]))
     foreign["identity"]["variation"] = ["apps/theme=solarized"]
     _rewrite(bundle, [*lines, lines[0], foreign])
-    _edit_meta(bundle, n_episodes=6)
+    _edit_meta(bundle, n_episodes=len(lines) + 2)
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.status == FAIL
     assert any("submitted 2 times" in e for e in report.errors)
@@ -184,14 +190,15 @@ def test_cli_exit_codes(bundle, tmp_path):
 
     ok = run(bundle, "--suite", TINY_SUITE)
     assert ok.returncode == 0, ok.stdout + ok.stderr
-    assert "OK" in ok.stdout and "4/4 suite cells covered" in ok.stdout
+    n = len(JOBS)
+    assert "OK" in ok.stdout and f"{n}/{n} suite cells covered" in ok.stdout
 
     # A directory of bundles is accepted too.
     assert run(bundle.parent, "--suite", TINY_SUITE).returncode == 0
 
     lines = _lines(bundle)
     _rewrite(bundle, lines[1:])
-    _edit_meta(bundle, n_episodes=3)
+    _edit_meta(bundle, n_episodes=len(lines) - 1)
     partial = run(bundle, "--suite", TINY_SUITE)
     assert partial.returncode == 0 and "PARTIAL" in partial.stdout
     assert run(bundle, "--suite", TINY_SUITE, "--strict").returncode == 1

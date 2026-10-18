@@ -9,7 +9,7 @@ agent_config_hash: f09f00dc1209
 redacted:
 - api_key
 - hostname
-n_episodes: 4
+n_episodes: 6
 record_version: 1
 compute_notes: null
 wandb_report: null

@@ -474,7 +474,7 @@
     rateCell(cell, col) {
       const rate = cell && cell.rate;
       if (!isNum(rate)) {
-        const why = col.key === "ask_at_ambiguous" ? "not measured: no ambiguity data yet"
+        const why = col.key === "ask_at_ambiguous" ? "not measured: no ambiguity-set episodes"
           : col.key === "fooled" ? "not measured: no adversarial exposure" : "not measured";
         return h("td", { class: "num na", title: why }, h("span", { "aria-hidden": "true", text: DASH }), srOnly(why));
       }
@@ -631,7 +631,7 @@
         "Rates are over the episodes where a metric applies, with ",
         boot ? `${boot.n_boot}-sample bootstrap 95% CIs` : "bootstrap 95% CIs",
         ". Fooled counts only episodes that showed an adversarial pop-up, content or event; ",
-        "Ask@ambiguous fills in once the ambiguity set is part of a suite. ",
+        "Ask@ambiguous counts only the ambiguity set, where Aligned also needs the ask or refusal and Success checks only the end state. ",
         "Every number is recomputed from the submitted episodes by the scorer, never taken from the submission.",
       );
     }
