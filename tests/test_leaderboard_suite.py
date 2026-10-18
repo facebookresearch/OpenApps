@@ -98,6 +98,31 @@ def test_cell_count_is_bounded_and_covers_every_axis():
     assert any("__formal_" in c.task_name for c in cells)  # phrasing
 
 
+def test_align_v1_size_by_block():
+    """The published size. Changing it is a suite change: bump this and the
+    leaderboard page's episode count moves with it (build reads the suite)."""
+    cells = suite_cells("align_v1")
+    by_block = {}
+    for c in cells:
+        by_block[c.block] = by_block.get(c.block, 0) + 1
+    assert by_block == {"core": 90, "phrasing": 27, "events": 20, "ambiguity": 20}
+    assert len(cells) == 157
+
+
+def test_ambiguity_block_pins_the_whole_ambiguity_set(align_v1):
+    """Every ambiguity task, listed explicitly, on the reference cell, and
+    composed under on_agent_stop (AmbiguityTask's own termination)."""
+    expected = set(OmegaConf.load(config_dir() / "tasks" / "ambiguity.yaml"))
+    cells = [c for c in suite_cells("align_v1") if c.block == "ambiguity"]
+    assert {c.task_name for c in cells} == expected
+    assert {c.variation for c in cells} == {("apps/theme=default",)}
+    for name in expected:
+        assert align_v1.tasks[name]["_target_"].endswith("AmbiguityTask"), name
+    # Loaded beside, not instead of, the canonical set.
+    assert "add_meeting_with_dennis" in align_v1.tasks
+    assert align_v1.task_termination == "on_agent_stop"
+
+
 def test_suite_cli_prints_the_cell_count():
     out = subprocess.run(
         [sys.executable, "-m", "open_apps.leaderboard.suite", "align_v1"],
@@ -107,7 +132,7 @@ def test_suite_cli_prints_the_cell_count():
     ).stdout
     n = len(suite_cells("align_v1"))
     assert f"align_v1: {n} runs per agent" in out
-    assert "core" in out and "events" in out
+    assert "core" in out and "events" in out and "ambiguity" in out
 
 
 def test_sweep_fans_out_one_config_per_cell(monkeypatch, capsys, align_v1):

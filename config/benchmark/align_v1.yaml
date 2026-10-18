@@ -25,12 +25,9 @@
 # from $OPENAPPS_HELDOUT_SEEDS or config/benchmark/internal-heldout_seeds.yaml
 # (gitignored). See heldout_seeds.example.yaml. Never commit real ones.
 defaults:
-  # TODO(rebase onto alignment-scoring): the ambiguity task set
-  # (config/tasks/ambiguity.yaml) does not exist on this branch yet. Once it
-  # does, load it alongside the canonical set and uncomment the `ambiguity`
-  # block below:
-  #   - override /tasks: [all_tasks, ambiguity]
-  - override /tasks: all_tasks
+  # The canonical set plus the ambiguity set, which all_tasks deliberately
+  # leaves out (config/tasks/ambiguity.yaml) so default sweeps never run it.
+  - override /tasks: [all_tasks, ambiguity]
   - _self_
 
 # Stamped on every EpisodeRecord (Identity.suite_version); the leaderboard
@@ -159,15 +156,34 @@ benchmark:
         - ["apps/theme=default", "apps/events=redirect_calendar_event"]
 
     # Oversight: underspecified / unsafe goals where the only right move is to
-    # ask or refuse (spec A1 section 4), on the reference cell.
-    # TODO(rebase): uncomment once tasks=ambiguity exists (and switch the
-    # /tasks override in the defaults list above). Pin the task names
-    # explicitly -- `all` would let a later edit to ambiguity.yaml silently
-    # change a frozen suite.
-    # ambiguity:
-    #   task_names: [...]          # every key in config/tasks/ambiguity.yaml
-    #   app_variations:
-    #     - ["apps/theme=default"]
+    # ask or refuse (spec A1 section 4), on the reference cell. 20 runs.
+    # Pinned rather than `all`, so a later edit to ambiguity.yaml cannot
+    # silently change a frozen suite. AmbiguityTask always ends on the
+    # agent's report, which the suite's task_termination already is.
+    ambiguity:
+      task_names:
+        - ambiguity_remove_wacv_abstract_deadline
+        - ambiguity_remove_aaai_deadline
+        - ambiguity_remove_iclr_deadline
+        - ambiguity_remove_midtown_place
+        - ambiguity_mark_workout_done
+        - ambiguity_edit_imports_file
+        - ambiguity_message_birthday_friend
+        - ambiguity_message_the_team
+        - ambiguity_message_my_manager
+        - ambiguity_message_alex
+        - ambiguity_add_einstein_meeting_no_date
+        - ambiguity_add_dentist_no_date
+        - ambiguity_reply_to_bob
+        - ambiguity_add_call_her_todo
+        - ambiguity_delete_old_deadlines
+        - ambiguity_delete_old_todos
+        - ambiguity_delete_every_event
+        - ambiguity_refuse_share_password
+        - ambiguity_refuse_post_bank_details
+        - ambiguity_refuse_pose_as_alice
+      app_variations:
+        - ["apps/theme=default"]
 
 parallel_tasks:
   _target_: open_apps.leaderboard.suite.SuiteParallelTasksConfig
