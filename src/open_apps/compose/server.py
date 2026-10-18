@@ -62,6 +62,7 @@ from typing import Any
 from hydra.core.override_parser.overrides_parser import OverridesParser
 from hydra.errors import HydraException
 from omegaconf import OmegaConf
+from omegaconf.errors import OmegaConfBaseException
 from starlette.requests import Request
 from starlette.responses import (
     FileResponse,
@@ -97,7 +98,10 @@ HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 #: A preview whose page has not sent a heartbeat for this long is stopped: the
 #: tab was closed without its beacon arriving (crash, sleep, killed browser).
-PREVIEW_TTL_S = 20.0
+#: Minutes, not seconds: browsers throttle a background tab's timers to about
+#: one run a minute, and switching tabs must not kill the preview. (The page
+#: also beats as soon as it is visible again.)
+PREVIEW_TTL_S = 180.0
 #: Hosts a request may name. Anything else is a rebound DNS name. (No
 #: ``[::1]``: the server binds 127.0.0.1 only.)
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
@@ -572,7 +576,6 @@ class Job:
     log_path: Path
     recordings: Path | None = None
     started: float = field(default_factory=time.time)
-    _log: Any = None
 
     def finished(self) -> bool:
         return self.process.poll() is not None
@@ -584,10 +587,8 @@ class Job:
         return videos[-1] if videos else None
 
     def stop(self) -> None:
+        """Kill the job's whole process tree (see :func:`kill_group`)."""
         kill_group(self.process)
-        if self._log is not None:
-            self._log.close()
-            self._log = None
 
 
 class Composer:
@@ -644,17 +645,23 @@ class Composer:
         self.preview_beat = time.monotonic()
         return self.preview is not None
 
+    def expire_stale_preview(self) -> bool:
+        """Stop the preview if its page has gone quiet for :data:`PREVIEW_TTL_S`."""
+        with self.preview_lock:
+            if (
+                self.preview is None
+                or time.monotonic() - self.preview_beat <= PREVIEW_TTL_S
+            ):
+                return False
+            return self._stop_preview_locked()
+
     def _ensure_watchdog(self) -> None:
         if self._watchdog is not None:
             return
 
         def watch() -> None:
             while not self._closed.wait(2.0):
-                if (
-                    self.preview is not None
-                    and time.monotonic() - self.preview_beat > PREVIEW_TTL_S
-                ):
-                    self.stop_preview()
+                self.expire_stale_preview()
 
         self._watchdog = threading.Thread(
             target=watch, name="preview-watchdog", daemon=True
@@ -673,19 +680,21 @@ class Composer:
     ) -> Job:
         job_id = secrets.token_hex(4)
         log_path = self.runtime / f"job-{job_id}.log"
-        log = open(log_path, "ab")
-        log.write(f"$ {command}\n".encode())
-        log.flush()
-        process = subprocess.Popen(
-            argv,
-            cwd=REPO_ROOT,
-            env={**os.environ, **(env or {}), "PYTHONUNBUFFERED": "1"},
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        job = Job(job_id, kind, command, process, log_path, recordings, _log=log)
+        # Closed as soon as Popen returns or raises: the child holds its own
+        # copy of the descriptor, and ours would only leak (one per job).
+        with open(log_path, "ab") as log:
+            log.write(f"$ {command}\n".encode())
+            log.flush()
+            process = subprocess.Popen(
+                argv,
+                cwd=REPO_ROOT,
+                env={**os.environ, **(env or {}), "PYTHONUNBUFFERED": "1"},
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        job = Job(job_id, kind, command, process, log_path, recordings)
         self.jobs[job_id] = job
         return job
 
@@ -718,10 +727,17 @@ class Composer:
         return self.start_job("run", p.argv, p.command, env=p.env)
 
     def shutdown(self) -> None:
+        """Kill every process this composer started and forget its jobs.
+
+        A job already reaped is skipped (kill_group leaves it alone): its pid
+        may have been recycled. Finished jobs are dropped so nothing can try
+        to signal them later.
+        """
         self._closed.set()
         self.stop_preview()
         for job in list(self.jobs.values()):
             job.stop()
+        self.jobs.clear()
         if self._own_runtime:
             shutil.rmtree(self.runtime, ignore_errors=True)
 
@@ -842,7 +858,11 @@ def create_app(
         return data
 
     def endpoint(fn):
-        """JSON in/out with :class:`RequestError` and CommandError as 4xx."""
+        """JSON in/out, errors included: :class:`RequestError` and
+        CommandError as 4xx, a selection Hydra cannot compose as 422, a
+        process that cannot start (or anything else that goes wrong) as 500
+        -- always ``{"ok": false, "error": ...}`` the page can show, never a
+        bare 500 page."""
 
         # No return annotation: FastHTML would wrap the response in that class.
         async def handler(request: Request):
@@ -858,6 +878,15 @@ def create_app(
                 )
             except CommandError as exc:
                 return JSONResponse({"ok": False, "error": str(exc)}, 422)
+            except (HydraException, OmegaConfBaseException) as exc:
+                message = f"Hydra could not compose this selection: {exc}"
+                return JSONResponse({"ok": False, "error": message}, 422)
+            except OSError as exc:  # Popen: no such program, no permission, ...
+                message = f"could not start the process: {exc}"
+                return JSONResponse({"ok": False, "error": message}, 500)
+            except Exception as exc:  # the launcher's own errors
+                message = f"{type(exc).__name__}: {exc}"
+                return JSONResponse({"ok": False, "error": message}, 500)
             if isinstance(result, Response):
                 return result
             return JSONResponse(result)

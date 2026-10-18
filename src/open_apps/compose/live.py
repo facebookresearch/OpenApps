@@ -20,8 +20,9 @@ take, not a new one:
    ``databases_dir`` guard -- so a sibling server that happens to answer on
    the port is never mistaken for ours.
 
-Stopping signals the whole group, TERM then KILL: ``serve()`` runs uvicorn,
-and killing only the direct child can leave a worker holding the port.
+Stopping signals the whole process tree, TERM then KILL (:func:`kill_group`):
+``serve()`` runs uvicorn, and killing only the direct child can leave a worker
+holding the port.
 """
 
 import os
@@ -31,9 +32,11 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any
+from typing import Any
+
+import psutil
 
 from open_apps import config_dir
 
@@ -59,7 +62,6 @@ class LiveApps:
     launcher: Any  # OpenAppsLauncher; Any keeps browsergym out of import time
     process: subprocess.Popen
     log_path: Path
-    _log: IO[bytes] | None = field(default=None, repr=False)
 
     @property
     def url(self) -> str:
@@ -80,11 +82,8 @@ class LiveApps:
             return ""
 
     def stop(self, timeout: float = 10.0) -> None:
-        """Kill the whole process group; idempotent."""
+        """Kill the whole process tree; idempotent."""
         kill_group(self.process, timeout)
-        if self._log is not None:
-            self._log.close()
-            self._log = None
 
 
 def group_alive(pgid: int) -> bool:
@@ -98,21 +97,66 @@ def group_alive(pgid: int) -> bool:
     return True
 
 
-def kill_group(process: subprocess.Popen, timeout: float = 10.0) -> None:
-    """TERM, then KILL, the process group ``process`` leads; wait until empty.
+def _alive(proc: psutil.Process) -> bool:
+    try:
+        return proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE
+    except psutil.Error:
+        return False
 
-    Waits on the group, not just the leader: a uvicorn worker or a Chromium
-    the leader started can outlive it, still holding a port or a file.
+
+def descendants(pid: int) -> list[psutil.Process]:
+    """Every live descendant of ``pid``, however deep, whatever its session."""
+    try:
+        return psutil.Process(pid).children(recursive=True)
+    except psutil.Error:
+        return []
+
+
+def kill_group(process: subprocess.Popen, timeout: float = 10.0) -> None:
+    """TERM, then KILL, ``process``'s group and every descendant; wait until gone.
+
+    Groups, plural. A job's own group is not enough: AgentLauncher starts
+    ``uv run launch.py`` in a session of its own, and launch_agent.py does no
+    cleanup on SIGTERM, so the app server would be orphaned -- still holding
+    its port. So the tree is read first, then each descendant's group is
+    signalled as well as the descendant itself. First, because a child whose
+    parent dies is re-parented to init and can no longer be found from here.
+
+    psutil is not a new dependency: uv.lock already resolves it (killport,
+    a direct dependency, needs it), and it walks the tree the same way on
+    macOS and Linux. Its ``send_signal`` re-checks a pid's creation time, so
+    a pid recycled mid-stop is never signalled.
+
+    A ``process`` already reaped is left alone: once reaped, its pid -- and
+    so its group id -- may belong to an unrelated process.
     """
-    for sig in (signal.SIGTERM, signal.SIGKILL):
+    if process.returncode is not None:
+        return
+    tree = descendants(process.pid)
+    groups = {process.pid}
+    for proc in tree:
         try:
-            os.killpg(process.pid, sig)
-        except ProcessLookupError:
-            break
+            groups.add(os.getpgid(proc.pid))
+        except OSError:
+            pass
+    groups.discard(os.getpgrp())  # never our own (or pytest's) group
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        for pgid in groups:
+            try:
+                os.killpg(pgid, sig)
+            except (ProcessLookupError, PermissionError):
+                pass
+        for proc in tree:
+            try:
+                proc.send_signal(sig)
+            except psutil.Error:
+                pass
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             process.poll()  # reap the leader, or its zombie keeps the group "alive"
-            if not group_alive(process.pid):
+            if not any(group_alive(g) for g in groups) and not any(
+                _alive(p) for p in tree
+            ):
                 break
             time.sleep(0.1)
         else:
@@ -174,9 +218,6 @@ def start_apps(
     Path(launcher.config.databases_dir).mkdir(parents=True, exist_ok=True)
 
     log_path = runtime_dir / "webapp.log"
-    # A file, never an unread PIPE: a full pipe buffer blocks the server on
-    # write (the deadlock launcher.launch_apps_via_shell documents).
-    log = open(log_path, "ab")
     command = [
         sys.executable,
         "launch.py",
@@ -186,15 +227,19 @@ def start_apps(
         launcher.config_path.name,
         *BASE_OVERRIDES,
     ]
-    process = subprocess.Popen(
-        command,
-        cwd=REPO_ROOT,
-        stdout=log,
-        stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,
-        start_new_session=True,
-    )
-    live = LiveApps(launcher, process, log_path, log)
+    # A file, never an unread PIPE: a full pipe buffer blocks the server on
+    # write (the deadlock launcher.launch_apps_via_shell documents). Closed
+    # as soon as Popen returns (or raises): the child has its own copy.
+    with open(log_path, "ab") as log:
+        process = subprocess.Popen(
+            command,
+            cwd=REPO_ROOT,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    live = LiveApps(launcher, process, log_path)
 
     deadline = time.monotonic() + timeout
     while True:

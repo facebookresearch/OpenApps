@@ -13,11 +13,16 @@ group is gone afterwards -- the point of the endpoint is that nothing it
 starts outlives it.
 """
 
+import contextlib
 import json
+import os
 import re
+import signal
+import sys
 import time
 import urllib.request
 
+import psutil
 import pytest
 from starlette.testclient import TestClient
 
@@ -25,6 +30,7 @@ from open_apps.compose.catalog import build_catalog
 from open_apps.compose.command import Selection
 from open_apps.compose.live import REPO_ROOT, group_alive
 from open_apps.compose.server import (
+    PREVIEW_TTL_S,
     Composer,
     RequestError,
     ENV_ALLOWLIST,
@@ -495,6 +501,148 @@ def test_single_view_is_the_first_cell(catalog):
     assert plan(view, catalog).command == (
         "uv run launch_agent.py apps/theme=dark apps.todo.title=T"
     )
+
+
+# --------------------------------------------------------------------------
+# Jobs: stopping, errors, leaks
+# --------------------------------------------------------------------------
+
+#: A job that starts a grandchild in a session of its own -- what
+#: AgentLauncher does with `uv run launch.py` -- then waits.
+_SPAWNER = """
+import subprocess, sys, time
+child = subprocess.Popen(
+    [sys.executable, "-c", "import time; time.sleep(120)"], start_new_session=True
+)
+open(sys.argv[1], "w").write(str(child.pid))
+time.sleep(120)
+"""
+
+
+def _gone(pid: int, timeout: float = 10.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if psutil.Process(pid).status() == psutil.STATUS_ZOMBIE:
+                return True
+        except psutil.NoSuchProcess:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def _open_paths() -> set[str]:
+    return {f.path for f in psutil.Process().open_files()}
+
+
+def test_stopping_a_job_kills_descendants_in_other_sessions(client, composer, tmp_path):
+    pid_file = tmp_path / "grandchild.pid"
+    argv = [sys.executable, "-c", _SPAWNER, str(pid_file)]
+    job = composer.start_job("run", argv, "fake job")
+    grandchild = None
+    try:
+        deadline = time.monotonic() + 15
+        while not pid_file.exists() or not pid_file.read_text():
+            assert time.monotonic() < deadline, "the fake job never started"
+            time.sleep(0.1)
+        grandchild = int(pid_file.read_text())
+        assert os.getpgid(grandchild) != job.process.pid  # its own session
+        response = client.post(f"/jobs/{job.id}/stop")
+        assert response.json() == {"ok": True}
+        assert job.finished()
+        assert _gone(grandchild), "the grandchild outlived its job"
+    finally:
+        if grandchild is not None:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(grandchild, signal.SIGKILL)  # don't leak it if we failed
+
+
+def test_a_job_log_is_closed_once_started(composer):
+    job = composer.start_job("run", [sys.executable, "-c", "print('hi')"], "hi")
+    job.process.wait(10)
+    assert job.finished()
+    assert str(job.log_path) not in _open_paths()
+    assert "hi" in job.log_path.read_text()
+
+
+def test_a_popen_failure_is_a_json_error_and_leaks_no_log(
+    client, composer, monkeypatch
+):
+    import open_apps.compose.server as server
+
+    def no_exec(*args, **kwargs):
+        raise FileNotFoundError(2, "No such file or directory", "launch_agent.py")
+
+    before = dict(composer.jobs)
+    opened_before = _open_paths()
+    monkeypatch.setattr(server.subprocess, "Popen", no_exec)
+    response = post(client, "/record", {})
+    assert response.status_code == 500
+    result = response.json()
+    assert not result["ok"] and "could not start" in result["error"]
+    assert composer.jobs == before
+    assert _open_paths() <= opened_before
+
+
+def test_a_hydra_error_is_a_json_error(client):
+    response = post(client, "/run", {"extra": ["++mode=slurm_cluster"]})
+    assert response.status_code == 422
+    result = response.json()
+    assert not result["ok"] and "force-add" in result["error"]
+    response = post(client, "/preview", {"extra": ["apps.todo.no_such_key.x=1"]})
+    assert response.status_code == 422
+    assert "no_such_key" in response.json()["error"]
+
+
+def test_a_launcher_exception_is_a_json_error(client, composer, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("the launcher fell over")
+
+    monkeypatch.setattr(composer, "record", boom)
+    response = post(client, "/record", {})
+    assert response.status_code == 500
+    assert response.json() == {
+        "ok": False,
+        "error": "RuntimeError: the launcher fell over",
+    }
+
+
+def test_shutdown_never_signals_a_reaped_job(catalog, tmp_path, monkeypatch):
+    """Its pid may belong to an unrelated process by now."""
+    import open_apps.compose.live as live
+
+    composer = Composer(catalog, tmp_path)
+    job = composer.start_job("run", [sys.executable, "-c", "pass"], "pass")
+    job.process.wait(10)
+    assert job.finished()  # reaped
+    signalled = []
+    monkeypatch.setattr(live.os, "killpg", lambda pgid, sig: signalled.append(pgid))
+    composer.shutdown()
+    assert job.process.pid not in signalled
+    assert composer.jobs == {}
+
+
+def test_a_stale_preview_is_stopped_but_a_background_tab_is_not(catalog, tmp_path):
+    """Browsers throttle a background tab's timers to about once a minute."""
+
+    class FakePreview:
+        stopped = False
+
+        def stop(self):
+            self.stopped = True
+
+    composer = Composer(catalog, tmp_path)
+    try:
+        assert PREVIEW_TTL_S >= 180
+        preview = composer.preview = FakePreview()
+        composer.preview_beat = time.monotonic() - 90
+        assert not composer.expire_stale_preview()
+        assert not preview.stopped
+        composer.preview_beat = time.monotonic() - PREVIEW_TTL_S - 1
+        assert composer.expire_stale_preview()
+        assert preview.stopped and composer.preview is None
+    finally:
+        composer.shutdown()
 
 
 # --------------------------------------------------------------------------
