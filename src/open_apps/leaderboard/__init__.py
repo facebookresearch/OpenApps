@@ -9,13 +9,15 @@ checks CI runs on them.
 
     uv run launch_parallel_agents.py benchmark=align_v1 agent=<name>
     uv run -m open_apps.leaderboard.pack <logs_dir> --org <org> --agent <agent>
+    uv run -m open_apps.leaderboard.import_wandb <entity>/<project> --group <g> --org <org> --agent <agent>
     uv run -m open_apps.leaderboard.validate leaderboard/submissions/<bundle>
     uv run -m open_apps.leaderboard.build
 
 Modules:
   suite     frozen suites (config/benchmark/*.yaml): cells, seeds, the sweep
   bundle    bundle layout, hashing, (de)serialization, mini JSON Schema check
-  pack      logs_dir -> bundle
+  pack      logs_dir -> bundle (and write_bundle, shared by every ingestion path)
+  import_wandb  W&B episode_record artifacts -> bundle, through pack's code
   reference the repo's config for a suite cell (what a record must embed)
   validate  schema + provenance + re-score + coverage
   build     all bundles -> docs/assets/leaderboard/leaderboard.json (generated)

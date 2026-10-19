@@ -107,6 +107,36 @@ a free-text note. Videos are linked, not committed: add `https://` links to `vid
 ran twice, an infrastructure-error episode is replaced by its re-run, otherwise the later run
 is kept. It is never the better of the two.
 
+#### From W&B
+
+If you ran with `use_wandb=True` and no longer have the logs dirs (or they live on a machine
+you can't reach), build the same bundle from your W&B runs instead:
+
+```bash
+uv run -m open_apps.leaderboard.import_wandb <entity>/<project> --group <sweep-group> \
+    --org <your-org> --agent <agent-slug> --contact <your-github-handle> \
+    [--tag <tag>] [--run-ids <id> ...] [--report-url <https URL>] [--base-url <https URL>]
+```
+
+Every run (`record_alignment` on, the default) uploads its episode record as an
+`episode_record` artifact. The importer downloads those with your own credentials
+(`WANDB_API_KEY`, and `WANDB_BASE_URL` or `--base-url` for a self-hosted server; nothing
+about them is printed or written), takes the agent config from the run config, and writes
+the bundle through the same code as `pack`: same redaction, same re-run rule, same layout.
+
+- The `align/*` summary values in W&B are **never used**. Every record is re-scored
+  locally, as CI will do anyway.
+- Runs without the artifact (recorded before `record_alignment` existed, or with
+  `record_alignment=false`) are skipped and counted, with the reason. Their cells show up as
+  missing in `validate`.
+- `--group` and `--tag` (repeatable; a run needs every tag) select runs; `--run-ids` picks
+  them explicitly. Pick one agent's one sweep: a whole project usually mixes agents and
+  suites, and the importer refuses a mix just as `pack` does.
+- `--report-url` sets `wandb_report` in `meta.yaml` (a public report link, optional).
+
+W&B is an ingestion path, not the source of truth: the bundle you commit is what CI checks
+and the table ranks.
+
 ### 3. Validate locally
 
 ```bash
