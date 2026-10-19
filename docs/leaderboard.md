@@ -23,6 +23,8 @@ Each tab is one frozen suite (`config/benchmark/align_v1.yaml` is `align_v1`). A
 changes once results are published against it; new tasks or variations become a new version
 and a new tab.
 
+## Trust model
+
 There are two trust tiers:
 
 - **Self-reported** (every row): CI re-scores every submitted episode with the repository's
@@ -31,6 +33,34 @@ There are two trust tiers:
 - **Verified** (the ✓ badge): a maintainer re-ran the submitted `agent.yaml` on held-out seeds
   that are not public. Hover or focus the badge for the date and the held-out vs public
   difference; a large difference is flagged as a sign of overfitting to the public seeds.
+
+An episode record carries copies of everything a run takes from config: the task's config
+(goal, `expected`, `clarified`, ...), the irreversibility map, each fired event with its
+`forbidden` predicates, and the adversarial pop-up/content flags. For a submission none of
+those copies is trusted. `validate` composes the record's suite cell (task, variation, seed)
+from the repository's own config, the way the sweep does, and fails the bundle with the exact
+path of any difference: an edited goal or `expected`, a dropped predicate, a shrunken map, or
+a fired event the cell does not configure (or whose id, category or text was changed). The
+re-score then runs under the repository's task, events and map, never the record's. A
+configured event that should have fired but is absent is a warning, since a failed delivery
+is legitimate.
+
+What re-scoring cannot catch: a fabricated trajectory. The initial and final app states,
+steps, messages and timings are evidence the scorer reads, not something it can recompute
+without re-running the agent, so a submitter who writes a consistent but fake trace would
+pass. That is what the verified tier is for: it re-runs `agent.yaml` on held-out seeds that
+were never public, and its badge shows how far the held-out numbers are from the
+self-reported ones.
+
+Demonstrations (below) have no suite cell to compare against, so they are checked more
+leniently: schema, plus a re-score under the config they embed. That is why they are never
+ranked.
+
+Two more rules from the alignment protocol. Every episode must run with
+`task_termination=on_agent_stop` (the suite sets it; under `on_success` honesty and premature
+stop cannot be measured, so a mixed bundle fails). An *unscorable* episode, one whose final
+app state could not be read, is reported as a warning and counted, but it is never scored
+and covers no cell: re-run it, or the bundle is partial.
 
 ## Submit
 
@@ -79,14 +109,18 @@ uv run -m open_apps.leaderboard.build \
     --comment-for leaderboard/submissions/<org>__<agent>__align_v1 --comment-out row.md
 ```
 
-`validate` runs exactly what CI runs: layout, both JSON Schemas (`leaderboard/schema/`), a
-re-score of every episode, and coverage of every suite cell. It prints one of:
+`validate` runs exactly what CI runs: layout, both JSON Schemas (`leaderboard/schema/`), the
+termination rule, a check of every episode's embedded config against the repository's for
+its cell, a re-score of every episode under the repository's config, and coverage of every
+suite cell (see [Trust model](#trust-model)). On `align_v1` it takes under a minute, most of
+it composing the suite's variation cells. It prints one of:
 
 - `OK`: complete, and will be ranked;
 - `PARTIAL`: valid but missing cells (listed). It is shown under *Partial submissions*,
   not ranked. Run the missing cells and re-pack, or submit as is;
-- `FAIL`: fix the listed errors. A hand-edited `agent.yaml` or score, an unredacted secret,
-  a cell outside the suite or a duplicate cell all fail.
+- `FAIL`: fix the listed errors. A hand-edited `agent.yaml`, score or embedded config, an
+  unredacted secret, an episode not run with `task_termination=on_agent_stop`, a cell
+  outside the suite or a duplicate cell all fail.
 
 `build` writes the table locally (`docs/assets/leaderboard/leaderboard.json`, gitignored) and
 `row.md`, the row your PR would add, with its rank.
@@ -112,7 +146,8 @@ adds a submission, so every bundle is judged by code that is already on `main`.
 ## Demonstrations
 
 Episodes contributed as training and analysis data, by a person or any agent, are welcome
-too. They are validated with the same episode schema and never ranked.
+too. They are validated with the same episode schema and re-scored under the config they
+embed (there is no suite cell to check it against), and never ranked.
 
 ```text
 leaderboard/demonstrations/<contributor>__<topic>/
