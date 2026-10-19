@@ -218,6 +218,6 @@ src/open_apps/apps/onlineshop_app/java/
 # The config composer's catalog is generated from config/ in the docs build
 # (`uv run -m open_apps.compose.catalog --out docs/assets/composer/catalog.json`,
 # see .github/workflows/static.yml). Committing it would let it drift -- also
-# from a locally rebuilt, committed site/.
-docs/assets/composer/catalog.json
-site/assets/composer/catalog.json
+# from a locally rebuilt, committed site/. Matched anywhere, so a catalog
+# generated from the wrong directory (e.g. docs/docs/...) is ignored too.
+**/assets/composer/catalog.json
