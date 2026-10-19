@@ -25,7 +25,7 @@ What `uv run -m open_apps.leaderboard.validate <bundle>` checks, plus what only 
   - [ ] protocol: every episode ran with `task_termination=on_agent_stop`;
   - [ ] provenance: every episode's embedded task config, irreversible map, events and adversarial flags match the repo's config for its cell;
   - [ ] re-score: no episode's scores disagree with the scorer (run under the repo's config);
-  - [ ] coverage: every suite cell at most once, none outside the suite (an unscorable episode covers nothing).
+  - [ ] coverage: every suite cell at most once, none outside the suite. An unscorable episode, or one missing a configured event that should have fired ("event X should have fired at step N"), covers nothing: its cell is listed as missing until it is re-run.
 - [ ] `agent.yaml` has no keys, tokens, hostnames or endpoints (`pack` redacts them; `validate` fails if any remain).
 - [ ] Each cell is the run `pack` kept (a re-run replaces an infrastructure error; otherwise the later run), not the best of several attempts.
 - [ ] Videos are linked as `https://` URLs in `meta.yaml`, not committed; no file over 100 MB and no symlinks.

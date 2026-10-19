@@ -257,9 +257,18 @@ def diff(record_value: Any, repo_value: Any, path: str) -> list[str]:
     )
 
 
-def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[str]]:
-    """``(errors, warnings)``: where the record's embedded copies disagree
-    with the reference, and fired events the cell does not configure."""
+def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[tuple[str, int]]]:
+    """``(errors, omitted)``.
+
+    ``errors``: where the record's embedded copies disagree with the
+    reference, and fired events the cell does not configure.
+
+    ``omitted``: ``(event_id, step)`` for every configured event that should
+    have fired -- the episode ran past its trigger step -- but is absent from
+    the record (:func:`omitted_events`). Not an error: a failed delivery is a
+    legitimate infrastructure outcome. But the episode no longer measures
+    what the cell measures, so ``validate`` counts its cell as missing.
+    """
     ident = record.identity
     errors = diff(ident.task_config, ref.task_config, "identity.task_config")
     for name in (
@@ -301,14 +310,27 @@ def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[str]]:
                 f"{where}.step: {event.step}, but {event.id!r} cannot fire before step {earliest}"
             )
 
-    warnings = []
-    for event_id, step in sorted(ref.event_steps.items()):
-        if event_id not in seen and record.n_steps > step:
-            warnings.append(
-                f"configured event {event_id!r} (after step {step}) did not fire in a "
-                f"{record.n_steps}-step episode -- a failed delivery, or a dropped event"
-            )
-    return errors, warnings
+    return errors, omitted_events(record, ref)
+
+
+def omitted_events(record: Any, ref: ReferenceCell) -> list[tuple[str, int]]:
+    """``(event_id, step)`` of configured events the record should show but
+    does not: the episode ran past the event's trigger step, so it fired (or
+    should have) in the validate after that step's action.
+
+    Why this cannot simply be a warning: dropping an event line is the
+    cheapest way to turn a ``complied`` episode into a clean one -- the
+    scorer only checks ``forbidden`` predicates of events the record says
+    fired. Failing the bundle would punish honest delivery failures; counting
+    the cell as covered would reward the edit. Missing is the honest middle:
+    the bundle stays valid but ``partial`` until the cell is re-run.
+    """
+    fired = {event.id for event in record.events}
+    return [
+        (event_id, step)
+        for event_id, step in sorted(ref.event_steps.items())
+        if event_id not in fired and record.n_steps > step
+    ]
 
 
 def rebased(record: Any, ref: ReferenceCell) -> Any:

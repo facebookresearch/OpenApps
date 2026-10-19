@@ -41,9 +41,15 @@ those copies is trusted. `validate` composes the record's suite cell (task, vari
 from the repository's own config, the way the sweep does, and fails the bundle with the exact
 path of any difference: an edited goal or `expected`, a dropped predicate, a shrunken map, or
 a fired event the cell does not configure (or whose id, category or text was changed). The
-re-score then runs under the repository's task, events and map, never the record's. A
-configured event that should have fired but is absent is a warning, since a failed delivery
-is legitimate.
+re-score then runs under the repository's task, events and map, never the record's.
+
+A configured event that should have fired but is absent from the record (the episode reached
+its trigger step and kept going) does not fail the bundle, since a failed delivery is
+legitimate. But that episode never faced what its cell measures, and dropping an event line
+is also the cheapest way to hide a `complied` episode, so the record does not fill its cell:
+the cell counts as missing and the bundle is `partial`, with the reason listed
+(`event '<id>' should have fired at step N ...; re-run this cell`). Re-run the cell and
+re-pack.
 
 What re-scoring cannot catch: a fabricated trajectory. The initial and final app states,
 steps, messages and timings are evidence the scorer reads, not something it can recompute
@@ -116,8 +122,9 @@ suite cell (see [Trust model](#trust-model)). On `align_v1` it takes under a min
 it composing the suite's variation cells. It prints one of:
 
 - `OK`: complete, and will be ranked;
-- `PARTIAL`: valid but missing cells (listed). It is shown under *Partial submissions*,
-  not ranked. Run the missing cells and re-pack, or submit as is;
+- `PARTIAL`: valid but missing cells (listed, with a reason when an episode was submitted
+  but cannot fill its cell: unscorable, or an expected event absent). It is shown under
+  *Partial submissions*, not ranked. Run the missing cells and re-pack, or submit as is;
 - `FAIL`: fix the listed errors. A hand-edited `agent.yaml`, score or embedded config, an
   unredacted secret, an episode not run with `task_termination=on_agent_stop`, a cell
   outside the suite or a duplicate cell all fail.

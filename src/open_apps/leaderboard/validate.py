@@ -26,8 +26,13 @@ In order:
   6. coverage   every (task, variation, seed) cell of the suite present
                 exactly once; missing cells => ``partial`` (listed, not
                 ranked); duplicates or cells outside the suite => fail.
-                An ``unscorable`` record (its final state could not be
-                read) is a warning and covers nothing: its cell is missing.
+                Two kinds of record are present but cover nothing, so
+                their cell is missing, with the reason listed: an
+                ``unscorable`` record (its final state could not be read),
+                and one that omits a configured event which should have
+                fired (its trigger step was reached and the episode ran
+                past it) -- a failed delivery or a dropped line; either
+                way, re-run the cell.
 
 A demonstration (``leaderboard/demonstrations/<contributor>__<topic>``,
 ``kind: demonstration`` in its meta.yaml) gets steps 1, 2 and 5 only -- its
@@ -78,6 +83,9 @@ class BundleReport:
     # Records whose final state could not be read (``EpisodeRecord.unscorable``).
     n_unscorable: int = 0
     missing: list[tuple] = field(default_factory=list)
+    # Why a cell is missing when a record for it *was* submitted (unscorable,
+    # or an expected event absent), keyed like ``missing``.
+    missing_reasons: dict[tuple, str] = field(default_factory=dict)
     # Aggregation rows built from the *re-scored* records (see
     # ``alignment.aggregate.row_from_record``), keyed by bundle id; plus the
     # records themselves, for leaderboard columns the scorer does not emit.
@@ -112,7 +120,11 @@ class BundleReport:
             lines.append(f"  warning: ... and {len(self.warnings) - _MAX_LISTED} more")
         for key in self.missing[:_MAX_LISTED]:
             task, cell, seed = key
-            lines.append(f"  missing: {task} [{cell}] seed={seed}")
+            reason = self.missing_reasons.get(key)
+            lines.append(
+                f"  missing: {task} [{cell}] seed={seed}"
+                + (f" -- {reason}" if reason else "")
+            )
         if len(self.missing) > _MAX_LISTED:
             lines.append(f"  missing: ... and {len(self.missing) - _MAX_LISTED} more")
         return "\n".join(lines)
@@ -270,8 +282,20 @@ def _label(record: Any) -> str:
     return f"{ident.task_name} [{'|'.join(ident.variation) or 'default'}] seed={ident.seed}"
 
 
-def _score_one(record: Any, submitted: Optional[dict], report: BundleReport) -> None:
-    """Score ``record`` as given, check the submitted scores, keep its row."""
+def _key(record: Any) -> tuple[str, str, int]:
+    ident = record.identity
+    return cell_key(ident.task_name, ident.variation, ident.seed)
+
+
+def _score_one(
+    record: Any, submitted: Optional[dict], report: BundleReport, keep: bool = True
+) -> None:
+    """Score ``record`` as given, check the submitted scores, keep its row.
+
+    ``keep=False`` still scores and checks (a tampered score fails the bundle
+    whether or not the record covers its cell) but adds no row: the record's
+    cell counts as missing, so its numbers must not reach an aggregate.
+    """
     from open_apps.alignment.aggregate import row_from_record
     from open_apps.alignment.score import score
 
@@ -294,6 +318,13 @@ def _score_one(record: Any, submitted: Optional[dict], report: BundleReport) -> 
             f"{label}: unscorable (final state unreadable for {sorted(record.unscorable)}); "
             "it covers no cell -- re-run it"
         )
+        report.missing_reasons.setdefault(
+            _key(record),
+            f"unscorable (final state unreadable for {sorted(record.unscorable)}); "
+            "re-run this cell",
+        )
+    if not keep:
+        return
     row = row_from_record(record, scores)
     row["agent"] = report.bundle_id
     report.rows.append(row)
@@ -314,8 +345,7 @@ def _rescore_against_suite(
     from open_apps.leaderboard.reference import compare, rebased, reference_cell
 
     for record, submitted in parsed:
-        ident = record.identity
-        cell = cells.get(cell_key(ident.task_name, ident.variation, ident.seed))
+        cell = cells.get(_key(record))
         if cell is None:
             continue  # outside the suite: _check_coverage fails it
         label = _label(record)
@@ -327,8 +357,7 @@ def _rescore_against_suite(
                 f"({type(exc).__name__}: {exc})"
             )
             continue
-        errors, warnings = compare(record, ref)
-        report.warnings += [f"{label}: {w}" for w in warnings]
+        errors, omitted = compare(record, ref)
         if errors:
             more = f"; ... and {len(errors) - 4} more" if len(errors) > 4 else ""
             report.errors.append(
@@ -337,7 +366,15 @@ def _rescore_against_suite(
                 + more
             )
             continue
-        _score_one(rebased(record, ref), submitted, report)
+        if omitted:
+            report.missing_reasons[cell.key] = (
+                "; ".join(
+                    f"event {event_id!r} should have fired at step {step}"
+                    for event_id, step in omitted
+                )
+                + f" ({record.n_steps}-step episode, not in the record); re-run this cell"
+            )
+        _score_one(rebased(record, ref), submitted, report, keep=not omitted)
 
 
 def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:
@@ -418,9 +455,17 @@ def _check_coverage(
         report.errors.append(
             f"... and {len(extra) - _MAX_LISTED} more cells outside the suite"
         )
-    # An unscorable record is not evidence of anything the agent did.
-    covered = {key for key, record in keys if not record.unscorable}
+    # An unscorable record is not evidence of anything the agent did; one
+    # missing an expected event did not face what the cell measures.
+    covered = {
+        key
+        for key, record in keys
+        if not record.unscorable and key not in report.missing_reasons
+    }
     report.missing = sorted(expected - covered)
+    report.missing_reasons = {
+        k: v for k, v in report.missing_reasons.items() if k in report.missing
+    }
 
 
 def validate_bundle(

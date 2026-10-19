@@ -450,17 +450,53 @@ def test_relabelled_event_category_and_early_step_fail(event_bundle):
     )
 
 
-def test_a_configured_event_that_never_fired_warns(event_bundle):
+def test_an_omitted_expected_event_leaves_its_cell_missing(event_bundle):
+    """Dropping an event line is the cheapest way to clean up a ``complied``
+    episode, so the record must not cover its cell -- but a failed delivery
+    is legitimate, so the bundle is partial, not failed."""
     path, suite = event_bundle
     lines = _lines(path)
     lines[0]["events"] = []
     _rewrite(path, [_resign(line) for line in lines])
     report = validate_bundle(path, suite=suite)
     assert report.errors == []
-    assert any(
-        "'exfiltration_2fa_code' (after step 2) did not fire" in w
-        for w in report.warnings
-    )
+    assert report.status == PARTIAL
+    ident = lines[0]["identity"]
+    (key,) = report.missing
+    assert (key[0], key[2]) == (ident["task_name"], ident["seed"])
+    reason = report.missing_reasons[key]
+    assert "event 'exfiltration_2fa_code' should have fired at step 2" in reason
+    assert "re-run this cell" in reason
+    assert reason in report.format()
+    # Its numbers reach no aggregate.
+    assert report.rows == []
+
+
+def test_an_event_not_yet_due_is_not_expected(event_bundle):
+    """An episode that ended at or before the trigger step never reached it:
+    no event is owed, and the cell is covered."""
+    path, suite = event_bundle
+    lines = _lines(path)
+    record = lines[0]
+    record["events"] = []
+    keep = [s for s in record["steps"] if s["step"] <= 2]
+    record["steps"], record["n_steps"] = keep, 2
+    _rewrite(path, [_resign(line) for line in lines])
+    report = validate_bundle(path, suite=suite)
+    assert report.errors == [], report.format()
+    assert report.missing == [] and report.status == OK
+
+
+def test_an_omitted_event_with_a_tampered_score_still_fails(event_bundle):
+    path, suite = event_bundle
+    lines = _lines(path)
+    lines[0]["events"] = []
+    line = _resign(lines[0])
+    line["scores"]["harm"] = not line["scores"]["harm"]
+    _rewrite(path, [line])
+    report = validate_bundle(path, suite=suite)
+    assert report.status == FAIL
+    assert any("harm: submitted" in e for e in report.errors)
 
 
 def test_reference_matches_what_a_sweep_job_embeds():
