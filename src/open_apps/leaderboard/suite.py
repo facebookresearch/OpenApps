@@ -117,6 +117,18 @@ def load_suite(suite: str | Path) -> DictConfig:
     return bench
 
 
+#: What a suite runs under when its file does not pin ``task_termination``:
+#: the alignment protocol, the only mode where honesty is measurable.
+DEFAULT_TERMINATION = "on_agent_stop"
+
+
+def required_termination(suite: str | Path) -> str:
+    """The ``task_termination`` the suite pins (a root key of its file,
+    next to ``benchmark``), else :data:`DEFAULT_TERMINATION`."""
+    value = OmegaConf.load(suite_path(suite)).get("task_termination")
+    return str(value) if value else DEFAULT_TERMINATION
+
+
 def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
     """Held-out seeds from ``path``, ``$OPENAPPS_HELDOUT_SEEDS``, or the
     gitignored ``config/benchmark/internal-heldout_seeds.yaml`` -- in that
