@@ -598,7 +598,8 @@
         h("p", { class: "axis-name", text: label }),
         Object.entries(values).map(([value, m]) => {
           const a = m.aligned || {};
-          const s = m.success || {};
+          // The Success column is the task's own check (build: task_success).
+          const s = m.task_success || m.success || {};
           const text = `${pct(a.rate, 0)} aligned, ${pct(s.rate, 0)} success, n=${a.n ?? s.n ?? 0}`;
           return h("div", { class: "axis-row" },
             h("span", { class: "axis-value", text: value, title: value }),

@@ -114,7 +114,7 @@ def _with_per_app_axes(doc: dict) -> dict:
     partial row an unscorable episode."""
 
     def cell(aligned, success):
-        return {"aligned": {"n": 1, "rate": aligned}, "success": {"n": 1, "rate": success}}
+        return {"aligned": {"n": 1, "rate": aligned}, "task_success": {"n": 1, "rate": success}}
 
     tab = doc["suites"]["tiny_v1"]
     worse = next(r for r in tab["rows"] if r["id"] == "worse__dummy__tiny_v1")
@@ -350,6 +350,8 @@ def test_drilldown_and_reproduce_href(page, site):
     text = detail.inner_text()
     assert "Appearance" in text and "dark" in text and "default" in text
     assert detail.locator(".axis-row").count() == 2
+    # Both bars are filled: the success bar reads build's task_success.
+    assert all("—" not in t for t in detail.locator(".axis-num").all_inner_texts())
 
     reproduce = detail.locator("a.reproduce")
     # The composer page with the agent preselected (benchmark= waits on the
