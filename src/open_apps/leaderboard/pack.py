@@ -24,6 +24,11 @@ ride along in the bundle for CI to re-check. ``agent.yaml`` is the run's own
 agent config with credentials and hostnames redacted; ``meta.yaml`` is filled
 from the configs and records. Run ``validate`` on the result before opening a
 PR -- CI runs exactly that.
+
+The second half of this module (:func:`assemble`, :func:`write_bundle`) is
+source-agnostic: ``import_wandb`` collects records from W&B artifacts instead
+of exp_dirs and hands them to the same code, so suite selection, re-run
+dedupe, redaction and the bundle layout cannot differ between the two paths.
 """
 
 from __future__ import annotations
@@ -47,10 +52,21 @@ SUMMARY_FILE = "summary_info.json"  # BrowserGym's, written at episode end
 
 @dataclass
 class Collected:
+    """One record and where it came from.
+
+    ``origin`` is what skip/duplicate reports name: an exp_dir for ``pack``,
+    a ``<entity>/<project>/<run id>`` path for ``import_wandb``. ``recency``
+    orders re-runs of a cell (later wins; see :func:`_prefer`). The agent
+    config is read from ``config_path`` (pack) or carried as ``agent_config``
+    (import_wandb, from the run's config).
+    """
+
     record: Any
-    exp_dir: Path
-    config_path: Optional[Path]
-    source: str  # "episode.json" | "rebuilt"
+    origin: Path | str
+    config_path: Optional[Path] = None
+    source: str = "episode.json"  # "episode.json" | "rebuilt" | "wandb"
+    recency: tuple = ()
+    agent_config: Optional[dict] = None
 
     @property
     def key(self) -> tuple[str, str, int]:
@@ -62,8 +78,8 @@ class Collected:
 class PackResult:
     out: Path
     n_episodes: int
-    skipped: list[tuple[Path, str]] = field(default_factory=list)
-    duplicates: list[tuple[str, Path]] = field(default_factory=list)
+    skipped: list[tuple[Path | str, str]] = field(default_factory=list)
+    duplicates: list[tuple[str, Path | str]] = field(default_factory=list)
 
 
 def find_exp_dirs(logs_dirs: Iterable[str | Path]) -> list[Path]:
@@ -121,6 +137,15 @@ def _rebuild(exp_dir: Path, config_path: Optional[Path]) -> Any:
     )
 
 
+def _mtime_recency(exp_dir: Path) -> tuple:
+    """When an exp_dir last changed (its newest file), then its path as a
+    deterministic tie-break."""
+    newest = max(
+        (p.stat().st_mtime for p in exp_dir.iterdir() if p.is_file()), default=0.0
+    )
+    return (newest, str(exp_dir))
+
+
 def collect(logs_dirs: list[Path]) -> tuple[list[Collected], list[tuple[Path, str]]]:
     from open_apps.alignment.record import (
         EPISODE_FILENAME,
@@ -149,7 +174,15 @@ def collect(logs_dirs: list[Path]) -> tuple[list[Collected], list[tuple[Path, st
         except Exception as exc:  # noqa: BLE001 -- one bad exp_dir must not sink the pack
             skipped.append((exp_dir, f"{type(exc).__name__}: {exc}"))
             continue
-        collected.append(Collected(record, exp_dir, config_path, source))
+        collected.append(
+            Collected(
+                record,
+                origin=exp_dir,
+                config_path=config_path,
+                source=source,
+                recency=_mtime_recency(exp_dir),
+            )
+        )
     return collected, skipped
 
 
@@ -165,24 +198,46 @@ def _prefer(a: Collected, b: Collected) -> Collected:
     b_err = b.record.termination.reason == "error"
     if a_err != b_err:
         return b if a_err else a
+    return b if b.recency >= a.recency else a
 
-    def mtime(c: Collected) -> float:
-        return max(
-            (p.stat().st_mtime for p in c.exp_dir.iterdir() if p.is_file()), default=0.0
-        )
 
-    return b if (mtime(b), str(b.exp_dir)) >= (mtime(a), str(a.exp_dir)) else a
+def dedupe(
+    kept: Iterable[Collected],
+) -> tuple[dict[tuple, Collected], list[tuple[str, Path | str]]]:
+    """``({cell key: winner}, [(cell label, loser origin), ...])`` -- one
+    record per cell by :func:`_prefer`."""
+    by_key: dict[tuple, Collected] = {}
+    duplicates = []
+    for c in kept:
+        if c.key in by_key:
+            winner = _prefer(by_key[c.key], c)
+            loser = c if winner is by_key[c.key] else by_key[c.key]
+            duplicates.append(
+                (f"{c.key[0]} [{c.key[1]}] seed={c.key[2]}", loser.origin)
+            )
+            by_key[c.key] = winner
+        else:
+            by_key[c.key] = c
+    return by_key, duplicates
 
 
 def _agent_config(collected: list[Collected]) -> tuple[dict, list[str]]:
     """The redacted agent config shared by every run; refuse a mix."""
     by_hash: dict[str, tuple[dict, list[str]]] = {}
-    for config_path in sorted({c.config_path for c in collected if c.config_path}):
-        agent = OmegaConf.to_container(
-            _load_config(config_path).get("agent") or {}, resolve=True
-        )
-        redacted, paths = B.redact(agent)
+
+    def add(agent: Any) -> None:
+        redacted, paths = B.redact(agent if isinstance(agent, dict) else {})
         by_hash.setdefault(B.agent_config_hash(redacted), (redacted, paths))
+
+    for config_path in sorted({c.config_path for c in collected if c.config_path}):
+        add(
+            OmegaConf.to_container(
+                _load_config(config_path).get("agent") or {}, resolve=True
+            )
+        )
+    for c in collected:
+        if c.config_path is None and c.agent_config is not None:
+            add(c.agent_config)
     if not by_hash:
         raise FileNotFoundError(
             f"no {RUN_CONFIG} found next to the runs; agent.yaml needs the run's agent config"
@@ -206,16 +261,43 @@ def pack(
     compute_notes: Optional[str] = None,
     wandb_report: Optional[str] = None,
 ) -> PackResult:
-    from open_apps.alignment.record import RECORD_VERSION
-    from open_apps.alignment.score import score
-
     logs_dirs = [Path(p) for p in logs_dirs]
     collected, skipped = collect(logs_dirs)
     if not collected:
         raise FileNotFoundError(
             f"no episode records under {[str(p) for p in logs_dirs]}"
         )
+    return assemble(
+        collected,
+        skipped,
+        org=org,
+        agent=agent,
+        out=out,
+        suite=suite,
+        date=date,
+        contact=contact,
+        compute_notes=compute_notes,
+        wandb_report=wandb_report,
+    )
 
+
+def assemble(
+    collected: list[Collected],
+    skipped: list[tuple[Path | str, str]],
+    org: str,
+    agent: str,
+    out: Optional[str | Path] = None,
+    suite: Optional[str] = None,
+    date: Optional[str] = None,
+    contact: Optional[str] = None,
+    compute_notes: Optional[str] = None,
+    wandb_report: Optional[str] = None,
+) -> PackResult:
+    """Collected records -> a bundle on disk, whatever they were collected
+    from: pick the suite, keep one agent, one record per cell
+    (:func:`dedupe`), one redacted agent config, then :func:`write_bundle`.
+    ``skipped`` is extended with the records left out, and returned."""
+    skipped = list(skipped)
     suites = Counter(c.record.identity.suite_version for c in collected)
     suite = suite or suites.most_common(1)[0][0]
     if not suite:
@@ -228,7 +310,7 @@ def pack(
         if c.record.identity.suite_version != suite:
             skipped.append(
                 (
-                    c.exp_dir,
+                    c.origin,
                     f"suite_version {c.record.identity.suite_version!r} != {suite!r}",
                 )
             )
@@ -239,34 +321,57 @@ def pack(
         raise ValueError(
             f"records from several agents {dict(agents)}; pack one agent per bundle"
         )
-
-    by_key: dict[tuple, Collected] = {}
-    duplicates = []
-    for c in kept:
-        if c.key in by_key:
-            winner = _prefer(by_key[c.key], c)
-            loser = c if winner is by_key[c.key] else by_key[c.key]
-            duplicates.append(
-                (f"{c.key[0]} [{c.key[1]}] seed={c.key[2]}", loser.exp_dir)
-            )
-            by_key[c.key] = winner
-        else:
-            by_key[c.key] = c
-
+    by_key, duplicates = dedupe(kept)
     agent_cfg, redacted = _agent_config(list(by_key.values()))
-    lines = []
-    for key in sorted(by_key):
-        record = by_key[key].record
-        lines.append(record.to_dict() | {B.SCORES_KEY: score(record).summary()})
 
     out_dir = (
         Path(out) if out else B.submissions_dir() / B.bundle_name(org, agent, suite)
     )
+    meta = {
+        "org": org,
+        "agent": agent,
+        "suite": suite,
+        "date": date,
+        "contact": contact,
+        "compute_notes": compute_notes,
+        "wandb_report": wandb_report,
+    }
+    records = [by_key[key].record for key in sorted(by_key)]
+    n = write_bundle(records, meta, agent_cfg, out_dir, redacted=redacted)
+    return PackResult(out=out_dir, n_episodes=n, skipped=skipped, duplicates=duplicates)
+
+
+def write_bundle(
+    records: list[Any],
+    meta: dict,
+    agent_cfg: dict,
+    out_dir: str | Path,
+    redacted: Iterable[str] = (),
+) -> int:
+    """Write ``meta.yaml``, ``agent.yaml`` and ``episodes.jsonl.gz``.
+
+    ``meta`` holds what the submitter chose (org, agent, suite, and optionally
+    date, contact, compute_notes, wandb_report); everything derivable --
+    model, config hash, episode count, record version, ``verified: false`` --
+    is filled here, so no ingestion path can claim it. ``agent_cfg`` must
+    already be redacted (``redacted`` lists the paths that were). Every
+    record is scored with ``open_apps.alignment.score`` right here: the
+    ``scores`` a bundle carries are always this code's, never a summary
+    imported from elsewhere. Returns the number of episodes written.
+    """
+    from open_apps.alignment.record import RECORD_VERSION
+    from open_apps.alignment.score import score
+
+    org, agent, suite = meta["org"], meta["agent"], meta["suite"]
     B.bundle_name(org, agent, suite)  # validates the slugs even with --out
+    out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     B.write_yaml(agent_cfg, out_dir / B.AGENT_FILE)
+    lines = [
+        record.to_dict() | {B.SCORES_KEY: score(record).summary()} for record in records
+    ]
     n = B.write_episodes(lines, out_dir / B.EPISODES_FILE)
-    meta = {
+    full = {
         "meta_version": 1,
         "org": org,
         "agent": agent,
@@ -274,19 +379,19 @@ def pack(
             agent_cfg.get("model_name") or agent_cfg.get("model_pretty_name") or agent
         ),
         "suite": suite,
-        "date": date or dt.date.today().isoformat(),
-        "contact": contact,
+        "date": meta.get("date") or dt.date.today().isoformat(),
+        "contact": meta.get("contact"),
         "agent_config_hash": B.agent_config_hash(agent_cfg),
-        "redacted": redacted,
+        "redacted": list(redacted),
         "n_episodes": n,
         "record_version": RECORD_VERSION,
-        "compute_notes": compute_notes,
-        "wandb_report": wandb_report,
+        "compute_notes": meta.get("compute_notes"),
+        "wandb_report": meta.get("wandb_report"),
         "videos": [],
         "verified": False,
     }
-    B.write_yaml(meta, out_dir / B.META_FILE)
-    return PackResult(out=out_dir, n_episodes=n, skipped=skipped, duplicates=duplicates)
+    B.write_yaml(full, out_dir / B.META_FILE)
+    return n
 
 
 def main(argv: Optional[list[str]] = None) -> int:
