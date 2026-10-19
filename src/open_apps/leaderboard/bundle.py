@@ -231,6 +231,49 @@ def find_bundles(paths: Iterable[str | Path]) -> list[Path]:
 # --- agent config --------------------------------------------------------------
 
 
+#: agent-config keys that name the model (meta.yaml's ``model`` is one of them).
+MODEL_KEYS = ("model_name", "model_pretty_name")
+# Directory names that only a filesystem path contains, even one that looks
+# like a two-part hub id (``data/checkpoint``).
+_PATH_MARKERS = (
+    "/home/",
+    "/users/",
+    "/checkpoint",
+    "/private/",
+    "/scratch/",
+    "/tmp/",
+    "/mnt/",
+)
+
+
+def is_path_like(name: Any) -> bool:
+    """Is ``name`` a filesystem path rather than a model name? A self-hosted
+    model's ``model_name`` is often its checkpoint directory, which publishes
+    a cluster's layout and a username. ``alignment.record._model_label``'s
+    rule (absolute, ``~``, ``./``, backslashes, two or more ``/``) plus the
+    directory names above; a hub id (``org/model``) is a name."""
+    from open_apps.alignment.record import _model_label
+
+    if not isinstance(name, str) or not name.strip():
+        return False
+    text = "/" + name.strip().lower()
+    return _model_label(name) != name.strip() or any(m in text for m in _PATH_MARKERS)
+
+
+def model_label(name: Any) -> Any:
+    """``name`` fit for a public bundle: a path keeps its last component
+    (``/home/x/ckpts/gemma-step1200`` -> ``gemma-step1200``); anything else
+    is returned unchanged."""
+    if not is_path_like(name):
+        return name
+    return name.strip().replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or REDACTED
+
+
+def label_models(agent_cfg: dict) -> dict:
+    """``agent_cfg`` with its model-name keys passed through :func:`model_label`."""
+    return {k: model_label(v) if k in MODEL_KEYS else v for k, v in agent_cfg.items()}
+
+
 def redact(node: Any) -> tuple[Any, list[str]]:
     """Copy of an agent config with secret-looking values replaced.
 

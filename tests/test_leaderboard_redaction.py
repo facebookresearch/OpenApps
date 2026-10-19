@@ -268,3 +268,70 @@ def test_a_record_with_another_agent_hash_fails(bundle):
         "agent_config_hash" in e and "one agent config per bundle" in e
         for e in report.errors
     )
+
+
+# --- model names that are checkpoint paths -----------------------------------------
+
+CKPT = "/home/someone/ckpts/gemma-4-2B-step1200"
+
+
+@pytest.mark.parametrize(
+    "name, label",
+    [
+        (CKPT, "gemma-4-2B-step1200"),
+        ("~/models/qwen-7b", "qwen-7b"),
+        ("./out/run3/final", "final"),
+        ("/Users/me/m", "m"),
+        ("data/checkpoint/llama-3", "llama-3"),
+        ("org/private/thing", "thing"),
+        ("google/gemma-4-31b-it", "google/gemma-4-31b-it"),  # a hub id is a name
+        ("gpt-4o", "gpt-4o"),
+    ],
+)
+def test_model_label_keeps_the_last_path_component(name, label):
+    assert B.model_label(name) == label
+    assert B.is_path_like(name) == (name != label)
+
+
+def test_pack_strips_checkpoint_paths_and_validate_refuses_them(tmp_path):
+    logs = write_logs_tree(tmp_path / "logs")
+    for config in logs.rglob("config.yaml"):
+        data = yaml.safe_load(config.read_text())
+        data["agent"].update(model_name=CKPT, model_pretty_name=f"{CKPT}/")
+        config.write_text(yaml.safe_dump(data))
+    for path in logs.rglob("episode.json"):
+        record = json.loads(path.read_text())
+        record["identity"]["agent_name"] = CKPT
+        path.write_text(json.dumps(record))
+    out = pack(
+        [logs],
+        org="example",
+        agent="dummy",
+        out=tmp_path / EXAMPLE_BUNDLE.name,
+        date=FIXED_DATE,
+    ).out
+    text = (out / B.AGENT_FILE).read_text() + (out / B.META_FILE).read_text()
+    text += gzip.decompress((out / B.EPISODES_FILE).read_bytes()).decode()
+    assert "/home/" not in text and "someone" not in text
+    meta = yaml.safe_load((out / B.META_FILE).read_text())
+    agent = yaml.safe_load((out / B.AGENT_FILE).read_text())
+    assert meta["model"] == agent["model_name"] == "gemma-4-2B-step1200"
+    assert {line["identity"]["agent_name"] for line in _lines(out)} == {
+        "gemma-4-2B-step1200"
+    }
+    report = validate_bundle(out, suite=TINY_SUITE)
+    assert report.errors == [] and report.status == OK
+
+    # A path put back by hand fails, wherever it is.
+    agent["model_name"] = CKPT
+    (out / B.AGENT_FILE).write_text(yaml.safe_dump(agent))
+    lines = _lines(out)
+    lines[0]["identity"]["agent_name"] = CKPT
+    B.write_episodes(lines, out / B.EPISODES_FILE)
+    report = validate_bundle(out, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("agent.yaml model_name" in e and "path" in e for e in report.errors), (
+        report.errors
+    )
+    assert any("agent_name" in e and "path" in e for e in report.errors), report.errors
+    assert not any("someone" in e for e in report.errors)

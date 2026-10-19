@@ -274,7 +274,7 @@ def _check_agent(path: Path, report: BundleReport) -> None:
 
 
 #: agent.yaml keys meta.yaml's ``model`` may name (what pack fills it from).
-MODEL_KEYS = ("model_name", "model_pretty_name")
+MODEL_KEYS = B.MODEL_KEYS
 
 
 def _check_model(agent_cfg: dict, report: BundleReport) -> None:
@@ -282,10 +282,24 @@ def _check_model(agent_cfg: dict, report: BundleReport) -> None:
     be the model the agent config ran, not free text: one of agent.yaml's
     ``model_name`` / ``model_pretty_name`` (the agent slug only when the
     config names neither, as pack then falls back to it)."""
-    allowed = [str(agent_cfg[k]) for k in MODEL_KEYS if agent_cfg.get(k)]
+    for key in MODEL_KEYS:
+        if B.is_path_like(agent_cfg.get(key)):
+            # The path itself is never echoed: it is what must not leak.
+            report.errors.append(
+                f"{B.AGENT_FILE} {key} looks like a filesystem path; re-pack "
+                "(pack keeps only its last component)"
+            )
+    model = report.meta.get("model")
+    if B.is_path_like(model):
+        report.errors.append(
+            f"{B.META_FILE} model looks like a filesystem path; re-pack "
+            "(pack keeps only its last component)"
+        )
+        return
+    # Compared after the same normalization pack applies.
+    allowed = [str(B.model_label(agent_cfg[k])) for k in MODEL_KEYS if agent_cfg.get(k)]
     if not allowed:
         allowed = [str(report.meta.get("agent"))]
-    model = report.meta.get("model")
     if model not in allowed:
         report.errors.append(
             f"{B.META_FILE} model {model!r} is not the agent config's "
@@ -494,7 +508,16 @@ def _rescore_against_suite(
 
 
 def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:
-    agents = Counter(r.identity.agent_name for r, _ in parsed)
+    paths = sum(1 for r, _ in parsed if B.is_path_like(r.identity.agent_name))
+    if paths:
+        report.errors.append(
+            f"identity.agent_name looks like a filesystem path in {paths} record(s); "
+            "re-pack (pack keeps only its last component)"
+        )
+    agents = Counter(
+        "<path>" if B.is_path_like(r.identity.agent_name) else r.identity.agent_name
+        for r, _ in parsed
+    )
     if len(agents) > 1:
         report.errors.append(f"one agent per bundle; found {dict(agents)}")
     want = report.meta.get("agent_config_hash")

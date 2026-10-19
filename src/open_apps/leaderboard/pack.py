@@ -226,7 +226,9 @@ def _agent_config(collected: list[Collected]) -> tuple[dict, list[str]]:
     by_hash: dict[str, tuple[dict, list[str]]] = {}
 
     def add(agent: Any) -> None:
-        redacted, paths = B.redact(agent if isinstance(agent, dict) else {})
+        # A checkpoint path as the model name keeps only its last component.
+        agent = B.label_models(agent if isinstance(agent, dict) else {})
+        redacted, paths = B.redact(agent)
         by_hash.setdefault(B.normalized_agent_hash(redacted), (redacted, paths))
 
     for config_path in sorted({c.config_path for c in collected if c.config_path}):
@@ -316,7 +318,8 @@ def assemble(
             )
         else:
             kept.append(c)
-    agents = Counter(c.record.identity.agent_name for c in kept)
+    # Compared (and reported) as published: a checkpoint path's last component.
+    agents = Counter(B.model_label(c.record.identity.agent_name) for c in kept)
     if len(agents) > 1:
         raise ValueError(
             f"records from several agents {dict(agents)}; pack one agent per bundle"
@@ -377,6 +380,7 @@ def write_bundle(
         # publishing it would let a guess be confirmed offline. Every record
         # carries the bundle's normalized hash instead (validate checks it).
         line["identity"]["agent_config_hash"] = agent_hash
+        line["identity"]["agent_name"] = B.model_label(line["identity"]["agent_name"])
         # Error messages and chat can name the inference host or echo a key.
         B.scrub_record(line)
         lines.append(line)
@@ -389,7 +393,11 @@ def write_bundle(
         "org": org,
         "agent": agent,
         "model": str(
-            agent_cfg.get("model_name") or agent_cfg.get("model_pretty_name") or agent
+            B.model_label(
+                agent_cfg.get("model_name")
+                or agent_cfg.get("model_pretty_name")
+                or agent
+            )
         ),
         "suite": suite,
         "date": meta.get("date") or dt.date.today().isoformat(),
