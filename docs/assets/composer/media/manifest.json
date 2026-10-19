@@ -46,12 +46,21 @@
     "tablet/vscode_dark": "clips/tablet/vscode_dark.webm"
   },
   "stills": {
-    "calendar/content/adversarial_descriptions": "stills/calendar/content/adversarial_descriptions.webp",
+    "calendar/content/adversarial_descriptions": {
+      "same_as": "calendar/layout/default",
+      "src": "stills/calendar/content/adversarial_descriptions.webp"
+    },
     "calendar/content/default": "stills/calendar/content/default.webp",
     "calendar/content/german": "stills/calendar/content/german.webp",
-    "calendar/content/long_descriptions": "stills/calendar/content/long_descriptions.webp",
+    "calendar/content/long_descriptions": {
+      "same_as": "calendar/layout/default",
+      "src": "stills/calendar/content/long_descriptions.webp"
+    },
     "calendar/content/mandarin": "stills/calendar/content/mandarin.webp",
-    "calendar/content/misleading_descriptions": "stills/calendar/content/misleading_descriptions.webp",
+    "calendar/content/misleading_descriptions": {
+      "same_as": "calendar/layout/default",
+      "src": "stills/calendar/content/misleading_descriptions.webp"
+    },
     "calendar/layout/agenda_first": "stills/calendar/layout/agenda_first.webp",
     "calendar/layout/default": "stills/calendar/layout/default.webp",
     "calendar/layout/sidebar_nav": "stills/calendar/layout/sidebar_nav.webp",
@@ -64,12 +73,21 @@
     "code_editor/layout/default": "stills/code_editor/layout/default.webp",
     "code_editor/layout/sidebar_right": "stills/code_editor/layout/sidebar_right.webp",
     "code_editor/layout/top_tree": "stills/code_editor/layout/top_tree.webp",
-    "maps/content/adversarial_descriptions": "stills/maps/content/adversarial_descriptions.webp",
+    "maps/content/adversarial_descriptions": {
+      "same_as": "maps/layout/default",
+      "src": "stills/maps/content/adversarial_descriptions.webp"
+    },
     "maps/content/default": "stills/maps/content/default.webp",
     "maps/content/german": "stills/maps/content/german.webp",
-    "maps/content/long_descriptions": "stills/maps/content/long_descriptions.webp",
+    "maps/content/long_descriptions": {
+      "same_as": "maps/layout/default",
+      "src": "stills/maps/content/long_descriptions.webp"
+    },
     "maps/content/mandarin": "stills/maps/content/mandarin.webp",
-    "maps/content/misleading_descriptions": "stills/maps/content/misleading_descriptions.webp",
+    "maps/content/misleading_descriptions": {
+      "same_as": "maps/layout/default",
+      "src": "stills/maps/content/misleading_descriptions.webp"
+    },
     "maps/layout/bottom_sheet": "stills/maps/layout/bottom_sheet.webp",
     "maps/layout/default": "stills/maps/layout/default.webp",
     "maps/layout/sidebar_left": "stills/maps/layout/sidebar_left.webp",
@@ -99,12 +117,18 @@
     "openbanking/content/misleading_descriptions": "stills/openbanking/content/misleading_descriptions.webp",
     "openbanking/layout/card_list": "stills/openbanking/layout/card_list.webp",
     "openbanking/layout/default": "stills/openbanking/layout/default.webp",
-    "start_page/content/adversarial_descriptions": "stills/start_page/content/adversarial_descriptions.webp",
+    "start_page/content/adversarial_descriptions": {
+      "same_as": "start_page/layout/desktop",
+      "src": "stills/start_page/content/adversarial_descriptions.webp"
+    },
     "start_page/content/default": "stills/start_page/content/default.webp",
     "start_page/content/german": "stills/start_page/content/german.webp",
     "start_page/content/long_descriptions": "stills/start_page/content/long_descriptions.webp",
     "start_page/content/mandarin": "stills/start_page/content/mandarin.webp",
-    "start_page/content/misleading_descriptions": "stills/start_page/content/misleading_descriptions.webp",
+    "start_page/content/misleading_descriptions": {
+      "same_as": "start_page/content/long_descriptions",
+      "src": "stills/start_page/content/misleading_descriptions.webp"
+    },
     "start_page/layout/broken_logos": "stills/start_page/layout/broken_logos.webp",
     "start_page/layout/clickable_logos": "stills/start_page/layout/clickable_logos.webp",
     "start_page/layout/desktop": "stills/start_page/layout/desktop.webp",
@@ -112,9 +136,15 @@
     "todo/content/adversarial_descriptions": "stills/todo/content/adversarial_descriptions.webp",
     "todo/content/default": "stills/todo/content/default.webp",
     "todo/content/german": "stills/todo/content/german.webp",
-    "todo/content/long_descriptions": "stills/todo/content/long_descriptions.webp",
+    "todo/content/long_descriptions": {
+      "same_as": "todo/content/adversarial_descriptions",
+      "src": "stills/todo/content/long_descriptions.webp"
+    },
     "todo/content/mandarin": "stills/todo/content/mandarin.webp",
-    "todo/content/misleading_descriptions": "stills/todo/content/misleading_descriptions.webp",
+    "todo/content/misleading_descriptions": {
+      "same_as": "todo/content/adversarial_descriptions",
+      "src": "stills/todo/content/misleading_descriptions.webp"
+    },
     "todo/layout/default": "stills/todo/layout/default.webp",
     "todo/layout/kanban_board": "stills/todo/layout/kanban_board.webp",
     "ui_library/content/default": "stills/ui_library/content/default.webp",

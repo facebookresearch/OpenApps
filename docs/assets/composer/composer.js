@@ -2171,17 +2171,27 @@
       if (!stills || !this.touched) return null;
       const [, app, axis] = STILL_KEY.exec(this.touched);
       const value = this.current(this.touched)[0];
-      const src = stills[`${app}/${axis}/${value}`];
-      if (!src) return null;
+      const entry = stills[`${app}/${axis}/${value}`];
+      if (!entry) return null;
+      // A path, or {src, same_as} when the still is byte-identical to another
+      // of this app's (render_composer_media.py hashes them): say so rather
+      // than imply the pack looks like that.
+      const src = typeof entry === "string" ? entry : entry.src;
       const appGroup = this.catalog.groups[`apps/${app}`];
       const appLabel = appGroup ? appGroup.label : app;
       const label = `${appLabel} · ${humanAxis(axis)}: ${this.optionLabel(this.touched, value)}`;
+      let caption = label;
+      if (entry.same_as) {
+        const [, twinAxis, twinValue] = entry.same_as.split("/");
+        const twin = `${humanAxis(twinAxis)}: ${this.optionLabel(`apps/${app}/${twinAxis}`, twinValue)}`;
+        caption = `${label} — no visible change above the fold (same as ${twin})`;
+      }
       return h("figure", { class: "inset", "data-part": "inset" },
         h("img", {
-          src: new URL(src, this.manifestURL).href, alt: label, loading: "lazy",
+          src: new URL(src, this.manifestURL).href, alt: caption, loading: "lazy",
           onerror: (event) => event.target.closest("figure").remove(),
         }),
-        h("figcaption", { text: label }));
+        h("figcaption", { text: caption }));
     }
 
     /** Local mode: the live apps in a frame, or the episode just recorded. */

@@ -31,9 +31,17 @@ Option lists come from the composer catalog, so a theme or layout added under
 entries in ``manifest.json`` and keeps the rest; entries whose file is gone
 are dropped. Manual, like tests/save_screenshots.py -- rerun it when the look
 of the apps changes, and keep the total under ~15 MB (it prints the size).
+
+Some packs change nothing above the fold (the todo app's long, misleading and
+adversarial descriptions all render the same first screen). Every run hashes
+the stills and marks each one byte-identical to another of its app as
+``{"src": ..., "same_as": key}`` (:func:`mark_same_as`), so the component can
+say so instead of implying the pack looks like that. ``--mark-only`` does
+just that to the existing manifest, without rendering anything.
 """
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -341,11 +349,57 @@ def booted(
                         pass
 
 
+def still_src(entry: str | dict) -> str:
+    """A still entry's file: the entry itself, or its ``src`` once marked."""
+    return entry if isinstance(entry, str) else entry["src"]
+
+
+def axis_defaults(catalog) -> dict[str, str]:
+    """``"<app>/<axis>"`` -> the value config.yaml composes for that axis."""
+    return {
+        path.removeprefix("apps/"): group.defaults.get("config")
+        for path, group in catalog.groups.items()
+        if path.startswith("apps/")
+        and path.endswith(tuple("/" + a for a in STILL_AXES))
+    }
+
+
+def mark_same_as(
+    stills: dict[str, str | dict], out: Path, defaults: dict[str, str]
+) -> dict[str, str | dict]:
+    """Stills with every byte-identical duplicate marked ``same_as`` its twin.
+
+    Within one app only (another app's identical bytes say nothing about this
+    one). Of a set of identical stills, the one kept plain is the app's
+    default layout, else its default content pack, else the first by key --
+    so a pack that changes nothing reads "same as the default". Recomputed
+    from the files every time (marked entries are read through ``src``), so
+    it is idempotent and a re-render that makes a still distinct unmarks it.
+    """
+
+    def rank(key: str) -> tuple:
+        app, axis, value = key.split("/")
+        return (defaults.get(f"{app}/{axis}") != value, STILL_AXES.index(axis), key)
+
+    twins: dict[tuple[str, str], str] = {}
+    marked: dict[str, str | dict] = {}
+    for key in sorted(stills, key=rank):
+        src = still_src(stills[key])
+        digest = hashlib.sha256((out / src).read_bytes()).hexdigest()
+        twin = twins.setdefault((key.split("/")[0], digest), key)
+        marked[key] = src if twin == key else {"src": src, "same_as": twin}
+    return dict(sorted(marked.items()))
+
+
 def load_manifest(path: Path) -> dict:
     if path.exists():
         data = json.loads(path.read_text())
         return {"clips": data.get("clips", {}), "stills": data.get("stills", {})}
     return {"clips": {}, "stills": {}}
+
+
+def write_manifest(path: Path, manifest: dict) -> None:
+    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -362,9 +416,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-clips", dest="clips", action="store_false")
     parser.add_argument("--no-stills", dest="stills", action="store_false")
     parser.add_argument("--workers", type=int, default=3, help="servers booting ahead")
+    parser.add_argument(
+        "--mark-only",
+        action="store_true",
+        help="only re-mark identical stills in the existing manifest",
+    )
     args = parser.parse_args(argv)
 
     catalog = build_catalog()
+    if args.mark_only:
+        out = args.out.resolve()
+        manifest = load_manifest(out / "manifest.json")
+        manifest["stills"] = mark_same_as(
+            manifest["stills"], out, axis_defaults(catalog)
+        )
+        write_manifest(out / "manifest.json", manifest)
+        same = sum(isinstance(v, dict) for v in manifest["stills"].values())
+        print(f"{same} of {len(manifest['stills'])} stills marked same_as another")
+        return 0
     devices = args.devices or [o.name for o in catalog.groups["device"].options]
     themes = args.themes or [o.name for o in catalog.groups["apps/theme"].options]
     jobs = plan(catalog, devices, themes, args.clips, args.stills)
@@ -404,10 +473,13 @@ def main(argv: list[str] | None = None) -> int:
 
     for section in ("clips", "stills"):
         manifest[section] = {
-            k: v for k, v in sorted(manifest[section].items()) if (out / v).exists()
+            k: v
+            for k, v in sorted(manifest[section].items())
+            if (out / still_src(v)).exists()
         }
+    manifest["stills"] = mark_same_as(manifest["stills"], out, axis_defaults(catalog))
     out.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    write_manifest(manifest_path, manifest)
 
     files = [p for p in out.rglob("*") if p.is_file()]
     total = sum(p.stat().st_size for p in files)

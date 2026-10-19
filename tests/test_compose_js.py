@@ -851,6 +851,27 @@ def test_the_last_touched_app_still_is_inset(ui):
     )
 
 
+def test_a_still_identical_to_another_says_so(ui):
+    page = ui("media.html#apps/todo/content=long_descriptions")
+    inset = page.locator("openapps-composer [data-part=inset]")
+    inset.wait_for()
+    assert (
+        inset.locator("img")
+        .get_attribute("src")
+        .endswith(MANIFEST["stills"]["todo/content/long_descriptions"]["src"])
+    )
+    caption = inset.locator("figcaption").inner_text()
+    assert "Long descriptions" in caption
+    assert "no visible change above the fold" in caption
+
+
+def test_a_distinct_still_has_the_plain_caption(ui):
+    page = ui("media.html#apps/todo/layout=kanban_board")
+    inset = page.locator("openapps-composer [data-part=inset]")
+    inset.wait_for()
+    assert "above the fold" not in inset.inner_text()
+
+
 def test_an_unknown_combination_keeps_the_placeholder(ui):
     page = ui("index.html#device=phone")
     preview = page.locator("openapps-composer [data-part=preview]")
