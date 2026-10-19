@@ -170,3 +170,9 @@ def test_composer_sits_under_manual_installation_in_the_nav():
            if line.strip().startswith("- ")]
     install = next(i for i, l in enumerate(nav) if "installation.md" in l)
     assert "composer.md" in nav[install + 1]
+
+
+def test_docs_logomark_stays_upright_in_dark_mode():
+    # The launch screen flips its mark in dark mode; beside the docs title that
+    # read as upside down, so the docs header carries no flip.
+    assert "scaleY" not in brand.docs_icon_template()
