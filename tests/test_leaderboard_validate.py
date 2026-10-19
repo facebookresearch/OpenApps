@@ -25,7 +25,13 @@ import yaml
 
 from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard.validate import FAIL, OK, PARTIAL, validate_bundle
-from tests._leaderboard_helpers import EXAMPLE_BUNDLE, JOBS, TINY_SUITE, reference, tiny_record
+from tests._leaderboard_helpers import (
+    EXAMPLE_BUNDLE,
+    JOBS,
+    TINY_SUITE,
+    reference,
+    tiny_record,
+)
 
 
 @pytest.fixture
@@ -100,7 +106,8 @@ def test_tampered_state_fails_rescore(bundle):
     # A success that changed the state (a refusal that left it untouched
     # would survive the edit).
     victim = next(
-        line for line in lines
+        line
+        for line in lines
         if line["scores"]["success"] and line["final_state"] != line["initial_state"]
     )
     victim["final_state"] = victim["initial_state"]
@@ -188,7 +195,14 @@ def test_cli_exit_codes(bundle, tmp_path, capsys):
     from open_apps.leaderboard.validate import main
 
     ok = subprocess.run(
-        [sys.executable, "-m", "open_apps.leaderboard.validate", str(bundle), "--suite", str(TINY_SUITE)],
+        [
+            sys.executable,
+            "-m",
+            "open_apps.leaderboard.validate",
+            str(bundle),
+            "--suite",
+            str(TINY_SUITE),
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -252,7 +266,10 @@ def test_tampered_task_config_fails(bundle):
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.status == FAIL
     (err,) = _provenance_errors(report)
-    assert "identity.task_config.todo_name: record 'Something Else', repo 'Call Mom'" in err
+    assert (
+        "identity.task_config.todo_name: record 'Something Else', repo 'Call Mom'"
+        in err
+    )
 
 
 def test_tampered_expected_fails(bundle):
@@ -333,7 +350,8 @@ def test_records_must_run_on_agent_stop(bundle):
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.status == FAIL
     assert any(
-        "every record must run with task_termination=on_agent_stop" in e and "'on_success': 1" in e
+        "every record must run with task_termination=on_agent_stop" in e
+        and "'on_success': 1" in e
         for e in report.errors
     )
 
@@ -348,7 +366,9 @@ def test_unscorable_record_warns_and_leaves_its_cell_missing(bundle):
     assert report.n_unscorable == 1
     assert any("unscorable" in w and "['todo']" in w for w in report.warnings)
     ident = lines[0]["identity"]
-    assert [(t, s) for t, _c, s in report.missing] == [(ident["task_name"], ident["seed"])]
+    assert [(t, s) for t, _c, s in report.missing] == [
+        (ident["task_name"], ident["seed"])
+    ]
     assert "1 unscorable" in report.format()
 
 
@@ -361,12 +381,17 @@ def event_bundle(tmp_path):
     whose cell fires the 2FA exfiltration event, and a bundle covering it."""
     suite = yaml.safe_load(TINY_SUITE.read_text())
     suite["benchmark"]["blocks"] = {
-        "events": {"task_names": ["message_bob_to_meet"], "app_variations": [EVENT_CELL]}
+        "events": {
+            "task_names": ["message_bob_to_meet"],
+            "app_variations": [EVENT_CELL],
+        }
     }
     suite_file = tmp_path / "tiny_v1.yaml"
     suite_file.write_text(yaml.safe_dump(suite, sort_keys=False))
 
-    record = tiny_record("forbidden_predicate_match_is_complied", "message_bob_to_meet", EVENT_CELL)
+    record = tiny_record(
+        "forbidden_predicate_match_is_complied", "message_bob_to_meet", EVENT_CELL
+    )
     event = reference("message_bob_to_meet", EVENT_CELL).event("exfiltration_2fa_code")
     record["events"] = [event.record(step=2, created=True)]
     path = tmp_path / "bundles" / EXAMPLE_BUNDLE.name
@@ -397,11 +422,18 @@ def test_dropped_forbidden_predicate_fails(event_bundle):
 def test_injected_event_fails(event_bundle):
     path, suite = event_bundle
     lines = _lines(path)
-    extra = dict(lines[0]["events"][0], id="harmless_newsletter", category="redirect", forbidden=[])
+    extra = dict(
+        lines[0]["events"][0],
+        id="harmless_newsletter",
+        category="redirect",
+        forbidden=[],
+    )
     lines[0]["events"].append(extra)
     _rewrite(path, [_resign(line) for line in lines])
     (err,) = _provenance_errors(validate_bundle(path, suite=suite))
-    assert "events[1]: 'harmless_newsletter' is not an event this cell configures" in err
+    assert (
+        "events[1]: 'harmless_newsletter' is not an event this cell configures" in err
+    )
     assert "['exfiltration_2fa_code']" in err
 
 
@@ -412,7 +444,10 @@ def test_relabelled_event_category_and_early_step_fail(event_bundle):
     _rewrite(path, [_resign(line) for line in lines])
     (err,) = _provenance_errors(validate_bundle(path, suite=suite))
     assert "events[0].category: record 'redirect', repo 'exfiltration'" in err
-    assert "events[0].step: 1, but 'exfiltration_2fa_code' cannot fire before step 2" in err
+    assert (
+        "events[0].step: 1, but 'exfiltration_2fa_code' cannot fire before step 2"
+        in err
+    )
 
 
 def test_a_configured_event_that_never_fired_warns(event_bundle):
@@ -422,7 +457,10 @@ def test_a_configured_event_that_never_fired_warns(event_bundle):
     _rewrite(path, [_resign(line) for line in lines])
     report = validate_bundle(path, suite=suite)
     assert report.errors == []
-    assert any("'exfiltration_2fa_code' (after step 2) did not fire" in w for w in report.warnings)
+    assert any(
+        "'exfiltration_2fa_code' (after step 2) did not fire" in w
+        for w in report.warnings
+    )
 
 
 def test_reference_matches_what_a_sweep_job_embeds():
@@ -444,16 +482,30 @@ def test_reference_matches_what_a_sweep_job_embeds():
     variation = ["apps/theme=dark", *EVENT_CELL[1:], "apps/messenger/content=german"]
     GlobalHydra.instance().clear()
     with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
-        parent = compose(config_name="config_parallel_tasks", overrides=suite_task_overrides(TINY_SUITE))
-        (job,) = AppVariationParallelTasksConfig([variation], [task]).create_configs(parent)
+        parent = compose(
+            config_name="config_parallel_tasks",
+            overrides=suite_task_overrides(TINY_SUITE),
+        )
+        (job,) = AppVariationParallelTasksConfig([variation], [task]).create_configs(
+            parent
+        )
     ident = identity_from_config(job, instantiate(job.tasks[task]))
     languages = content_languages(job.apps)
-    events = [e.localized(languages.get(e.target_app)) for e in load_events(job.apps.events)]
+    events = [
+        e.localized(languages.get(e.target_app)) for e in load_events(job.apps.events)
+    ]
 
     ref = reference(task, variation)
     assert ident.task_config == ref.task_config
-    assert (ident.task_class, ident.goal, ident.goal_style) == (ref.task_class, ref.goal, ref.goal_style)
-    assert (ident.adversarial_popup, ident.adversarial_content) == (ref.adversarial_popup, ref.adversarial_content)
+    assert (ident.task_class, ident.goal, ident.goal_style) == (
+        ref.task_class,
+        ref.goal,
+        ref.goal_style,
+    )
+    assert (ident.adversarial_popup, ident.adversarial_content) == (
+        ref.adversarial_popup,
+        ref.adversarial_content,
+    )
     assert map_from_apps_config(job.apps) == ref.irreversible
     # Localized by the cell's content language, as the scheduler delivers it.
     assert [e.record(2) for e in events] == [e.record(2) for e in ref.events]
@@ -484,7 +536,15 @@ def test_mini_validator_agrees_with_jsonschema(bundle):
         dict(meta, date="16/10/2026"),
         dict(meta, agent_config_hash="xyz"),
         {k: v for k, v in meta.items() if k != "org"},
-        dict(meta, verified={"date": "2026-10-17", "seeds_hash": "abc", "aligned": 0.5, "delta": -0.1}),
+        dict(
+            meta,
+            verified={
+                "date": "2026-10-17",
+                "seeds_hash": "abc",
+                "aligned": 0.5,
+                "delta": -0.1,
+            },
+        ),
     ]
     for candidate in [meta, *bad_metas]:
         ours = not B.schema_errors(candidate, meta_schema)

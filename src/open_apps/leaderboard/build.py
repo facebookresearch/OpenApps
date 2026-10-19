@@ -40,7 +40,13 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from open_apps.leaderboard import bundle as B
-from open_apps.leaderboard.validate import FAIL, OK, PARTIAL, BundleReport, validate_bundle
+from open_apps.leaderboard.validate import (
+    FAIL,
+    OK,
+    PARTIAL,
+    BundleReport,
+    validate_bundle,
+)
 
 LEADERBOARD_VERSION = 1
 DEFAULT_SUITES = ("align_v1",)
@@ -94,7 +100,11 @@ def _derive_row(row: dict) -> dict:
     parts = [row.get("complied"), row.get("premature_stop")]
     row["fooled"] = any(parts) if any(p is not None for p in parts) else None
     tokens = [row.get("tokens_in"), row.get("tokens_out")]
-    row["tokens"] = sum(t for t in tokens if t is not None) if any(t is not None for t in tokens) else None
+    row["tokens"] = (
+        sum(t for t in tokens if t is not None)
+        if any(t is not None for t in tokens)
+        else None
+    )
     return row
 
 
@@ -121,7 +131,9 @@ def composer_agent(agent: Optional[str]) -> Optional[str]:
     return agent if (config_dir() / "agent" / f"{agent}.yaml").is_file() else None
 
 
-def ranked_row(report: BundleReport, n_boot: int = N_BOOT, seed: int = BOOT_SEED) -> dict:
+def ranked_row(
+    report: BundleReport, n_boot: int = N_BOOT, seed: int = BOOT_SEED
+) -> dict:
     """One leaderboard row from a validated bundle's re-scored records.
 
     Aggregated per bundle (not across all bundles at once) so a row's
@@ -198,7 +210,9 @@ def _rank(rows: list[dict]) -> list[dict]:
         value = row[col]["rate"]
         return -1.0 if value is None else value
 
-    rows = sorted(rows, key=lambda r: (-rate(r, "aligned"), -rate(r, "success"), r["id"]))
+    rows = sorted(
+        rows, key=lambda r: (-rate(r, "aligned"), -rate(r, "success"), r["id"])
+    )
     prev, rank = None, 0
     for i, row in enumerate(rows, start=1):
         key = (rate(row, "aligned"), rate(row, "success"))
@@ -243,7 +257,8 @@ def build(
     failed = [r for r in reports if r.status == FAIL]
     if failed:
         raise ValueError(
-            "cannot build with failing bundles: " + ", ".join(r.path.name for r in failed)
+            "cannot build with failing bundles: "
+            + ", ".join(r.path.name for r in failed)
         )
     names = sorted({*suites, *(r.suite for r in reports if r.suite)})
     out_suites = {}
@@ -253,19 +268,34 @@ def build(
             "suite": name,
             # From validation when a bundle was checked against the suite
             # (which may be a path, in tests); else from config/benchmark.
-            "n_cells": max((r.n_expected for r in mine), default=0) or _suite_size(name),
-            "rows": _rank([ranked_row(r, n_boot, seed) for r in mine if r.status == OK]),
+            "n_cells": max((r.n_expected for r in mine), default=0)
+            or _suite_size(name),
+            "rows": _rank(
+                [ranked_row(r, n_boot, seed) for r in mine if r.status == OK]
+            ),
             "partial": sorted(
-                (partial_row(r) for r in mine if r.status == PARTIAL), key=lambda p: p["id"]
+                (partial_row(r) for r in mine if r.status == PARTIAL),
+                key=lambda p: p["id"],
             ),
         }
     return {
         "leaderboard_version": LEADERBOARD_VERSION,
         "generated_at": generated_at(when),
         "record_version": RECORD_VERSION,
-        "bootstrap": {"n_boot": n_boot, "seed": seed, "ci": 0.95, "ci_method": CI_METHOD},
+        "bootstrap": {
+            "n_boot": n_boot,
+            "seed": seed,
+            "ci": 0.95,
+            "ci_method": CI_METHOD,
+        },
         "columns": [
-            {"key": c, "metric": m, "higher_is_better": hb, "label": label, "description": desc}
+            {
+                "key": c,
+                "metric": m,
+                "higher_is_better": hb,
+                "label": label,
+                "description": desc,
+            }
             for c, m, hb, label, desc in COLUMNS
         ],
         "suites": out_suites,
@@ -284,7 +314,9 @@ def _pct(cell: Optional[dict]) -> str:
     if not cell or cell.get("rate") is None:
         return "-"
     lo, hi = cell.get("ci_low"), cell.get("ci_high")
-    ci = f" [{lo * 100:.0f}-{hi * 100:.0f}]" if lo is not None and hi is not None else ""
+    ci = (
+        f" [{lo * 100:.0f}-{hi * 100:.0f}]" if lo is not None and hi is not None else ""
+    )
     return f"{cell['rate'] * 100:.1f}%{ci}"
 
 
@@ -294,7 +326,9 @@ def _num(cell: Optional[dict]) -> str:
     return f"{cell['rate']:.1f}"
 
 
-def comment_markdown(doc: dict, reports: list[BundleReport], targets: list[Path]) -> str:
+def comment_markdown(
+    doc: dict, reports: list[BundleReport], targets: list[Path]
+) -> str:
     """The rows a PR would add, as GitHub markdown."""
     wanted = {Path(t).resolve() for t in targets}
     lines = ["### OpenApps-Align leaderboard check", ""]
@@ -308,10 +342,16 @@ def comment_markdown(doc: dict, reports: list[BundleReport], targets: list[Path]
         if report.path.resolve() not in wanted:
             continue
         suite = doc["suites"].get(report.suite or "", {})
-        row = next((r for r in suite.get("rows", []) if r["id"] == report.path.name), None)
+        row = next(
+            (r for r in suite.get("rows", []) if r["id"] == report.path.name), None
+        )
         if row:
             worst = row["worst_variation"]["aligned"]
-            worst_s = "-" if worst["rate"] is None else f"{worst['rate'] * 100:.0f}% `{worst['cell']}`"
+            worst_s = (
+                "-"
+                if worst["rate"] is None
+                else f"{worst['rate'] * 100:.0f}% `{worst['cell']}`"
+            )
             cells = [
                 f"{row['rank']} / {len(suite['rows'])}",
                 _pct(row["aligned"]), _pct(row["success"]), worst_s, _pct(row["fooled"]),
@@ -320,7 +360,9 @@ def comment_markdown(doc: dict, reports: list[BundleReport], targets: list[Path]
             ]  # fmt: skip
         else:
             cells = ["not ranked"] + ["-"] * 9
-        lines.append(f"| `{report.path.name}` | {report.status} | " + " | ".join(cells) + " |")
+        lines.append(
+            f"| `{report.path.name}` | {report.status} | " + " | ".join(cells) + " |"
+        )
         details.append(report.format())
     lines += [
         "",
@@ -341,19 +383,33 @@ def comment_markdown(doc: dict, reports: list[BundleReport], targets: list[Path]
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Build leaderboard.json from the submission bundles.")
+    parser = argparse.ArgumentParser(
+        description="Build leaderboard.json from the submission bundles."
+    )
     parser.add_argument(
         "--submissions", type=Path, default=None,
         help="dir of bundles (default: leaderboard/submissions)",
     )  # fmt: skip
-    parser.add_argument("--out", type=Path, default=None, help=f"default: {DEFAULT_OUT}")
-    parser.add_argument("--generated-at", default=None, help="pin the timestamp (ISO 8601)")
+    parser.add_argument(
+        "--out", type=Path, default=None, help=f"default: {DEFAULT_OUT}"
+    )
+    parser.add_argument(
+        "--generated-at", default=None, help="pin the timestamp (ISO 8601)"
+    )
     parser.add_argument(
         "--suite", default=None,
         help="check every bundle against this suite name/YAML (default: each bundle's meta.suite)",
     )  # fmt: skip
-    parser.add_argument("--comment-for", nargs="*", default=[], type=Path, help="bundles to summarize for a PR")
-    parser.add_argument("--comment-out", type=Path, default=None, help="write the PR comment here")
+    parser.add_argument(
+        "--comment-for",
+        nargs="*",
+        default=[],
+        type=Path,
+        help="bundles to summarize for a PR",
+    )
+    parser.add_argument(
+        "--comment-out", type=Path, default=None, help="write the PR comment here"
+    )
     args = parser.parse_args(argv)
 
     submissions = args.submissions or B.submissions_dir()

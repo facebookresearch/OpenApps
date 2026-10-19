@@ -57,13 +57,17 @@ def submissions(tmp_path):
     # aligned rate (and consistent submitted scores).
     for line in lines:
         ident = line["identity"]
-        if ident["task_name"] == "delete_call_aunt_lisa" and ident["variation"] == ["apps/theme=dark"]:
+        if ident["task_name"] == "delete_call_aunt_lisa" and ident["variation"] == [
+            "apps/theme=dark"
+        ]:
             line["final_state"] = json.loads(json.dumps(line["initial_state"]))
     from open_apps.alignment.record import EpisodeRecord
     from open_apps.alignment.score import score
 
     for line in lines:
-        record = EpisodeRecord.from_dict({k: v for k, v in line.items() if k != "scores"})
+        record = EpisodeRecord.from_dict(
+            {k: v for k, v in line.items() if k != "scores"}
+        )
         line["scores"] = score(record).summary()
     B.write_episodes(lines, worse / B.EPISODES_FILE)
 
@@ -88,7 +92,10 @@ def test_leaderboard_is_deterministic(submissions):
 def test_partial_is_listed_but_not_ranked(submissions):
     doc = build(_reports(submissions), when=WHEN)
     tab = doc["suites"]["tiny_v1"]
-    assert [r["id"] for r in tab["rows"]] == ["example__dummy__tiny_v1", "worse__dummy__tiny_v1"]
+    assert [r["id"] for r in tab["rows"]] == [
+        "example__dummy__tiny_v1",
+        "worse__dummy__tiny_v1",
+    ]
     assert [p["id"] for p in tab["partial"]] == ["partial__dummy__tiny_v1"]
     assert tab["partial"][0]["covered"] == 2 and tab["partial"][0]["n_cells"] == 6
     assert "aligned" not in tab["partial"][0]  # no numbers that look comparable
@@ -121,7 +128,10 @@ def test_rows_carry_every_column_with_cis(submissions):
     # Asked is defined on the ambiguity set only: one refusal, one timeout.
     assert best["ask_at_ambiguous"]["n"] == 2
     assert best["ask_at_ambiguous"]["rate"] == pytest.approx(0.5)
-    assert best["worst_variation"]["aligned"]["cell"] in ("apps/theme=dark", "apps/theme=default")
+    assert best["worst_variation"]["aligned"]["cell"] in (
+        "apps/theme=dark",
+        "apps/theme=default",
+    )
     assert "theme" in best["by_axis"]
     assert doc["generated_at"] == WHEN
     assert [c["key"] for c in doc["columns"]][:2] == ["aligned", "success"]
@@ -142,7 +152,9 @@ def test_partial_row_counts_unscorable_episodes(submissions):
     from open_apps.alignment.record import EpisodeRecord
     from open_apps.alignment.score import score
 
-    record = EpisodeRecord.from_dict({k: v for k, v in lines[0].items() if k != "scores"})
+    record = EpisodeRecord.from_dict(
+        {k: v for k, v in lines[0].items() if k != "scores"}
+    )
     lines[0]["scores"] = score(record).summary()
     B.write_episodes(lines, partial / B.EPISODES_FILE)
     tab = build(_reports(submissions), when=WHEN)["suites"]["tiny_v1"]
@@ -159,11 +171,19 @@ def test_a_bundle_mixing_termination_modes_is_refused_loudly():
     from open_apps.leaderboard.validate import BundleReport
 
     rows = [
-        {"agent": "a", "task_termination": mode, "task_name": "t", "cell": "default", "aligned": True}
+        {
+            "agent": "a",
+            "task_termination": mode,
+            "task_name": "t",
+            "cell": "default",
+            "aligned": True,
+        }
         for mode in ("on_success", "on_agent_stop")
     ]
     report = BundleReport(path=Path("x__a__tiny_v1"), rows=rows)
-    with pytest.raises(ValueError, match=r"one agent and termination mode.*a@on_agent_stop"):
+    with pytest.raises(
+        ValueError, match=r"one agent and termination mode.*a@on_agent_stop"
+    ):
         ranked_row(report, n_boot=10)
 
 
@@ -210,7 +230,9 @@ def test_comment_shows_the_would_be_row(submissions):
     reports = _reports(submissions)
     doc = build(reports, when=WHEN)
     target = submissions / "worse__dummy__tiny_v1"
-    md = comment_markdown(doc, reports, [target, submissions / "partial__dummy__tiny_v1"])
+    md = comment_markdown(
+        doc, reports, [target, submissions / "partial__dummy__tiny_v1"]
+    )
     assert "| `worse__dummy__tiny_v1` | ok | 2 / 2 |" in md
     assert "| `partial__dummy__tiny_v1` | partial | not ranked |" in md
     assert "example__dummy__tiny_v1" not in md.split("<details>")[0]
@@ -261,7 +283,14 @@ def test_columns_read_the_scorer_directly():
     metric_of = {c: m for c, m, *_ in COLUMNS}
     assert metric_of["success"] == "task_success"
     assert metric_of["complied"] == "complied" and metric_of["honest"] == "honest"
-    unexposed = _derive_row({"complied": None, "premature_stop": None, "tokens_in": None, "tokens_out": None})
+    unexposed = _derive_row(
+        {
+            "complied": None,
+            "premature_stop": None,
+            "tokens_in": None,
+            "tokens_out": None,
+        }
+    )
     assert unexposed["fooled"] is None and unexposed["tokens"] is None
     # A content/pop-up exposure without an event: premature_stop decides.
     assert _derive_row({"complied": None, "premature_stop": False})["fooled"] is False

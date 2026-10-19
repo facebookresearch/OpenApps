@@ -84,7 +84,10 @@ def test_validate_checks_out_only_the_prs_leaderboard_data(check):
     # Non-cone mode: exactly these patterns, not the top-level files cone
     # mode would add (pyproject.toml, launch scripts...).
     assert w["sparse-checkout-cone-mode"] is False
-    assert w["sparse-checkout"].split() == ["/leaderboard/submissions/", "/leaderboard/demonstrations/"]
+    assert w["sparse-checkout"].split() == [
+        "/leaderboard/submissions/",
+        "/leaderboard/demonstrations/",
+    ]
 
 
 def test_validate_runs_code_only_from_the_base_checkout(check):
@@ -101,7 +104,11 @@ def test_validate_publishes_summary_and_artifact(check, comment):
     steps = check["jobs"]["validate"]["steps"]
     assert any("GITHUB_STEP_SUMMARY" in s.get("run", "") for s in steps)
     [upload] = [s for s in steps if _uses(s, "actions/upload-artifact")]
-    [download] = [s for s in comment["jobs"]["comment"]["steps"] if _uses(s, "actions/download-artifact")]
+    [download] = [
+        s
+        for s in comment["jobs"]["comment"]["steps"]
+        if _uses(s, "actions/download-artifact")
+    ]
     assert upload["with"]["name"] == download["with"]["name"] == "leaderboard-comment"
 
 
@@ -111,14 +118,24 @@ def test_code_changes_with_submissions_fail_with_a_clear_message(check):
     assert "split submissions from code changes" in run
     assert "exit 1" in run
     classify = "\n".join(s.get("run", "") for s in check["jobs"]["scope"]["steps"])
-    for path in ("src/open_apps/(leaderboard|alignment)/", "config/benchmark/", r"\.github/workflows/leaderboard"):
+    for path in (
+        "src/open_apps/(leaderboard|alignment)/",
+        "config/benchmark/",
+        r"\.github/workflows/leaderboard",
+    ):
         assert path in classify
-    for path in ("src/open_apps/leaderboard/**", "src/open_apps/alignment/**", "config/benchmark/**"):
+    for path in (
+        "src/open_apps/leaderboard/**",
+        "src/open_apps/alignment/**",
+        "config/benchmark/**",
+    ):
         assert path in check["on"]["pull_request"]["paths"]
 
 
 def test_comment_workflow_follows_the_check_by_name(check, comment):
-    assert comment["on"] == {"workflow_run": {"workflows": [check["name"]], "types": ["completed"]}}
+    assert comment["on"] == {
+        "workflow_run": {"workflows": [check["name"]], "types": ["completed"]}
+    }
 
 
 def test_comment_workflow_never_checks_out_or_runs_pr_code(comment):
@@ -134,7 +151,9 @@ def test_comment_workflow_never_checks_out_or_runs_pr_code(comment):
 
 def _comment_script() -> str:
     run = next(
-        s["run"] for s in _load(COMMENT)["jobs"]["comment"]["steps"] if "<<'PY'" in s.get("run", "")
+        s["run"]
+        for s in _load(COMMENT)["jobs"]["comment"]["steps"]
+        if "<<'PY'" in s.get("run", "")
     )
     return run.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
 
@@ -168,7 +187,10 @@ def test_comment_body_drops_control_characters(fenced):
 def test_docs_build_generates_leaderboard_json():
     """Generated on deploy from main's code, never copied from a commit."""
     run = "\n".join(s.get("run", "") for s in _load(STATIC)["jobs"]["deploy"]["steps"])
-    assert "open_apps.leaderboard.build --out docs/assets/leaderboard/leaderboard.json" in run
+    assert (
+        "open_apps.leaderboard.build --out docs/assets/leaderboard/leaderboard.json"
+        in run
+    )
     assert "cp leaderboard/leaderboard.json" not in run
     gitignore = (Path(__file__).parents[1] / ".gitignore").read_text().splitlines()
     assert "docs/assets/leaderboard/leaderboard.json" in gitignore

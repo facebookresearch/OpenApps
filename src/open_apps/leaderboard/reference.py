@@ -136,7 +136,8 @@ def _cell_apps(variation: tuple[str, ...]) -> _CellApps:
     apps = _compose("config", variation).apps
     languages = content_languages(apps)
     events = tuple(
-        e.localized(languages.get(e.target_app or "")) for e in load_events(apps.get("events"))
+        e.localized(languages.get(e.target_app or ""))
+        for e in load_events(apps.get("events"))
     )
     return _CellApps(
         irreversible=map_from_apps_config(apps),
@@ -148,7 +149,9 @@ def _cell_apps(variation: tuple[str, ...]) -> _CellApps:
 
 
 @functools.lru_cache(maxsize=1024)
-def _task_facts(overrides: tuple[str, ...], task_name: str) -> tuple[str, str, Optional[str]]:
+def _task_facts(
+    overrides: tuple[str, ...], task_name: str
+) -> tuple[str, str, Optional[str]]:
     """``(class name, goal, goal_style)`` of the instantiated task."""
     from hydra.utils import instantiate
 
@@ -215,9 +218,13 @@ def diff(record_value: Any, repo_value: Any, path: str) -> list[str]:
         for key in sorted(set(record_value) | set(repo_value), key=str):
             sub = f"{path}.{key}"
             if key not in record_value:
-                out.append(f"{sub}: missing from the record (repo {_short(repo_value[key])})")
+                out.append(
+                    f"{sub}: missing from the record (repo {_short(repo_value[key])})"
+                )
             elif key not in repo_value:
-                out.append(f"{sub}: not in the repo's config (record {_short(record_value[key])})")
+                out.append(
+                    f"{sub}: not in the repo's config (record {_short(record_value[key])})"
+                )
             else:
                 out += diff(record_value[key], repo_value[key], sub)
         return out
@@ -231,7 +238,11 @@ def diff(record_value: Any, repo_value: Any, path: str) -> list[str]:
             out += diff(a, b, f"{path}[{i}]")
         return out
     same = type(record_value) is type(repo_value) and record_value == repo_value
-    if not same and not isinstance(record_value, bool) and not isinstance(repo_value, bool):
+    if (
+        not same
+        and not isinstance(record_value, bool)
+        and not isinstance(repo_value, bool)
+    ):
         # 1 vs 1.0 is serialisation, not tampering.
         numbers = (int, float)
         same = (
@@ -239,7 +250,11 @@ def diff(record_value: Any, repo_value: Any, path: str) -> list[str]:
             and isinstance(repo_value, numbers)
             and float(record_value) == float(repo_value)
         )
-    return [] if same else [f"{path}: record {_short(record_value)}, repo {_short(repo_value)}"]
+    return (
+        []
+        if same
+        else [f"{path}: record {_short(record_value)}, repo {_short(repo_value)}"]
+    )
 
 
 def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[str]]:
@@ -247,7 +262,13 @@ def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[str]]:
     with the reference, and fired events the cell does not configure."""
     ident = record.identity
     errors = diff(ident.task_config, ref.task_config, "identity.task_config")
-    for name in ("task_class", "goal", "goal_style", "adversarial_popup", "adversarial_content"):
+    for name in (
+        "task_class",
+        "goal",
+        "goal_style",
+        "adversarial_popup",
+        "adversarial_content",
+    ):
         errors += diff(getattr(ident, name), getattr(ref, name), f"identity.{name}")
     if record.irreversible is None:
         errors.append(
@@ -267,7 +288,9 @@ def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[str]]:
             )
             continue
         if event.id in seen:
-            errors.append(f"{where}: {event.id!r} fired twice (an event fires at most once)")
+            errors.append(
+                f"{where}: {event.id!r} fired twice (an event fires at most once)"
+            )
         seen.add(event.id)
         want = configured.record(event.step, created=event.created)
         for key in ("channel", "category", "sender", "body", "forbidden"):
@@ -300,7 +323,9 @@ def rebased(record: Any, ref: ReferenceCell) -> Any:
     for event in record.events:
         configured = ref.event(event.id)
         if configured is not None:
-            events.append(EventRecord(**configured.record(event.step, created=event.created)))
+            events.append(
+                EventRecord(**configured.record(event.step, created=event.created))
+            )
     identity = dataclasses.replace(
         record.identity,
         task_config=ref.task_config,

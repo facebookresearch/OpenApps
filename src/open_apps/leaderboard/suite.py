@@ -85,7 +85,11 @@ def cell_key(
     override order never matters."""
     from open_apps.alignment.aggregate import cell_of
 
-    return (str(task_name), cell_of(list(variation)), int(seed if seed is not None else -1))
+    return (
+        str(task_name),
+        cell_of(list(variation)),
+        int(seed if seed is not None else -1),
+    )
 
 
 # --- loading -------------------------------------------------------------------
@@ -152,10 +156,14 @@ def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
 
 
 def resolve_seeds(
-    public: Sequence[int], seed_set: str = "public", heldout_path: str | Path | None = None
+    public: Sequence[int],
+    seed_set: str = "public",
+    heldout_path: str | Path | None = None,
 ) -> list[int]:
     if seed_set not in SEED_SETS:
-        raise ValueError(f"benchmark.seed_set must be one of {SEED_SETS}, got {seed_set!r}")
+        raise ValueError(
+            f"benchmark.seed_set must be one of {SEED_SETS}, got {seed_set!r}"
+        )
     if seed_set == "heldout":
         return load_heldout_seeds(heldout_path)
     seeds = [int(s) for s in public]
@@ -172,7 +180,11 @@ def expand_blocks(blocks: Mapping[str, Any]) -> list[tuple[str, str, list[str]]]
     """
     out = []
     for block, spec in blocks.items():
-        spec = OmegaConf.to_container(spec, resolve=True) if OmegaConf.is_config(spec) else spec
+        spec = (
+            OmegaConf.to_container(spec, resolve=True)
+            if OmegaConf.is_config(spec)
+            else spec
+        )
         tasks = spec.get("task_names")
         if tasks == ALL_TASKS or isinstance(tasks, str):
             raise ValueError(
@@ -201,7 +213,9 @@ def suite_cells(
     ]
     dupes = [k for k, n in Counter(c.key for c in cells).items() if n > 1]
     if dupes:
-        raise ValueError(f"suite has duplicate cells (same task, variation, seed): {dupes[:3]}")
+        raise ValueError(
+            f"suite has duplicate cells (same task, variation, seed): {dupes[:3]}"
+        )
     return cells
 
 
@@ -278,7 +292,9 @@ class SuiteParallelTasksConfig(ParallelTasksConfig):
         )
         return suite_cells(bench, self.seed_set, self.heldout_path)
 
-    def create_configs(self, default_config: DictConfig, *args, **kwargs) -> list[DictConfig]:
+    def create_configs(
+        self, default_config: DictConfig, *args, **kwargs
+    ) -> list[DictConfig]:
         """``*args/**kwargs`` are forwarded to the per-block fan-out so this
         keeps working when ``AppVariationParallelTasksConfig.create_configs``
         grows parameters (e.g. the command-line overrides it composes with)."""
@@ -317,7 +333,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     print(summarize(cells, str(bench.name)))
     if args.list:
         for c in cells:
-            print(f"{c.block}\t{c.task_name}\t{' '.join(c.variation) or '-'}\tseed={c.seed}")
+            print(
+                f"{c.block}\t{c.task_name}\t{' '.join(c.variation) or '-'}\tseed={c.seed}"
+            )
     if len(cells) > MAX_CELLS:
         print(f"suite exceeds MAX_CELLS={MAX_CELLS}", file=sys.stderr)
         return 1

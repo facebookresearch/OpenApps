@@ -77,9 +77,13 @@ def _make_worse(bundle):
     lines = _lines(bundle)
     for line in lines:
         ident = line["identity"]
-        if ident["task_name"] == "delete_call_aunt_lisa" and ident["variation"] == ["apps/theme=dark"]:
+        if ident["task_name"] == "delete_call_aunt_lisa" and ident["variation"] == [
+            "apps/theme=dark"
+        ]:
             line["final_state"] = json.loads(json.dumps(line["initial_state"]))
-        record = EpisodeRecord.from_dict({k: v for k, v in line.items() if k != "scores"})
+        record = EpisodeRecord.from_dict(
+            {k: v for k, v in line.items() if k != "scores"}
+        )
         line["scores"] = score(record).summary()
     B.write_episodes(lines, bundle / B.EPISODES_FILE)
 
@@ -114,7 +118,10 @@ def _with_per_app_axes(doc: dict) -> dict:
     partial row an unscorable episode."""
 
     def cell(aligned, success):
-        return {"aligned": {"n": 1, "rate": aligned}, "task_success": {"n": 1, "rate": success}}
+        return {
+            "aligned": {"n": 1, "rate": aligned},
+            "task_success": {"n": 1, "rate": success},
+        }
 
     tab = doc["suites"]["tiny_v1"]
     worse = next(r for r in tab["rows"] if r["id"] == "worse__dummy__tiny_v1")
@@ -144,18 +151,26 @@ def site(tmp_path_factory):
     (data / "full.json").write_text(json.dumps(full))
     (data / "empty.json").write_text(json.dumps(build([], when=WHEN)))
     (root / "composer").mkdir()
-    (root / "composer" / "index.html").write_text("<!doctype html><title>composer</title>")
+    (root / "composer" / "index.html").write_text(
+        "<!doctype html><title>composer</title>"
+    )
 
     embed = _embed_markup()
     head = '<meta charset="utf-8"><link rel="stylesheet" href="../assets/leaderboard/leaderboard.css">'
     script = '<script src="../assets/leaderboard/leaderboard.js"></script>'
-    pages = {"full": "../data/full.json", "empty": "../data/empty.json", "missing": "../data/nope.json"}
+    pages = {
+        "full": "../data/full.json",
+        "empty": "../data/empty.json",
+        "missing": "../data/nope.json",
+    }
     for name, src in pages.items():
         page_dir = root / name
         page_dir.mkdir()
         body = embed.replace('src="__SRC__"', f'src="{src}"')
         submit = '<h2 id="submit">Submit</h2><p>steps</p>'
-        (page_dir / "index.html").write_text(f"<!doctype html>{head}<article>{body}{submit}</article>{script}")
+        (page_dir / "index.html").write_text(
+            f"<!doctype html>{head}<article>{body}{submit}</article>{script}"
+        )
 
     handler = functools.partial(_QuietHandler, directory=str(root))
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -182,7 +197,10 @@ def _launch(playwright):
     errors = []
     for kwargs in (
         {},
-        {"chromium_sandbox": False, "args": ["--no-sandbox", "--single-process", "--disable-gpu"]},
+        {
+            "chromium_sandbox": False,
+            "args": ["--no-sandbox", "--single-process", "--disable-gpu"],
+        },
     ):
         try:
             browser = playwright.chromium.launch(**kwargs)
@@ -211,7 +229,9 @@ def page(browser_context, site):
 
     def goto(name="full", hash_=""):
         page.goto(f"{site['url']}/{name}/{hash_}")
-        page.wait_for_selector(f"{EL} .olb > :not(.head):not(.status-line), {EL} [role=alert]")
+        page.wait_for_selector(
+            f"{EL} .olb > :not(.head):not(.status-line), {EL} [role=alert]"
+        )
         return page
 
     page.goto_board = goto
@@ -221,7 +241,9 @@ def page(browser_context, site):
 
 
 def agents(page) -> list[str]:
-    return page.locator(f"{EL} table.board:not(.partial-table) tbody tr.row .agent-name").all_inner_texts()
+    return page.locator(
+        f"{EL} table.board:not(.partial-table) tbody tr.row .agent-name"
+    ).all_inner_texts()
 
 
 def header(page, key):
@@ -229,7 +251,10 @@ def header(page, key):
 
 
 def row(page, agent):
-    return page.locator(f"{EL} tr.row", has=page.locator(".agent-name", has_text=re.compile(f"^{agent}$")))
+    return page.locator(
+        f"{EL} tr.row",
+        has=page.locator(".agent-name", has_text=re.compile(f"^{agent}$")),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -241,15 +266,26 @@ def test_renders_the_fixture_leaderboard(page, site):
     page.goto_board()
     # The suite with rows opens first; align_v1 (no rows) is the other tab.
     tabs = page.locator(f"{EL} [role=tablist] [role=tab]")
-    assert tabs.evaluate_all("els => els.map(e => e.dataset.suite)") == ["align_v1", "tiny_v1"]
+    assert tabs.evaluate_all("els => els.map(e => e.dataset.suite)") == [
+        "align_v1",
+        "tiny_v1",
+    ]
     assert tabs.locator(".tab-count").all_inner_texts() == ["0", "3"]
-    assert page.locator(f"{EL} [role=tab][aria-selected=true]").get_attribute("data-suite") == "tiny_v1"
+    assert (
+        page.locator(f"{EL} [role=tab][aria-selected=true]").get_attribute("data-suite")
+        == "tiny_v1"
+    )
     # Ranked by aligned: the tie shares rank 1, the worse copy is 3rd.
     assert agents(page) == ["dummy", "twin-agent", "dummy"]
     ranks = page.locator(f"{EL} tbody tr.row td.col-rank").all_inner_texts()
     assert ranks == ["1", "1", "3"]
     # A real <table>: header cells with scope, the default sort announced.
-    assert page.locator(f"{EL} table.board:not(.partial-table) thead th[scope=col]").count() == 11
+    assert (
+        page.locator(
+            f"{EL} table.board:not(.partial-table) thead th[scope=col]"
+        ).count()
+        == 11
+    )
     assert header(page, "aligned").get_attribute("aria-sort") == "descending"
     assert header(page, "success").get_attribute("aria-sort") is None
     first = row(page, "twin-agent")
@@ -300,9 +336,12 @@ def test_headers_sort_from_the_keyboard(page):
     page.keyboard.press("Enter")
     assert header(page, "success").get_attribute("aria-sort") == "descending"
     # Focus stays on the header across the re-render.
-    assert page.evaluate(
-        f"document.querySelector('{EL}').shadowRoot.activeElement.dataset.sort"
-    ) == "success"
+    assert (
+        page.evaluate(
+            f"document.querySelector('{EL}').shadowRoot.activeElement.dataset.sort"
+        )
+        == "success"
+    )
     page.keyboard.press("Space")
     assert header(page, "success").get_attribute("aria-sort") == "ascending"
 
@@ -334,7 +373,10 @@ def test_tab_switch_shows_the_empty_suite(page):
     # Arrow keys move between tabs.
     page.locator(f'{EL} [role=tab][data-suite="align_v1"]').focus()
     page.keyboard.press("ArrowRight")
-    assert page.locator(f"{EL} [role=tab][aria-selected=true]").get_attribute("data-suite") == "tiny_v1"
+    assert (
+        page.locator(f"{EL} [role=tab][aria-selected=true]").get_attribute("data-suite")
+        == "tiny_v1"
+    )
 
 
 def test_drilldown_and_reproduce_href(page, site):
@@ -358,7 +400,10 @@ def test_drilldown_and_reproduce_href(page, site):
     # composer learning the benchmark group; see leaderboard.js).
     assert reproduce.get_attribute("href") == f"{site['url']}/composer/#agent=dummy"
     hrefs = detail.locator(".links li a").evaluate_all("els => els.map(e => e.href)")
-    assert any(h.endswith("example__dummy__tiny_v1/meta.yaml") and "/blob/main/" in h for h in hrefs)
+    assert any(
+        h.endswith("example__dummy__tiny_v1/meta.yaml") and "/blob/main/" in h
+        for h in hrefs
+    )
     assert "https://wandb.ai/example/report" in hrefs
     assert "https://example.org/v1.mp4" in hrefs
     assert "open=example__dummy__tiny_v1" in page.evaluate("location.hash")
@@ -382,7 +427,10 @@ def test_unscorable_and_ci_method_are_surfaced(page, site):
     partial = page.locator(f"{EL} .partial")
     assert "1 unscorable" in partial.inner_text()
     # A complete bundle never has one (an unscorable record covers no cell).
-    assert page.locator(f"{EL} table.board:not(.partial-table) .note-unscorable").count() == 0
+    assert (
+        page.locator(f"{EL} table.board:not(.partial-table) .note-unscorable").count()
+        == 0
+    )
     footnote = page.locator(f"{EL} .footnote")
     assert "task-clustered bootstrap" in footnote.inner_text()
     method = footnote.locator("details.ci-method")
@@ -394,7 +442,10 @@ def test_reproduce_without_a_known_agent_config(page, site):
     page.goto_board()
     row(page, "twin-agent").locator("button.expand").click()
     detail = page.locator(f"{EL} tr.detail")
-    assert detail.locator("a.reproduce").get_attribute("href") == f"{site['url']}/composer/"
+    assert (
+        detail.locator("a.reproduce").get_attribute("href")
+        == f"{site['url']}/composer/"
+    )
     assert "agent.yaml in the bundle is the exact config" in detail.inner_text()
 
 
@@ -414,7 +465,9 @@ def test_verified_badge(page):
     warned = row(page, "twin-agent").locator(".badge.verified")
     assert "warn" in warned.get_attribute("class")
     assert "overfit" in warned.locator("[role=tooltip]").text_content()
-    assert row(page, "dummy").nth(1).locator(".badge").count() == 0  # the unverified copy
+    assert (
+        row(page, "dummy").nth(1).locator(".badge").count() == 0
+    )  # the unverified copy
 
 
 def test_missing_file_explains_how_to_build_it(page):
@@ -440,7 +493,10 @@ def test_follows_the_docs_dark_toggle(page):
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not os.environ.get("LEADERBOARD_SHOTS_DIR"), reason="set LEADERBOARD_SHOTS_DIR to write screenshots")
+@pytest.mark.skipif(
+    not os.environ.get("LEADERBOARD_SHOTS_DIR"),
+    reason="set LEADERBOARD_SHOTS_DIR to write screenshots",
+)
 def test_screenshots(page):
     out = Path(os.environ["LEADERBOARD_SHOTS_DIR"])
     out.mkdir(parents=True, exist_ok=True)
@@ -449,7 +505,9 @@ def test_screenshots(page):
         page.goto_board("full", "#open=example__dummy__tiny_v1")
         page.locator(EL).screenshot(path=str(out / f"populated-{label}.png"))
         page.evaluate("document.documentElement.classList.add('dark')")
-        page.wait_for_function(f"document.querySelector('{EL}').dataset.scheme === 'dark'")
+        page.wait_for_function(
+            f"document.querySelector('{EL}').dataset.scheme === 'dark'"
+        )
         page.locator(EL).screenshot(path=str(out / f"populated-{label}-dark.png"))
         page.evaluate("document.documentElement.classList.remove('dark')")
         page.goto_board("full", "#open=worse__dummy__tiny_v1")

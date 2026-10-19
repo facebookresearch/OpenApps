@@ -287,7 +287,9 @@ def _is_type(value: Any, name: str) -> bool:
     return isinstance(value, _JSON_TYPES[name])
 
 
-def schema_errors(instance: Any, schema: dict, root: Optional[dict] = None, path: str = "$") -> list[str]:
+def schema_errors(
+    instance: Any, schema: dict, root: Optional[dict] = None, path: str = "$"
+) -> list[str]:
     """Errors from checking ``instance`` against a JSON Schema subset.
 
     Hand-rolled on purpose: ``jsonschema`` is only a transitive dependency
@@ -324,7 +326,9 @@ def schema_errors(instance: Any, schema: dict, root: Optional[dict] = None, path
     if "type" in schema:
         types = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
         if not any(_is_type(instance, t) for t in types):
-            errors.append(f"{path}: expected {'/'.join(types)}, got {type(instance).__name__}")
+            errors.append(
+                f"{path}: expected {'/'.join(types)}, got {type(instance).__name__}"
+            )
             return errors
     if isinstance(instance, str):
         if "minLength" in schema and len(instance) < schema["minLength"]:

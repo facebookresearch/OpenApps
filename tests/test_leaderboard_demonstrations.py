@@ -30,7 +30,11 @@ from open_apps.leaderboard.validate import (
     validate_bundle,
     validate_path,
 )
-from tests._leaderboard_helpers import EXAMPLE_BUNDLE, EXAMPLE_DEMO, make_example_demonstration
+from tests._leaderboard_helpers import (
+    EXAMPLE_BUNDLE,
+    EXAMPLE_DEMO,
+    make_example_demonstration,
+)
 
 
 @pytest.fixture
@@ -157,7 +161,9 @@ def test_committed_demonstrations_validate():
     """Everything under leaderboard/demonstrations passes (vacuous until the
     first one lands)."""
     root = B.demonstrations_dir()
-    reports = [validate_path(p) for p in B.find_bundles([root])] if root.is_dir() else []
+    reports = (
+        [validate_path(p) for p in B.find_bundles([root])] if root.is_dir() else []
+    )
     assert [r.format() for r in reports if r.status != OK] == []
 
 

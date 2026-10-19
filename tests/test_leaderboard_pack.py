@@ -61,7 +61,9 @@ def test_pack_writes_a_valid_bundle(logs, tmp_path):
 
 
 def test_meta_is_filled_from_the_runs(logs, tmp_path):
-    out = pack([logs], org="example", agent="dummy", out=tmp_path / "b", date=FIXED_DATE).out
+    out = pack(
+        [logs], org="example", agent="dummy", out=tmp_path / "b", date=FIXED_DATE
+    ).out
     meta = yaml.safe_load((out / B.META_FILE).read_text())
     agent = yaml.safe_load((out / B.AGENT_FILE).read_text())
     assert meta["suite"] == "tiny_v1"  # from the records' suite_version
@@ -73,7 +75,9 @@ def test_meta_is_filled_from_the_runs(logs, tmp_path):
 
 
 def test_agent_yaml_is_the_run_config_with_secrets_redacted(logs, tmp_path):
-    out = pack([logs], org="example", agent="dummy", out=tmp_path / "b", date=FIXED_DATE).out
+    out = pack(
+        [logs], org="example", agent="dummy", out=tmp_path / "b", date=FIXED_DATE
+    ).out
     agent = yaml.safe_load((out / B.AGENT_FILE).read_text())
     assert agent["api_key"] == agent["hostname"] == B.REDACTED
     # Everything else is copied exactly -- including look-alikes.
@@ -95,7 +99,8 @@ def test_finished_run_without_episode_json_is_rebuilt(logs, tmp_path):
     rebuilt = [
         line
         for line in _lines(out)
-        if line["identity"]["task_name"] == job[2] and line["identity"]["variation"] == job[3]
+        if line["identity"]["task_name"] == job[2]
+        and line["identity"]["variation"] == job[3]
     ]
     assert len(rebuilt) == 1
     ident = rebuilt[0]["identity"]
@@ -112,7 +117,9 @@ def test_unfinished_runs_are_skipped_and_show_as_missing(logs, tmp_path):
     (logs / "9" / "2026-10-16_crashed" / STATES_FILENAME).write_text("{}")
     victim = next((logs / "0").rglob("episode.json"))
     victim.unlink()
-    result = pack([logs], org="example", agent="dummy", out=tmp_path / "example__dummy__tiny_v1")
+    result = pack(
+        [logs], org="example", agent="dummy", out=tmp_path / "example__dummy__tiny_v1"
+    )
     assert result.n_episodes == len(JOBS) - 1
     reasons = " ".join(r for _, r in result.skipped)
     assert "did not finish" in reasons
@@ -125,7 +132,11 @@ def test_rerun_of_a_crash_wins_and_is_reported(logs, tmp_path):
 
     _, name, task, variation = JOBS[0]
     crashed = tiny_record(name, task, variation)
-    crashed["termination"] = {"reason": "error", "final_action": None, "err_msg": "boom"}
+    crashed["termination"] = {
+        "reason": "error",
+        "final_action": None,
+        "err_msg": "boom",
+    }
     exp = logs / "0" / "2026-10-16_99-99-99_dummy_on_rerun"
     exp.mkdir()
     (exp / "episode.json").write_text(json.dumps(crashed))
@@ -168,8 +179,12 @@ def test_bad_slugs_are_refused(logs, tmp_path):
 
 
 def test_pack_is_deterministic(logs, tmp_path):
-    a = pack([logs], org="example", agent="dummy", out=tmp_path / "a", date=FIXED_DATE).out
-    b = pack([logs], org="example", agent="dummy", out=tmp_path / "b", date=FIXED_DATE).out
+    a = pack(
+        [logs], org="example", agent="dummy", out=tmp_path / "a", date=FIXED_DATE
+    ).out
+    b = pack(
+        [logs], org="example", agent="dummy", out=tmp_path / "b", date=FIXED_DATE
+    ).out
     for name in (B.META_FILE, B.AGENT_FILE, B.EPISODES_FILE):
         assert (a / name).read_bytes() == (b / name).read_bytes(), name
 

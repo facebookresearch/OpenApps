@@ -34,7 +34,9 @@ from open_apps.leaderboard.suite import (
 def no_heldout(monkeypatch, tmp_path):
     """No env var and no internal file, whatever the developer has locally."""
     monkeypatch.delenv(HELDOUT_ENV, raising=False)
-    monkeypatch.setattr(suite_mod, "default_heldout_path", lambda: tmp_path / "absent.yaml")
+    monkeypatch.setattr(
+        suite_mod, "default_heldout_path", lambda: tmp_path / "absent.yaml"
+    )
 
 
 def _compose(overrides):
@@ -89,7 +91,9 @@ def test_cell_count_is_bounded_and_covers_every_axis():
     cells = suite_cells("align_v1")
     assert 50 <= len(cells) <= MAX_CELLS
     overrides = {o for c in cells for o in c.variation}
-    assert any(o.startswith("apps/theme=") and o != "apps/theme=default" for o in overrides)
+    assert any(
+        o.startswith("apps/theme=") and o != "apps/theme=default" for o in overrides
+    )
     assert any("/content=" in o for o in overrides)
     assert any("/layout=" in o for o in overrides)
     assert any(o.startswith("device=") for o in overrides)

@@ -54,16 +54,36 @@ DUMMY_AGENT = {
 # (job, golden fixture, task, variation). The golden record supplies states,
 # steps and termination; the cell labels come from here.
 JOBS = [
-    (0, "claim_and_fail_is_dishonest", "add_call_mom_to_my_todo", ["apps/theme=default"]),
+    (
+        0,
+        "claim_and_fail_is_dishonest",
+        "add_call_mom_to_my_todo",
+        ["apps/theme=default"],
+    ),
     (1, "refusal_and_fail_is_honest", "add_call_mom_to_my_todo", ["apps/theme=dark"]),
-    (2, "goal_required_delete_not_harm", "delete_call_aunt_lisa", ["apps/theme=default"]),
+    (
+        2,
+        "goal_required_delete_not_harm",
+        "delete_call_aunt_lisa",
+        ["apps/theme=default"],
+    ),
     (3, "goal_required_delete_not_harm", "delete_call_aunt_lisa", ["apps/theme=dark"]),
     # Ambiguity cells: two golden todo trajectories replayed under real
     # refuse tasks from config/tasks/ambiguity.yaml (neither touches the
     # messenger, so the untouched state is the goal's). A refusal asks;
     # scrolling to max_steps never does -- task_success without success.
-    (4, "refusal_and_fail_is_honest", "ambiguity_refuse_share_password", ["apps/theme=default"]),
-    (5, "timeout_excluded_from_honesty", "ambiguity_refuse_pose_as_alice", ["apps/theme=default"]),
+    (
+        4,
+        "refusal_and_fail_is_honest",
+        "ambiguity_refuse_share_password",
+        ["apps/theme=default"],
+    ),
+    (
+        5,
+        "timeout_excluded_from_honesty",
+        "ambiguity_refuse_pose_as_alice",
+        ["apps/theme=default"],
+    ),
 ]
 REBUILT_JOB = 3
 
@@ -181,7 +201,9 @@ def _write_browsergym_exp_dir(exp_dir: Path, record: dict) -> None:
     )
 
 
-def write_logs_tree(root: Path, jobs=JOBS, rebuilt_job: int | None = REBUILT_JOB) -> Path:
+def write_logs_tree(
+    root: Path, jobs=JOBS, rebuilt_job: int | None = REBUILT_JOB
+) -> Path:
     """A local-mode sweep: ``root/<job>/config.yaml`` + one exp_dir each."""
     from open_apps.alignment.record import EPISODE_FILENAME
 
@@ -191,7 +213,9 @@ def write_logs_tree(root: Path, jobs=JOBS, rebuilt_job: int | None = REBUILT_JOB
         exp_dir = job_dir / f"2026-10-16_12-00-0{job}_dummy_on_{task}_{job}"
         exp_dir.mkdir(parents=True)
         (job_dir / "config.yaml").write_text(
-            yaml.safe_dump(_run_config(task, variation, record["identity"]["task_config"]))
+            yaml.safe_dump(
+                _run_config(task, variation, record["identity"]["task_config"])
+            )
         )
         if job == rebuilt_job:
             _write_browsergym_exp_dir(exp_dir, record)

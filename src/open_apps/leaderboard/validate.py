@@ -119,7 +119,9 @@ class BundleReport:
 
 
 def _check_layout(
-    path: Path, report: BundleReport, files: tuple[str, ...] = (B.META_FILE, B.AGENT_FILE, B.EPISODES_FILE)
+    path: Path,
+    report: BundleReport,
+    files: tuple[str, ...] = (B.META_FILE, B.AGENT_FILE, B.EPISODES_FILE),
 ) -> bool:
     for name in files:
         if not (path / name).is_file():
@@ -138,7 +140,10 @@ def _load_meta(path: Path, report: BundleReport) -> Optional[dict]:
         return None
     # An unquoted `date: 2026-10-16` loads as a date; accept it as the
     # string it was meant to be rather than failing a hand-edited meta.
-    meta = {k: v.isoformat() if isinstance(v, (dt.date, dt.datetime)) else v for k, v in meta.items()}
+    meta = {
+        k: v.isoformat() if isinstance(v, (dt.date, dt.datetime)) else v
+        for k, v in meta.items()
+    }
     if isinstance(meta.get("verified"), dict):
         meta["verified"] = {
             k: v.isoformat() if isinstance(v, (dt.date, dt.datetime)) else v
@@ -155,9 +160,7 @@ def _check_meta(path: Path, report: BundleReport) -> None:
     for err in B.schema_errors(meta, B.load_schema("meta.schema.json")):
         report.errors.append(f"{B.META_FILE}: {err}")
     report.suite = meta.get("suite")
-    report.bundle_id = B.BUNDLE_SEP.join(
-        [str(meta.get("org")), str(meta.get("agent"))]
-    )
+    report.bundle_id = B.BUNDLE_SEP.join([str(meta.get("org")), str(meta.get("agent"))])
     try:
         org, agent, suite = B.parse_bundle_name(path.name)
     except ValueError as exc:
@@ -194,7 +197,9 @@ def _check_agent(path: Path, report: BundleReport) -> None:
         if not (path / B.AGENT_FILE).is_file():
             return  # optional for demonstrations (a person has no config)
         if not report.meta.get("agent_config_hash"):
-            report.errors.append(f"{B.AGENT_FILE} is present: meta.yaml needs its agent_config_hash")
+            report.errors.append(
+                f"{B.AGENT_FILE} is present: meta.yaml needs its agent_config_hash"
+            )
     try:
         agent_cfg = B.read_yaml(path / B.AGENT_FILE)
     except Exception as exc:  # noqa: BLE001
@@ -241,7 +246,9 @@ def _check_episodes(
             continue
         data = dict(data)
         submitted = data.pop(B.SCORES_KEY, None)
-        if not isinstance(submitted, dict) and (require_scores or submitted is not None):
+        if not isinstance(submitted, dict) and (
+            require_scores or submitted is not None
+        ):
             report.errors.append(f"{where}: missing the {B.SCORES_KEY!r} object")
             continue
         errs = B.schema_errors(data, schema)
@@ -277,7 +284,9 @@ def _score_one(record: Any, submitted: Optional[dict], report: BundleReport) -> 
     # Demonstrations may omit scores; scoring still has to succeed.
     diffs = B.scores_diff(submitted, scores.summary()) if submitted is not None else []
     if diffs:
-        report.errors.append(f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4]))
+        report.errors.append(
+            f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4])
+        )
         return
     if record.unscorable:
         report.n_unscorable += 1
@@ -347,7 +356,9 @@ def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> Non
         )
 
 
-def _check_termination(parsed: list[tuple[Any, dict]], report: BundleReport, source: Any) -> None:
+def _check_termination(
+    parsed: list[tuple[Any, dict]], report: BundleReport, source: Any
+) -> None:
     """Every record under the suite's pinned ``task_termination``. Under
     ``on_success`` honesty and premature stop are unmeasurable, and the
     aggregate keeps the two modes apart -- a mixed bundle has no single row."""
@@ -373,14 +384,18 @@ def _load_cells(report: BundleReport, suite: Optional[str | Path]) -> tuple[Any,
         report.errors.append(f"cannot load suite {source!r}: {exc}")
         return None, {}
     if str(bench.name) != report.suite:
-        report.errors.append(f"suite file is {bench.name!r}, meta says {report.suite!r}")
+        report.errors.append(
+            f"suite file is {bench.name!r}, meta says {report.suite!r}"
+        )
         return None, {}
     cells = {c.key: c for c in suite_cells(bench, "public")}
     report.n_expected = len(cells)
     return source, cells
 
 
-def _check_coverage(parsed: list[tuple[Any, dict]], report: BundleReport, cells: dict) -> None:
+def _check_coverage(
+    parsed: list[tuple[Any, dict]], report: BundleReport, cells: dict
+) -> None:
     if not cells:
         return
     expected = set(cells)
@@ -391,18 +406,26 @@ def _check_coverage(parsed: list[tuple[Any, dict]], report: BundleReport, cells:
     got = Counter(key for key, _ in keys)
     for key, n in sorted(got.items()):
         if n > 1:
-            report.errors.append(f"cell submitted {n} times: {key[0]} [{key[1]}] seed={key[2]}")
+            report.errors.append(
+                f"cell submitted {n} times: {key[0]} [{key[1]}] seed={key[2]}"
+            )
     extra = sorted(set(got) - expected)
     for key in extra[:_MAX_LISTED]:
-        report.errors.append(f"not a {report.suite} cell: {key[0]} [{key[1]}] seed={key[2]}")
+        report.errors.append(
+            f"not a {report.suite} cell: {key[0]} [{key[1]}] seed={key[2]}"
+        )
     if len(extra) > _MAX_LISTED:
-        report.errors.append(f"... and {len(extra) - _MAX_LISTED} more cells outside the suite")
+        report.errors.append(
+            f"... and {len(extra) - _MAX_LISTED} more cells outside the suite"
+        )
     # An unscorable record is not evidence of anything the agent did.
     covered = {key for key, record in keys if not record.unscorable}
     report.missing = sorted(expected - covered)
 
 
-def validate_bundle(path: str | Path, suite: Optional[str | Path] = None) -> BundleReport:
+def validate_bundle(
+    path: str | Path, suite: Optional[str | Path] = None
+) -> BundleReport:
     """Run every check on one bundle. ``suite`` overrides where the suite is
     read from (default: ``config/benchmark/<meta.suite>.yaml``)."""
     path = Path(path)
@@ -435,7 +458,10 @@ def validate_demonstration(path: str | Path) -> BundleReport:
         report.errors.append(
             f"meta n_episodes={report.meta.get('n_episodes')} but {len(parsed)} valid records"
         )
-    agents = {r.identity.agent_name for r, _ in parsed} - {None, report.meta.get("agent")}
+    agents = {r.identity.agent_name for r, _ in parsed} - {
+        None,
+        report.meta.get("agent"),
+    }
     if agents:
         report.warnings.append(
             f"records name agent(s) {sorted(agents)}, meta says {report.meta.get('agent')!r}"
@@ -454,7 +480,11 @@ def is_demonstration(path: str | Path) -> bool:
 
 def validate_path(path: str | Path, suite: Optional[str | Path] = None) -> BundleReport:
     """A submission or a demonstration, by its meta.yaml ``kind``."""
-    return validate_demonstration(path) if is_demonstration(path) else validate_bundle(path, suite)
+    return (
+        validate_demonstration(path)
+        if is_demonstration(path)
+        else validate_bundle(path, suite)
+    )
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -469,21 +499,33 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="bundle or demonstration dirs, or dirs containing them",
     )  # fmt: skip
     parser.add_argument(
-        "--suite", default=None, help="suite name or YAML path (default: from meta.yaml)"
+        "--suite",
+        default=None,
+        help="suite name or YAML path (default: from meta.yaml)",
     )
-    parser.add_argument("--strict", action="store_true", help="treat partial as failure")
+    parser.add_argument(
+        "--strict", action="store_true", help="treat partial as failure"
+    )
     args = parser.parse_args(argv)
 
     bundles = B.find_bundles(args.paths)
     if not bundles:
-        print(f"no bundles (directories with {B.META_FILE}) under {args.paths}", file=sys.stderr)
+        print(
+            f"no bundles (directories with {B.META_FILE}) under {args.paths}",
+            file=sys.stderr,
+        )
         return 1
     reports = [validate_path(p, args.suite) for p in bundles]
     for r in reports:
         print(r.format())
-    bad = [r for r in reports if r.status == FAIL or (args.strict and r.status == PARTIAL)]
+    bad = [
+        r for r in reports if r.status == FAIL or (args.strict and r.status == PARTIAL)
+    ]
     counts = Counter(r.status for r in reports)
-    print(f"\n{len(reports)} bundle(s): " + ", ".join(f"{n} {s}" for s, n in sorted(counts.items())))
+    print(
+        f"\n{len(reports)} bundle(s): "
+        + ", ".join(f"{n} {s}" for s, n in sorted(counts.items()))
+    )
     return 1 if bad else 0
 
 
