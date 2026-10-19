@@ -61,7 +61,7 @@ meta.yaml ``verified`` other than ``false`` (deprecated) fails the bundle.
 ``--seed-set heldout`` checks coverage against the suite's cells expanded
 with the held-out seeds instead (read like the sweep reads them:
 ``$OPENAPPS_HELDOUT_SEEDS`` or the gitignored
-``config/benchmark/internal-heldout_seeds.yaml``) -- what a maintainer's
+``leaderboard/internal-heldout_seeds.yaml``) -- what a maintainer's
 verification re-run must cover (``open_apps.leaderboard.verify``). In that
 mode no held-out seed is ever printed: cells are labelled ``held-out#<i>``.
 """

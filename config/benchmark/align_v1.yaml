@@ -27,8 +27,8 @@
 # theme and would make the "default" cell the odd one out.
 #
 # Held-out seeds (verification tier): benchmark.seed_set=heldout reads them
-# from $OPENAPPS_HELDOUT_SEEDS or config/benchmark/internal-heldout_seeds.yaml
-# (gitignored). See heldout_seeds.example.yaml. Never commit real ones.
+# from $OPENAPPS_HELDOUT_SEEDS or leaderboard/internal-heldout_seeds.yaml
+# (gitignored). See leaderboard/heldout_seeds.example.yaml. Never commit real ones.
 defaults:
   # The canonical set plus the ambiguity set, which all_tasks deliberately
   # leaves out (config/tasks/ambiguity.yaml) so default sweeps never run it.

@@ -37,6 +37,9 @@ def no_heldout(monkeypatch, tmp_path):
     monkeypatch.setattr(
         suite_mod, "default_heldout_path", lambda: tmp_path / "absent.yaml"
     )
+    monkeypatch.setattr(
+        suite_mod, "legacy_heldout_path", lambda: tmp_path / "absent-legacy.yaml"
+    )
 
 
 def _compose(overrides):
@@ -63,6 +66,32 @@ def test_align_v1_composes_and_pins_the_protocol(align_v1):
     sweep = OmegaConf.to_container(align_v1.parallel_tasks, resolve=True)
     assert sweep["_target_"].endswith("SuiteParallelTasksConfig")
     assert sweep["task_names"] is None and sweep["app_variations"] is None
+
+
+def _benchmark_options() -> list[str]:
+    from hydra import initialize_config_dir
+    from hydra.core.global_hydra import GlobalHydra
+
+    GlobalHydra.instance().clear()
+    with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+        return GlobalHydra.instance().config_loader().get_group_options("benchmark")
+
+
+def test_benchmark_group_lists_only_real_suites():
+    """Hydra offers every YAML file under config/benchmark/ as a choice (and
+    the config composer lists them as suites), so a non-suite file there --
+    the held-out seeds example used to live here -- is a broken option. Every
+    option must compose into a suite sweep.
+
+    ``internal-heldout_seeds`` is skipped: it is the deprecated (gitignored)
+    seed location, still read for one release, and it warns to move it."""
+    options = [o for o in _benchmark_options() if o != suite_mod.HELDOUT_FILENAME[:-5]]
+    assert "align_v1" in options
+    for option in options:
+        cfg = _compose([f"benchmark={option}"])
+        assert cfg.get("benchmark") and "blocks" in cfg.benchmark, option
+        assert "parallel_tasks" in OmegaConf.load(suite_mod.suite_path(option)), option
+        assert cfg.parallel_tasks._target_.endswith("SuiteParallelTasksConfig"), option
 
 
 def test_default_sweep_is_unchanged_without_benchmark():
@@ -238,22 +267,79 @@ def test_heldout_reads_the_env_var(no_heldout, monkeypatch, tmp_path):
     assert len(cells) == 2 * len(suite_cells("align_v1"))
 
 
-def test_heldout_reads_the_internal_file(monkeypatch, tmp_path):
-    monkeypatch.delenv(HELDOUT_ENV, raising=False)
+def test_heldout_seeds_live_outside_the_hydra_tree():
+    root = config_dir().parent
+    assert suite_mod.default_heldout_path() == (
+        root / "leaderboard" / "internal-heldout_seeds.yaml"
+    )
+    assert config_dir() not in suite_mod.default_heldout_path().parents
+
+
+def test_heldout_reads_the_internal_file(no_heldout, monkeypatch, tmp_path):
     internal = tmp_path / "internal-heldout_seeds.yaml"
     internal.write_text("seeds: [7]\n")
     monkeypatch.setattr(suite_mod, "default_heldout_path", lambda: internal)
     assert load_heldout_seeds() == [7]
 
 
+def test_heldout_env_var_wins_over_the_internal_file(no_heldout, monkeypatch, tmp_path):
+    internal = tmp_path / "internal-heldout_seeds.yaml"
+    internal.write_text("seeds: [7]\n")
+    legacy = tmp_path / "legacy.yaml"
+    legacy.write_text("seeds: [8]\n")
+    env = tmp_path / "env.yaml"
+    env.write_text("seeds: [9]\n")
+    monkeypatch.setattr(suite_mod, "default_heldout_path", lambda: internal)
+    monkeypatch.setattr(suite_mod, "legacy_heldout_path", lambda: legacy)
+    monkeypatch.setenv(HELDOUT_ENV, str(env))
+    assert load_heldout_seeds() == [9]
+
+
+def test_heldout_legacy_location_still_works_with_a_warning(
+    no_heldout, monkeypatch, tmp_path
+):
+    """config/benchmark/internal-heldout_seeds.yaml is read for one more
+    release (a maintainer may have one), with a warning to move it."""
+    legacy = tmp_path / "internal-heldout_seeds.yaml"
+    legacy.write_text("seeds: [5]\n")
+    monkeypatch.setattr(suite_mod, "legacy_heldout_path", lambda: legacy)
+    with pytest.warns(FutureWarning, match="leaderboard/internal-heldout_seeds.yaml"):
+        assert load_heldout_seeds() == [5]
+
+
+def test_heldout_new_location_wins_over_the_legacy_one(
+    no_heldout, monkeypatch, tmp_path
+):
+    internal = tmp_path / "new.yaml"
+    internal.write_text("seeds: [7]\n")
+    legacy = tmp_path / "legacy.yaml"
+    legacy.write_text("seeds: [5]\n")
+    monkeypatch.setattr(suite_mod, "default_heldout_path", lambda: internal)
+    monkeypatch.setattr(suite_mod, "legacy_heldout_path", lambda: legacy)
+    with pytest.warns(FutureWarning, match="ignored"):
+        assert load_heldout_seeds() == [7]
+
+
+def test_missing_seeds_error_names_the_new_location(no_heldout):
+    with pytest.raises(FileNotFoundError) as err:
+        load_heldout_seeds()
+    assert "leaderboard/heldout_seeds.example.yaml" in str(err.value)
+
+
 def test_example_seeds_are_placeholders_and_internal_file_is_ignored():
-    example = config_dir() / "benchmark" / "heldout_seeds.example.yaml"
-    assert OmegaConf.load(example).seeds == [1, 2]
-    rel = "config/benchmark/internal-heldout_seeds.yaml"
-    ignored = subprocess.run(
-        ["git", "check-ignore", "-q", rel], cwd=config_dir().parent, check=False
-    ).returncode
-    assert ignored == 0, f"{rel} must be gitignored"
+    root = config_dir().parent
+    assert not (config_dir() / "benchmark" / "heldout_seeds.example.yaml").exists()
+    example = OmegaConf.load(root / "leaderboard" / "heldout_seeds.example.yaml")
+    assert example.seeds == [1, 2]
+    assert example.salt == "replace-with-a-random-secret"
+    for rel in (
+        "leaderboard/internal-heldout_seeds.yaml",
+        "config/benchmark/internal-heldout_seeds.yaml",  # the legacy location
+    ):
+        ignored = subprocess.run(
+            ["git", "check-ignore", "-q", rel], cwd=root, check=False
+        ).returncode
+        assert ignored == 0, f"{rel} must be gitignored"
 
 
 def test_unknown_seed_set_is_refused():

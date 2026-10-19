@@ -30,6 +30,7 @@ import hashlib
 import json
 import os
 import sys
+import warnings
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,6 +51,15 @@ HELDOUT_ENV = "OPENAPPS_HELDOUT_SEEDS"
 #: Gitignored by the repo-wide ``internal-*`` rule. Never commit real seeds:
 #: a public held-out seed is a public seed.
 HELDOUT_FILENAME = "internal-heldout_seeds.yaml"
+#: Repo-relative, for messages: where the seeds file goes, and its template.
+#: Under ``leaderboard/``, not ``config/benchmark/``: Hydra lists every file in
+#: a config group as a choice, so a seeds file there showed up as a
+#: ``benchmark=`` suite (and composed into a broken run).
+HELDOUT_REL = f"leaderboard/{HELDOUT_FILENAME}"
+HELDOUT_EXAMPLE_REL = "leaderboard/heldout_seeds.example.yaml"
+#: The pre-move location, still read (with a FutureWarning) for one release.
+# TODO: drop the legacy fallback in the release after the move.
+LEGACY_HELDOUT_REL = f"config/benchmark/{HELDOUT_FILENAME}"
 #: Hard ceiling on a suite's size per agent. A suite that grows past it is a
 #: mistake (a product that should have been a block), not a bigger benchmark.
 MAX_CELLS = 400
@@ -60,7 +70,13 @@ def suites_dir() -> Path:
 
 
 def default_heldout_path() -> Path:
-    return suites_dir() / HELDOUT_FILENAME
+    return config_dir().parent / HELDOUT_REL
+
+
+def legacy_heldout_path() -> Path:
+    """Deprecated: inside the ``benchmark`` Hydra group, where it is listed as
+    a suite. Read only when :func:`default_heldout_path` does not exist."""
+    return config_dir().parent / LEGACY_HELDOUT_REL
 
 
 @dataclass(frozen=True, order=True)
@@ -156,17 +172,51 @@ def pinned_env_args(suite: str | Path) -> dict[str, int]:
     return {k: int(env_args[k]) for k in PINNED_ENV_ARGS}
 
 
+def _default_heldout_source() -> tuple[Path, str]:
+    """``(path, repo-relative label)`` of the seeds file used when neither a
+    path nor ``$OPENAPPS_HELDOUT_SEEDS`` is given: the new location, else the
+    legacy one (with a warning), else the new location (missing)."""
+    new, legacy = default_heldout_path(), legacy_heldout_path()
+    if legacy.is_file():
+        if new.is_file():
+            warnings.warn(
+                f"{LEGACY_HELDOUT_REL} is ignored ({HELDOUT_REL} exists); delete it: "
+                "inside config/benchmark/ Hydra lists it as a benchmark suite.",
+                FutureWarning,
+                stacklevel=3,
+            )
+        else:
+            warnings.warn(
+                f"held-out seeds read from the deprecated {LEGACY_HELDOUT_REL}; move it "
+                f"to {HELDOUT_REL} (inside config/benchmark/ Hydra lists it as a "
+                "benchmark suite). The old location stops being read next release.",
+                FutureWarning,
+                stacklevel=3,
+            )
+            return legacy, LEGACY_HELDOUT_REL
+    return new, HELDOUT_REL
+
+
+def heldout_seed_source() -> str:
+    """Where the held-out seeds come from, for messages: ``$OPENAPPS_HELDOUT_SEEDS``
+    or the repo-relative default file -- a kind and a public path, never a
+    seed or a maintainer's absolute path."""
+    if os.environ.get(HELDOUT_ENV):
+        return f"${HELDOUT_ENV}"
+    return _default_heldout_source()[1]
+
+
 def _heldout_data(path: str | Path | None = None) -> tuple[Path, dict]:
     """``(source, parsed file)`` of the held-out seeds file, from ``path``,
     ``$OPENAPPS_HELDOUT_SEEDS``, or the gitignored default -- in that order."""
-    candidates = [path, os.environ.get(HELDOUT_ENV), default_heldout_path()]
-    source = next((Path(p) for p in candidates if p), None)
-    if source is None or not source.is_file():
-        tried = os.environ.get(HELDOUT_ENV) or default_heldout_path()
+    source = next((Path(p) for p in (path, os.environ.get(HELDOUT_ENV)) if p), None)
+    if source is None:
+        source = _default_heldout_source()[0]
+    if not source.is_file():
         raise FileNotFoundError(
             "benchmark.seed_set=heldout needs the held-out seeds: set "
-            f"{HELDOUT_ENV}=/path/to/seeds.yaml or create {default_heldout_path()} "
-            f"(gitignored; see heldout_seeds.example.yaml). Not found: {tried}"
+            f"{HELDOUT_ENV}=/path/to/seeds.yaml or create {HELDOUT_REL} "
+            f"(gitignored; copy {HELDOUT_EXAMPLE_REL}). Not found: {source}"
         )
     data = OmegaConf.to_container(OmegaConf.load(source), resolve=True) or {}
     if isinstance(data, list):
@@ -179,8 +229,9 @@ def _heldout_data(path: str | Path | None = None) -> tuple[Path, dict]:
 
 def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
     """Held-out seeds from ``path``, ``$OPENAPPS_HELDOUT_SEEDS``, or the
-    gitignored ``config/benchmark/internal-heldout_seeds.yaml`` -- in that
-    order. Raises if none is available: silently falling back to the public
+    gitignored ``leaderboard/internal-heldout_seeds.yaml`` -- in that order
+    (the deprecated ``config/benchmark/`` copy is read, with a warning, when
+    the new one is absent). Raises if none is available: silently falling back to the public
     seeds would make a "verified" run verify nothing.
     """
     _, data = _heldout_data(path)

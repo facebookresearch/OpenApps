@@ -51,6 +51,9 @@ def seeds_file(tmp_path, monkeypatch):
     monkeypatch.setattr(
         suite_mod, "default_heldout_path", lambda: tmp_path / "absent.yaml"
     )
+    monkeypatch.setattr(
+        suite_mod, "legacy_heldout_path", lambda: tmp_path / "absent-legacy.yaml"
+    )
     return path
 
 
@@ -59,6 +62,9 @@ def no_seeds(tmp_path, monkeypatch):
     monkeypatch.delenv(HELDOUT_ENV, raising=False)
     monkeypatch.setattr(
         suite_mod, "default_heldout_path", lambda: tmp_path / "absent.yaml"
+    )
+    monkeypatch.setattr(
+        suite_mod, "legacy_heldout_path", lambda: tmp_path / "absent-legacy.yaml"
     )
 
 
@@ -133,6 +139,7 @@ def test_plan_prints_the_command_and_no_seed(seeds_file, bundle):
         assert str(seed) not in text
     assert heldout_seeds_hash()[0] in text
     assert "2 held-out seed(s)" in text
+    assert f"from ${HELDOUT_ENV}" in text
     assert "benchmark=tiny_v1 benchmark.seed_set=heldout" in text
     assert f"agent={bundle.name}" in text
     assert "hydra.searchpath=[file://" in text
@@ -143,6 +150,15 @@ def test_plan_prints_the_command_and_no_seed(seeds_file, bundle):
     # Staged under the gitignored log_outputs/, never config/.
     rel = V.staging_dir(bundle).relative_to(B.repo_root())
     assert rel.parts[0] == "log_outputs"
+
+
+def test_plan_names_the_internal_seeds_file(no_seeds, bundle, tmp_path, monkeypatch):
+    internal = tmp_path / "internal-heldout_seeds.yaml"
+    internal.write_text(yaml.safe_dump({"seeds": HELDOUT_SEEDS, "salt": "s"}))
+    monkeypatch.setattr(suite_mod, "default_heldout_path", lambda: internal)
+    text = V.plan(bundle)
+    assert "from leaderboard/internal-heldout_seeds.yaml" in text
+    assert str(tmp_path) not in text.split("1. Stage")[0]
 
 
 def test_plan_warns_about_an_unsalted_seeds_file(seeds_file, bundle):

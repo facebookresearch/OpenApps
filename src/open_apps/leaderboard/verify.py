@@ -30,7 +30,7 @@ Commit the file in a PR of its own (CI fails one that touches anything else;
 CODEOWNERS requires a maintainer's review).
 
 Held-out seeds are read where the sweep reads them (``$OPENAPPS_HELDOUT_SEEDS``
-or the gitignored ``config/benchmark/internal-heldout_seeds.yaml``). Nothing
+or the gitignored ``leaderboard/internal-heldout_seeds.yaml``). Nothing
 here prints or writes a seed, and nothing per-episode from the held-out run
 reaches the repo: only the summary fields above. A seed that leaks is a
 public seed, and the tier would stop measuring overfitting.
@@ -50,6 +50,9 @@ from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard import verifications as VF
 from open_apps.leaderboard.suite import (
     HELDOUT_ENV,
+    HELDOUT_EXAMPLE_REL,
+    HELDOUT_REL,
+    heldout_seed_source,
     heldout_seeds_hash,
     load_heldout_seeds,
 )
@@ -80,22 +83,13 @@ def staging_dir(bundle: Path) -> Path:
     return B.repo_root() / "log_outputs" / "verify" / bundle.name
 
 
-def _seed_source() -> str:
-    """Which source the seeds come from, by kind only (no path, no seeds)."""
-    import os
-
-    return (
-        f"${HELDOUT_ENV}" if os.environ.get(HELDOUT_ENV) else "the internal seeds file"
-    )
-
-
 def _salt_warning(salted: bool) -> Optional[str]:
     if salted:
         return None
     return (
         "warning: the held-out seeds file has no `salt`; a seeds_hash of a few small "
         "integers can be brute-forced back into the seeds. Add `salt: <random secret>` "
-        "to it before publishing a verification (see heldout_seeds.example.yaml)."
+        f"to it before publishing a verification (see {HELDOUT_EXAMPLE_REL})."
     )
 
 
@@ -109,13 +103,14 @@ def plan(bundle: str | Path, mode: str = "<local|slurm_cluster>") -> str:
     meta = _meta(bundle)
     seeds = load_heldout_seeds()
     seeds_hash, salted = heldout_seeds_hash()
+    source = heldout_seed_source()  # a kind or a repo path, never a seed
     suite = meta["suite"]
     name = bundle.name
     stage = staging_dir(bundle)
     redacted = list(meta.get("redacted") or [])
     lines = [
         f"Verify {name} on {suite}'s held-out seeds",
-        f"  {len(seeds)} held-out seed(s) from {_seed_source()}; seeds_hash {seeds_hash}",
+        f"  {len(seeds)} held-out seed(s) from {source}; seeds_hash {seeds_hash}",
         "",
         "1. Stage the submitted agent config (outside config/, so it is never committed):",
         "",
@@ -130,8 +125,8 @@ def plan(bundle: str | Path, mode: str = "<local|slurm_cluster>") -> str:
             "",
         ]
     lines += [
-        f"2. Run the suite on the held-out seeds (the same ${HELDOUT_ENV} or internal file",
-        "   must be visible to the launcher):",
+        f"2. Run the suite on the held-out seeds (the same {source} must be",
+        "   visible to the launcher):",
         "",
         f"   uv run launch_parallel_agents.py benchmark={suite} benchmark.seed_set=heldout \\",
         f'       "hydra.searchpath=[file://{stage}]" agent={name} mode={mode}',
@@ -263,7 +258,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         description=(
             "Maintainer tooling for the verified tier: re-run a submission on the "
             "held-out seeds and record the summary in leaderboard/verifications.yaml. Held-out seeds "
-            f"come from ${HELDOUT_ENV} or the gitignored internal seeds file and are "
+            f"come from ${HELDOUT_ENV} or the gitignored {HELDOUT_REL} and are "
             "never printed or written."
         )
     )
