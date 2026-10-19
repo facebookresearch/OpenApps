@@ -44,6 +44,12 @@ suite cell to check that config against, which is why it is never ranked.
 
 Exit status is non-zero if any bundle fails (``--strict``: or is partial).
 
+``--base-dir <checkout>`` (CI) also compares each submission with the base
+branch's copy of it (:func:`check_against_base`): ``verified`` is set by
+maintainers via ``verify record`` only, so a PR that adds or changes it fails
+-- unless it carries the ``verified-by-maintainer`` label
+(``--maintainer-approved``) and changes nothing in the bundle but that block.
+
 ``--seed-set heldout`` checks coverage against the suite's cells expanded
 with the held-out seeds instead (read like the sweep reads them:
 ``$OPENAPPS_HELDOUT_SEEDS`` or the gitignored
@@ -571,6 +577,110 @@ def validate_path(
     )
 
 
+# --- maintainer-only fields ---------------------------------------------------------
+
+#: The PR label that lets a PR change ``verified``. GitHub only lets users
+#: with triage rights or above apply labels, so a submitter cannot add it.
+MAINTAINER_LABEL = "verified-by-maintainer"
+VERIFIED_BY_MAINTAINERS = (
+    "verified is set by maintainers via `verify record`; remove it from this PR"
+)
+
+
+def _verified_of(meta: Optional[dict]) -> Any:
+    """The ``verified`` block, normalised: dates as ISO strings, and anything
+    that is not a block (``false``, absent, no bundle) as ``False``."""
+    value = (meta or {}).get("verified")
+    if not isinstance(value, dict):
+        return False
+    return {
+        k: v.isoformat() if isinstance(v, (dt.date, dt.datetime)) else v
+        for k, v in value.items()
+    }
+
+
+def base_bundle_path(bundle: str | Path, base_dir: str | Path) -> Path:
+    """Where ``bundle`` lives in a checkout of the base branch rooted at
+    ``base_dir``: ``leaderboard/<submissions|demonstrations>/<name>``."""
+    bundle = Path(bundle)
+    return Path(base_dir) / "leaderboard" / bundle.parent.name / bundle.name
+
+
+def _read_meta(bundle: Path) -> Optional[dict]:
+    try:
+        meta = B.read_yaml(bundle / B.META_FILE)
+    except Exception:  # noqa: BLE001 -- a broken meta.yaml is validate_bundle's finding
+        return None
+    return meta if isinstance(meta, dict) else None
+
+
+def _changed_files(bundle: Path, base: Path) -> list[str]:
+    """Files of ``bundle`` that differ from (or are not in) ``base``, plus
+    files only ``base`` has; ``meta.yaml`` excluded."""
+    names = {p.name for p in bundle.iterdir() if p.is_file()}
+    if base.is_dir():
+        names |= {p.name for p in base.iterdir() if p.is_file()}
+    changed = []
+    for name in sorted(names - {B.META_FILE}):
+        a, b = bundle / name, base / name
+        if not (a.is_file() and b.is_file() and a.read_bytes() == b.read_bytes()):
+            changed.append(name)
+    return changed
+
+
+def check_against_base(
+    bundle: str | Path, base_dir: str | Path, maintainer_approved: bool = False
+) -> list[str]:
+    """Errors for maintainer-only changes a PR makes to ``bundle``, judged
+    against the base branch's copy (``base_bundle_path``).
+
+    * Adding or changing ``verified`` fails -- a bundle that is new on the
+      PR has no verification to keep -- unless ``maintainer_approved`` (the
+      PR carries :data:`MAINTAINER_LABEL`) *and* nothing else in the bundle
+      changed: a verification PR touches meta.yaml's ``verified`` only, so
+      it can never smuggle in other edits under the label.
+    * Resetting ``verified`` to ``false`` is always allowed: dropping a
+      badge is never an escalation, and it is what a submitter must do
+      when re-submitting a verified bundle.
+    * Keeping a ``verified`` block while ``agent.yaml`` or the episodes
+      change fails: the verification was of the old config and the old
+      public numbers (``delta``), so it no longer applies.
+    """
+    bundle = Path(bundle)
+    base = base_bundle_path(bundle, base_dir)
+    base_meta = _read_meta(base) if B.is_bundle(base) else None
+    mine, theirs = _verified_of(_read_meta(bundle)), _verified_of(base_meta)
+    changed = _changed_files(bundle, base)
+    if mine == theirs:
+        if mine and changed:
+            return [
+                f"{', '.join(changed)} changed, so the verification no longer applies; "
+                "set `verified: false` (maintainers re-verify after merge)"
+            ]
+        return []
+    if mine is False:
+        return []  # a reset: always allowed
+    if not maintainer_approved:
+        return [VERIFIED_BY_MAINTAINERS]
+    other_meta = {
+        k: v for k, v in (_read_meta(bundle) or {}).items() if k != "verified"
+    } != {k: v for k, v in (base_meta or {}).items() if k != "verified"}
+    if base_meta is None:
+        return [
+            f"a {MAINTAINER_LABEL} PR may only change the verified block of a bundle "
+            "already on the base branch; this bundle is not on the base branch"
+        ]
+    if changed or other_meta:
+        what = changed + (
+            [f"{B.META_FILE} fields other than verified"] if other_meta else []
+        )
+        return [
+            f"a {MAINTAINER_LABEL} PR may change only the verified block of a bundle; "
+            f"this one also changes: {', '.join(what)}"
+        ]
+    return []
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -597,6 +707,17 @@ def main(argv: Optional[list[str]] = None) -> int:
             f"seeds from ${HELDOUT_ENV} or the gitignored internal file, never printed)"
         ),
     )  # fmt: skip
+    parser.add_argument(
+        "--base-dir", type=Path, default=None,
+        help=(
+            "a checkout of the base branch: fail submissions that add or change "
+            "`verified` relative to it (CI)"
+        ),
+    )  # fmt: skip
+    parser.add_argument(
+        "--maintainer-approved", action="store_true",
+        help=f"the PR carries the {MAINTAINER_LABEL!r} label (CI sets this)",
+    )  # fmt: skip
     args = parser.parse_args(argv)
 
     bundles = B.find_bundles(args.paths)
@@ -607,6 +728,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         return 1
     reports = [validate_path(p, args.suite, args.seed_set) for p in bundles]
+    if args.base_dir is not None:
+        for r in reports:
+            if r.kind == SUBMISSION:
+                r.errors += check_against_base(
+                    r.path, args.base_dir, args.maintainer_approved
+                )
     for r in reports:
         print(r.format())
     bad = [
