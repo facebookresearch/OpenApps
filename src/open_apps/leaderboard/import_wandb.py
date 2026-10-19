@@ -194,12 +194,24 @@ def find_runs(
     is still taken once.
     """
     if run_ids:
-        runs = [
-            with_backoff(
-                lambda rid=rid: api.run(f"{path}/{rid}"), f"run {rid}", sleep=sleep
+        runs, unknown = [], []
+        for rid in run_ids:
+            try:
+                runs.append(
+                    with_backoff(
+                        lambda rid=rid: api.run(f"{path}/{rid}"),
+                        f"run {rid}",
+                        sleep=sleep,
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001 -- wandb raises several types for "no such run"
+                if is_transient(exc):
+                    raise  # retries exhausted: not the run's fault
+                unknown.append(rid)
+        if unknown:
+            raise ValueError(
+                f"run id(s) not found or not readable in {path}: {unknown}"
             )
-            for rid in run_ids
-        ]
     else:
         filters = run_filters(group, tags)
         runs = with_backoff(
@@ -419,6 +431,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
     except (FileNotFoundError, ValueError) as exc:
         print(f"import failed: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:  # noqa: BLE001 -- wandb/requests errors: a message, not a traceback
+        status = _http_status(exc)
+        why = f"HTTP {status}" if status else type(exc).__name__
+        print(
+            f"import failed talking to W&B ({why}). Check WANDB_API_KEY / WANDB_BASE_URL "
+            "(or --base-url) and that you can read the project.",
+            file=sys.stderr,
+        )
         return 1
     for where, reason in result.skipped_runs + result.skipped:
         print(f"skipped {where}: {reason}")

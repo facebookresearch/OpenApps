@@ -360,3 +360,19 @@ def test_bad_arguments():
         run.artifacts = []
     with pytest.raises(FileNotFoundError, match="record_alignment"):
         W.import_wandb("e/p", org="o", agent="a", group=GROUP, api=FakeApi(runs))
+
+
+def test_unknown_run_ids_and_api_errors_are_reported(tmp_path, monkeypatch, capsys):
+    with pytest.raises(ValueError, match="nope"):
+        _import(FakeApi(_job_runs()), tmp_path, run_ids=["run0", "nope"])
+
+    class DeniedApi(FakeApi):
+        def runs(self, *args, **kwargs):
+            raise _http_error(401)
+
+    monkeypatch.setenv("WANDB_API_KEY", SECRET_KEY)
+    monkeypatch.setattr(W, "make_api", lambda base_url=None: DeniedApi([]))
+    argv = ["entity/project", "--group", GROUP, "--org", "o", "--agent", "a"]
+    assert W.main(argv) == 1
+    err = capsys.readouterr().err
+    assert "HTTP 401" in err and SECRET_KEY not in err
