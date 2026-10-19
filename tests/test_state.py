@@ -66,3 +66,31 @@ def test_success_returns_json(monkeypatch, calls):
     _patch_get(monkeypatch, calls, 200)
     assert state.safe_get_json("http://x/todo_all") == {"ok": True}
     assert len(calls) == 1
+
+
+def test_get_current_state_reports_which_app_probes_failed(monkeypatch, calls):
+    """A failed probe reads as an empty app; callers that score the state
+    need to know which apps those are."""
+
+    def fake_get(url, timeout):
+        calls.append(url)
+        if url.endswith("/todo_all"):
+            raise requests.exceptions.ConnectionError()
+        if url.endswith("/onlineshop_all"):
+            return _FakeResponse(404)  # not served: not a failure
+        return _FakeResponse(200)
+
+    monkeypatch.setattr(state.requests, "get", fake_get)
+    failed: list[str] = []
+    got = state.get_current_state("http://x", failed_apps=failed)
+    assert failed == ["todo"]
+    assert got["todo"] == [] and got["online_shop"] == [] and got["calendar"] == {"ok": True}
+
+
+def test_get_current_state_without_failed_apps_is_unchanged(monkeypatch, calls):
+    _patch_get(monkeypatch, calls, 503)
+    got = state.get_current_state("http://x")
+    assert got["todo"] == [] and got["openbanking"] == {}
+    assert list(got) == [
+        "todo", "calendar", "map", "messenger", "codeeditor", "ui_library", "openbanking", "online_shop",
+    ]
