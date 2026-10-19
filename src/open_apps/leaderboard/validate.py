@@ -43,6 +43,13 @@ suite cell to check that config against, which is why it is never ranked.
     uv run -m open_apps.leaderboard.validate leaderboard/demonstrations/<contributor>__<topic>
 
 Exit status is non-zero if any bundle fails (``--strict``: or is partial).
+
+``--seed-set heldout`` checks coverage against the suite's cells expanded
+with the held-out seeds instead (read like the sweep reads them:
+``$OPENAPPS_HELDOUT_SEEDS`` or the gitignored
+``config/benchmark/internal-heldout_seeds.yaml``) -- what a maintainer's
+verification re-run must cover (``open_apps.leaderboard.verify``). In that
+mode no held-out seed is ever printed: cells are labelled ``held-out#<i>``.
 """
 
 from __future__ import annotations
@@ -57,6 +64,8 @@ from typing import Any, Optional
 
 from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard.suite import (
+    HELDOUT_ENV,
+    SEED_SETS,
     cell_key,
     load_suite,
     required_termination,
@@ -75,6 +84,10 @@ class BundleReport:
     bundle_id: str = ""
     kind: str = SUBMISSION
     suite: Optional[str] = None
+    seed_set: str = "public"
+    # Held-out seed -> its position, so output can name a cell without the
+    # seed (``seed_label``). Empty for the public seed set.
+    heldout_index: dict[int, int] = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -91,6 +104,15 @@ class BundleReport:
     # records themselves, for leaderboard columns the scorer does not emit.
     rows: list[dict] = field(default_factory=list)
     records: list[Any] = field(default_factory=list)
+
+    def seed_label(self, seed: Any) -> str:
+        """``seed`` as output may show it: held-out seeds are private, so in
+        ``--seed-set heldout`` mode they print as their position in the set."""
+        try:
+            index = self.heldout_index.get(int(seed))
+        except (TypeError, ValueError):
+            index = None
+        return f"held-out#{index}" if index is not None else str(seed)
 
     @property
     def status(self) -> str:
@@ -122,7 +144,7 @@ class BundleReport:
             task, cell, seed = key
             reason = self.missing_reasons.get(key)
             lines.append(
-                f"  missing: {task} [{cell}] seed={seed}"
+                f"  missing: {task} [{cell}] seed={self.seed_label(seed)}"
                 + (f" -- {reason}" if reason else "")
             )
         if len(self.missing) > _MAX_LISTED:
@@ -277,9 +299,10 @@ def _check_episodes(
     return parsed
 
 
-def _label(record: Any) -> str:
+def _label(record: Any, report: BundleReport) -> str:
     ident = record.identity
-    return f"{ident.task_name} [{'|'.join(ident.variation) or 'default'}] seed={ident.seed}"
+    variation = "|".join(ident.variation) or "default"
+    return f"{ident.task_name} [{variation}] seed={report.seed_label(ident.seed)}"
 
 
 def _key(record: Any) -> tuple[str, str, int]:
@@ -299,7 +322,7 @@ def _score_one(
     from open_apps.alignment.aggregate import row_from_record
     from open_apps.alignment.score import score
 
-    label = _label(record)
+    label = _label(record, report)
     try:
         scores = score(record)
     except Exception as exc:  # noqa: BLE001 -- a record the scorer rejects fails the bundle
@@ -348,7 +371,7 @@ def _rescore_against_suite(
         cell = cells.get(_key(record))
         if cell is None:
             continue  # outside the suite: _check_coverage fails it
-        label = _label(record)
+        label = _label(record, report)
         try:
             ref = reference_cell(source, cell.task_name, cell.variation, cell.seed)
         except Exception as exc:  # noqa: BLE001 -- a cell the repo cannot compose is the finding
@@ -410,8 +433,8 @@ def _check_termination(
 
 
 def _load_cells(report: BundleReport, suite: Optional[str | Path]) -> tuple[Any, dict]:
-    """``(suite source, {cell key: Cell})`` for the public seeds, or
-    ``(None, {})`` when the suite cannot be read (reported)."""
+    """``(suite source, {cell key: Cell})`` for the report's seed set, or
+    ``(None, {})`` when the suite or its seeds cannot be read (reported)."""
     source = suite or report.suite
     if not source:
         return None, {}
@@ -425,7 +448,17 @@ def _load_cells(report: BundleReport, suite: Optional[str | Path]) -> tuple[Any,
             f"suite file is {bench.name!r}, meta says {report.suite!r}"
         )
         return None, {}
-    cells = {c.key: c for c in suite_cells(bench, "public")}
+    try:
+        expanded = suite_cells(bench, report.seed_set)
+    except (FileNotFoundError, ValueError) as exc:
+        report.errors.append(
+            f"cannot expand {report.suite} ({report.seed_set} seeds): {exc}"
+        )
+        return None, {}
+    if report.seed_set == "heldout":
+        seeds = sorted({c.seed for c in expanded})
+        report.heldout_index = {seed: i for i, seed in enumerate(seeds)}
+    cells = {c.key: c for c in expanded}
     report.n_expected = len(cells)
     return source, cells
 
@@ -444,12 +477,14 @@ def _check_coverage(
     for key, n in sorted(got.items()):
         if n > 1:
             report.errors.append(
-                f"cell submitted {n} times: {key[0]} [{key[1]}] seed={key[2]}"
+                f"cell submitted {n} times: {key[0]} [{key[1]}] "
+                f"seed={report.seed_label(key[2])}"
             )
     extra = sorted(set(got) - expected)
     for key in extra[:_MAX_LISTED]:
         report.errors.append(
-            f"not a {report.suite} cell: {key[0]} [{key[1]}] seed={key[2]}"
+            f"not a {report.suite} cell ({report.seed_set} seeds): {key[0]} [{key[1]}] "
+            f"seed={report.seed_label(key[2])}"
         )
     if len(extra) > _MAX_LISTED:
         report.errors.append(
@@ -469,12 +504,14 @@ def _check_coverage(
 
 
 def validate_bundle(
-    path: str | Path, suite: Optional[str | Path] = None
+    path: str | Path, suite: Optional[str | Path] = None, seed_set: str = "public"
 ) -> BundleReport:
     """Run every check on one bundle. ``suite`` overrides where the suite is
-    read from (default: ``config/benchmark/<meta.suite>.yaml``)."""
+    read from (default: ``config/benchmark/<meta.suite>.yaml``); ``seed_set``
+    picks the seeds its cells are expanded with (``heldout``: a maintainer's
+    verification run, see ``open_apps.leaderboard.verify``)."""
     path = Path(path)
-    report = BundleReport(path=path, bundle_id=path.name)
+    report = BundleReport(path=path, bundle_id=path.name, seed_set=seed_set)
     if not _check_layout(path, report):
         return report
     _check_meta(path, report)
@@ -523,12 +560,14 @@ def is_demonstration(path: str | Path) -> bool:
     return isinstance(meta, dict) and meta.get("kind") == B.DEMO_KIND
 
 
-def validate_path(path: str | Path, suite: Optional[str | Path] = None) -> BundleReport:
+def validate_path(
+    path: str | Path, suite: Optional[str | Path] = None, seed_set: str = "public"
+) -> BundleReport:
     """A submission or a demonstration, by its meta.yaml ``kind``."""
     return (
         validate_demonstration(path)
         if is_demonstration(path)
-        else validate_bundle(path, suite)
+        else validate_bundle(path, suite, seed_set)
     )
 
 
@@ -551,6 +590,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument(
         "--strict", action="store_true", help="treat partial as failure"
     )
+    parser.add_argument(
+        "--seed-set", choices=SEED_SETS, default="public",
+        help=(
+            "seeds to expand the suite's cells with (heldout: a verification re-run; "
+            f"seeds from ${HELDOUT_ENV} or the gitignored internal file, never printed)"
+        ),
+    )  # fmt: skip
     args = parser.parse_args(argv)
 
     bundles = B.find_bundles(args.paths)
@@ -560,7 +606,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             file=sys.stderr,
         )
         return 1
-    reports = [validate_path(p, args.suite) for p in bundles]
+    reports = [validate_path(p, args.suite, args.seed_set) for p in bundles]
     for r in reports:
         print(r.format())
     bad = [

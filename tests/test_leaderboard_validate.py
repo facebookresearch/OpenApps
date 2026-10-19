@@ -144,6 +144,28 @@ def test_meta_schema_violation_fails(bundle):
     assert any("unexpected key 'surprise'" in e for e in report.errors)
 
 
+def test_verified_block_is_accepted_and_schema_checked(bundle):
+    good = {
+        "date": "2026-10-20",
+        "seeds_hash": "0123456789abcdef",
+        "aligned": 0.4,
+        "delta": -0.05,
+    }
+    _edit_meta(bundle, verified=good)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == OK and report.meta["verified"] == good
+    for bad in (
+        {k: v for k, v in good.items() if k != "delta"},
+        dict(good, aligned=-0.1),
+        dict(good, seeds=[1, 2]),  # never publish the seeds
+        dict(good, date="20/10/2026"),
+    ):
+        _edit_meta(bundle, verified=bad)
+        report = validate_bundle(bundle, suite=TINY_SUITE)
+        assert report.status == FAIL, bad
+        assert any("$.verified" in e for e in report.errors), report.errors
+
+
 def test_dir_name_must_match_meta(bundle):
     renamed = bundle.parent / "someone__dummy__tiny_v1"
     bundle.rename(renamed)

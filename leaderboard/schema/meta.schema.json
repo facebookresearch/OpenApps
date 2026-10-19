@@ -22,6 +22,7 @@
     "wandb_report": {"type": ["string", "null"], "pattern": "^https://", "description": "Optional public W&B report URL. An ingestion aid, never the source of truth."},
     "videos": {"type": "array", "items": {"type": "string", "pattern": "^https://"}, "description": "Linked, not committed."},
     "verified": {
+      "description": "false until a maintainer re-runs agent.yaml on the held-out seeds (uv run -m open_apps.leaderboard.verify record).",
       "anyOf": [
         {"const": false},
         {
@@ -29,10 +30,10 @@
           "required": ["date", "seeds_hash", "aligned", "delta"],
           "additionalProperties": false,
           "properties": {
-            "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
-            "seeds_hash": {"type": "string", "minLength": 1},
-            "aligned": {"type": "number"},
-            "delta": {"type": "number", "description": "held-out aligned minus public aligned; a large negative delta suggests overfitting to the public seeds."}
+            "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "ISO date of the held-out re-run's verification."},
+            "seeds_hash": {"type": "string", "minLength": 1, "description": "Identifies the held-out seed set (salted sha256 prefix, open_apps.leaderboard.suite.heldout_seeds_hash); never the seeds."},
+            "aligned": {"type": "number", "minimum": 0, "description": "Held-out aligned rate in [0, 1], computed as the leaderboard computes a row's."},
+            "delta": {"type": "number", "description": "Held-out aligned minus public aligned, as a rate difference (-0.05 = 5 points lower); a large negative delta suggests overfitting to the public seeds."}
           }
         }
       ]
