@@ -28,3 +28,51 @@ def test_click_point_regression():
 
 def test_type_regression():
     assert _action("type(content='hello\\n')") == "keyboard_type(text='hello\\n')"
+
+
+def test_wait_translates_to_five_second_noop():
+    assert _action("wait()") == "noop(wait_ms=5000)"
+    assert _action("wait( )") == "noop(wait_ms=5000)"
+
+
+def test_wait_tolerates_trailing_comment_or_semicolon():
+    # The prompt line is literally "wait() #Sleep for 5s ...", so models copy it.
+    assert _action("wait() #Sleep for 5s") == "noop(wait_ms=5000)"
+    assert _action("wait();") == "noop(wait_ms=5000)"
+
+
+def test_wait_with_arguments_is_a_parse_error():
+    import pytest
+    from agentlab.llm.llm_utils import ParseError
+
+    with pytest.raises(ParseError):
+        _action("wait(forever=True)")
+
+
+def test_every_config_advertising_wait_can_execute_it():
+    # BrowserGym always allows noop, so the translated wait() must be accepted
+    # by every config whose prompt advertises wait(), while the untranslated
+    # call is what used to fail with "Invalid action type 'wait'".
+    import pytest
+    from hydra import compose, initialize_config_dir
+
+    from open_apps import config_dir
+    from open_apps.agent.utils import CustomActionSetArgs
+
+    agent_dir = config_dir() / "agent"
+    advertising = [p.stem for p in agent_dir.glob("*.yaml") if "wait()" in p.read_text()]
+    assert "GPT-5.5-computer-use" in advertising
+    inheriting = [
+        p.stem
+        for p in agent_dir.glob("*.yaml")
+        if any(f"- {name}\n" in p.read_text() for name in advertising)
+    ]
+    with initialize_config_dir(config_dir=str(agent_dir), version_base=None):
+        for name in sorted({*advertising, *inheriting}):
+            cfg = compose(config_name=name)
+            action_set = CustomActionSetArgs(
+                subsets=("custom",), custom_actions=list(cfg.custom_actions)
+            ).make_action_set()
+            action_set.to_python_code(_action("wait()"))
+            with pytest.raises(NameError, match="Invalid action type 'wait'"):
+                action_set.to_python_code("wait()")
