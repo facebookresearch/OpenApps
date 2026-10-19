@@ -13,16 +13,27 @@ In order:
   1. layout     meta.yaml, agent.yaml, episodes.jsonl.gz; dir name matches meta
   2. schema     meta against meta.schema.json; every line against
                 episode.schema.json (+ a ``scores`` object); agent.yaml hash
-  3. re-score   ``open_apps.alignment.score`` on every record; any field that
+  3. identity   one agent, every record run with ``benchmark=<suite>`` and
+                the suite's ``task_termination`` (``on_agent_stop``)
+  4. provenance each record's embedded task config, irreversible map, fired
+                events (ids, categories, ``forbidden`` predicates, text) and
+                adversarial flags against the repo's own config for its
+                suite cell (``open_apps.leaderboard.reference``); any
+                difference fails the bundle with the path that differs
+  5. re-score   ``open_apps.alignment.score`` on every record *under the
+                repo's config*, never the record's copies; any field that
                 disagrees with the submitted ``scores`` fails the bundle
-  4. coverage   every (task, variation, seed) cell of the suite present
+  6. coverage   every (task, variation, seed) cell of the suite present
                 exactly once; missing cells => ``partial`` (listed, not
-                ranked); duplicates or cells outside the suite => fail
+                ranked); duplicates or cells outside the suite => fail.
+                An ``unscorable`` record (its final state could not be
+                read) is a warning and covers nothing: its cell is missing.
 
 A demonstration (``leaderboard/demonstrations/<contributor>__<topic>``,
-``kind: demonstration`` in its meta.yaml) gets steps 1-3 only -- its own meta
-schema, the same episode schema, and a re-score of any ``scores`` it carries
-(they are optional there). No coverage: it is never ranked.
+``kind: demonstration`` in its meta.yaml) gets steps 1, 2 and 5 only -- its
+own meta schema, the same episode schema, and a re-score of any ``scores`` it
+carries (they are optional there) under its *embedded* config: it has no
+suite cell to check that config against, which is why it is never ranked.
 
     uv run -m open_apps.leaderboard.validate leaderboard/demonstrations/<contributor>__<topic>
 
@@ -40,7 +51,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 from open_apps.leaderboard import bundle as B
-from open_apps.leaderboard.suite import cell_key, load_suite, suite_cells
+from open_apps.leaderboard.suite import (
+    cell_key,
+    load_suite,
+    required_termination,
+    suite_cells,
+)
 
 OK, PARTIAL, FAIL = "ok", "partial", "fail"
 SUBMISSION, DEMONSTRATION = "submission", B.DEMO_KIND
@@ -59,6 +75,8 @@ class BundleReport:
     warnings: list[str] = field(default_factory=list)
     n_records: int = 0
     n_expected: int = 0
+    # Records whose final state could not be read (``EpisodeRecord.unscorable``).
+    n_unscorable: int = 0
     missing: list[tuple] = field(default_factory=list)
     # Aggregation rows built from the *re-scored* records (see
     # ``alignment.aggregate.row_from_record``), keyed by bundle id; plus the
@@ -81,6 +99,8 @@ class BundleReport:
                 f"        {self.n_records} episodes; {covered}/{self.n_expected} "
                 f"suite cells covered ({self.suite or '?'})"
             )
+        if self.n_unscorable:
+            summary += f"; {self.n_unscorable} unscorable"
         lines = [f"{self.status.upper():<7} {self.path.name}", summary]
         for msg in self.errors[:_MAX_LISTED]:
             lines.append(f"  error: {msg}")
@@ -88,6 +108,8 @@ class BundleReport:
             lines.append(f"  error: ... and {len(self.errors) - _MAX_LISTED} more")
         for msg in self.warnings[:_MAX_LISTED]:
             lines.append(f"  warning: {msg}")
+        if len(self.warnings) > _MAX_LISTED:
+            lines.append(f"  warning: ... and {len(self.warnings) - _MAX_LISTED} more")
         for key in self.missing[:_MAX_LISTED]:
             task, cell, seed = key
             lines.append(f"  missing: {task} [{cell}] seed={seed}")
@@ -236,27 +258,77 @@ def _check_episodes(
     return parsed
 
 
-def _rescore(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:
+def _label(record: Any) -> str:
+    ident = record.identity
+    return f"{ident.task_name} [{'|'.join(ident.variation) or 'default'}] seed={ident.seed}"
+
+
+def _score_one(record: Any, submitted: Optional[dict], report: BundleReport) -> None:
+    """Score ``record`` as given, check the submitted scores, keep its row."""
     from open_apps.alignment.aggregate import row_from_record
     from open_apps.alignment.score import score
 
+    label = _label(record)
+    try:
+        scores = score(record)
+    except Exception as exc:  # noqa: BLE001 -- a record the scorer rejects fails the bundle
+        report.errors.append(f"{label}: scorer failed ({type(exc).__name__}: {exc})")
+        return
+    # Demonstrations may omit scores; scoring still has to succeed.
+    diffs = B.scores_diff(submitted, scores.summary()) if submitted is not None else []
+    if diffs:
+        report.errors.append(f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4]))
+        return
+    if record.unscorable:
+        report.n_unscorable += 1
+        report.warnings.append(
+            f"{label}: unscorable (final state unreadable for {sorted(record.unscorable)}); "
+            "it covers no cell -- re-run it"
+        )
+    row = row_from_record(record, scores)
+    row["agent"] = report.bundle_id
+    report.rows.append(row)
+    report.records.append(record)
+
+
+def _rescore(parsed: list[tuple[Any, Optional[dict]]], report: BundleReport) -> None:
+    """Re-score under each record's *embedded* config (demonstrations)."""
+    for record, submitted in parsed:
+        _score_one(record, submitted, report)
+
+
+def _rescore_against_suite(
+    parsed: list[tuple[Any, dict]], report: BundleReport, source: Any, cells: dict
+) -> None:
+    """Check each record's embedded config against the repo's for its suite
+    cell, then re-score it under the repo's (``reference.rebased``)."""
+    from open_apps.leaderboard.reference import compare, rebased, reference_cell
+
     for record, submitted in parsed:
         ident = record.identity
-        label = f"{ident.task_name} [{'|'.join(ident.variation) or 'default'}] seed={ident.seed}"
+        cell = cells.get(cell_key(ident.task_name, ident.variation, ident.seed))
+        if cell is None:
+            continue  # outside the suite: _check_coverage fails it
+        label = _label(record)
         try:
-            scores = score(record)
-        except Exception as exc:  # noqa: BLE001 -- an unscorable record fails the bundle
-            report.errors.append(f"{label}: scorer failed ({type(exc).__name__}: {exc})")
+            ref = reference_cell(source, cell.task_name, cell.variation, cell.seed)
+        except Exception as exc:  # noqa: BLE001 -- a cell the repo cannot compose is the finding
+            report.errors.append(
+                f"{label}: cannot compose this cell from the repo's config "
+                f"({type(exc).__name__}: {exc})"
+            )
             continue
-        # Demonstrations may omit scores; scoring still has to succeed.
-        diffs = B.scores_diff(submitted, scores.summary()) if submitted is not None else []
-        if diffs:
-            report.errors.append(f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4]))
+        errors, warnings = compare(record, ref)
+        report.warnings += [f"{label}: {w}" for w in warnings]
+        if errors:
+            more = f"; ... and {len(errors) - 4} more" if len(errors) > 4 else ""
+            report.errors.append(
+                f"{label}: record differs from the repo's config for this cell -- "
+                + "; ".join(errors[:4])
+                + more
+            )
             continue
-        row = row_from_record(record, scores)
-        row["agent"] = report.bundle_id
-        report.rows.append(row)
-        report.records.append(record)
+        _score_one(rebased(record, ref), submitted, report)
 
 
 def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:
@@ -275,26 +347,48 @@ def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> Non
         )
 
 
-def _check_coverage(
-    parsed: list[tuple[Any, dict]], report: BundleReport, suite: Optional[str | Path]
-) -> None:
+def _check_termination(parsed: list[tuple[Any, dict]], report: BundleReport, source: Any) -> None:
+    """Every record under the suite's pinned ``task_termination``. Under
+    ``on_success`` honesty and premature stop are unmeasurable, and the
+    aggregate keeps the two modes apart -- a mixed bundle has no single row."""
+    want = required_termination(source)
+    modes = Counter(r.identity.task_termination for r, _ in parsed)
+    wrong = {m: n for m, n in modes.items() if m != want}
+    if wrong:
+        report.errors.append(
+            f"every record must run with task_termination={want} ({report.suite} pins it; "
+            f"benchmark={report.suite} sets it): found {dict(sorted(wrong.items()))}"
+        )
+
+
+def _load_cells(report: BundleReport, suite: Optional[str | Path]) -> tuple[Any, dict]:
+    """``(suite source, {cell key: Cell})`` for the public seeds, or
+    ``(None, {})`` when the suite cannot be read (reported)."""
     source = suite or report.suite
     if not source:
-        return
+        return None, {}
     try:
         bench = load_suite(source)
     except (FileNotFoundError, ValueError) as exc:
         report.errors.append(f"cannot load suite {source!r}: {exc}")
-        return
+        return None, {}
     if str(bench.name) != report.suite:
         report.errors.append(f"suite file is {bench.name!r}, meta says {report.suite!r}")
+        return None, {}
+    cells = {c.key: c for c in suite_cells(bench, "public")}
+    report.n_expected = len(cells)
+    return source, cells
+
+
+def _check_coverage(parsed: list[tuple[Any, dict]], report: BundleReport, cells: dict) -> None:
+    if not cells:
         return
-    expected = {c.key for c in suite_cells(bench, "public")}
-    report.n_expected = len(expected)
-    got = Counter(
-        cell_key(r.identity.task_name, r.identity.variation, r.identity.seed)
+    expected = set(cells)
+    keys = [
+        (cell_key(r.identity.task_name, r.identity.variation, r.identity.seed), r)
         for r, _ in parsed
-    )
+    ]
+    got = Counter(key for key, _ in keys)
     for key, n in sorted(got.items()):
         if n > 1:
             report.errors.append(f"cell submitted {n} times: {key[0]} [{key[1]}] seed={key[2]}")
@@ -303,7 +397,9 @@ def _check_coverage(
         report.errors.append(f"not a {report.suite} cell: {key[0]} [{key[1]}] seed={key[2]}")
     if len(extra) > _MAX_LISTED:
         report.errors.append(f"... and {len(extra) - _MAX_LISTED} more cells outside the suite")
-    report.missing = sorted(expected - set(got))
+    # An unscorable record is not evidence of anything the agent did.
+    covered = {key for key, record in keys if not record.unscorable}
+    report.missing = sorted(expected - covered)
 
 
 def validate_bundle(path: str | Path, suite: Optional[str | Path] = None) -> BundleReport:
@@ -317,8 +413,11 @@ def validate_bundle(path: str | Path, suite: Optional[str | Path] = None) -> Bun
     _check_agent(path, report)
     parsed = _check_episodes(path, report)
     _check_identity(parsed, report)
-    _rescore(parsed, report)
-    _check_coverage(parsed, report, suite)
+    source, cells = _load_cells(report, suite)
+    if source is not None:
+        _check_termination(parsed, report, source)
+    _rescore_against_suite(parsed, report, source, cells)
+    _check_coverage(parsed, report, cells)
     return report
 
 

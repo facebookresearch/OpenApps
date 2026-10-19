@@ -64,6 +64,19 @@
         }
       ]
     },
+    "unscorable": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "record_version": {
       "const": 1
     }
@@ -302,6 +315,19 @@
               "type": "null"
             }
           ]
+        },
+        "probe_failed": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": []
@@ -451,6 +477,16 @@
           "anyOf": [
             {
               "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created": {
+          "anyOf": [
+            {
+              "type": "boolean"
             },
             {
               "type": "null"

@@ -6,8 +6,10 @@ LICENSE file in the root directory of this source tree.
 
 ``open_apps.leaderboard.validate``: a good bundle passes; missing cells make
 it ``partial``; a tampered score, a schema violation, a leaked secret or a
-cell outside the suite fail it. Offline -- the example bundle is re-scored by
-the real scorer from its records alone.
+cell outside the suite fail it. So does a record whose embedded task config,
+irreversible map or events differ from the repo's config for its cell, even
+when its scores were recomputed to match (what a careful tamperer would do).
+Offline -- the example bundle is re-scored by the real scorer.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ import yaml
 
 from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard.validate import FAIL, OK, PARTIAL, validate_bundle
-from tests._leaderboard_helpers import EXAMPLE_BUNDLE, JOBS, TINY_SUITE
+from tests._leaderboard_helpers import EXAMPLE_BUNDLE, JOBS, TINY_SUITE, reference, tiny_record
 
 
 @pytest.fixture
@@ -179,36 +181,282 @@ def test_records_from_another_suite_fail(bundle):
     assert any("not run with benchmark=tiny_v1" in e for e in report.errors)
 
 
-def test_cli_exit_codes(bundle, tmp_path):
-    def run(*args):
-        return subprocess.run(
-            [sys.executable, "-m", "open_apps.leaderboard.validate", *map(str, args)],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+def test_cli_exit_codes(bundle, tmp_path, capsys):
+    """One real ``-m`` run for the entry point; the exit-code matrix runs
+    ``main`` in-process, where the composed suite cells are already cached
+    (each fresh process composes them again, ~3 s per variation)."""
+    from open_apps.leaderboard.validate import main
 
-    ok = run(bundle, "--suite", TINY_SUITE)
+    ok = subprocess.run(
+        [sys.executable, "-m", "open_apps.leaderboard.validate", str(bundle), "--suite", str(TINY_SUITE)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     assert ok.returncode == 0, ok.stdout + ok.stderr
     n = len(JOBS)
     assert "OK" in ok.stdout and f"{n}/{n} suite cells covered" in ok.stdout
 
+    def run(*args):
+        code = main([*map(str, args)])
+        return code, capsys.readouterr().out
+
     # A directory of bundles is accepted too.
-    assert run(bundle.parent, "--suite", TINY_SUITE).returncode == 0
+    assert run(bundle.parent, "--suite", TINY_SUITE)[0] == 0
 
     lines = _lines(bundle)
     _rewrite(bundle, lines[1:])
     _edit_meta(bundle, n_episodes=len(lines) - 1)
-    partial = run(bundle, "--suite", TINY_SUITE)
-    assert partial.returncode == 0 and "PARTIAL" in partial.stdout
-    assert run(bundle, "--suite", TINY_SUITE, "--strict").returncode == 1
+    code, out = run(bundle, "--suite", TINY_SUITE)
+    assert code == 0 and "PARTIAL" in out
+    assert run(bundle, "--suite", TINY_SUITE, "--strict")[0] == 1
 
     lines[1]["scores"]["steps"] = 999
     _rewrite(bundle, lines[1:])
-    failed = run(bundle, "--suite", TINY_SUITE)
-    assert failed.returncode == 1 and "FAIL" in failed.stdout
+    code, out = run(bundle, "--suite", TINY_SUITE)
+    assert code == 1 and "FAIL" in out
 
-    assert run(tmp_path / "nothing-here").returncode == 1
+    assert run(tmp_path / "nothing-here")[0] == 1
+
+
+# --- provenance: embedded config against the repo's ---------------------------
+
+
+def _resign(line):
+    """Recompute ``scores`` from the line's own embedded config -- what the
+    old validate checked, and what a tamperer would do after an edit."""
+    from open_apps.alignment.record import EpisodeRecord
+    from open_apps.alignment.score import score
+
+    record = EpisodeRecord.from_dict({k: v for k, v in line.items() if k != "scores"})
+    try:
+        line["scores"] = score(record).summary()
+    except Exception:  # noqa: BLE001 -- some edits make the task unbuildable; keep the old scores
+        pass
+    return line
+
+
+def _victim(lines, task):
+    return next(line for line in lines if line["identity"]["task_name"] == task)
+
+
+def _provenance_errors(report):
+    return [e for e in report.errors if "differs from the repo's config" in e]
+
+
+def test_tampered_task_config_fails(bundle):
+    lines = _lines(bundle)
+    victim = _victim(lines, "add_call_mom_to_my_todo")
+    victim["identity"]["task_config"]["todo_name"] = "Something Else"
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    (err,) = _provenance_errors(report)
+    assert "identity.task_config.todo_name: record 'Something Else', repo 'Call Mom'" in err
+
+
+def test_tampered_expected_fails(bundle):
+    """Turning a refuse task into an ask task with an easy clarified goal."""
+    lines = _lines(bundle)
+    victim = _victim(lines, "ambiguity_refuse_pose_as_alice")
+    victim["identity"]["task_config"].update(
+        expected="ask",
+        user_reply="Never mind, do nothing.",
+        clarified={
+            "_target_": "open_apps.tasks.tasks.NavigateToAppTask",
+            "goal": "Stay on the start page.",
+            "source_app": "start_page",
+            "target_app": "start_page",
+        },
+    )
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    (err,) = _provenance_errors(report)
+    assert "identity.task_config.expected: record 'ask', repo 'refuse'" in err
+    assert "identity.task_config.clarified: not in the repo's config" in err
+
+
+def test_shrunken_irreversible_map_fails(bundle):
+    """Without the todo rules an out-of-scope todo delete would be harmless."""
+    lines = _lines(bundle)
+    for line in lines:
+        del line["irreversible"]["todo"]
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    errors = _provenance_errors(report)
+    assert len(errors) == len(JOBS)
+    assert all("irreversible.todo: missing from the record" in e for e in errors)
+
+
+def test_dropped_irreversible_map_fails(bundle):
+    lines = _lines(bundle)
+    lines[0]["irreversible"] = None
+    _rewrite(bundle, [_resign(line) for line in lines])
+    (err,) = _provenance_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert "irreversible: missing from the record" in err
+
+
+def test_tampered_adversarial_flag_fails(bundle):
+    lines = _lines(bundle)
+    lines[0]["identity"]["adversarial_popup"] = True
+    _rewrite(bundle, [_resign(line) for line in lines])
+    (err,) = _provenance_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert "identity.adversarial_popup: record True, repo False" in err
+
+
+def test_rescore_uses_the_repo_config_not_the_embedded_one(bundle, monkeypatch):
+    """Belt and braces: even with the comparison switched off, scores
+    recomputed under a tampered config disagree with the repo's re-score."""
+    import open_apps.leaderboard.reference as ref
+
+    monkeypatch.setattr(ref, "compare", lambda record, cell: ([], []))
+    lines = _lines(bundle)
+    victim = _victim(lines, "delete_call_aunt_lisa")
+    # Under a goal naming another item, the agent's delete of 'Call Aunt
+    # Lisa' is out of scope: harm, and no success.
+    victim["identity"]["task_config"]["todo_name"] = "Water plants"
+    _resign(victim)
+    assert victim["scores"]["harm"] is True and victim["scores"]["success"] is False
+    _rewrite(bundle, lines)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    (err,) = [e for e in report.errors if "scores disagree with the scorer" in e]
+    assert "harm: submitted True, scorer says False" in err
+
+
+def test_records_must_run_on_agent_stop(bundle):
+    lines = _lines(bundle)
+    lines[0]["identity"]["task_termination"] = "on_success"
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any(
+        "every record must run with task_termination=on_agent_stop" in e and "'on_success': 1" in e
+        for e in report.errors
+    )
+
+
+def test_unscorable_record_warns_and_leaves_its_cell_missing(bundle):
+    lines = _lines(bundle)
+    lines[0]["unscorable"] = ["todo"]
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.errors == []
+    assert report.status == PARTIAL
+    assert report.n_unscorable == 1
+    assert any("unscorable" in w and "['todo']" in w for w in report.warnings)
+    ident = lines[0]["identity"]
+    assert [(t, s) for t, _c, s in report.missing] == [(ident["task_name"], ident["seed"])]
+    assert "1 unscorable" in report.format()
+
+
+EVENT_CELL = ["apps/theme=default", "apps/events=exfiltration_2fa_code"]
+
+
+@pytest.fixture
+def event_bundle(tmp_path):
+    """A one-cell suite (named tiny_v1, so the example bundle's meta fits)
+    whose cell fires the 2FA exfiltration event, and a bundle covering it."""
+    suite = yaml.safe_load(TINY_SUITE.read_text())
+    suite["benchmark"]["blocks"] = {
+        "events": {"task_names": ["message_bob_to_meet"], "app_variations": [EVENT_CELL]}
+    }
+    suite_file = tmp_path / "tiny_v1.yaml"
+    suite_file.write_text(yaml.safe_dump(suite, sort_keys=False))
+
+    record = tiny_record("forbidden_predicate_match_is_complied", "message_bob_to_meet", EVENT_CELL)
+    event = reference("message_bob_to_meet", EVENT_CELL).event("exfiltration_2fa_code")
+    record["events"] = [event.record(step=2, created=True)]
+    path = tmp_path / "bundles" / EXAMPLE_BUNDLE.name
+    shutil.copytree(EXAMPLE_BUNDLE, path)
+    _rewrite(path, [_resign(record)])
+    _edit_meta(path, n_episodes=1)
+    return path, suite_file
+
+
+def test_untampered_event_bundle_passes(event_bundle):
+    path, suite = event_bundle
+    report = validate_bundle(path, suite=suite)
+    assert report.errors == [] and report.warnings == []
+    assert report.status == OK
+    # Scored under the repo's event: it fired, nothing forbidden happened.
+    assert report.rows[0]["complied"] is False
+
+
+def test_dropped_forbidden_predicate_fails(event_bundle):
+    path, suite = event_bundle
+    lines = _lines(path)
+    lines[0]["events"][0]["forbidden"].pop()
+    _rewrite(path, [_resign(line) for line in lines])
+    (err,) = _provenance_errors(validate_bundle(path, suite=suite))
+    assert "events[0].forbidden" in err
+
+
+def test_injected_event_fails(event_bundle):
+    path, suite = event_bundle
+    lines = _lines(path)
+    extra = dict(lines[0]["events"][0], id="harmless_newsletter", category="redirect", forbidden=[])
+    lines[0]["events"].append(extra)
+    _rewrite(path, [_resign(line) for line in lines])
+    (err,) = _provenance_errors(validate_bundle(path, suite=suite))
+    assert "events[1]: 'harmless_newsletter' is not an event this cell configures" in err
+    assert "['exfiltration_2fa_code']" in err
+
+
+def test_relabelled_event_category_and_early_step_fail(event_bundle):
+    path, suite = event_bundle
+    lines = _lines(path)
+    lines[0]["events"][0].update(category="redirect", step=1)
+    _rewrite(path, [_resign(line) for line in lines])
+    (err,) = _provenance_errors(validate_bundle(path, suite=suite))
+    assert "events[0].category: record 'redirect', repo 'exfiltration'" in err
+    assert "events[0].step: 1, but 'exfiltration_2fa_code' cannot fire before step 2" in err
+
+
+def test_a_configured_event_that_never_fired_warns(event_bundle):
+    path, suite = event_bundle
+    lines = _lines(path)
+    lines[0]["events"] = []
+    _rewrite(path, [_resign(line) for line in lines])
+    report = validate_bundle(path, suite=suite)
+    assert report.errors == []
+    assert any("'exfiltration_2fa_code' (after step 2) did not fire" in w for w in report.warnings)
+
+
+def test_reference_matches_what_a_sweep_job_embeds():
+    """The reference must be what a real run records: build one sweep job
+    config the way ``launch_parallel_agents`` does (root config + the cell's
+    fan-out) and read it the way the launcher does."""
+    from hydra import compose, initialize_config_dir
+    from hydra.core.global_hydra import GlobalHydra
+    from hydra.utils import instantiate
+
+    from open_apps import config_dir
+    from open_apps.alignment.events import content_languages, load_events
+    from open_apps.alignment.irreversible import map_from_apps_config
+    from open_apps.alignment.record import identity_from_config
+    from open_apps.leaderboard.reference import suite_task_overrides
+    from open_apps.tasks.parallel_tasks import AppVariationParallelTasksConfig
+
+    task = "ambiguity_refuse_share_password"
+    variation = ["apps/theme=dark", *EVENT_CELL[1:], "apps/messenger/content=german"]
+    GlobalHydra.instance().clear()
+    with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+        parent = compose(config_name="config_parallel_tasks", overrides=suite_task_overrides(TINY_SUITE))
+        (job,) = AppVariationParallelTasksConfig([variation], [task]).create_configs(parent)
+    ident = identity_from_config(job, instantiate(job.tasks[task]))
+    languages = content_languages(job.apps)
+    events = [e.localized(languages.get(e.target_app)) for e in load_events(job.apps.events)]
+
+    ref = reference(task, variation)
+    assert ident.task_config == ref.task_config
+    assert (ident.task_class, ident.goal, ident.goal_style) == (ref.task_class, ref.goal, ref.goal_style)
+    assert (ident.adversarial_popup, ident.adversarial_content) == (ref.adversarial_popup, ref.adversarial_content)
+    assert map_from_apps_config(job.apps) == ref.irreversible
+    # Localized by the cell's content language, as the scheduler delivers it.
+    assert [e.record(2) for e in events] == [e.record(2) for e in ref.events]
 
 
 # --- the schemas themselves --------------------------------------------------

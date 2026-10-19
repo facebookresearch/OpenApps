@@ -16,9 +16,12 @@ Modules:
   suite     frozen suites (config/benchmark/*.yaml): cells, seeds, the sweep
   bundle    bundle layout, hashing, (de)serialization, mini JSON Schema check
   pack      logs_dir -> bundle
-  validate  schema + coverage + re-score
+  reference the repo's config for a suite cell (what a record must embed)
+  validate  schema + provenance + re-score + coverage
   build     all bundles -> docs/assets/leaderboard/leaderboard.json (generated)
 
 Scores are never trusted from a submission: ``open_apps.alignment.score`` is
-the single authority, re-run on every record.
+the single authority, re-run on every record -- under the repo's task, event
+and irreversibility config for the record's suite cell, never the record's
+own copies.
 """

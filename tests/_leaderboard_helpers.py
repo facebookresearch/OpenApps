@@ -66,51 +66,69 @@ JOBS = [
     (5, "timeout_excluded_from_honesty", "ambiguity_refuse_pose_as_alice", ["apps/theme=default"]),
 ]
 REBUILT_JOB = 3
-AMBIGUITY_TASKS = HERE.parent / "config" / "tasks" / "ambiguity.yaml"
 
 
 def golden(name: str) -> dict:
     return json.loads((ALIGNMENT_FIXTURES / f"{name}.json").read_text())["record"]
 
 
-def _relabel_as_ambiguity_task(ident: dict, task: str) -> None:
-    """Point a golden record's identity at an ambiguity task (states, steps
-    and termination stay), with its real config so re-scoring rebuilds the
-    real ``AmbiguityTask``."""
-    config = yaml.safe_load(AMBIGUITY_TASKS.read_text())[task]
-    ident.update(
-        task_name=task,
-        task_class=config["_target_"].rsplit(".", 1)[-1],
-        goal=config["goal"],
-        goal_style=None,
-        task_config=config,
-    )
+def reference(task: str, variation: list[str], seed: int = 233):
+    """The repo-composed reference for one tiny-suite cell -- what a real
+    run of it embeds (``open_apps.leaderboard.reference``)."""
+    from open_apps.leaderboard.reference import reference_cell
+
+    return reference_cell(TINY_SUITE, task, variation, seed)
 
 
 def tiny_record(name: str, task: str, variation: list[str], seed: int = 233) -> dict:
-    """A golden record relabelled as one cell of the tiny suite."""
+    """A golden record relabelled as one cell of the tiny suite.
+
+    States, steps and termination are the golden record's; everything a run
+    takes from config (task config, irreversible map, adversarial flags) is
+    the repo's for this cell, as ``identity_from_config`` and the launcher
+    would have embedded it -- so ``validate``'s provenance check passes. An
+    ambiguity cell replays a golden todo trajectory under the real
+    ``AmbiguityTask``.
+    """
     record = copy.deepcopy(golden(name))
     ident = record["identity"]
-    if task.startswith("ambiguity_"):
-        _relabel_as_ambiguity_task(ident, task)
-    assert ident["task_name"] == task, (name, task)
+    if not task.startswith("ambiguity_"):
+        assert ident["task_name"] == task, (name, task)
+    ref = reference(task, variation, seed)
     ident.update(
+        task_name=task,
+        task_class=ref.task_class,
+        goal=ref.goal,
+        goal_style=ref.goal_style,
+        task_config=ref.task_config,
         variation=list(variation),
         seed=seed,
         agent_name="dummy",
         suite_version=SUITE_NAME,
         task_termination="on_agent_stop",
+        adversarial_popup=ref.adversarial_popup,
+        adversarial_content=ref.adversarial_content,
     )
+    record["irreversible"] = ref.irreversible
     return record
 
 
 def _run_config(task: str, variation: list[str], task_config: dict) -> dict:
-    """The subset of a saved job config.yaml that pack reads."""
+    """The subset of a saved job config.yaml that pack reads. ``apps`` holds
+    just the cell's ``irreversible:`` blocks (the whole composed tree is
+    megabytes of content packs), keyed by config group as the real one is."""
+    from open_apps.alignment.irreversible import APP_STATE_KEYS
+
+    group_of = {state_key: group for group, state_key in APP_STATE_KEYS.items()}
+    apps = {
+        group_of[state_key]: {"irreversible": rules}
+        for state_key, rules in reference(task, variation).irreversible.items()
+    }
     return {
         "task_name": task,
         "tasks": {task: task_config},
         "agent": DUMMY_AGENT,
-        "apps": {},
+        "apps": apps,
         "app_overrides": list(variation),
         "seed": 233,
         "suite_version": SUITE_NAME,
