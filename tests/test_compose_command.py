@@ -314,3 +314,18 @@ def test_rendered_overrides_compose(catalog, case):
                 if agent:
                     injected = [f"agent={agent}", *injected, f"wandb.job_type={agent}"]
                 _compose_ok("config", [*injected, *overrides])
+
+
+def test_the_env_name_pattern_has_one_home():
+    """``NAME=value`` is recognised by one pattern (command.py) everywhere in
+    Python -- parse, the server's env check and its argv split -- and the JS
+    port spells the same one, so they cannot drift apart."""
+    from open_apps.compose import command, server
+
+    assert server.ENV_ASSIGNMENT is command.ENV_ASSIGNMENT
+    package = Path(command.__file__).parent
+    for path in package.glob("*.py"):
+        if path.name != "command.py":
+            assert command.ENV_NAME not in path.read_text(), path.name
+    js = (package.parents[2] / "docs/assets/composer/composer.js").read_text()
+    assert f"const ENV_ASSIGNMENT = /^({command.ENV_NAME})=([\\s\\S]*)$/;" in js

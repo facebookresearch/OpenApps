@@ -50,7 +50,12 @@ from open_apps.compose.catalog import TARGETS, Catalog
 ALL_TASKS = "all"  # mirrors open_apps.tasks.parallel_tasks.ALL_TASKS
 POOL_TARGETS = ("pool", "slurm_pool")
 
-_ENV_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.DOTALL)
+#: A shell variable name. The one copy in Python: parse, the server's env
+#: check and its argv split all use :data:`ENV_ASSIGNMENT` (the JS port spells
+#: the same pattern; a test holds them together).
+ENV_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
+#: ``NAME=value`` -> (name, value); the value may be empty or span lines.
+ENV_ASSIGNMENT = re.compile(rf"^({ENV_NAME})=(.*)$", re.DOTALL)
 _OVERRIDE = re.compile(r"^(\+\+|\+|~)?([A-Za-z_][\w./@-]*)=(.*)$", re.DOTALL)
 
 
@@ -464,8 +469,8 @@ def parse(command: str, catalog: Catalog) -> Selection:
     """
     tokens = shlex.split(command.replace("\\\n", " "))
     env: list[tuple[str, str]] = []
-    while tokens and _ENV_ASSIGNMENT.match(tokens[0]):
-        name, value = _ENV_ASSIGNMENT.match(tokens[0]).groups()
+    while tokens and ENV_ASSIGNMENT.match(tokens[0]):
+        name, value = ENV_ASSIGNMENT.match(tokens[0]).groups()
         env.append((name, value))
         tokens = tokens[1:]
     target, sbatch_args, rest = _split_program(tokens)

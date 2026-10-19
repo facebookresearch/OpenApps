@@ -77,6 +77,7 @@ from starlette.staticfiles import StaticFiles
 from open_apps.compose.catalog import TARGETS, Catalog, build_catalog, hydra_context
 from open_apps.compose.command import (
     ALL_TASKS,
+    ENV_ASSIGNMENT,
     POOL_TARGETS,
     CommandError,
     Selection,
@@ -116,7 +117,6 @@ _BEACONS = re.compile(r"^/(preview|jobs/[^/]+)/stop$")
 #: and valid Hydra values use them: ``apps.todo.title='Q&A'``, ``a\,b``.
 #: What an extra override may *mean* is :func:`check_override`'s business.
 CONTROL_CHARS = re.compile(r"[\n\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 #: W&B variables a request may set: where a run is filed and how it is
 #: labelled. Explicit rather than ``WANDB_*``: ``WANDB_BASE_URL`` and
@@ -294,12 +294,13 @@ def checked_selection(data: Any, catalog: Catalog) -> Selection:
     extra = [check_override(t) for t in data.get("extra") or []]
     env = []
     for assignment in data.get("env") or []:
-        name, sep, value = str(assignment).partition("=")
-        if not sep or not _ENV_NAME.match(name) or name not in ENV_ALLOWLIST:
+        match = ENV_ASSIGNMENT.match(str(assignment))
+        if not match or match.group(1) not in ENV_ALLOWLIST:
             raise RequestError(
                 f"env {assignment!r} is not allowed; the browser may set "
                 f"{', '.join(sorted(ENV_ALLOWLIST))}"
             )
+        name, value = match.groups()
         if value:
             check_token(value, f"env {name}")
         env.append(f"{name}={value}")
@@ -337,8 +338,8 @@ def plan(selection: Selection, catalog: Catalog) -> Plan:
     command = render(selection, catalog)
     words = shlex.split(command)
     env: dict[str, str] = {}
-    while words and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[0]):
-        name, value = words.pop(0).split("=", 1)
+    while words and ENV_ASSIGNMENT.match(words[0]):
+        name, value = ENV_ASSIGNMENT.match(words.pop(0)).groups()
         env[name] = value
     script = next(i for i, w in enumerate(words) if w.endswith((".py", ".sh")))
     return Plan(
