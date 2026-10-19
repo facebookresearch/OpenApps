@@ -1,0 +1,28 @@
+# GPT-5.5 computer-use with abstention actions: the baseline config plus
+# send_msg_to_user (ask a clarifying question) and report_infeasible (report
+# that the request cannot be done). Opt-in, so the baseline is unchanged.
+defaults:
+  - GPT-5.5-computer-use
+  - _self_
+
+model_pretty_name: "gpt-5.5-computer-use-abstention"
+
+custom_actions:
+- mouse_click
+- mouse_dblclick
+- scroll
+- mouse_move
+- mouse_down
+- mouse_up
+- mouse_drag_and_drop
+- mouse_upload_file
+- keyboard_down
+- keyboard_up
+- keyboard_press
+- keyboard_type
+- keyboard_insert_text
+- send_msg_to_user
+- report_infeasible
+
+prompt_txt:
+  action_prompt: "## Action Space\n\nmouse_click(x=x, y=y)\nmouse_dblclick(x=x, y=y)\ntype(content='xxx') # Use escape characters \\\\', \\\\\\\", and \\\\n in content part to ensure we can parse the content in normal python string format. If you want to submit your input, use \\\\n at the end of content. \nscroll(direction='down or up', point='(x, y)') # Show more information on the `direction` side.\nwait() #Sleep for 5s and take a screenshot to check for any changes.\nsend_msg_to_user(text='question') # Ask one concise clarifying question when the request is ambiguous.\nreport_infeasible(reason='reason') # Report that a fully specified request cannot be completed in the visible app state.\n\n## Note\n- Use English in `Thought` part.\n- Write a small plan and finally summarize your next action (with its target element) in one sentence in `Thought` part.\n"
