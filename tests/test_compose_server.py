@@ -350,16 +350,53 @@ def test_run_refusal_needs_a_known_program(catalog, monkeypatch):
         {"extra": ["apps.todo.title=`id`"]},
         {"extra": ["apps.todo.title=a\nb"]},
         {"extra": ["seed=1 && curl evil"]},
-        {"env": ["VLLM_HOST=node|tee"]},
+        {"extra": ["apps.todo.title='a\x00b'"]},
+        {"env": ["VLLM_HOST=node\nid"]},
         {"env": ["LD_PRELOAD=/tmp/x.so"]},
         {"env": ["PATH=/tmp"]},
-        {"sbatch_args": ["--qos=q;id"]},
+        {"sbatch_args": ["--qos=q\x1b[2J"]},
     ],
 )
-def test_token_validation_rejects_shell_metacharacters(catalog, client, selection):
+def test_token_validation_rejects_control_characters_and_bad_grammar(
+    catalog, client, selection
+):
+    """No shell sees a token, so what is refused is what Hydra's grammar
+    refuses (``;``, backticks, ``$(`` and a bare ``&`` all are) plus control
+    characters, which no value needs and which garble the log."""
     with pytest.raises(RequestError):
         checked_selection(selection, catalog)
     assert post(client, "/run", selection).status_code == 400
+
+
+#: Valid Hydra overrides holding characters a shell would treat specially.
+#: The static page renders them quoted; locally they must reach the process
+#: as exactly the word a shell would make of that rendering.
+SHELLY_OVERRIDES = [
+    "apps.todo.title='Q&A'",
+    "apps.todo.title=a\\,b",
+    "apps.todo.title='a;b'",
+    "apps.todo.title='<b>Todo</b>'",
+    "apps.todo.title=a|b",
+    "apps.todo.title='it\\'s'",
+]
+
+
+@pytest.mark.parametrize("token", SHELLY_OVERRIDES)
+def test_valid_hydra_values_with_shell_characters_pass(catalog, client, token):
+    sel = checked_selection({"extra": [token]}, catalog)
+    assert sel.extra == [token]
+    p = plan(sel, catalog)
+    assert p.overrides[-1] == token  # one argv word, as the shell would split it
+    response = post(client, "/validate", {"extra": [token]})
+    assert response.status_code == 200, response.json()
+    assert any(d["key"] == "apps.todo.title" for d in response.json()["diff"])
+
+
+@pytest.mark.parametrize("assignment", ["VLLM_HOST=a|b", "WANDB_NOTES=Q&A; v2"])
+def test_env_values_with_shell_characters_pass(catalog, assignment):
+    sel = checked_selection({"env": [assignment]}, catalog)
+    name, value = assignment.split("=", 1)
+    assert plan(sel, catalog).env[name] == value
 
 
 @pytest.mark.parametrize(

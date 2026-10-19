@@ -62,6 +62,9 @@ EDGE_COMMANDS = [
     'uv run launch_agent.py "apps.todo.title=Super Todo" agent=dummy',
     "uv run launch_agent.py apps.todo.title=Super\\ Todo",
     "uv run launch_agent.py 'apps.todo.title=it'\"'\"'s'",
+    # Valid Hydra values a shell would mangle unquoted (see test_compose_server).
+    "uv run launch_agent.py \"apps.todo.title='Q&A'\" seed=2",
+    "uv run launch_agent.py 'apps.todo.title=a\\,b' 'apps.todo.title=a|b'",
     "uv run launch_agent.py agent=not_an_agent device=phone",
     "uv run launch_agent.py +experiment=phone experiment=phone",
     "uv run launch_agent.py use_wandb=yes seed=1_000 seed=2",

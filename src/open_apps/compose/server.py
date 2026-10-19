@@ -110,10 +110,12 @@ LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 #: cross-site requests, so another site still cannot send them.
 _BEACONS = re.compile(r"^/(preview|jobs/[^/]+)/stop$")
 
-#: What a token may not contain, even though no shell ever sees it: command
-#: separators, redirections, substitution and control characters. ``${`` is
-#: allowed -- it is OmegaConf interpolation (``${oc.env:HOME}``) -- ``$(`` not.
-SHELL_META = re.compile(r"[;&|`<>\\\n\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\$\(")
+#: What a token may not contain: control characters (newlines, NUL, escape
+#: sequences), which no value needs and which garble the streamed log. Shell
+#: metacharacters are fine -- no shell ever sees a token (argv for Popen) --
+#: and valid Hydra values use them: ``apps.todo.title='Q&A'``, ``a\,b``.
+#: What an extra override may *mean* is :func:`check_override`'s business.
+CONTROL_CHARS = re.compile(r"[\n\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 #: W&B variables a request may set: where a run is filed and how it is
@@ -199,8 +201,8 @@ def check_token(token: str, what: str) -> str:
     """``token`` if it is safe to place in an argv, else :class:`RequestError`."""
     if not isinstance(token, str) or not token:
         raise RequestError(f"{what} must be a non-empty string")
-    if SHELL_META.search(token):
-        raise RequestError(f"{what} {token!r} contains a shell metacharacter")
+    if CONTROL_CHARS.search(token):
+        raise RequestError(f"{what} {token!r} contains a control character")
     return token
 
 
