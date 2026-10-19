@@ -29,4 +29,4 @@ What `uv run -m open_apps.leaderboard.validate <bundle>` checks, plus what only 
 - [ ] `agent.yaml` has no keys, tokens, hostnames or endpoints (`pack` redacts them; `validate` fails if any remain).
 - [ ] Each cell is the run `pack` kept (a re-run replaces an infrastructure error; otherwise the later run), not the best of several attempts.
 - [ ] Videos are linked as `https://` URLs in `meta.yaml`, not committed; no file over 100 MB and no symlinks.
-- [ ] `contact` in `meta.yaml` reaches me, and `verified` is `false` (maintainers set it).
+- [ ] `contact` in `meta.yaml` reaches me, and `verified` is `false`: maintainers set it with `verify record` in a separately labelled PR, and CI fails a submission that adds or changes it (re-submitting a verified bundle: reset it to `false`).

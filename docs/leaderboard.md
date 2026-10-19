@@ -213,7 +213,15 @@ uv run -m open_apps.leaderboard.verify record leaderboard/submissions/<org>__<ag
   seeds file's secret `salt`, since an unsalted hash of a few small integers can be reversed by
   enumeration; the tooling warns when the salt is missing.
 
-Commit the `meta.yaml` change in its own PR. The table shows the ✓ badge and flags a large
+Commit the `meta.yaml` change in its own PR and give it the `verified-by-maintainer` label.
+CI compares every changed bundle with its copy on the base branch and fails any PR that adds
+or changes a `verified` block ("verified is set by maintainers via `verify record`; remove it
+from this PR"), including a new bundle that arrives with one. The label lifts that only for a
+PR that changes nothing in the bundle but the `verified` block; only users with triage
+rights can apply labels, and CI reads the label when it runs (labelling re-runs it).
+Resetting `verified` to `false` is always allowed, and a submitter must do so when
+re-submitting a verified bundle with a different `agent.yaml` or episodes, since the
+verification no longer applies. Once merged, the table shows the ✓ badge and flags a large
 `delta` as possible overfitting to the public seeds.
 
 ## Demonstrations

@@ -11,8 +11,8 @@
 # src/open_apps/leaderboard/ or the scorer to approve their own bundle. So the
 # code that judges a bundle always comes from the base branch:
 #
-#   scope          lists the PR's changed files through the API. Checks out
-#                  nothing.
+#   scope          lists the PR's changed files and its labels through the
+#                  API (read-only token). Checks out nothing.
 #   separate-code  fails when the PR changes judging code (the leaderboard
 #                  package, the scorer, frozen suites, schemas, these
 #                  workflows) AND submissions/demonstrations together. Code
@@ -24,6 +24,17 @@
 #                  runs the base's validate/build over the PR's bundles. Read-
 #                  only token, no secrets. The would-be row goes to the job
 #                  summary and to the `leaderboard-comment` artifact.
+#
+# `verified` is maintainers' to set. validate is given the base branch's
+# copy of every changed bundle (--base-dir) and fails a PR that adds or
+# changes a bundle's `verified` block ("verified is set by maintainers via
+# `verify record`; remove it from this PR"); a bundle new on the PR must not
+# have one. Resetting it to `false` is always allowed, and is required when a
+# verified bundle's agent.yaml or episodes change. The one way to change it is
+# a PR labelled `verified-by-maintainer` (GitHub only lets users with triage
+# rights apply labels) that changes nothing in the bundle but that block --
+# what `uv run -m open_apps.leaderboard.verify record` writes. scope reads the
+# label through the API when the job runs, and labelling re-runs the check.
 #
 # leaderboard-comment.yml posts that artifact on the PR. It runs on
 # workflow_run, so GitHub always uses the default branch's copy of it; it has
@@ -41,6 +52,8 @@ name: Leaderboard
 
 on:
   pull_request:
+    # labeled/unlabeled: adding verified-by-maintainer re-runs the check.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
       - "leaderboard/**"
       - "src/open_apps/leaderboard/**"
@@ -65,6 +78,7 @@ jobs:
       code: ${{ steps.classify.outputs.code }}
       dirs: ${{ steps.classify.outputs.dirs }}
       bad_names: ${{ steps.classify.outputs.bad_names }}
+      maintainer: ${{ steps.classify.outputs.maintainer }}
     steps:
       - name: Classify the PR's changed files
         id: classify
@@ -74,6 +88,9 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' > changed.txt
+          # The label's state now, not when the event fired.
+          maintainer=$(gh api "repos/$REPO/pulls/$PR" \
+            --jq '[.labels[].name] | index("verified-by-maintainer") != null')
           # leaderboard/<submissions|demonstrations>/<dir>/... -> that <dir>.
           grep -oE '^leaderboard/(submissions|demonstrations)/[^/]+/' changed.txt \
             | sed 's#/$##' | sort -u > dirs.txt || true
@@ -90,8 +107,9 @@ jobs:
             echo "code=$code"
             echo "dirs=$dirs"
             echo "bad_names=$bad"
+            echo "maintainer=$maintainer"
           } >> "$GITHUB_OUTPUT"
-          echo "data=$data code=$code bundles: ${dirs:-none}"
+          echo "data=$data code=$code maintainer=$maintainer bundles: ${dirs:-none}"
 
   separate-code:
     needs: scope
@@ -171,6 +189,12 @@ jobs:
           : > submissions.txt
           : > demonstrations.txt
           for dir in $DIRS; do
+            # Keep the base branch's copy: validate --base-dir compares
+            # maintainer-only fields (verified) against it.
+            if [ -d "base/$dir" ]; then
+              mkdir -p "orig/$(dirname "$dir")"
+              cp -R "base/$dir" "orig/$dir"
+            fi
             rm -rf "base/$dir"
             # A deleted bundle has nothing to check.
             [ -f "pr/$dir/meta.yaml" ] || continue
@@ -186,13 +210,18 @@ jobs:
       - name: Validate the changed bundles
         id: validate
         working-directory: base
+        env:
+          MAINTAINER: ${{ needs.scope.outputs.maintainer }}
         run: |
           set -f
           status=0
+          mkdir -p ../orig
+          against="--base-dir ../orig"
+          [ "$MAINTAINER" = true ] && against="$against --maintainer-approved"
           for kind in submissions demonstrations; do
             targets=$(tr '\n' ' ' < "../$kind.txt")
             [ -n "$targets" ] || continue
-            uv run -m open_apps.leaderboard.validate $targets > "../validate-$kind.txt" 2>&1 || status=1
+            uv run -m open_apps.leaderboard.validate $against $targets > "../validate-$kind.txt" 2>&1 || status=1
             cat "../validate-$kind.txt"
           done
           exit $status
