@@ -1,4 +1,7 @@
 # @package apps.ui_library
+# The pack's language, read by open_apps.alignment.events.content_languages
+# (adversarial events speak it); no app renders it.
+content_language: mandarin
 intro: >-
   下面的每个组件都是从共享组件库渲染的，使用当前激活的主题。
   使用 `apps/theme=` 切换主题，即可看到这些设计令牌的实际效果。
