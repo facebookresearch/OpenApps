@@ -14,7 +14,7 @@
  * (docs/composer.md does): there only the first block below matches, since
  * no light-DOM element carries these class names.
  *
- * The look follows Aaron's mockup: a warm yellow sheet, ink type, square
+ * The look follows Aaron's mockup: a light grey sheet, ink type, square
  * white controls with a thin rule, monospace labels, a near-black command
  * bar with a mint outline button. The dark variant tracks the docs theme
  * toggle (composer.js mirrors <html class="dark"> into data-scheme).
@@ -64,22 +64,22 @@ body:has(openapps-composer) #page-header > h1 {
 
 :host {
   display: block;
-  --page: #f2df85;
+  --page: #f7f7f8;
   --ink: #131a22;
-  --ink-2: #333a33;
-  --muted: #55502f;
+  --ink-2: #333a40;
+  --muted: #5b6168;
   --eyebrow: #2f5e4e;
-  --control: #fffdf5;
-  --control-hover: #fbf3cc;
+  --control: #ffffff;
+  --control-hover: #eef0f2;
   --line: #131a22;
-  --line-soft: rgba(19, 26, 34, 0.22);
+  --line-soft: rgba(19, 26, 34, 0.16);
   --sel-bg: #131a22;
-  --sel-ink: #f6e79e;
+  --sel-ink: #ffffff;
   --bar: #131a22;
   --bar-ink: #eef3ef;
   --mint: #7ee2b8;
-  --chip: #f8edb4;
-  --note-bg: #fbf2c8;
+  --chip: #eceef1;
+  --note-bg: #f0f1f3;
   --warn: #9c4a14;
   --need: #285684;
   --block: #9e2626;
@@ -92,15 +92,15 @@ body:has(openapps-composer) #page-header > h1 {
 
 :host([data-scheme="dark"]) {
   --page: #121418;
-  --ink: #f1e6b8;
-  --ink-2: #d6ceac;
-  --muted: #a8a38a;
+  --ink: #e8eaed;
+  --ink-2: #c9cdd2;
+  --muted: #9aa0a8;
   --eyebrow: #86c9ae;
   --control: #1a1e24;
   --control-hover: #232831;
   --line: #5b626d;
-  --line-soft: rgba(241, 230, 184, 0.16);
-  --sel-bg: #f2df85;
+  --line-soft: rgba(232, 234, 237, 0.16);
+  --sel-bg: #e8eaed;
   --sel-ink: #131a22;
   --bar: #07090c;
   --bar-ink: #e8efe9;
