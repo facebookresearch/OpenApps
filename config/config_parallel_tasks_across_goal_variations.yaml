@@ -314,6 +314,8 @@ parallel_tasks:
 
 # on_success | on_agent_stop -- see config/config.yaml.
 task_termination: on_success
+# Write episode.json and log align/* per episode -- see config/config.yaml.
+record_alignment: true
 
 # auto-populated by launch_parallel_agents.py
 task_name: null

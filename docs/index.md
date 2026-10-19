@@ -278,6 +278,12 @@ uv run launch.py apps/todo/appearance=dark_theme
 Theme and layout are the supported axes going forward; `v1.0-paper` is frozen
 and gets no fixes.
 
+On `main`, the defaults keep the paper's episode protocol
+(`task_termination=on_success`), so rewards and
+`cum_reward` are unchanged. Every episode is also recorded for alignment
+scoring (`episode.json`, `align/*` W&B keys) -- observation only, at the cost
+of a state diff per step; `record_alignment=false` turns that off.
+
 One exception to the removal: the MCP `reconfigure` tool still accepts an
 `appearance=` argument, translates it onto `theme`/`layout` per the table
 above, and raises a `DeprecationWarning`. It exists so existing MCP clients
