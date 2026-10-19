@@ -564,9 +564,7 @@ def test_a_bad_paste_reports_inline_and_keeps_the_selection(ui):
     assert command_text(page) == "uv run launch_agent.py agent=dummy"
 
 
-def test_c_copies_the_command(ui):
-    page = ui("index.html#agent=dummy")
-    page.locator("body").click(position={"x": 2, "y": 2})
+def _press_c_and_expect_a_copy(page):
     page.keyboard.press("c")
     status = page.locator("openapps-composer [data-part=copy-status]")
     status.wait_for()
@@ -575,6 +573,32 @@ def test_c_copies_the_command(ui):
         page.evaluate("navigator.clipboard.readText()")
         == "uv run launch_agent.py agent=dummy"
     )
+
+
+def test_c_copies_the_command(ui):
+    page = ui("index.html#agent=dummy")
+    pill(page, "Device", "Desktop").focus()
+    _press_c_and_expect_a_copy(page)
+
+
+def test_c_copies_after_a_click_on_the_component_itself(ui):
+    """Clicking the component's own surface (not a control) puts focus in it."""
+    page = ui("index.html#agent=dummy")
+    page.get_by_role("heading", name="Build a launch command.").click()
+    _press_c_and_expect_a_copy(page)
+
+
+def test_c_elsewhere_on_the_page_is_left_alone(ui):
+    """The shortcut is the component's, not the page's: a docs page has its
+    own keys (search, navigation), and ``c`` typed elsewhere is not a copy."""
+    page = ui("index.html#agent=dummy")
+    page.evaluate("navigator.clipboard.writeText('untouched')")
+    page.mouse.click(2, 2)  # the page margin, above and left of the component
+    assert page.evaluate("document.activeElement === document.body")
+    page.keyboard.press("c")
+    page.wait_for_timeout(300)
+    assert page.locator("openapps-composer [data-part=copy-status]").count() == 0
+    assert page.evaluate("navigator.clipboard.readText()") == "untouched"
 
 
 def test_the_docs_h1_gives_way_to_the_component_header(ui):
@@ -734,13 +758,73 @@ def test_preview_plays_the_device_and_theme_clip(ui):
     video = page.locator("openapps-composer [data-part=preview] video")
     video.wait_for()
     assert video.get_attribute("src").endswith(MANIFEST["clips"]["phone/dark"])
-    caption = page.locator("openapps-composer [data-part=preview] figcaption").last
+    caption = page.locator("openapps-composer [data-part=preview] [data-part=caption]")
     assert caption.inner_text() == "Approximate — run locally for an exact preview."
     # The clip really decodes (not just a src that 404s into the error state).
     page.wait_for_function(
         """() => document.querySelector("openapps-composer").shadowRoot
             .querySelector("[data-part=preview] video").readyState >= 2"""
     )
+
+
+def _clip_paused(page) -> bool:
+    return page.evaluate(
+        """() => document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=preview] video").paused"""
+    )
+
+
+def _wait_clip(page, paused: bool) -> None:
+    page.wait_for_function(
+        """want => {
+            const v = document.querySelector("openapps-composer").shadowRoot
+                .querySelector("[data-part=preview] video");
+            return v && v.paused === want;
+        }""",
+        arg=paused,
+        timeout=5000,
+    )
+
+
+def test_the_clip_has_a_visible_pause_toggle_that_sticks(ui):
+    page = ui("media.html#device=phone&apps/theme=dark")
+    toggle = page.locator("openapps-composer [data-part=clip-toggle]")
+    toggle.wait_for()
+    assert toggle.is_visible()
+    _wait_clip(page, paused=False)
+    assert toggle.inner_text() == "Pause"
+    toggle.click()
+    _wait_clip(page, paused=True)
+    assert toggle.inner_text() == "Play"
+    assert toggle.get_attribute("aria-pressed") == "true"
+    # A new selection swaps the clip but keeps it paused.
+    pill(page, "Device", "Desktop").click()
+    page.wait_for_function(
+        """want => document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=preview] video").getAttribute("src").endsWith(want)""",
+        arg=MANIFEST["clips"]["desktop/dark"],
+    )
+    page.wait_for_timeout(300)
+    assert _clip_paused(page)
+    assert toggle.inner_text() == "Play"
+    toggle.click()
+    _wait_clip(page, paused=False)
+    assert toggle.inner_text() == "Pause"
+
+
+def test_reduced_motion_holds_the_clip_until_asked(ui):
+    page = ui("media.html#device=phone&apps/theme=dark")
+    page.emulate_media(reduced_motion="reduce")
+    page.reload()
+    video = page.locator("openapps-composer [data-part=preview] video")
+    video.wait_for()
+    assert video.get_attribute("autoplay") is None
+    page.wait_for_timeout(500)
+    assert _clip_paused(page)
+    toggle = page.locator("openapps-composer [data-part=clip-toggle]")
+    assert toggle.inner_text() == "Play"
+    toggle.click()
+    _wait_clip(page, paused=False)
 
 
 def test_the_last_touched_app_still_is_inset(ui):

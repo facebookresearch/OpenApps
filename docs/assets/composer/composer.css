@@ -118,6 +118,11 @@ body:has(openapps-composer) #page-header > h1 {
   box-sizing: border-box;
 }
 
+/* Focusable (tabindex -1) only so a click on it scopes the `c` shortcut. */
+.oac:focus {
+  outline: none;
+}
+
 .oac {
   container-type: inline-size;
   background: var(--page);

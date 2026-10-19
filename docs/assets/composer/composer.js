@@ -973,6 +973,10 @@
   const editable = (el) =>
     el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 
+  /** The reader asked for less motion: clips wait for Play instead of autoplaying. */
+  const reducedMotion = () =>
+    typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   class OpenAppsComposerElement extends HTMLElement {
     constructor() {
       super();
@@ -995,6 +999,9 @@
       this.live = null;
       this.touched = null;
       this.realAgent = false;
+      // The preview clip's Pause / Play: null until the reader picks one, so
+      // it follows prefers-reduced-motion; then it sticks across clip swaps.
+      this.clipPaused = null;
       this.heartbeat = null;
       this.linkReview = null;
       this.job = null;
@@ -1018,7 +1025,9 @@
       const css = this.getAttribute("stylesheet") || SCRIPT_URL.replace(/\.js(\?.*)?$/, ".css");
       this.shadowRoot.replaceChildren(
         h("link", { rel: "stylesheet", href: new URL(css, document.baseURI).href }),
-        (this.root = h("div", { class: "oac" }, this.header(), h("p", { class: "status-line", text: "Loading the config catalog…" }))),
+        // tabindex -1: a click on the component's own surface puts focus in
+        // it, which is what scopes the `c` shortcut (see onKeydown).
+        (this.root = h("div", { class: "oac", tabindex: "-1" }, this.header(), h("p", { class: "status-line", text: "Loading the config catalog…" }))),
       );
       this.load();
     }
@@ -1247,12 +1256,11 @@
         return;
       }
       if (event.key !== "c" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-      if (editable(path[0])) return;
-      const active = document.activeElement;
-      if (inside || !active || active === document.body || active === this) {
-        event.preventDefault();
-        this.copy();
-      }
+      // Only while focus is inside the component: on a docs page `c` typed
+      // anywhere else is the page's (or the reader's), not a copy.
+      if (!inside || editable(path[0])) return;
+      event.preventDefault();
+      this.copy();
     }
 
     onDocClick(event) {
@@ -2083,18 +2091,22 @@
 
       let screen;
       let caption;
+      let toggle = null;
       if (clip) {
         // No fixed aspect ratio: the clip was recorded at this device's own.
-        screen = h("div", { class: "screen", "data-state": "media" },
-          h("video", {
-            src: new URL(clip, this.manifestURL).href, autoplay: true, muted: true, loop: true, playsinline: true,
-            "aria-label": `${deviceLabel}, ${themeLabel} theme`,
-            onerror: () => {
-              screen.dataset.state = "error";
-              screen.style.aspectRatio = DEVICE_RATIO[device] || "16 / 10";
-              screen.replaceChildren(h("p", { class: "screen-note", text: `Couldn't load preview media (${clip}).` }));
-            },
-          }));
+        const paused = this.clipPaused === null ? reducedMotion() : this.clipPaused;
+        const video = h("video", {
+          src: new URL(clip, this.manifestURL).href, autoplay: !paused, muted: true, loop: true, playsinline: true,
+          preload: "metadata", "aria-label": `${deviceLabel}, ${themeLabel} theme`,
+          onerror: () => {
+            screen.dataset.state = "error";
+            screen.style.aspectRatio = DEVICE_RATIO[device] || "16 / 10";
+            screen.replaceChildren(h("p", { class: "screen-note", text: `Couldn't load preview media (${clip}).` }));
+            if (toggle) toggle.remove();
+          },
+        });
+        screen = h("div", { class: "screen", "data-state": "media" }, video);
+        toggle = this.clipToggle(video, paused);
         caption = "Approximate — run locally for an exact preview.";
       } else {
         const [bg, surface, ink, accent] = THEME_SWATCH[theme] || THEME_SWATCH.default;
@@ -2118,7 +2130,32 @@
           // The inset sits on the frame, not the screen: on a phone the screen
           // is too narrow to hold a desktop-shaped still without hiding it.
           h("div", { class: "frame", "data-device": device }, screen, inset),
-          h("figcaption", { text: caption })));
+          h("figcaption", {}, h("span", { "data-part": "caption", text: caption }), toggle ? " " : null, toggle)));
+    }
+
+    /**
+     * Pause / Play for the looping clip (WCAG 2.2.2: moving content gets a
+     * way to stop it). Follows the video's own play/pause events, so the
+     * label never disagrees with what is on screen.
+     */
+    clipToggle(video, paused) {
+      const toggle = h("button", {
+        type: "button", class: "link", "data-part": "clip-toggle", "data-fk": "clip-toggle",
+        onclick: () => {
+          this.clipPaused = !video.paused;
+          if (this.clipPaused) video.pause();
+          else video.play().catch(() => { /* blocked: the label stays Play */ });
+        },
+      });
+      const label = (isPaused) => {
+        toggle.textContent = isPaused ? "Play" : "Pause";
+        toggle.setAttribute("aria-label", isPaused ? "Play the preview clip" : "Pause the preview clip");
+        toggle.setAttribute("aria-pressed", String(isPaused));
+      };
+      video.addEventListener("play", () => label(false));
+      video.addEventListener("pause", () => label(true));
+      label(paused);
+      return toggle;
     }
 
     optionLabel(key, value) {
@@ -2160,7 +2197,7 @@
         return h("figure", { class: "preview" },
           h("div", { class: "frame" },
             h("div", { class: "screen", "data-state": "recorded" },
-              h("video", { src: live.src, controls: true, autoplay: true, muted: true, playsinline: true, "data-part": "recording" }))),
+              h("video", { src: live.src, controls: true, autoplay: !reducedMotion(), muted: true, playsinline: true, "data-part": "recording" }))),
           h("figcaption", {}, "Recorded episode. ", controls));
       }
       const [width, height] = live.viewport;

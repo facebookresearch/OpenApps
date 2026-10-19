@@ -27,10 +27,13 @@ from the defaults, and the composer picks the launcher for you:
 The selection lives in the page URL, so a link reproduces it. Paste an existing command into
 **Paste a command** to load it; anything the composer does not model is kept as an extra
 override and stays in the output. Warnings come from `config/compose_rules.yaml`, and the
-**Fix** button applies the suggested change. Press `c` to copy the command.
+**Fix** button applies the suggested change. With focus anywhere in the composer, press `c` to
+copy the command.
 
 The preview is approximate: a short recording for each device and theme, with a still of the
 last app layout or content pack you changed (`scripts/render_composer_media.py` renders them).
+The recording loops until you press **Pause**, and waits for **Play** if your system asks for
+reduced motion.
 For the exact thing, run the composer locally:
 
 ```bash
