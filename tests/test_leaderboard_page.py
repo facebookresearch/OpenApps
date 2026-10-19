@@ -185,11 +185,16 @@ def site(tmp_path_factory):
         "full": "../data/full.json",
         "empty": "../data/empty.json",
         "missing": "../data/nope.json",
+        # The site once the composer page is merged: docs/leaderboard.md
+        # then sets composer-href, and Reproduce appears.
+        "with-composer": "../data/full.json",
     }
     for name, src in pages.items():
         page_dir = root / name
         page_dir.mkdir()
         body = embed.replace('src="__SRC__"', f'src="{src}"')
+        if name == "with-composer":
+            body = body.replace(f"<{EL} ", f'<{EL} composer-href="../composer/" ', 1)
         submit = '<h2 id="submit">Submit</h2><p>steps</p>'
         (page_dir / "index.html").write_text(
             f"<!doctype html>{head}<article>{body}{submit}</article>{script}"
@@ -213,6 +218,16 @@ def _embed_markup() -> str:
     assert match, f"docs/leaderboard.md must embed <{EL}>"
     assert 'src="../assets/leaderboard/leaderboard.json"' in match.group(0)
     return re.sub(r'src="[^"]*"', 'src="__SRC__"', match.group(0))
+
+
+def test_reproduce_is_only_offered_when_the_site_has_a_composer():
+    """docs/leaderboard.md names the composer page only once it exists on
+    this branch; until then a Reproduce link would 404."""
+    tag = _embed_markup()
+    if (ROOT / "docs" / "composer.md").is_file():
+        assert 'composer-href="../composer/"' in tag
+    else:
+        assert "composer-href" not in tag
 
 
 def _launch(playwright):
@@ -433,11 +448,12 @@ def test_drilldown_and_reproduce_href(page, site):
     # Both bars are filled: the success bar reads build's task_success.
     assert all("—" not in t for t in detail.locator(".axis-num").all_inner_texts())
 
-    reproduce = detail.locator("a.reproduce")
-    # The composer page with the agent preselected (benchmark= waits on the
-    # composer learning the benchmark group; see leaderboard.js).
-    assert reproduce.get_attribute("href") == f"{site['url']}/composer/#agent=dummy"
+    # No composer page on this site: no Reproduce link to 404 on, and the
+    # exact config is pointed at instead.
+    assert detail.locator("a.reproduce").count() == 0
+    assert "agent.yaml in the bundle is the exact config" in detail.inner_text()
     hrefs = detail.locator(".links li a").evaluate_all("els => els.map(e => e.href)")
+    assert not any("/composer/" in h for h in hrefs)
     assert any(
         h.endswith("example__dummy__tiny_v1/meta.yaml") and "/blob/main/" in h
         for h in hrefs
@@ -476,8 +492,27 @@ def test_unscorable_and_ci_method_are_surfaced(page, site):
     assert site["full"]["bootstrap"]["ci_method"] in method.inner_text()
 
 
+def test_reproduce_href_with_a_composer(page, site):
+    page.goto_board("with-composer")
+    row(page, "dummy").first.locator("button.expand").click()
+    reproduce = page.locator(f"{EL} tr.detail a.reproduce")
+    # The composer page with the agent preselected (benchmark= waits on the
+    # composer learning the benchmark group; see leaderboard.js).
+    assert reproduce.get_attribute("href") == f"{site['url']}/composer/#agent=dummy"
+
+
+def test_a_non_https_composer_href_is_ignored(page, site):
+    page.goto_board("with-composer")
+    page.evaluate(
+        f"document.querySelector('{EL}').setAttribute('composer-href', 'javascript:alert(1)')"
+    )
+    page.evaluate(f"document.querySelector('{EL}').render()")
+    row(page, "dummy").first.locator("button.expand").click()
+    assert page.locator(f"{EL} tr.detail a.reproduce").count() == 0
+
+
 def test_reproduce_without_a_known_agent_config(page, site):
-    page.goto_board()
+    page.goto_board("with-composer")
     row(page, "twin-agent").locator("button.expand").click()
     detail = page.locator(f"{EL} tr.detail")
     assert (

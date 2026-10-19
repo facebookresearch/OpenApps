@@ -20,7 +20,10 @@
  *
  * Attributes (all optional):
  *   src              leaderboard.json URL (default: next to this script)
- *   composer         the config composer page, for Reproduce (default ../composer/)
+ *   composer-href    the config composer page, for Reproduce. No default: the
+ *                    Reproduce link is only shown when the site has a composer
+ *                    page (docs/leaderboard.md sets it once that page exists),
+ *                    so it never points at a 404. A relative path or https URL.
  *   repo             GitHub repo URL for bundle links
  *   branch           branch for bundle links (default main)
  *   suite            the tab to open when the URL does not pick one
@@ -617,8 +620,18 @@
       );
     }
 
+    /** The composer page, or null when this site has none (or the attribute
+     *  is not a relative path or https URL). */
+    composerURL() {
+      const attr = this.getAttribute("composer-href");
+      if (!attr || /^[a-z][a-z0-9+.-]*:/i.test(attr) && !httpsURL(attr)) return null;
+      const url = new URL(attr, document.baseURI);
+      return url.protocol === "https:" || url.origin === location.origin ? url : null;
+    }
+
     reproduceHref(row, tab) {
-      const base = new URL(this.getAttribute("composer") || "../composer/", document.baseURI);
+      const base = this.composerURL();
+      if (!base) return null;
       const params = [];
       if (COMPOSER_KNOWS_BENCHMARK && (tab.suite || this.suite)) params.push(`benchmark=${encodeURIComponent(tab.suite || this.suite)}`);
       if (row.composer_agent) params.push(`agent=${encodeURIComponent(row.composer_agent)}`);
@@ -640,14 +653,18 @@
       if (wandb) items.push(h("a", { href: wandb, rel: "noopener", text: "W&B report" }));
       (row.videos || []).map(httpsURL).filter(Boolean).forEach((v, i) =>
         items.push(h("a", { href: v, rel: "noopener", text: `Video ${i + 1}` })));
+      const suite = tab.suite || this.suite;
+      const reproduce = this.reproduceHref(row, tab);
       return h("div", { class: "links" },
         h("p", { class: "label", text: "Bundle" }),
         h("ul", {}, items.map((a) => h("li", {}, a))),
-        h("a", { class: "reproduce", href: this.reproduceHref(row, tab), "data-reproduce": row.id }, "Reproduce →"),
+        reproduce ? h("a", { class: "reproduce", href: reproduce, "data-reproduce": row.id }, "Reproduce →") : null,
         h("p", { class: "muted small" },
-          row.composer_agent
-            ? `Opens the config composer with agent=${row.composer_agent}; add benchmark=${tab.suite || this.suite} to run the frozen suite.`
-            : `This agent is not a config in config/agent; agent.yaml in the bundle is the exact config. Run it with benchmark=${tab.suite || this.suite}.`),
+          reproduce && row.composer_agent
+            ? `Opens the config composer with agent=${row.composer_agent}; add benchmark=${suite} to run the frozen suite.`
+            : row.composer_agent
+              ? `agent.yaml in the bundle is the exact config (config/agent/${row.composer_agent}.yaml is its base). Run it with benchmark=${suite}.`
+              : `This agent is not a config in config/agent; agent.yaml in the bundle is the exact config. Run it with benchmark=${suite}.`),
       );
     }
 
