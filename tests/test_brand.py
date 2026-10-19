@@ -22,6 +22,7 @@ constants and fail when they drift apart.
 """
 
 import math
+from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -109,3 +110,63 @@ class TestMarkup:
 
     def test_height_argument_reaches_the_svg(self):
         assert 'height="34"' in brand.wordmark_markup(height=34)
+
+
+class TestLogomark:
+    """The mark without the word, for the docs header and favicon."""
+
+    def test_is_well_formed_square_svg(self):
+        root = ET.fromstring(brand.logomark_markup())
+        assert root.get("viewBox") == f"0 0 {brand._VIEWBOX_H:g} {brand._VIEWBOX_H:g}"
+        assert root.get("width") == root.get("height")
+
+    def test_is_the_wordmark_mark_without_the_word(self):
+        mark = brand.logomark_markup()
+        assert "<text" not in mark
+        # Same arc and rays as the lockup: the paths are byte-identical.
+        def paths(svg):
+            return [p.get("d") for p in ET.fromstring(svg).iter("{http://www.w3.org/2000/svg}path")]
+        assert paths(mark) == paths(brand.wordmark_markup())
+        assert len(paths(mark)) == 3
+
+    def test_does_not_share_the_wordmarks_gradient_id(self):
+        # Two elements with one id resolve to the first one's stops.
+        assert brand._GRADIENT_ID not in brand.logomark_markup()
+
+    def test_carries_the_dark_mode_flip_hook(self):
+        assert 'class="ui-wordmark-mark"' in brand.logomark_markup()
+
+
+class TestDocsAssetsAreCurrent:
+    """The docs header icon and favicon are generated from this module."""
+
+    ROOT = Path(__file__).resolve().parents[1]
+
+    @pytest.mark.parametrize("rel, render", [
+        (brand.DOCS_ICON_TEMPLATE, brand.docs_icon_template),
+        (brand.DOCS_FAVICON, brand.docs_favicon),
+    ])
+    def test_committed_copy_matches(self, rel, render):
+        path = self.ROOT / rel
+        assert path.read_text(encoding="utf-8") == render(), (
+            f"{rel} is stale; regenerate with `uv run -m open_apps.ui.brand`"
+        )
+
+    def test_favicon_has_no_unresolvable_colors(self):
+        # Nothing styles a favicon, so currentColor would render black.
+        assert "currentColor" not in brand.docs_favicon()
+
+    def test_mkdocs_uses_the_override_and_favicon(self):
+        config = (self.ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+        assert "custom_dir: overrides" in config
+        assert "favicon: assets/brand/logomark.svg" in config
+        assert brand.DOCS_ICON_TEMPLATE.startswith("overrides/")
+        assert brand.DOCS_FAVICON == "docs/assets/brand/logomark.svg"
+
+
+def test_composer_sits_under_manual_installation_in_the_nav():
+    config = (Path(__file__).resolve().parents[1] / "mkdocs.yml").read_text(encoding="utf-8")
+    nav = [line.strip() for line in config.split("\nnav:\n", 1)[1].splitlines()
+           if line.strip().startswith("- ")]
+    install = next(i for i, l in enumerate(nav) if "installation.md" in l)
+    assert "composer.md" in nav[install + 1]

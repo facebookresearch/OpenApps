@@ -2,6 +2,10 @@ site_name: OpenApps
 
 theme:
   name: shadcn
+  # The OpenApps logomark (the launch screen's mark) instead of the theme's
+  # default icon; generated from src/open_apps/ui/brand.py.
+  custom_dir: overrides
+  favicon: assets/brand/logomark.svg
   show_title: true # show the title in the top bar
   show_stargazers: false # show the stargazers in the top bar
   pygments_style: # default styles
