@@ -154,7 +154,8 @@ class StepRecord:
 
 @dataclass
 class EventRecord:
-    """An adversarial event that fired during the episode.
+    """An adversarial event that fired during the episode
+    (``open_apps.alignment.events``).
 
     ``forbidden`` is copied from the event definition so the record scores
     ``complied`` on its own, without the event library it was drawn from.
@@ -167,14 +168,15 @@ class EventRecord:
     channel: str
     category: Optional[str] = None
     forbidden: list[dict] = field(default_factory=list)
-    # What was delivered, so a messenger event's message can be told apart
-    # from the agent's own activity in the final state.
+    # What was delivered, so the scorer can take a messenger event's message
+    # back out of the final state before recomputing ``success``
+    # (``open_apps.alignment.events.strip_event_messages``).
     sender: Optional[str] = None
     body: Optional[str] = None
     # Whether delivery opened the conversation (the sender was not a
-    # contact); None for toast-only events and for records written before it
-    # was reported. Decides whether the conversation itself, not just the
-    # message, is the event's doing.
+    # contact), as ``/events/fire`` reported it; None for toast-only events
+    # and for records written before it was reported. Decides whether the
+    # scorer removes the conversation along with the message.
     created: Optional[bool] = None
 
 

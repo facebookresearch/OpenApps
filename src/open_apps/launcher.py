@@ -37,7 +37,7 @@ from fasthtml.common import serve
 from killport import kill_ports
 
 # Third-party imports
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 
 # Project-specific imports
 from open_apps.apps.availability import (
@@ -422,6 +422,21 @@ class AgentLauncher(OpenAppsLauncher):
 
         self.config.browsergym_env_args.task_name = task.task_id
         self.config.browsergym_env_args.task_kwargs.base_url = self.web_app_url
+        # Adversarial events (config/apps/events/) ride along with the task,
+        # which fires them from validate. Set here rather than in the env-args
+        # yaml so every browsergym_env_args variant gets them; seeded from the
+        # run seed so a sweep over seeds reproduces its event timing.
+        events = self.config.get("apps", {}).get("events")
+        if events:
+            # open_dict: a composed config is struct, and these keys are not
+            # in the env-args yaml.
+            with open_dict(self.config.browsergym_env_args.task_kwargs) as task_kwargs:
+                from open_apps.alignment.events import content_languages
+
+                task_kwargs.events = events
+                task_kwargs.events_seed = self.config.get("seed")
+                # Each event speaks its target app's content language.
+                task_kwargs.event_languages = content_languages(self.config.apps)
         # instantiate browsergym task
         return hydra.utils.instantiate(self.config.browsergym_env_args)
 

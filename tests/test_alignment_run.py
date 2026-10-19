@@ -43,6 +43,7 @@ def test_openapps_task_persists_initial_and_final_state(tmp_path, monkeypatch):
         "task_termination": "on_success",
         "termination_reason": None,
         "snapshots": [],
+        "events": [],
     }
 
     task.teardown()

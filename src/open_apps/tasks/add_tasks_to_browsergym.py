@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import Any, Literal, Optional, Tuple
 
 import playwright.sync_api
 from playwright.sync_api import sync_playwright
@@ -36,6 +36,11 @@ TERMINATION_MODES: tuple[str, ...] = ("on_success", "on_agent_stop")
 # land in the chat while the action executes, i.e. before validate runs.
 _CLAIM_ROLE = "assistant"
 _REFUSAL_ROLE = "infeasible"
+
+# Run in the agent's page when an event fires (see _fire_due_events). Lives
+# with the /events/fire route it pairs with, so the MCP session injects the
+# very same toast; re-exported here under its original name.
+from open_apps.notifications import INJECT_TOAST_JS as _INJECT_TOAST_JS  # noqa: E402
 
 
 def register_tasks_with_browsergym(tasks: list[Task]) -> None:
@@ -77,6 +82,9 @@ class OpenAppsTask(AbstractBrowserTask):
         episode_dir: Optional[str] = None,
         task_termination: TaskTermination = "on_success",
         irreversible: Optional[dict] = None,
+        events: Optional[Any] = None,
+        events_seed: Optional[int] = None,
+        event_languages: Optional[dict] = None,
     ) -> None:
         """
         Args:
@@ -92,6 +100,13 @@ class OpenAppsTask(AbstractBrowserTask):
             task_termination: "on_success" (default) or "on_agent_stop"; see ``TERMINATION_MODES``.
             irreversible: the per-app ``irreversible:`` maps in effect (``open_apps.alignment.irreversible``),
                 used by the per-step snapshots. None falls back to config/apps/*/default.yaml.
+            events: the ``apps.events`` config (``open_apps.alignment.events``): adversarial events
+                fired mid-episode from ``validate``. None (the default) fires nothing.
+            events_seed: seeds the event scheduler (the launcher passes the run's ``seed``);
+                None falls back to ``seed``.
+            event_languages: config group -> content language
+                (``open_apps.alignment.events.content_languages``), so each event is delivered in
+                its target app's language. None delivers every event's base text.
 
         """
         super().__init__(seed)
@@ -129,6 +144,22 @@ class OpenAppsTask(AbstractBrowserTask):
         self._irreversible_seen = False
         self._last_reward = 0.0
 
+        # Adversarial events. Loaded (and validated) here so a malformed
+        # event fails when the env is built, not steps into an episode. The
+        # alignment package is only imported when events are configured: this
+        # module is on the hot path of every run.
+        self.event_scheduler = None
+        # EventRecord dicts, one per delivered event, in firing order.
+        self.fired_events: list[dict] = []
+        if events:
+            from open_apps.alignment.events import scheduler_from_config
+
+            self.event_scheduler = scheduler_from_config(
+                events,
+                seed=seed if events_seed is None else events_seed,
+                languages=event_languages,
+            )
+
     def _get_info(self):
         info = {}  # e.g. episodeID, reward, ect
         return info
@@ -142,6 +173,9 @@ class OpenAppsTask(AbstractBrowserTask):
         self.page = page
         self.page.goto(self.url)
         self.initial_state = get_current_state(self.url)
+        if self.event_scheduler is not None:
+            # after_seconds counts from the episode's start, not env creation.
+            self.event_scheduler.start()
         self._persist_states()
         return self._get_goal(), self._get_info()
 
@@ -210,6 +244,12 @@ class OpenAppsTask(AbstractBrowserTask):
         if failed:
             snapshot["probe_failed"] = list(failed)
         self.snapshots.append(snapshot)
+        if self.event_scheduler is not None and not done and kind != "refusal":
+            # After the snapshot, so this step's reward and state are what the
+            # agent's action produced; before BrowserGym captures the next
+            # observation, so the agent sees the toast on its very next step.
+            # Not on the step that ends the episode: no one would see it.
+            self._fire_due_events(page, step=len(self.snapshots))
         return returned_reward, done, msg, info
 
     def reward(self) -> float:
@@ -230,10 +270,55 @@ class OpenAppsTask(AbstractBrowserTask):
         return (
             1.0
             if self.task.check_if_task_is_complete(
-                self.initial_state, current_state
+                self.initial_state, self._without_event_messages(current_state)
             )
             else 0.0
         )
+
+    def _without_event_messages(self, state: dict) -> dict:
+        """The state minus the messenger messages events delivered.
+
+        An event's message is real app state (the agent has to be able to open
+        and answer it), but no goal asks for it, and the reward diffs the whole
+        state -- so without this every task an agent completed while rightly
+        ignoring the message would score 0. The scorer does the same offline.
+        """
+        if not self.fired_events:
+            return state
+        from open_apps.alignment.events import strip_event_messages
+
+        return strip_event_messages(state, self.fired_events, self.initial_state)
+
+    def _fire_due_events(self, page: playwright.sync_api.Page, step: int) -> None:
+        """Deliver every event due after action ``step`` and show its toast.
+
+        Delivery is a POST to the apps' ``/events/fire`` (the message lands in
+        OpenMessages; the toast is recorded server-side, so it survives
+        navigation). The toast is then injected into the current page, so the
+        observation BrowserGym is about to capture already shows it.
+
+        Never raises. Delivery is ``open_apps.alignment.events.deliver_due``,
+        shared with the MCP session; an event the server did not accept is
+        not returned by it, so it is not logged (the agent was never
+        exposed). A failed injection -- the page mid-navigation, say -- is
+        only logged: the event *was* delivered, and the next page load
+        renders its toast server-side.
+        """
+        from open_apps.alignment.events import deliver_due
+
+        for delivery in deliver_due(self.event_scheduler, self.url, step=step, page_url=page.url):
+            event_id = delivery.record["id"]
+            self.fired_events.append(delivery.record)
+            if wandb.run is not None:
+                wandb.log({"event_fired": event_id, "event_step": step})
+            try:
+                page.evaluate(_INJECT_TOAST_JS, delivery.toast)
+            except (playwright.sync_api.Error, KeyError, TypeError) as exc:
+                logger.warning(
+                    "Toast for event %r not injected (it renders on the next page load): %s",
+                    event_id,
+                    exc,
+                )
 
     def _new_agent_messages(self, chat_messages: list[dict]) -> tuple[bool, bool]:
         """(claimed, refused): did the action just validated send the user a
@@ -355,6 +440,7 @@ class OpenAppsTask(AbstractBrowserTask):
                 "task_termination": self.task_termination,
                 "termination_reason": self.termination_reason,
                 "snapshots": self.snapshots,
+                "events": self.fired_events,
             }
             path = self.episode_dir / STATES_FILENAME
             tmp = path.with_suffix(".json.tmp")
