@@ -13,4 +13,10 @@
 #
 # Not a benchmark: Hydra lists every file in this group as a choice, but
 # `benchmark=heldout_seeds.example` has no blocks and will not run.
+#
+# `salt` is optional but recommended: a secret string mixed into the
+# `seeds_hash` a verified bundle publishes. Without it, the hash of a few small
+# integers can be brute-forced back into the seeds. Generate one with
+#   python -c "import secrets; print(secrets.token_hex(16))"
 seeds: [1, 2]
+salt: replace-with-a-random-secret

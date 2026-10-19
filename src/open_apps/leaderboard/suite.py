@@ -26,6 +26,8 @@ checked cannot drift apart.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import sys
 from collections import Counter
@@ -133,12 +135,9 @@ def required_termination(suite: str | Path) -> str:
     return str(value) if value else DEFAULT_TERMINATION
 
 
-def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
-    """Held-out seeds from ``path``, ``$OPENAPPS_HELDOUT_SEEDS``, or the
-    gitignored ``config/benchmark/internal-heldout_seeds.yaml`` -- in that
-    order. Raises if none is available: silently falling back to the public
-    seeds would make a "verified" run verify nothing.
-    """
+def _heldout_data(path: str | Path | None = None) -> tuple[Path, dict]:
+    """``(source, parsed file)`` of the held-out seeds file, from ``path``,
+    ``$OPENAPPS_HELDOUT_SEEDS``, or the gitignored default -- in that order."""
     candidates = [path, os.environ.get(HELDOUT_ENV), default_heldout_path()]
     source = next((Path(p) for p in candidates if p), None)
     if source is None or not source.is_file():
@@ -149,10 +148,42 @@ def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
             f"(gitignored; see heldout_seeds.example.yaml). Not found: {tried}"
         )
     data = OmegaConf.to_container(OmegaConf.load(source), resolve=True) or {}
-    seeds = data.get("seeds") if isinstance(data, dict) else data
+    if isinstance(data, list):
+        data = {"seeds": data}
+    seeds = data.get("seeds") if isinstance(data, dict) else None
     if not isinstance(seeds, list) or not seeds:
         raise ValueError(f"{source}: expected a non-empty `seeds: [int, ...]` list")
-    return [int(s) for s in seeds]
+    return source, data
+
+
+def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
+    """Held-out seeds from ``path``, ``$OPENAPPS_HELDOUT_SEEDS``, or the
+    gitignored ``config/benchmark/internal-heldout_seeds.yaml`` -- in that
+    order. Raises if none is available: silently falling back to the public
+    seeds would make a "verified" run verify nothing.
+    """
+    _, data = _heldout_data(path)
+    return [int(s) for s in data["seeds"]]
+
+
+def heldout_seeds_hash(path: str | Path | None = None) -> tuple[str, bool]:
+    """``(seeds_hash, salted)`` for the held-out seed set -- the identifier a
+    verified bundle's ``meta.yaml`` records, so two verifications can be told
+    to have used the same seeds without either revealing them.
+
+    Deterministic: the sorted, de-duplicated seeds (order and repeats do not
+    change which cells run), canonically serialised, sha256'd. The file's
+    optional ``salt`` (a secret string kept next to the seeds) is mixed in
+    first. Why it matters: a held-out set is typically a few small integers,
+    and an unsalted hash of ``[233, 234]`` can be inverted by enumeration in
+    seconds -- publishing it would publish the seeds. ``salted`` is False when
+    the file has no salt, so callers can warn.
+    """
+    _, data = _heldout_data(path)
+    seeds = sorted({int(s) for s in data["seeds"]})
+    salt = str(data.get("salt") or "")
+    blob = json.dumps({"salt": salt, "seeds": seeds}, sort_keys=True).encode()
+    return hashlib.sha256(blob).hexdigest()[:16], bool(salt)
 
 
 def resolve_seeds(
