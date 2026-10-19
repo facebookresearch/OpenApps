@@ -364,12 +364,14 @@ def write_bundle(
 
     org, agent, suite = meta["org"], meta["agent"], meta["suite"]
     B.bundle_name(org, agent, suite)  # validates the slugs even with --out
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    B.write_yaml(agent_cfg, out_dir / B.AGENT_FILE)
+    # Scored before anything is written: a record the scorer rejects must
+    # not leave half a bundle behind.
     lines = [
         record.to_dict() | {B.SCORES_KEY: score(record).summary()} for record in records
     ]
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    B.write_yaml(agent_cfg, out_dir / B.AGENT_FILE)
     n = B.write_episodes(lines, out_dir / B.EPISODES_FILE)
     full = {
         "meta_version": 1,
