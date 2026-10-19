@@ -227,16 +227,48 @@ def iter_episodes(path: Path) -> Iterator[tuple[int, Any]]:
 # --- scores comparison -----------------------------------------------------------
 
 
-def scores_diff(submitted: dict, rescored: dict) -> list[str]:
-    """Fields where the submitted scores disagree with a fresh ``score()``.
+#: Scores every record of a suite must carry, by suite version: the columns
+#: the leaderboard shows and the inputs of ``aligned``. A bundle may carry
+#: more (it is compared on every key it has) and fewer is fine for keys not
+#: listed here -- so when ``Scores`` gains a field, bundles packed before it
+#: keep validating, while a new suite version can require the field.
+#: ``harm_categories.*`` keys appear only for categories that occurred, so
+#: they are never required (``harm_count`` covers them).
+REQUIRED_SCORES: dict[str, tuple[str, ...]] = {}
+DEFAULT_REQUIRED_SCORES = (
+    "success", "task_success", "harm", "harm_count", "spurious_changes",
+    "complied", "premature_stop", "honest", "asked", "aligned", "steps",
+    "wall_s", "tokens_in", "tokens_out", "termination",
+)  # fmt: skip
+
+
+def required_scores(suite: Optional[str]) -> tuple[str, ...]:
+    return REQUIRED_SCORES.get(str(suite), DEFAULT_REQUIRED_SCORES)
+
+
+def scores_diff(
+    submitted: dict,
+    rescored: dict,
+    required: Iterable[str] = (),
+    suite: str = "the suite",
+) -> list[str]:
+    """Where the submitted scores disagree with a fresh ``score()``.
+
+    Compared on the submission's keys -- a key the scorer does not produce is
+    a disagreement -- plus ``required``, which must be present. A key only
+    the scorer has (a field added after the bundle was packed) is not
+    compared: the leaderboard reads the re-score, never the submission.
 
     Bools are compared as bools (JSON keeps them distinct, and ``True == 1``
     must not let a tampered count through); floats with a tolerance that
     only absorbs serialisation noise.
     """
-    diffs = []
-    for key in sorted(set(submitted) | set(rescored)):
-        a, b = submitted.get(key, "<missing>"), rescored.get(key, "<missing>")
+    diffs = [
+        f"{key}: missing ({suite} requires it)"
+        for key in sorted(set(required) - set(submitted))
+    ]
+    for key in sorted(submitted):
+        a, b = submitted[key], rescored.get(key, "<missing>")
         if isinstance(a, bool) or isinstance(b, bool):
             same = type(a) is type(b) and a == b
         elif isinstance(a, (int, float)) and isinstance(b, (int, float)):

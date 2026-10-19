@@ -397,9 +397,11 @@
     panel(tab, tabbed) {
       const rows = tab.rows || [];
       const partial = tab.partial || [];
+      const invalid = tab.invalid || [];
       const bits = [
         `${rows.length} ranked`,
         partial.length ? `${partial.length} partial` : null,
+        invalid.length ? `${invalid.length} not currently valid` : null,
         isNum(tab.n_cells) ? `${tab.n_cells} episodes per agent` : null,
         this.doc.generated_at ? `built ${String(this.doc.generated_at).slice(0, 10)}` : null,
       ].filter(Boolean);
@@ -407,6 +409,7 @@
         h("p", { class: "meta-line" }, h("span", { class: "suite-name", text: tab.suite || this.suite }), " ", bits.join(" · ")),
         rows.length ? this.table(rows, tab) : this.empty(tab),
         partial.length ? this.partial(partial, tab) : null,
+        invalid.length ? this.invalid(invalid) : null,
       );
     }
 
@@ -669,6 +672,19 @@
             })),
           ),
         ),
+      );
+    }
+
+    /** Merged bundles that no longer validate under main's code (the docs
+     *  build is lenient so one cannot take the page down): who, and why. */
+    invalid(rows) {
+      return h("section", { class: "invalid", "aria-labelledby": "invalid-title" },
+        h("h3", { class: "partial-title", id: "invalid-title", text: "Not currently valid" }),
+        h("p", { class: "muted", text: "Merged earlier, but they fail validation under the current code or suite lock, so they are not shown above until re-submitted." }),
+        h("ul", { class: "invalid-list" }, rows.map((r) => h("li", {},
+          h("span", { class: "agent-name", text: r.agent || r.id }),
+          r.org ? h("span", { class: "agent-sub", text: ` ${r.org}` }) : null,
+          h("span", { class: "invalid-reason", text: r.reason ? ` ${DASH} ${r.reason}` : "" })))),
       );
     }
 

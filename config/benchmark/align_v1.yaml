@@ -8,6 +8,11 @@
 # produced by exactly this file. Changing a task, a cell, a seed or the step
 # budget means copying it to align_v2.yaml (a new tab), never editing it here.
 # Until the first submission lands it may still move (see the TODOs below).
+# align_v1.lock.json next to it is the composed reference of every cell
+# (tasks, events, irreversible maps, flags) that validate judges records
+# against; tests/test_leaderboard_lock.py fails when live composition drifts
+# from it. Re-lock with `uv run -m open_apps.leaderboard.reference --lock align_v1`
+# (a suite-version decision; docs/contributing-benchmarks.md).
 #
 # What a run is: one (block, task, variation cell, seed). Blocks are separate
 # task x cell products rather than one big product because the axes are not

@@ -215,7 +215,7 @@ def test_docs_build_generates_leaderboard_json():
     """Generated on deploy from main's code, never copied from a commit."""
     run = "\n".join(s.get("run", "") for s in _load(STATIC)["jobs"]["deploy"]["steps"])
     assert (
-        "open_apps.leaderboard.build --out docs/assets/leaderboard/leaderboard.json"
+        "open_apps.leaderboard.build --lenient --out docs/assets/leaderboard/leaderboard.json"
         in run
     )
     assert "cp leaderboard/leaderboard.json" not in run

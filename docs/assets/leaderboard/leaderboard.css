@@ -718,8 +718,24 @@ th[aria-sort] .arrow {
   color: var(--ink-2);
 }
 
-.partial {
+.partial,
+.invalid {
   margin-top: 30px;
+}
+
+.invalid-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+}
+
+.invalid-list li {
+  margin: 4px 0;
+}
+
+.invalid-reason {
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
 
 .partial-title {
@@ -728,7 +744,8 @@ th[aria-sort] .arrow {
   font-weight: 800;
 }
 
-.partial .muted {
+.partial .muted,
+.invalid .muted {
   margin: 0 0 12px;
   font-size: 13.5px;
 }

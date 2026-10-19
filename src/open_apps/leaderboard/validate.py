@@ -18,16 +18,21 @@ In order:
                 pinned ``max_steps`` / ``task_seed``
   4. provenance each record's embedded task config, irreversible map, fired
                 events (ids, categories, ``forbidden`` predicates, text) and
-                adversarial flags against the repo's own config for its
-                suite cell (``open_apps.leaderboard.reference``); any
-                difference fails the bundle with the path that differs. The
+                adversarial flags against the suite's committed lock for its
+                cell (``config/benchmark/<suite>.lock.json``, see
+                ``open_apps.leaderboard.reference``) -- never live
+                composition, so a later config change cannot move a frozen
+                suite; any difference fails the bundle with the path that
+                differs. The
                 trace must agree with itself and the step budget: ``n_steps``
                 is its action count (indices ``0..n``, at most
                 ``max_steps``), ``max_steps`` termination only at the budget,
                 a claim or refusal only when the last action made one
   5. re-score   ``open_apps.alignment.score`` on every record *under the
-                repo's config*, never the record's copies; any field that
-                disagrees with the submitted ``scores`` fails the bundle
+                lock's config*, never the record's copies; any submitted
+                score that disagrees with the scorer fails the bundle, as
+                does one the suite requires (``bundle.required_scores``)
+                that is missing
   6. coverage   every (task, variation, seed) cell of the suite present
                 exactly once; missing cells => ``partial`` (listed, not
                 ranked); duplicates or cells outside the suite => fail.
@@ -79,7 +84,6 @@ from open_apps.leaderboard.suite import (
     SEED_SETS,
     cell_key,
     load_suite,
-    required_termination,
     suite_cells,
 )
 
@@ -340,7 +344,14 @@ def _score_one(
         report.errors.append(f"{label}: scorer failed ({type(exc).__name__}: {exc})")
         return
     # Demonstrations may omit scores; scoring still has to succeed.
-    diffs = B.scores_diff(submitted, scores.summary()) if submitted is not None else []
+    required = B.required_scores(report.suite) if report.kind == SUBMISSION else ()
+    diffs = (
+        B.scores_diff(
+            submitted, scores.summary(), required, report.suite or "the suite"
+        )
+        if submitted is not None
+        else []
+    )
     if diffs:
         report.errors.append(
             f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4])
@@ -372,24 +383,21 @@ def _rescore(parsed: list[tuple[Any, Optional[dict]]], report: BundleReport) -> 
 
 
 def _rescore_against_suite(
-    parsed: list[tuple[Any, dict]], report: BundleReport, source: Any, cells: dict
+    parsed: list[tuple[Any, dict]], report: BundleReport, lock: Any, cells: dict
 ) -> None:
-    """Check each record's embedded config against the repo's for its suite
-    cell, then re-score it under the repo's (``reference.rebased``)."""
-    from open_apps.leaderboard.reference import compare, rebased, reference_cell
+    """Check each record's embedded config against the suite's lock for its
+    cell, then re-score it under the lock's (``reference.rebased``)."""
+    from open_apps.leaderboard.reference import compare, locked_cell, rebased
 
     for record, submitted in parsed:
         cell = cells.get(_key(record))
-        if cell is None:
+        if cell is None or lock is None:
             continue  # outside the suite: _check_coverage fails it
         label = _label(record, report)
         try:
-            ref = reference_cell(source, cell.task_name, cell.variation, cell.seed)
-        except Exception as exc:  # noqa: BLE001 -- a cell the repo cannot compose is the finding
-            report.errors.append(
-                f"{label}: cannot compose this cell from the repo's config "
-                f"({type(exc).__name__}: {exc})"
-            )
+            ref = locked_cell(lock, cell.task_name, cell.variation, cell.seed)
+        except KeyError as exc:
+            report.errors.append(f"{label}: {exc.args[0]}")
             continue
         errors, omitted = compare(record, ref)
         if errors:
@@ -428,20 +436,14 @@ def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> Non
 
 
 def _check_env_args(
-    parsed: list[tuple[Any, dict]], report: BundleReport, source: Any
+    parsed: list[tuple[Any, dict]], report: BundleReport, lock: dict
 ) -> None:
     """Every record stamped with the suite's pinned ``max_steps`` and
-    ``task_seed``. A record claiming a bigger budget than the suite ran with
-    could carry a longer (or a shortened) trace; the trace itself is checked
-    against the pinned budget per record (``reference.trace_errors``)."""
-    from open_apps.leaderboard.suite import pinned_env_args
-
-    try:
-        pinned = pinned_env_args(source)
-    except ValueError as exc:
-        report.errors.append(str(exc))
-        return
-    for key, want in pinned.items():
+    ``task_seed`` (from its lock). A record claiming a bigger budget than the
+    suite ran with could carry a longer (or a shortened) trace; the trace
+    itself is checked against the pinned budget per record
+    (``reference.trace_errors``)."""
+    for key, want in lock["browsergym_env_args"].items():
         got = Counter(getattr(r.identity, key) for r, _ in parsed)
         wrong = {v: n for v, n in got.items() if v != want}
         if wrong:
@@ -452,12 +454,12 @@ def _check_env_args(
 
 
 def _check_termination(
-    parsed: list[tuple[Any, dict]], report: BundleReport, source: Any
+    parsed: list[tuple[Any, dict]], report: BundleReport, lock: dict
 ) -> None:
     """Every record under the suite's pinned ``task_termination``. Under
     ``on_success`` honesty and premature stop are unmeasurable, and the
     aggregate keeps the two modes apart -- a mixed bundle has no single row."""
-    want = required_termination(source)
+    want = lock["task_termination"]
     modes = Counter(r.identity.task_termination for r, _ in parsed)
     wrong = {m: n for m, n in modes.items() if m != want}
     if wrong:
@@ -465,6 +467,23 @@ def _check_termination(
             f"every record must run with task_termination={want} ({report.suite} pins it; "
             f"benchmark={report.suite} sets it): found {dict(sorted(wrong.items()))}"
         )
+
+
+def _load_lock(report: BundleReport, source: Any) -> Optional[dict]:
+    """The suite's committed lock (``reference.load_lock``), or None (reported)."""
+    from open_apps.leaderboard.reference import load_lock
+
+    try:
+        lock = load_lock(source)
+    except (FileNotFoundError, ValueError) as exc:
+        report.errors.append(str(exc))
+        return None
+    if lock.get("suite") != report.suite:
+        report.errors.append(
+            f"lock is for {lock.get('suite')!r}, meta says {report.suite!r}"
+        )
+        return None
+    return lock
 
 
 def _load_cells(report: BundleReport, suite: Optional[str | Path]) -> tuple[Any, dict]:
@@ -554,10 +573,11 @@ def validate_bundle(
     parsed = _check_episodes(path, report)
     _check_identity(parsed, report)
     source, cells = _load_cells(report, suite)
-    if source is not None:
-        _check_termination(parsed, report, source)
-        _check_env_args(parsed, report, source)
-    _rescore_against_suite(parsed, report, source, cells)
+    lock = _load_lock(report, source) if source is not None else None
+    if lock is not None:
+        _check_termination(parsed, report, lock)
+        _check_env_args(parsed, report, lock)
+    _rescore_against_suite(parsed, report, lock, cells)
     _check_coverage(parsed, report, cells)
     return report
 

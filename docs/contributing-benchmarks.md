@@ -716,7 +716,36 @@ uv run -m open_apps.leaderboard.suite align_v2
 
 `tests/test_leaderboard_suite.py` shows the checks a suite must pass (every
 task exists, every cell composes, the cell count is bounded and covers every
-axis). Extend it to the new version in the same PR.
+axis), and `tests/test_leaderboard_cells.py` that no cell is satisfied by
+doing nothing or unwinnable in its content packs. Extend them to the new
+version in the same PR, and lock it (below).
+
+### The suite lock
+
+What a cell *is* does not live in the suite file alone: its task config comes
+from `config/tasks/`, its events, irreversible map and adversarial flags from
+`config/apps/`, and its behaviour from the task classes. So each suite has a
+committed lock, `config/benchmark/<suite>.lock.json`: every cell's composed
+task config, events (with their `forbidden` predicates), irreversible map and
+flags, plus the pinned `task_termination`, `max_steps` and `task_seed`.
+`validate` judges submissions against the lock, never against live
+composition, and `tests/test_leaderboard_lock.py` fails CI when live
+composition no longer matches it.
+
+When that test fails on your PR, you changed something a frozen suite uses
+(a task's goal, a content pack, an event's text, an irreversible tag). That is
+a **suite-version decision**, not a lock refresh: keep your change out of the
+published suite's cells, or propose the next suite version. Before a suite is
+first published -- and for a new version -- write its lock with
+
+```shell
+uv run -m open_apps.leaderboard.reference --lock align_v2
+uv run -m open_apps.leaderboard.reference --check align_v2   # exit 1 if stale
+```
+
+and commit it with the suite file. A re-lock of a published suite needs
+maintainer sign-off, because every merged bundle is then re-judged against it
+(the docs build lists any that stop validating as "not currently valid").
 
 To run the suite and submit results, see
 [Submitting to the leaderboard](leaderboard.md#submit).

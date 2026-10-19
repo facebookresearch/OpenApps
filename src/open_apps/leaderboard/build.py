@@ -13,7 +13,9 @@ Every bundle is validated first (``validate.validate_bundle``) and every
 number comes from the *re-scored* records via ``alignment.aggregate`` -- a
 submission's own scores are never read here. Complete bundles are ranked;
 partial ones are listed separately with their coverage; a failing bundle
-fails the build.
+fails the build -- or, with ``--lenient`` (the docs deploy), is listed as
+"not currently valid" with the reason, so one stale bundle cannot take the
+page down.
 
 Ranking is by ``aligned`` (then ``success``, then id). There is no weighted
 composite: every column is its own sortable dimension.
@@ -203,6 +205,28 @@ def partial_row(report: BundleReport) -> dict:
     }
 
 
+#: How much of a failing bundle's first error the page shows.
+_MAX_REASON = 300
+
+
+def invalid_row(report: BundleReport) -> dict:
+    """A failing bundle as the lenient build lists it: who, and why (the
+    first error, capped) -- no numbers."""
+    meta = report.meta
+    reason = report.errors[0] if report.errors else "failed validation"
+    if len(report.errors) > 1:
+        reason += f" (and {len(report.errors) - 1} more)"
+    if len(reason) > _MAX_REASON:
+        reason = reason[: _MAX_REASON - 3] + "..."
+    return {
+        "id": report.path.name,
+        "org": meta.get("org"),
+        "agent": meta.get("agent"),
+        "bundle": _rel(report.path),
+        "reason": reason,
+    }
+
+
 def _rank(rows: list[dict]) -> list[dict]:
     """Sort by aligned, success, id; competition ranks on (aligned, success)."""
 
@@ -249,13 +273,18 @@ def build(
     suites: Iterable[str] = DEFAULT_SUITES,
     n_boot: int = N_BOOT,
     seed: int = BOOT_SEED,
+    lenient: bool = False,
 ) -> dict:
-    """The leaderboard document. Raises if any bundle failed validation."""
+    """The leaderboard document. Raises if any bundle failed validation --
+    unless ``lenient`` (the docs deploy), where a failing bundle is listed
+    under its suite's ``invalid`` with the reason and everything else is
+    built as usual: one bundle gone stale on main (a scorer fix, a lock
+    update) must not take the whole page down."""
     from open_apps.alignment.aggregate import CI_METHOD
     from open_apps.alignment.record import RECORD_VERSION
 
     failed = [r for r in reports if r.status == FAIL]
-    if failed:
+    if failed and not lenient:
         raise ValueError(
             "cannot build with failing bundles: "
             + ", ".join(r.path.name for r in failed)
@@ -275,6 +304,10 @@ def build(
             ),
             "partial": sorted(
                 (partial_row(r) for r in mine if r.status == PARTIAL),
+                key=lambda p: p["id"],
+            ),
+            "invalid": sorted(
+                (invalid_row(r) for r in mine if r.status == FAIL),
                 key=lambda p: p["id"],
             ),
         }
@@ -401,6 +434,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="check every bundle against this suite name/YAML (default: each bundle's meta.suite)",
     )  # fmt: skip
     parser.add_argument(
+        "--lenient", action="store_true",
+        help=(
+            "list failing bundles as 'not currently valid' instead of failing the build "
+            "(the docs deploy; the PR check stays strict)"
+        ),
+    )  # fmt: skip
+    parser.add_argument(
         "--comment-for",
         nargs="*",
         default=[],
@@ -418,7 +458,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     for report in reports:
         print(report.format())
     try:
-        doc = build(reports, when=args.generated_at)
+        doc = build(reports, when=args.generated_at, lenient=args.lenient)
     except ValueError as exc:
         print(f"build failed: {exc}", file=sys.stderr)
         if args.comment_out:
@@ -431,7 +471,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     write(doc, out)
     n_rows = sum(len(s["rows"]) for s in doc["suites"].values())
     n_partial = sum(len(s["partial"]) for s in doc["suites"].values())
-    print(f"wrote {out} ({n_rows} ranked, {n_partial} partial)")
+    n_invalid = sum(len(s["invalid"]) for s in doc["suites"].values())
+    print(
+        f"wrote {out} ({n_rows} ranked, {n_partial} partial"
+        + (f", {n_invalid} not currently valid" if n_invalid else "")
+        + ")"
+    )
     if args.comment_out:
         args.comment_out.write_text(comment_markdown(doc, reports, args.comment_for))
         print(f"wrote {args.comment_out}")

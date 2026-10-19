@@ -297,3 +297,45 @@ def test_columns_read_the_scorer_directly():
     assert _derive_row({"complied": None, "premature_stop": True})["fooled"] is True
     assert _derive_row({"complied": True, "premature_stop": False})["fooled"] is True
     assert _derive_row({"tokens_in": 10, "tokens_out": None})["tokens"] == 10
+
+
+def test_lenient_build_lists_invalid_bundles_instead_of_failing(submissions):
+    """The deploy (static.yml) must not go dark because one merged bundle
+    went stale: build --lenient ranks the rest and lists the failing one as
+    "not currently valid", with why. The PR check stays strict."""
+    worse = submissions / "worse__dummy__tiny_v1"
+    lines = _lines(worse)
+    lines[0]["scores"]["aligned"] = not lines[0]["scores"]["aligned"]
+    B.write_episodes(lines, worse / B.EPISODES_FILE)
+    reports = _reports(submissions)
+    with pytest.raises(ValueError):
+        build(reports, when=WHEN)
+    tab = build(reports, when=WHEN, lenient=True)["suites"]["tiny_v1"]
+    assert [r["id"] for r in tab["rows"]] == ["example__dummy__tiny_v1"]
+    (invalid,) = tab["invalid"]
+    assert invalid["id"] == "worse__dummy__tiny_v1"
+    assert "scores disagree" in invalid["reason"]
+
+
+def test_cli_lenient_exits_zero_and_strict_exits_one(submissions, tmp_path):
+    from open_apps.leaderboard.build import main
+
+    worse = submissions / "worse__dummy__tiny_v1"
+    (worse / B.AGENT_FILE).write_text("model_name: tampered\n")
+    args = ["--submissions", str(submissions), "--suite", str(TINY_SUITE),
+            "--out", str(tmp_path / "lb.json"), "--generated-at", WHEN]  # fmt: skip
+    assert main(args) == 1
+    assert main(args + ["--lenient"]) == 0
+    doc = json.loads((tmp_path / "lb.json").read_text())
+    assert [i["id"] for i in doc["suites"]["tiny_v1"]["invalid"]] == [
+        "worse__dummy__tiny_v1"
+    ]
+
+
+def test_docs_build_is_lenient():
+    from pathlib import Path
+
+    static = (Path(__file__).parents[1] / ".github/workflows/static.yml").read_text()
+    pr = (Path(__file__).parents[1] / ".github/workflows/leaderboard.yml").read_text()
+    assert "open_apps.leaderboard.build --lenient" in static
+    assert "--lenient" not in pr

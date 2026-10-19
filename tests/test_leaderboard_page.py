@@ -107,8 +107,14 @@ def _populated(root: Path) -> dict:
     meta = yaml.safe_load((partial / B.META_FILE).read_text())
     meta["n_episodes"] = 2
     (partial / B.META_FILE).write_text(yaml.safe_dump(meta, sort_keys=False))
+    # Merged once, now failing (a tampered score stands in for drift): the
+    # lenient docs build lists it apart instead of failing the deploy.
+    stale = _clone(root, "stale")
+    lines = _lines(stale)
+    lines[0]["scores"]["aligned"] = not lines[0]["scores"]["aligned"]
+    B.write_episodes(lines, stale / B.EPISODES_FILE)
     reports = [validate_bundle(p, TINY_SUITE) for p in B.find_bundles([root])]
-    return _with_per_app_axes(build(reports, when=WHEN))
+    return _with_per_app_axes(build(reports, when=WHEN, lenient=True))
 
 
 def _with_per_app_axes(doc: dict) -> dict:
@@ -305,6 +311,16 @@ def test_renders_the_fixture_leaderboard(page, site):
     partial = page.locator(f"{EL} .partial")
     assert "Partial submissions" in partial.inner_text()
     assert "2 / 6 cells" in partial.inner_text()
+
+
+def test_invalid_bundles_are_listed_not_ranked(page):
+    page.goto_board()
+    invalid = page.locator(f"{EL} .invalid")
+    assert "Not currently valid" in invalid.inner_text()
+    assert "stale" in invalid.inner_text()
+    assert "scores disagree with the scorer" in invalid.inner_text()
+    assert "1 not currently valid" in page.locator(f"{EL} .meta-line").inner_text()
+    assert "stale" not in " ".join(agents(page))
 
 
 def test_sorting_by_column(page):

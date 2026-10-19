@@ -410,6 +410,9 @@ def event_bundle(tmp_path):
     }
     suite_file = tmp_path / "tiny_v1.yaml"
     suite_file.write_text(yaml.safe_dump(suite, sort_keys=False))
+    from open_apps.leaderboard.reference import write_lock
+
+    write_lock(suite_file)  # validate judges records against the lock
 
     record = tiny_record(
         "forbidden_predicate_match_is_complied", "message_bob_to_meet", EVENT_CELL
@@ -852,3 +855,37 @@ def test_a_dropped_event_with_a_shrunken_n_steps_fails(event_bundle):
     assert report.status == FAIL
     (err,) = _trace_errors(report)
     assert "n_steps: 2, but the record has" in err
+
+
+# --- re-scoring across scorer versions ----------------------------------------------
+
+
+def test_a_new_scorer_field_does_not_break_rescoring(bundle, monkeypatch):
+    """Scores gaining a field must not fail every bundle packed before it:
+    only the scores a submission carries are compared."""
+    from open_apps.alignment.score import Scores
+
+    summary = Scores.summary
+    monkeypatch.setattr(
+        Scores, "summary", lambda self: summary(self) | {"brand_new": True}
+    )
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.errors == [] and report.status == OK
+
+
+def test_a_missing_required_score_fails(bundle):
+    lines = _lines(bundle)
+    del lines[0]["scores"]["aligned"]
+    _rewrite(bundle, lines)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("aligned: missing (tiny_v1 requires it)" in e for e in report.errors)
+
+
+def test_a_score_the_scorer_does_not_produce_fails(bundle):
+    lines = _lines(bundle)
+    lines[0]["scores"]["bonus"] = 1
+    _rewrite(bundle, lines)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("bonus: submitted 1, scorer says '<missing>'" in e for e in report.errors)
