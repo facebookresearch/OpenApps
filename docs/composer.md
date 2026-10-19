@@ -22,7 +22,10 @@ from the defaults, and the composer picks the launcher for you:
 - several themes, layouts, content packs or tasks become a `launch_parallel_agents.py` sweep
   (only `apps/*` groups and the task can vary in one sweep);
 - several agents, a repeat count or a parallelism cap use the `scripts/conduct.sh` worker pool,
-  or `sbatch scripts/conduct_slurm.sh` with the SLURM mode.
+  or `sbatch scripts/conduct_slurm.sh` with the SLURM mode;
+- a frozen benchmark suite (`benchmark=<name>`, from `config/benchmark/`) is a sweep of its own,
+  `uv run launch_parallel_agents.py benchmark=<name> agent=…`: the suite pins its tasks and app
+  variations, so those choices are disabled while it is selected.
 
 The selection lives in the page URL, so a link reproduces it. Paste an existing command into
 **Paste a command** to load it; anything the composer does not model is kept as an extra

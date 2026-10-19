@@ -373,6 +373,16 @@
   // Targets and defaults (command.py)
   // -------------------------------------------------------------------------
 
+  /** Chosen groups only some targets can bind (Group.targets). */
+  function bound(choices, catalog) {
+    const all = Object.keys(catalog.targets).length;
+    return Object.keys(choices).filter((k) => has(catalog.groups, k) &&
+      catalog.groups[k].targets.length < all && choices[k].some((v) => v !== null));
+  }
+
+  /** The chosen group that pins the sweep (benchmark), if any. */
+  const suiteKey = (sel, catalog) => bound(sel.choices, catalog).find((k) => catalog.groups[k].pins_sweep) || null;
+
   function resolveTarget(sel, catalog) {
     const targets = catalog.targets;
     const choices = sel.choices;
@@ -387,6 +397,8 @@
       if (sel.target === "pool" && slurm) return "slurm_pool";
       return sel.target;
     }
+    const pinned = bound(choices, catalog);
+    if (pinned.length) return catalog.groups[pinned[0]].targets[0];
     if ((choices.agent || []).length > 1 || (sel.count || 0) > 1 || sel.max_parallel !== null) {
       return slurm ? "slurm_pool" : "pool";
     }
@@ -489,6 +501,22 @@
     if (listEq(sel.choices.task_name, [ALL_TASKS]) && target !== "sweep") {
       throw new CommandError("task_name=all needs the sweep target");
     }
+    for (const key of bound(sel.choices, catalog)) {
+      const targets = catalog.groups[key].targets;
+      if (!targets.includes(target)) {
+        const labels = targets.map((t) => catalog.targets[t].label.toLowerCase()).join(" or a ");
+        throw new CommandError(`${key} runs only as a ${labels}`);
+      }
+    }
+    const pinned = suiteKey(sel, catalog);
+    if (pinned) {
+      const axes = Object.keys(sel.choices).filter((k) => k === "task_name" ||
+        (has(catalog.groups, k) && catalog.groups[k].sweepable));
+      if (axes.length) {
+        throw new CommandError(`${pinned}=${pyStr(sel.choices[pinned][0])}: the frozen suite pins the tasks ` +
+          `and app variations; drop ${axes.join(", ")}`);
+      }
+    }
     if (POOL_TARGETS.includes(target)) {
       const expected = target === "slurm_pool" ? "slurm_cluster" : "local";
       if (!listEq(sel.choices.mode || [expected], [expected])) {
@@ -537,7 +565,7 @@
       env.sort((a, b) => rank(a) - rank(b));
     }
 
-    if (target === "sweep") {
+    if (target === "sweep" && !suiteKey(sel, catalog)) {
       if (!hasExtra(sel, "parallel_tasks.app_variations")) {
         const cells = sweepCells(sel, catalog);
         overrides.push("parallel_tasks.app_variations=[" + cells.map((c) => hydraList(c, true)).join(",") + "]");
@@ -566,6 +594,7 @@
   function runCountSel(selection, catalog) {
     const sel = normalizeSel(selection, catalog);
     const target = resolveTarget(sel, catalog);
+    if (suiteKey(sel, catalog)) return null; // the frozen suite decides
     if (POOL_TARGETS.includes(target)) {
       if (sel.count !== null) return sel.count;
       return sel.choices.agent.length; // COUNT, rendered or the default
@@ -722,6 +751,7 @@
     if (has(choices, key)) return false; // repeated: Hydra applies the later one
     if (has(catalog.groups, key)) {
       const group = catalog.groups[key];
+      if (!group.targets.includes(target)) return false; // this script cannot bind it
       if (group.sweepable && target === "sweep") return false;
       if (prefix !== (group.append ? "+" : "")) return false;
       if (!group.options.some((o) => o.name === raw)) return false;
@@ -813,6 +843,10 @@
     out.task_app = [...apps].sort();
     out.task_in_tasks = [inTasks];
     out.target = [target];
+    // Sweep axes chosen away from their default: what a frozen suite pins.
+    out.sweep_axes = Object.keys(choices).filter((k) =>
+      (k === "task_name" || (has(catalog.groups, k) && catalog.groups[k].sweepable)) &&
+      !pyEq(choices[k], [defaultFor(k, effective, catalog)]));
     return out;
   }
 

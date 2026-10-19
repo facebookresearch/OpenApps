@@ -64,7 +64,7 @@ def load_rules(path: Path | None = None) -> list[Rule]:
 # ---------------------------------------------------------------------------
 
 #: Derived facts a `when` key may name besides config paths.
-FACTS = {"task_app", "task_in_tasks", "target"}
+FACTS = {"task_app", "task_in_tasks", "target", "sweep_axes"}
 
 _COMPARISON = re.compile(r"^(<=|>=|!=|<|>)\s*(.+)$")
 
@@ -164,6 +164,17 @@ def facts(selection: "Selection", catalog: "Catalog") -> dict[str, list[Any]]:
     out["task_app"] = sorted(apps)
     out["task_in_tasks"] = [in_tasks]
     out["target"] = [target]
+    # The sweep axes chosen away from their default: apps/* groups and
+    # task_name, what a frozen suite (benchmark=...) pins itself.
+    out["sweep_axes"] = [
+        key
+        for key, values in choices.items()
+        if (
+            key == "task_name"
+            or (key in catalog.groups and catalog.groups[key].sweepable)
+        )
+        and values != [default_for(key, effective_target, catalog)]
+    ]
     return out
 
 

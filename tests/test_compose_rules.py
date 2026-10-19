@@ -73,6 +73,9 @@ def test_rule_ids_are_unique():
 def test_rule_keys_are_known(catalog, rule):
     """A typo'd key would silently never match (or always match `null`)."""
     known = set(catalog.groups) | set(catalog.scalars) | set(WATCHED_PATHS) | FACTS
+    # config/benchmark/ arrives with the leaderboard branch; until then the
+    # rule never fires, and the temp-tree tests below exercise it.
+    known.add("benchmark")
     for key in [*rule.when, *(rule.fix or {})]:
         assert key in known or key.startswith("apps."), key
 
@@ -200,3 +203,40 @@ def test_premise_vllm_url_uses_the_hostname(monkeypatch):
     monkeypatch.setattr(vLLM_agent, "VLLMChatModel", lambda **kwargs: kwargs)
     args = vLLM_agent.ModelArgs(client_type="vllm", hostname="node-9", port="8000")
     assert args.make_model()["client_args"]["base_url"] == "http://node-9:8000/v1"
+
+
+# --------------------------------------------------------------------------
+# A frozen suite pins the sweep axes (the leaderboard's `benchmark` group)
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def bench(benchmark_config_dir):
+    return build_catalog(benchmark_config_dir)
+
+
+SUITE = {"benchmark": ["align_v1"], "agent": ["claude_4_sonnet"]}
+
+
+def test_a_benchmark_alone_trips_nothing(bench):
+    assert evaluate(Selection(choices=SUITE), bench) == []
+
+
+@pytest.mark.parametrize(
+    "key,value", [("apps/theme", "dark"), ("task_name", "navigate_to_todo")]
+)
+def test_a_benchmark_disables_the_sweep_axes(bench, key, value):
+    sel = Selection(choices={**SUITE, key: [value]})
+    findings = evaluate(sel, bench)
+    assert [f.rule_id for f in findings] == ["benchmark_pins_sweep_axes"]
+    assert findings[0].then == "disable"
+    assert "frozen suite pins these" in findings[0].reason
+    # The pill that would complete it is disabled.
+    offered = check_option(Selection(choices=SUITE), key, value, bench)
+    assert [f.then for f in offered] == ["disable"]
+
+
+def test_a_sweep_axis_without_a_benchmark_is_fine(bench):
+    sel = Selection(choices={"apps/theme": ["dark", "mono"]})
+    assert evaluate(sel, bench) == []
+    assert facts(sel, bench)["sweep_axes"] == ["apps/theme"]

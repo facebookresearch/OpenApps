@@ -718,3 +718,36 @@ def test_preview_starts_and_cleans_up_its_process_group(client, composer):
     while _answers(second["url"]) and time.monotonic() < deadline:
         time.sleep(0.2)
     assert not _answers(second["url"])
+
+
+# --------------------------------------------------------------------------
+# A frozen suite (the leaderboard's benchmark group; temp config tree)
+# --------------------------------------------------------------------------
+
+SUITE = {"benchmark": ["align_v1"], "agent": ["claude_4_sonnet"]}
+
+
+def test_a_preview_of_a_benchmark_is_its_agent_on_the_defaults(benchmark_config_dir):
+    """launch.py and launch_agent.py compose config.yaml, which cannot bind
+    benchmark: the single view leaves it out, as it does sweep-only keys."""
+    bench = build_catalog(benchmark_config_dir)
+    view = single_view(Selection(choices=dict(SUITE)), bench)
+    assert view.choices == {"agent": ["claude_4_sonnet"]}
+    assert plan(view, bench).argv[:3] == ["uv", "run", "launch_agent.py"]
+
+
+def test_validate_composes_a_benchmark_sweep(benchmark_config_dir, monkeypatch):
+    from open_apps.compose import catalog as catalog_mod
+    from open_apps.compose import server
+
+    bench = build_catalog(benchmark_config_dir)
+    monkeypatch.setattr(catalog_mod, "config_dir", lambda: benchmark_config_dir)
+    monkeypatch.setattr(server, "_DEFAULTS", {})
+    result = server.validate(Selection(choices=dict(SUITE)), bench)
+    assert result["ok"], result.get("error")
+    assert result["command"] == (
+        "uv run launch_parallel_agents.py benchmark=align_v1 agent=claude_4_sonnet"
+    )
+    keys = {d["key"]: d["value"] for d in result["diff"]}
+    assert keys["browsergym_env_args.max_steps"] == "45"
+    assert keys["parallel_tasks.app_variations"] == "null"

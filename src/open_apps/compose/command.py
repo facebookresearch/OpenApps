@@ -115,8 +115,30 @@ class Selection:
 # ---------------------------------------------------------------------------
 
 
+def _bound(choices: dict[str, list[Any]], catalog: Catalog) -> list[str]:
+    """Chosen groups only some targets can bind (see ``Group.targets``)."""
+    return [
+        key
+        for key, values in choices.items()
+        if key in catalog.groups
+        and len(catalog.groups[key].targets) < len(TARGETS)
+        and any(v is not None for v in values)
+    ]
+
+
+def suite(selection: Selection, catalog: Catalog) -> str | None:
+    """The chosen group that pins the sweep (``benchmark``), if any."""
+    return next(
+        (k for k in _bound(selection.choices, catalog) if catalog.groups[k].pins_sweep),
+        None,
+    )
+
+
 def resolve_target(selection: Selection, catalog: Catalog) -> str:
-    """Which command runs this selection: single, sweep, pool or slurm_pool."""
+    """Which command runs this selection: single, sweep, pool or slurm_pool.
+
+    A group only one target binds (``benchmark``: the sweep) picks that one.
+    """
     choices = selection.choices
     slurm = "slurm_cluster" in choices.get("mode", [])
     if selection.target:
@@ -128,6 +150,9 @@ def resolve_target(selection: Selection, catalog: Catalog) -> str:
             # The Worker pool pill on the SLURM mode (see Target.pill).
             return "slurm_pool"
         return selection.target
+    bound = _bound(choices, catalog)
+    if bound:
+        return catalog.groups[bound[0]].targets[0]
     if (
         len(choices.get("agent", [])) > 1
         or (selection.count or 0) > 1
@@ -265,6 +290,23 @@ def _check_expressible(sel: Selection, target: str, catalog: Catalog) -> None:
         raise CommandError(f"cannot vary {key!r}: {why}")
     if sel.choices.get("task_name") == [ALL_TASKS] and target != "sweep":
         raise CommandError("task_name=all needs the sweep target")
+    for key in _bound(sel.choices, catalog):
+        targets = catalog.groups[key].targets
+        if target not in targets:
+            labels = " or a ".join(TARGETS[t].label.lower() for t in targets)
+            raise CommandError(f"{key} runs only as a {labels}")
+    pinned = suite(sel, catalog)
+    if pinned:
+        axes = [
+            k
+            for k in sel.choices
+            if k == "task_name" or (k in catalog.groups and catalog.groups[k].sweepable)
+        ]
+        if axes:
+            raise CommandError(
+                f"{pinned}={sel.choices[pinned][0]}: the frozen suite pins the tasks "
+                f"and app variations; drop {', '.join(axes)}"
+            )
     if target in POOL_TARGETS:
         expected = "slurm_cluster" if target == "slurm_pool" else "local"
         if sel.choices.get("mode", [expected]) != [expected]:
@@ -326,7 +368,7 @@ def render(selection: Selection, catalog: Catalog) -> str:
         order = ("AGENTS=", "COUNT=", "MAX_PARALLEL=", "HEADLESS=")
         env.sort(key=lambda a: next(i for i, p in enumerate(order) if a.startswith(p)))
 
-    if target == "sweep":
+    if target == "sweep" and not suite(sel, catalog):
         if not _has_extra(sel, "parallel_tasks.app_variations"):
             cells = _sweep_cells(sel, catalog)
             value = "[" + ",".join(_hydra_list(c, quote=True) for c in cells) + "]"
@@ -353,10 +395,13 @@ def _quote_assignment(assignment: str) -> str:
     return f"{name}={shlex.quote(value)}"
 
 
-def run_count(selection: Selection, catalog: Catalog) -> int:
-    """How many episodes the rendered command launches."""
+def run_count(selection: Selection, catalog: Catalog) -> int | None:
+    """How many episodes the rendered command launches; None when a frozen
+    suite decides (its blocks are not in the catalog)."""
     sel = normalize(selection, catalog)
     target = resolve_target(sel, catalog)
+    if suite(sel, catalog):
+        return None
     if target in POOL_TARGETS:
         if sel.count is not None:
             return sel.count
@@ -539,6 +584,8 @@ def _parse_override(
         return False  # repeated: keep the later one verbatim, Hydra applies it
     if key in catalog.groups:
         group = catalog.groups[key]
+        if target not in group.targets:
+            return False  # this script's config cannot bind it; keep it visible
         if group.sweepable and target == "sweep":
             return False  # a no-op outside app_variations; keep it visible
         if prefix != ("+" if group.append else ""):

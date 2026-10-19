@@ -152,6 +152,10 @@ class Group:
     #: ``apps/*``: create_configs copies just ``apps`` out of each variation's
     #: composition, so a device or agent there would silently do nothing.
     sweepable: bool
+    #: The targets whose primary config can bind it: all of them, unless the
+    #: group is in some primary config's defaults list but not config.yaml's
+    #: (``benchmark``, only in config_parallel_tasks.yaml) -- then just the
+    #: targets composing those configs, and choosing it picks that target.
     targets: list[str]
     control: Literal["pills", "select"]
     searchable: bool
@@ -160,6 +164,11 @@ class Group:
     #: :func:`_null_option`.
     null_label: str | None = None
     null_summary: str | None = None
+    #: A frozen suite: its options null ``parallel_tasks.task_names`` and
+    #: ``app_variations`` and bring their own (the leaderboard's
+    #: ``benchmark=align_v1``). The sweep command then spells out neither,
+    #: and apps/* and task_name choices have nothing to act on.
+    pins_sweep: bool = False
 
     def option(self, name: str) -> Option:
         for option in self.options:
@@ -585,21 +594,25 @@ def _scalar_type(value: Any) -> str:
 
 
 def _option_sets(
-    group: str, package: str, option: str, append: bool, base: DictConfig
+    group: str, package: str, option: str, home: str | None, base: DictConfig
 ) -> dict[str, Any]:
     """Values an option gives the scalars and watched paths.
 
     Group-packaged options are composed in isolation (``+agent=x`` with no
     primary config: milliseconds, and their own defaults list still applies).
-    Only ``_global_`` options (``experiment``, ``mode``) need the full config,
-    since they override other groups -- composed without the shop catalog and
-    with the smallest task set, which do not affect any scalar but are most of
-    the cost of a full composition.
+    Only ``_global_`` options (``experiment``, ``mode``, ``benchmark``) need
+    the full config, since they override other groups -- composed without the
+    shop catalog and with the smallest task set, which do not affect any
+    scalar but are most of the cost of a full composition. ``home`` is the
+    primary config whose defaults list names the group, which is the only one
+    a plain ``group=option`` binds against (``benchmark`` is only in
+    config_parallel_tasks.yaml's); with none, ``+group=option`` on config.yaml.
+    ``base`` is ``home``'s own fast composition: what the option changes.
     """
     if package == "_global_":
         relevant = list(_TRACKED_PATHS)
-        prefix = "+" if append else ""
-        cfg = _compose("config", [f"{prefix}{group}={option}", *_FAST_OVERRIDES])
+        override = f"{group}={option}" if home else f"+{group}={option}"
+        cfg = _compose(home or "config", [override, *_FAST_OVERRIDES])
     else:
         relevant = [p for p in _TRACKED_PATHS if p.startswith(package + ".")]
         if not relevant:
@@ -608,6 +621,21 @@ def _option_sets(
     # Only what differs from config.yaml's own composition: the evaluator
     # starts from that baseline (Catalog.baseline) and overlays these.
     return {p: _select(cfg, p) for p in relevant if _select(cfg, p) != _select(base, p)}
+
+
+def _pins_sweep(group: str, options: list[str]) -> bool:
+    """Whether the group's suites null the sweep's task names and app
+    variations (see :attr:`Group.pins_sweep`). Any option will do: the
+    leaderboard's ``config/benchmark/`` also holds a seeds example that Hydra
+    lists as a choice but that is no suite (and does not run either way).
+    Composed where the sweep composes."""
+    sweep = TARGETS["sweep"].config_name
+    keys = ("parallel_tasks.task_names", "parallel_tasks.app_variations")
+    for option in options:
+        cfg = _compose(sweep, [f"{group}={option}", *_FAST_OVERRIDES])
+        if all(OmegaConf.select(cfg, k, default="unset") is None for k in keys):
+            return True
+    return False
 
 
 # Cheap stand-ins for the two expensive defaults; see _option_sets.
@@ -628,13 +656,23 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
             name: OmegaConf.to_container(cfg.hydra.runtime.choices)
             for name, cfg in composed.items()
         }
-        fast_base = _compose("config", list(_FAST_OVERRIDES))
+        fast_bases: dict[str, DictConfig] = {}
+
+        def fast_base(name: str) -> DictConfig:
+            if name not in fast_bases:
+                fast_bases[name] = _compose(name, list(_FAST_OVERRIDES))
+            return fast_bases[name]
 
         groups: dict[str, Group] = {}
         for group_path in _walk_groups(loader):
             names = sorted(loader.get_group_options(group_path), key=str.lower)
             present = {c: group_path in choices[c] for c in PRIMARY_CONFIGS}
             append = not any(present.values())
+            home = next((c for c in PRIMARY_CONFIGS if present[c]), None)
+            if append or present["config"]:
+                targets = list(ALL_TARGETS)
+            else:
+                targets = [t for t in ALL_TARGETS if present[TARGETS[t].config_name]]
             package = None
             options = []
             for name in names:
@@ -655,7 +693,9 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
                         label=header.label or humanize(name),
                         summary=header.summary,
                         details=header.details,
-                        sets=_option_sets(group_path, package, name, append, fast_base),
+                        sets=_option_sets(
+                            group_path, package, name, home, fast_base(home or "config")
+                        ),
                     )
                 )
             defaults = {c: choices[c].get(group_path) for c in PRIMARY_CONFIGS}
@@ -673,11 +713,12 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
                 nullable=nullable,
                 append=append,
                 sweepable=group_path.startswith("apps/"),
-                targets=list(ALL_TARGETS),
+                targets=targets,
                 control="pills" if len(options) <= PILLS_MAX else "select",
                 searchable=len(options) > SEARCHABLE_MIN,
                 null_label=null_label,
                 null_summary=null_summary,
+                pins_sweep=targets == ["sweep"] and _pins_sweep(group_path, names),
             )
 
         tasks = {}
@@ -714,12 +755,16 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
 
     # Order groups as the primary config's defaults list does (then nested
     # groups after their parent, then append-only groups) -- the order the
-    # command renders overrides in, and a sensible default UI order.
+    # command renders overrides in, and a sensible default UI order. A group
+    # config.yaml cannot bind (a frozen suite) leads: it is what the command
+    # runs, as in `launch_parallel_agents.py benchmark=align_v1 agent=...`.
     # Hydra fills runtime.choices while unwinding the defaults tree, so the
     # dict is in reverse defaults-list order.
     order = list(reversed(list(choices["config"])))
 
     def position(path: str) -> tuple[int, int, int, str]:
+        if "single" not in groups[path].targets:
+            return (-1, 0, 0, path)
         # A nested group (apps/todo/layout) sorts right after its parent.
         parent = next((p for p in order if path.startswith(p + "/")), path)
         rank = order.index(parent) if parent in order else len(order)

@@ -369,3 +369,43 @@ def test_cli_writes_catalog(tmp_path):
     out = tmp_path / "catalog.json"
     catalog_mod.main(["--out", str(out)])
     assert json.loads(out.read_text())["groups"]
+
+
+# --------------------------------------------------------------------------
+# A group only another primary config names (the leaderboard's `benchmark`)
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def bench(benchmark_config_dir):
+    return build_catalog(benchmark_config_dir)
+
+
+def test_a_group_only_the_sweep_config_names_builds(bench):
+    """config/benchmark/ is a _global_ group that only config_parallel_tasks'
+    defaults list names; composing its options against config.yaml crashed
+    the build ("Could not override 'benchmark'")."""
+    group = bench.groups["benchmark"]
+    assert [o.name for o in group.options] == ["align_v1", "heldout_seeds.example"]
+    assert group.package == "_global_"
+    assert group.defaults == {"config": None, "config_parallel_tasks": None}
+    assert not group.append  # `benchmark=align_v1`, no `+`: it is in a defaults list
+    assert not group.sweepable
+    assert group.targets == ["sweep"]
+    assert group.pins_sweep
+    # Composed against config_parallel_tasks, where the override binds.
+    option = group.option("align_v1")
+    assert option.label == "Align v1"
+    assert option.summary == "OpenApps-Align v1 -- the frozen leaderboard suite."
+    assert option.sets == {"browsergym_env_args.max_steps": 45}
+
+
+def test_groups_config_yaml_names_keep_every_target(bench, catalog):
+    for path, group in catalog.groups.items():
+        assert group.targets == list(catalog.targets), path
+        assert not group.pins_sweep, path
+        assert bench.groups[path].targets == group.targets, path
+
+
+def test_a_sweep_only_group_leads_the_order(bench):
+    assert next(iter(bench.groups)) == "benchmark"

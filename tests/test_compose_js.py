@@ -168,7 +168,13 @@ def catalog():
 
 
 @pytest.fixture(scope="module")
-def site(tmp_path_factory, catalog):
+def bench(benchmark_config_dir):
+    """The catalog of config/ with the leaderboard's benchmark group (conftest)."""
+    return build_catalog(benchmark_config_dir)
+
+
+@pytest.fixture(scope="module")
+def site(tmp_path_factory, catalog, bench):
     """A served directory: the composer assets, two catalogs, and pages
     embedding the element exactly as ``docs/composer.md`` does."""
     root = tmp_path_factory.mktemp("composer_site")
@@ -193,6 +199,9 @@ def site(tmp_path_factory, catalog):
     )
     (root / "local.html").write_text(f"<!doctype html>{head}{local_embed}{script}")
     (root / "blank.html").write_text(f"<!doctype html>{head}{script}")
+    (assets / "catalog-bench.json").write_text(bench.to_json())
+    bench_embed = embed.replace("catalog.json", "catalog-bench.json")
+    (root / "bench.html").write_text(f"<!doctype html>{head}{bench_embed}{script}")
     # The committed media, off to the side so index.html keeps its placeholder.
     shutil.copytree(ASSETS / "media", root / "assets" / "composer-media")
     media_embed = embed.replace(
@@ -252,18 +261,18 @@ def js(browser_context, site, catalog):
     page.close()
 
 
-def call(page, fn: str, *args):
-    """``OpenAppsComposer.<fn>(...args, catalog)`` -> value, or {"error": msg}."""
+def call(page, fn: str, *args, catalog: str = "catalog"):
+    """``OpenAppsComposer.<fn>(...args, window[catalog])`` -> value, or {"error": msg}."""
     return page.evaluate(
-        """([fn, args]) => {
+        """([fn, args, catalog]) => {
             try {
-                return {value: OpenAppsComposer[fn](...args, window.catalog)};
+                return {value: OpenAppsComposer[fn](...args, window[catalog])};
             } catch (e) {
                 if (e instanceof OpenAppsComposer.CommandError) return {error: e.message};
                 throw e;
             }
         }""",
-        [fn, list(args)],
+        [fn, list(args), catalog],
     )
 
 
@@ -281,6 +290,50 @@ def _ids(cases):
 # --------------------------------------------------------------------------
 # Parity: render / parse
 # --------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------
+# Parity on a frozen suite (benchmark group; temp config tree)
+# --------------------------------------------------------------------------
+
+BENCH_SELECTIONS = [
+    {"choices": {"benchmark": ["align_v1"], "agent": ["claude_4_sonnet"]}},
+    {"choices": {"benchmark": ["align_v1"], "mode": ["slurm_cluster"]}},
+    {"choices": {"benchmark": ["align_v1"]}, "target": "single"},
+    {"choices": {"benchmark": ["align_v1"]}, "target": "pool"},
+    {"choices": {"benchmark": ["align_v1"], "apps/theme": ["dark"]}},
+    {"choices": {"benchmark": ["align_v1"], "task_name": ["all"]}},
+    {"choices": {"benchmark": ["align_v1"], "agent": ["dummy", "claude_4_sonnet"]}},
+]
+BENCH_COMMANDS = [
+    "uv run launch_parallel_agents.py benchmark=align_v1 agent=claude_4_sonnet",
+    "uv run launch_agent.py benchmark=align_v1",
+    "./scripts/conduct.sh benchmark=align_v1",
+]
+
+
+@pytest.fixture(scope="module")
+def bench_js(js, bench):
+    js.evaluate("c => { window.bench = c }", json.loads(bench.to_json()))
+    return js
+
+
+@pytest.mark.parametrize("selection", BENCH_SELECTIONS)
+def test_benchmark_selection_parity(bench_js, bench, selection):
+    sel = Selection.from_dict(selection)
+    for fn, ref in (("render", render), ("runCount", run_count)):
+        assert call(bench_js, fn, selection, catalog="bench") == py(ref, sel, bench), fn
+    expected = _finding_dicts(evaluate(sel, bench))
+    assert call(bench_js, "evaluate", selection, catalog="bench") == {"value": expected}
+    assert call(bench_js, "facts", selection, catalog="bench") == {
+        "value": facts(sel, bench)
+    }
+
+
+@pytest.mark.parametrize("command", BENCH_COMMANDS)
+def test_benchmark_parse_parity(bench_js, bench, command):
+    expected = py(lambda c, k: parse(c, k).to_dict(), command, bench)
+    assert call(bench_js, "parse", command, catalog="bench") == expected
 
 
 @pytest.mark.parametrize("case", COMMANDS["cases"], ids=_ids(COMMANDS["cases"]))
@@ -479,6 +532,18 @@ def test_the_hash_restores_a_selection(ui):
     expect_command(page, "uv run launch_agent.py agent=dummy device=phone")
     phone = pill(page, "Device", "Phone")
     assert phone.get_attribute("aria-checked") == "true"
+
+
+def test_the_hash_selects_a_benchmark(ui):
+    page = ui("bench.html#benchmark=align_v1&agent=claude_4_sonnet")
+    expect_command(
+        page,
+        "uv run launch_parallel_agents.py benchmark=align_v1 agent=claude_4_sonnet",
+    )
+    assert (
+        "Sweep (auto)"
+        in page.locator("openapps-composer [data-part=meta]").inner_text()
+    )
 
 
 def test_arrow_keys_move_between_pills(ui):

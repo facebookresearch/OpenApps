@@ -356,12 +356,16 @@ def single_view(selection: Selection, catalog: Catalog) -> Selection:
 
     A sweep or pool becomes its first cell / first agent: every axis keeps its
     first value, the mode is local, and sweep-only keys go -- launch.py and
-    launch_agent.py compose config.yaml, which has no ``parallel_tasks``.
+    launch_agent.py compose config.yaml, which has no ``parallel_tasks`` and
+    cannot bind a group only the sweep config names (``benchmark``).
     """
+    groups = catalog.groups
     choices = {
         key: values[:1]
         for key, values in selection.choices.items()
-        if key != "mode" and not (key == "task_name" and values == [ALL_TASKS])
+        if key != "mode"
+        and not (key == "task_name" and values == [ALL_TASKS])
+        and (key not in groups or "single" in groups[key].targets)
     }
     extra = [t for t in selection.extra if not t.startswith("parallel_tasks.")]
     return Selection(choices=choices, target="single", extra=extra)
@@ -485,7 +489,9 @@ def validate(selection: Selection, catalog: Catalog) -> dict[str, Any]:
     config_name, composed = composition(p, selection)
     try:
         cfg = _compose(config_name, composed)
-        if p.target == "sweep":
+        # A frozen suite (benchmark=...) nulls both and builds its own cells;
+        # there is no ad-hoc first cell to check.
+        if p.target == "sweep" and cfg.parallel_tasks.app_variations is not None:
             cells = OmegaConf.to_container(cfg.parallel_tasks.app_variations)
             names = cfg.parallel_tasks.task_names
             first = next(iter(cfg.tasks)) if names == ALL_TASKS else names[0]

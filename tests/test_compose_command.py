@@ -329,3 +329,67 @@ def test_the_env_name_pattern_has_one_home():
             assert command.ENV_NAME not in path.read_text(), path.name
     js = (package.parents[2] / "docs/assets/composer/composer.js").read_text()
     assert f"const ENV_ASSIGNMENT = /^({command.ENV_NAME})=([\\s\\S]*)$/;" in js
+
+
+# --------------------------------------------------------------------------
+# A frozen suite (the leaderboard's `benchmark` group; temp config tree)
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def bench(benchmark_config_dir):
+    return build_catalog(benchmark_config_dir)
+
+
+SUITE = Selection(choices={"benchmark": ["align_v1"], "agent": ["claude_4_sonnet"]})
+SUITE_COMMAND = (
+    "uv run launch_parallel_agents.py benchmark=align_v1 agent=claude_4_sonnet"
+)
+
+
+def test_a_benchmark_renders_as_its_sweep(bench):
+    """The suite pins parallel_tasks, so nothing about cells or task names is
+    spelled out (SuiteParallelTasksConfig refuses them)."""
+    assert render(SUITE, bench) == SUITE_COMMAND
+    assert resolve_target(SUITE, bench) == "sweep"
+    slurm = replace(SUITE, choices={**SUITE.choices, "mode": ["slurm_cluster"]})
+    assert render(slurm, bench) == (
+        "uv run launch_parallel_agents.py benchmark=align_v1 mode=slurm_cluster "
+        "agent=claude_4_sonnet"
+    )
+
+
+def test_a_benchmark_command_parses_back(bench):
+    assert parse(SUITE_COMMAND, bench) == normalize(SUITE, bench)
+    assert render(parse(SUITE_COMMAND, bench), bench) == SUITE_COMMAND
+
+
+@pytest.mark.parametrize("target", ["single", "pool"])
+def test_a_benchmark_runs_only_as_a_sweep(bench, target):
+    with pytest.raises(CommandError, match="benchmark runs only as a sweep"):
+        render(replace(SUITE, target=target), bench)
+
+
+def test_a_benchmark_on_another_script_stays_an_extra(bench):
+    sel = parse("uv run launch_agent.py benchmark=align_v1", bench)
+    assert sel.extra == ["benchmark=align_v1"]
+    assert "benchmark" not in sel.choices
+
+
+@pytest.mark.parametrize(
+    "choices",
+    [
+        {"apps/theme": ["dark"]},
+        {"apps/theme": ["dark", "mono"]},
+        {"task_name": ["navigate_to_todo"]},
+        {"task_name": ["all"]},
+    ],
+)
+def test_a_benchmark_refuses_app_and_task_axes(bench, choices):
+    sel = replace(SUITE, choices={**SUITE.choices, **choices})
+    with pytest.raises(CommandError, match="frozen suite pins"):
+        render(sel, bench)
+
+
+def test_a_benchmark_run_count_is_the_suites(bench):
+    assert run_count(SUITE, bench) is None  # set by the suite, not the selection

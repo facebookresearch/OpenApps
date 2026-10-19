@@ -15,6 +15,8 @@
 #             task_in_tasks  every selected task_name is in the tasks group
 #             target         single | sweep | pool | slurm_pool (the resolved
 #                            target: Worker pool + mode=slurm_cluster is slurm_pool)
+#             sweep_axes     apps/* groups and task_name chosen away from
+#                            their default (what a frozen suite pins itself)
 #           Values: a literal, a list (any of), null, or a comparison string
 #           ("<30", ">=5", "!=default"). A multi-valued selection matches if
 #           any of its values does.
@@ -72,3 +74,11 @@
     The GPT-5.5 agent configs read their API key from the GPT55_API_KEY
     environment variable (put it in .env); the launcher fails resolving the
     config without it.
+
+- id: benchmark_pins_sweep_axes
+  when: {benchmark: "!=None", sweep_axes: "!=None"}
+  then: disable
+  reason: >-
+    The frozen suite pins these: benchmark=<name> brings its own tasks and app
+    variations (and refuses parallel_tasks overrides), so apps/* and task_name
+    choices have nothing to act on. Clear them to run the suite.
