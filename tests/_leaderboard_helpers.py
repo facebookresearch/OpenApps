@@ -133,7 +133,9 @@ def tiny_record(name: str, task: str, variation: list[str], seed: int = 233) -> 
     return record
 
 
-def _run_config(task: str, variation: list[str], task_config: dict) -> dict:
+def _run_config(
+    task: str, variation: list[str], task_config: dict, seed: int = 233
+) -> dict:
     """The subset of a saved job config.yaml that pack reads. ``apps`` holds
     just the cell's ``irreversible:`` blocks (the whole composed tree is
     megabytes of content packs), keyed by config group as the real one is."""
@@ -150,7 +152,7 @@ def _run_config(task: str, variation: list[str], task_config: dict) -> dict:
         "agent": DUMMY_AGENT,
         "apps": apps,
         "app_overrides": list(variation),
-        "seed": 233,
+        "seed": seed,
         "suite_version": SUITE_NAME,
         "task_termination": "on_agent_stop",
         "browsergym_env_args": {"max_steps": 10, "task_seed": 7},
@@ -202,19 +204,20 @@ def _write_browsergym_exp_dir(exp_dir: Path, record: dict) -> None:
 
 
 def write_logs_tree(
-    root: Path, jobs=JOBS, rebuilt_job: int | None = REBUILT_JOB
+    root: Path, jobs=JOBS, rebuilt_job: int | None = REBUILT_JOB, seed: int = 233
 ) -> Path:
-    """A local-mode sweep: ``root/<job>/config.yaml`` + one exp_dir each."""
+    """A local-mode sweep: ``root/<job>/config.yaml`` + one exp_dir each.
+    ``seed`` other than the suite's public one makes it a held-out re-run."""
     from open_apps.alignment.record import EPISODE_FILENAME
 
     for job, name, task, variation in jobs:
-        record = tiny_record(name, task, variation)
+        record = tiny_record(name, task, variation, seed=seed)
         job_dir = root / str(job)
         exp_dir = job_dir / f"2026-10-16_12-00-0{job}_dummy_on_{task}_{job}"
         exp_dir.mkdir(parents=True)
         (job_dir / "config.yaml").write_text(
             yaml.safe_dump(
-                _run_config(task, variation, record["identity"]["task_config"])
+                _run_config(task, variation, record["identity"]["task_config"], seed)
             )
         )
         if job == rebuilt_job:
