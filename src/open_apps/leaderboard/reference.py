@@ -45,6 +45,7 @@ import copy
 import dataclasses
 import functools
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -416,7 +417,10 @@ def diff(record_value: Any, repo_value: Any, path: str) -> list[str]:
     if isinstance(record_value, dict) and isinstance(repo_value, dict):
         out = []
         for key in sorted(set(record_value) | set(repo_value), key=str):
-            sub = f"{path}.{key}"
+            # A record's keys are untrusted text: anything but a plain name
+            # is shown quoted, so it cannot inject a line into the output.
+            plain = re.fullmatch(r"[A-Za-z0-9_\-]+", str(key))
+            sub = f"{path}.{key}" if plain else f"{path}[{str(key)!r}]"
             if key not in record_value:
                 out.append(
                     f"{sub}: missing from the record (repo {_short(repo_value[key])})"

@@ -37,6 +37,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -462,12 +463,19 @@ def comment_markdown(
         "",
         "<details><summary>validate output</summary>",
         "",
-        "```",
-        *details,
-        "```",
+        fence(body := "\n".join(details)),
+        body,
+        fence(body),
         "</details>",
     ]
     return "\n".join(lines) + "\n"
+
+
+def fence(text: str) -> str:
+    """A code fence longer than any backtick run in ``text``, so record
+    strings inside cannot close it."""
+    longest = max((len(m) for m in re.findall(r"`+", text)), default=0)
+    return "`" * max(3, longest + 1)
 
 
 def main(argv: Optional[list[str]] = None) -> int:

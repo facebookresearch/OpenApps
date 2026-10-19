@@ -233,12 +233,16 @@ jobs:
         run: |
           set -f
           status=0
+          # The output quotes record data: no workflow commands while it prints.
+          token=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+          echo "::stop-commands::$token"
           for kind in submissions demonstrations; do
             targets=$(tr '\n' ' ' < "../$kind.txt")
             [ -n "$targets" ] || continue
             uv run -m open_apps.leaderboard.validate $targets > "../validate-$kind.txt" 2>&1 || status=1
             cat "../validate-$kind.txt"
           done
+          echo "::$token::"
           exit $status
       - name: Build the would-be leaderboard
         # Even after a failed validation: build re-validates everything and
@@ -249,14 +253,21 @@ jobs:
           set -f
           subs=$(tr '\n' ' ' < ../submissions.txt)
           [ -n "$subs" ] || { echo "no submissions changed"; exit 0; }
+          token=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+          echo "::stop-commands::$token"
+          status=0
           uv run -m open_apps.leaderboard.build --out ../leaderboard.json \
-            --comment-for $subs --comment-out ../comment.md
+            --comment-for $subs --comment-out ../comment.md || status=$?
+          echo "::$token::"
+          exit $status
       - name: Write the summary and the comment artifact
         if: always() && steps.validate.outcome != 'skipped'
+        working-directory: base
         env:
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          cd ..  # the outputs live at the workspace root; base/ only scopes the step
           mkdir -p artifact
           {
             # build's comment carries the submissions' validate output too.
@@ -265,22 +276,43 @@ jobs:
             elif [ -s validate-submissions.txt ]; then
               echo "### OpenApps-Align leaderboard check"
               echo
-              echo '```'
               head -200 validate-submissions.txt
-              echo '```'
             fi
             if [ -s validate-demonstrations.txt ]; then
               echo
               echo "### Demonstrations (validated, never ranked)"
               echo
-              echo '```'
               head -200 validate-demonstrations.txt
-              echo '```'
             fi
           } > artifact/body.md
           echo "$PR" > artifact/pr.txt
           echo "$HEAD_SHA" > artifact/head_sha.txt
-          cat artifact/body.md >> "$GITHUB_STEP_SUMMARY"
+          # The body quotes record data, so the summary shows it as one inert
+          # block -- the same fence the comment workflow uses (a test keeps the
+          # two copies identical: that workflow checks out nothing to share).
+          python3 -I - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          LIMIT = 60000
+
+
+          def fenced(body: str, limit: int = LIMIT) -> str:
+              """Untrusted text as one inert code block, at most ``limit`` chars."""
+              body = body.replace("\r", "")
+              body = "".join(c for c in body if c in "\n\t" or c.isprintable())
+              if len(body) > limit:
+                  body = body[:limit] + "\n... (truncated; the full output is in the run summary)"
+              longest = max((len(m) for m in re.findall(r"`+", body)), default=0)
+              fence = "`" * max(3, longest + 1)
+              return f"{fence}text\n{body}\n{fence}"
+
+
+          body = Path("artifact/body.md").read_text(encoding="utf-8", errors="replace")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+              fh.write("### OpenApps-Align leaderboard check\n\n" + fenced(body) + "\n")
+          PY
       - name: Upload the comment artifact
         if: always() && steps.validate.outcome != 'skipped'
         uses: actions/upload-artifact@v4

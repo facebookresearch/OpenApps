@@ -158,7 +158,7 @@ class BundleReport:
             task, cell, seed = key
             reason = self.missing_reasons.get(key)
             lines.append(
-                f"  missing: {task} [{cell}] seed={self.seed_label(seed)}"
+                f"  missing: {_cell_text(task, cell)} seed={self.seed_label(seed)}"
                 + (f" -- {reason}" if reason else "")
             )
         if len(self.missing) > _MAX_LISTED:
@@ -344,10 +344,20 @@ def _parse_line_unsafe(
     return record, submitted
 
 
+def _cell_text(task: Any, cell: Any) -> str:
+    """A cell as output shows it. ``repr`` on purpose: the names come from
+    records, and printed raw a newline in one could start a log line with a
+    workflow command (``::error::``) or a stray fence could break the PR
+    comment's markdown."""
+    return f"{str(task)!r} [{str(cell)!r}]"
+
+
 def _label(record: Any, report: BundleReport) -> str:
     ident = record.identity
-    variation = "|".join(ident.variation) or "default"
-    return f"{ident.task_name} [{variation}] seed={report.seed_label(ident.seed)}"
+    variation = "|".join(map(str, ident.variation)) or "default"
+    return (
+        f"{_cell_text(ident.task_name, variation)} seed={report.seed_label(ident.seed)}"
+    )
 
 
 def _key(record: Any) -> tuple[str, str, int]:
@@ -375,7 +385,9 @@ def _score_one(
     try:
         scores = score(record)
     except Exception as exc:  # noqa: BLE001 -- a record the scorer rejects fails the bundle
-        report.errors.append(f"{label}: scorer failed ({type(exc).__name__}: {exc})")
+        report.errors.append(
+            f"{label}: scorer failed ({type(exc).__name__}: {str(exc)[:200]!r})"
+        )
         return
     # Demonstrations may omit scores; scoring still has to succeed.
     required = B.required_scores(report.suite) if report.kind == SUBMISSION else ()
@@ -579,13 +591,13 @@ def _check_coverage(
     for key, n in sorted(got.items()):
         if n > 1:
             report.errors.append(
-                f"cell submitted {n} times: {key[0]} [{key[1]}] "
+                f"cell submitted {n} times: {_cell_text(key[0], key[1])} "
                 f"seed={report.seed_label(key[2])}"
             )
     extra = sorted(set(got) - expected)
     for key in extra[:_MAX_LISTED]:
         report.errors.append(
-            f"not a {report.suite} cell ({report.seed_set} seeds): {key[0]} [{key[1]}] "
+            f"not a {report.suite} cell ({report.seed_set} seeds): {_cell_text(key[0], key[1])} "
             f"seed={report.seed_label(key[2])}"
         )
     if len(extra) > _MAX_LISTED:

@@ -889,3 +889,42 @@ def test_build_never_writes_nan(tmp_path):
 
     with pytest.raises(ValueError):
         write({"x": float("nan")}, tmp_path / "lb.json")
+
+
+# --- untrusted strings in output -----------------------------------------------------
+
+
+HOSTILE = "x\n::error title=pwned::owned\n```\n<img src=x onerror=alert(1)>"
+
+
+def test_record_strings_are_printed_as_repr(bundle, capsys):
+    """A task name or variation is record data: printed raw it could start a
+    line with a workflow command (``::error::``) or break a markdown fence."""
+    from open_apps.leaderboard.validate import main
+
+    lines = _lines(bundle)
+    lines[0]["identity"]["task_name"] = HOSTILE
+    lines[1]["identity"]["variation"] = [HOSTILE]
+    lines[2]["identity"]["task_config"][HOSTILE] = 1
+    _rewrite(bundle, lines)
+    main([str(bundle), "--suite", str(TINY_SUITE)])
+    out = capsys.readouterr().out
+    assert repr(HOSTILE) in out or repr(HOSTILE).strip("'") in out
+    for line in out.splitlines():
+        # No line a runner or a markdown renderer would act on.
+        assert not line.lstrip().startswith(("::", "```", "<")), line
+
+
+def test_comment_fences_outlast_backticks_in_the_output():
+    from pathlib import Path
+
+    from open_apps.leaderboard.build import comment_markdown
+    from open_apps.leaderboard.validate import BundleReport
+
+    report = BundleReport(path=Path("x__y__tiny_v1"), errors=["a ```` b"])
+    md = comment_markdown({"suites": {}}, [report], [report.path])
+    fence = next(
+        line for line in md.splitlines() if set(line) == {"`"} and len(line) >= 3
+    )
+    assert len(fence) >= 5
+    assert md.count("\n" + fence + "\n") + md.endswith(fence + "\n</details>\n") >= 1

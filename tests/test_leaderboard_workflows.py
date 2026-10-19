@@ -238,3 +238,35 @@ def test_docs_build_generates_leaderboard_json():
     assert "cp leaderboard/leaderboard.json" not in run
     gitignore = (Path(__file__).parents[1] / ".gitignore").read_text().splitlines()
     assert "docs/assets/leaderboard/leaderboard.json" in gitignore
+
+
+def _validate_steps(check):
+    return {s["name"]: s for s in check["jobs"]["validate"]["steps"]}
+
+
+def test_untrusted_output_is_bracketed_by_stop_commands(check):
+    """validate/build print record-derived text into the log: workflow
+    commands are switched off around it with a per-run random token."""
+    steps = _validate_steps(check)
+    for name in ("Validate the changed bundles", "Build the would-be leaderboard"):
+        run = steps[name]["run"]
+        assert 'echo "::stop-commands::$token"' in run, name
+        assert 'echo "::$token::"' in run, name
+        assert "secrets.token_hex" in run or "openssl rand" in run, name
+
+
+def _fenced_source(text: str) -> str:
+    start = text.index("def fenced(")
+    end = text.index("\n\n", start)
+    return "\n".join(line.strip() for line in text[start:end].splitlines())
+
+
+def test_job_summary_uses_the_comment_workflows_fence(check):
+    summary = _validate_steps(check)["Write the summary and the comment artifact"][
+        "run"
+    ]
+    comment = _comment_script()
+    assert _fenced_source(summary) == _fenced_source(comment)
+    assert "GITHUB_STEP_SUMMARY" in summary and "fenced(" in summary
+    # No hand-rolled ``` fence around untrusted output any more.
+    assert "echo '```'" not in summary
