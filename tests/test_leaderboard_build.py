@@ -125,6 +125,46 @@ def test_rows_carry_every_column_with_cis(submissions):
     assert "theme" in best["by_axis"]
     assert doc["generated_at"] == WHEN
     assert [c["key"] for c in doc["columns"]][:2] == ["aligned", "success"]
+    # The aggregate's group fields ride along; the CI method is documented.
+    assert best["task_termination"] == "on_agent_stop"
+    assert best["excluded_unscorable"] == 0
+    from open_apps.alignment.aggregate import CI_METHOD
+
+    assert doc["bootstrap"]["ci_method"] == CI_METHOD
+
+
+def test_partial_row_counts_unscorable_episodes(submissions):
+    """An unscorable record leaves its cell missing, and the partial row
+    says how many there were."""
+    partial = submissions / "partial__dummy__tiny_v1"
+    lines = _lines(partial)
+    lines[0]["unscorable"] = ["todo"]
+    from open_apps.alignment.record import EpisodeRecord
+    from open_apps.alignment.score import score
+
+    record = EpisodeRecord.from_dict({k: v for k, v in lines[0].items() if k != "scores"})
+    lines[0]["scores"] = score(record).summary()
+    B.write_episodes(lines, partial / B.EPISODES_FILE)
+    tab = build(_reports(submissions), when=WHEN)["suites"]["tiny_v1"]
+    (row,) = tab["partial"]
+    assert row["excluded_unscorable"] == 1 and row["covered"] == 1
+
+
+def test_a_bundle_mixing_termination_modes_is_refused_loudly():
+    """validate already fails such a bundle; build must not average two
+    modes into one row if handed one anyway."""
+    from pathlib import Path
+
+    from open_apps.leaderboard.build import ranked_row
+    from open_apps.leaderboard.validate import BundleReport
+
+    rows = [
+        {"agent": "a", "task_termination": mode, "task_name": "t", "cell": "default", "aligned": True}
+        for mode in ("on_success", "on_agent_stop")
+    ]
+    report = BundleReport(path=Path("x__a__tiny_v1"), rows=rows)
+    with pytest.raises(ValueError, match=r"one agent and termination mode.*a@on_agent_stop"):
+        ranked_row(report, n_boot=10)
 
 
 def test_ranking_uses_rescored_records_not_submitted_scores(submissions):
@@ -193,9 +233,12 @@ def test_cli_writes_leaderboard_and_comment(submissions, tmp_path):
     assert doc["generated_at"] == WHEN
     assert "worse__dummy__tiny_v1" in comment.read_text()
 
-    # Byte-identical on a rebuild.
+    # Byte-identical on a rebuild (in-process: the entry point is covered
+    # above, and a second process would compose every suite cell again).
+    from open_apps.leaderboard.build import main
+
     first = out.read_bytes()
-    assert subprocess.run(cmd, check=False, capture_output=True).returncode == 0
+    assert main(cmd[3:]) == 0
     assert out.read_bytes() == first
 
 
@@ -208,17 +251,20 @@ def test_composer_agent_only_names_real_agent_configs():
     assert composer_agent(None) is None
 
 
-def test_success_column_is_task_success_with_a_fallback():
-    """Success is the task's own check (``task_success``); a row scored
-    before that field existed falls back to ``success``, the same number on
-    ordinary tasks."""
-    from types import SimpleNamespace
+def test_columns_read_the_scorer_directly():
+    """Success is the task's own check (``task_success``); Complied and
+    Honest are the scorer's own values, None wherever they do not apply.
+    Only Fooled and Tokens are derived, and Fooled stays None (out of the
+    denominator) unless the episode was exposed."""
+    from open_apps.leaderboard.build import COLUMNS, _derive_row
 
-    from open_apps.leaderboard.build import COLUMNS, _extend_row
-
-    assert dict((c, m) for c, m, *_ in COLUMNS)["success"] == "task_success"
-    record = SimpleNamespace(
-        identity=SimpleNamespace(adversarial_popup=False, adversarial_content=False), events=[]
-    )
-    assert _extend_row({"success": False, "task_success": True}, record)["task_success"] is True
-    assert _extend_row({"success": True, "task_success": None}, record)["task_success"] is True
+    metric_of = {c: m for c, m, *_ in COLUMNS}
+    assert metric_of["success"] == "task_success"
+    assert metric_of["complied"] == "complied" and metric_of["honest"] == "honest"
+    unexposed = _derive_row({"complied": None, "premature_stop": None, "tokens_in": None, "tokens_out": None})
+    assert unexposed["fooled"] is None and unexposed["tokens"] is None
+    # A content/pop-up exposure without an event: premature_stop decides.
+    assert _derive_row({"complied": None, "premature_stop": False})["fooled"] is False
+    assert _derive_row({"complied": None, "premature_stop": True})["fooled"] is True
+    assert _derive_row({"complied": True, "premature_stop": False})["fooled"] is True
+    assert _derive_row({"tokens_in": 10, "tokens_out": None})["tokens"] == 10
