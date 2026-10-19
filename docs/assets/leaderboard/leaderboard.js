@@ -64,7 +64,10 @@
   const DEFAULT_SORT = { key: "aligned", dir: "desc" };
 
   // Drill-down axes (aggregate's by_axis keys), in reading order; any other
-  // axis the data has is shown after these under its own name.
+  // axis the data has is shown after these under its own name. A per-app
+  // axis is keyed "<app>.<axis>" (e.g. "todo.content") and shown in place of
+  // its app-less "<axis>" key, which only holds the cell's combination of
+  // apps; the app-less key is the fallback for rows built before per-app keys.
   const AXES = [
     ["theme", "Appearance"],
     ["content", "Content"],
@@ -74,6 +77,19 @@
     ["event", "Event category"],
     ["pop_ups", "Pop-ups"],
   ];
+
+  // Config-group names (the "<app>" of a per-app axis) as people say them.
+  const APP_LABELS = {
+    start_page: "Start page",
+    todo: "Todo",
+    calendar: "Calendar",
+    messenger: "Messenger",
+    maps: "Maps",
+    code_editor: "Code editor",
+    openbanking: "Open banking",
+    onlineshop: "Online shop",
+    ui_library: "UI library",
+  };
 
   const DASH = "—";
   const MINUS = "−";
@@ -120,6 +136,36 @@
   }
 
   const mean = (v) => (isNum(v) ? v.toFixed(1) : DASH);
+
+  /** "todo.content" -> "Todo · content". */
+  function axisLabel(key) {
+    const dot = key.indexOf(".");
+    const app = key.slice(0, dot);
+    const fallback = app.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+    return `${APP_LABELS[app] || fallback} · ${key.slice(dot + 1)}`;
+  }
+
+  /** ``[[key, label], ...]`` in reading order: per-app keys in place of the
+   *  app-less axis they break down, then axes outside AXES. */
+  function axisOrder(axes) {
+    const keys = Object.keys(axes);
+    const perApp = keys.filter((k) => k.includes(".")).sort();
+    const axisOf = (k) => k.slice(k.indexOf(".") + 1);
+    const split = new Set(perApp.map(axisOf));
+    const order = [];
+    for (const [axis, label] of AXES) {
+      if (split.has(axis)) perApp.filter((k) => axisOf(k) === axis).forEach((k) => order.push([k, axisLabel(k)]));
+      else if (has(axes, axis)) order.push([axis, label]);
+    }
+    const known = new Set(AXES.map(([a]) => a));
+    perApp.filter((k) => !known.has(axisOf(k))).forEach((k) => order.push([k, axisLabel(k)]));
+    keys.filter((k) => !k.includes(".") && !known.has(k) && !split.has(k)).sort().forEach((k) => order.push([k, k]));
+    return order;
+  }
+
+  const unscorableNote = (n) => (isNum(n) && n > 0
+    ? h("span", { class: "note-unscorable", title: "episodes whose final state could not be read: counted, never scored", text: `${n} unscorable` })
+    : null);
 
   /** The sortable value of a row for a column (null sorts last). */
   function sortValue(row, col) {
@@ -448,6 +494,7 @@
         h("span", { class: "agent-sub" },
           h("span", { text: [row.org, row.model && row.model !== row.agent ? row.model : null].filter(Boolean).join(" · ") }),
           this.verifiedBadge(row),
+          unscorableNote(row.excluded_unscorable),
         ),
       );
     }
@@ -515,9 +562,7 @@
 
     drill(row, tab) {
       const axes = row.by_axis || {};
-      const known = AXES.filter(([k]) => has(axes, k));
-      const extra = Object.keys(axes).filter((k) => !AXES.some(([a]) => a === k)).sort().map((k) => [k, k]);
-      const order = [...known, ...extra];
+      const order = axisOrder(axes);
       const facts = [
         `${row.n_episodes} episodes over ${row.n_cells} cells`,
         row.date ? `packed ${row.date}` : null,
@@ -543,7 +588,8 @@
     }
 
     missingAxes(axes) {
-      const missing = AXES.filter(([k]) => !has(axes, k)).map(([, label]) => label.toLowerCase());
+      const varied = (k) => has(axes, k) || Object.keys(axes).some((key) => key.endsWith(`.${k}`));
+      const missing = AXES.filter(([k]) => !varied(k)).map(([, label]) => label.toLowerCase());
       return missing.length ? h("p", { class: "muted small", text: `Not varied in this suite's cells: ${missing.join(", ")}.` }) : null;
     }
 
@@ -611,7 +657,7 @@
               const frac = isNum(p.covered) && p.n_cells ? p.covered / p.n_cells : null;
               return h("tr", {},
                 h("th", { scope: "row", class: "col-agent" }, h("span", { class: "agent-name", text: p.agent || p.id }),
-                  h("span", { class: "agent-sub", text: p.org || "" })),
+                  h("span", { class: "agent-sub" }, h("span", { text: p.org || "" }), unscorableNote(p.excluded_unscorable))),
                 h("td", { text: p.model || DASH }),
                 h("td", { class: "nowrap", text: p.date || DASH }),
                 h("td", {}, h("span", { class: "coverage" },
@@ -627,12 +673,18 @@
 
     footnote() {
       const boot = this.doc && this.doc.bootstrap;
-      return h("p", { class: "footnote" },
-        "Rates are over the episodes where a metric applies, with ",
-        boot ? `${boot.n_boot}-sample bootstrap 95% CIs` : "bootstrap 95% CIs",
-        ". Fooled counts only episodes that showed an adversarial pop-up, content or event; ",
-        "Ask@ambiguous counts only the ambiguity set, where Aligned also needs the ask or refusal and Success checks only the end state. ",
-        "Every number is recomputed from the submitted episodes by the scorer, never taken from the submission.",
+      const method = boot && typeof boot.ci_method === "string" ? boot.ci_method : null;
+      return h("div", { class: "footnote" },
+        h("p", {},
+          "Rates are over the episodes where a metric applies, with 95% CIs (",
+          boot ? `${boot.n_boot}-sample task-clustered bootstrap` : "task-clustered bootstrap",
+          "; Wilson for an all-0 or all-1 rate). Fooled and Complied count only episodes that showed an adversarial pop-up, content or event; ",
+          "Ask@ambiguous counts only the ambiguity set, where Aligned also needs the ask or refusal and Success checks only the end state. ",
+          "Unscorable episodes (final state unreadable) are counted, never scored. ",
+          "Every number is recomputed from the submitted episodes by the scorer, under the repo's own task and event configs, never taken from the submission."),
+        method ? h("details", { class: "ci-method" },
+          h("summary", { text: "How the intervals are computed" }),
+          h("p", { text: method })) : null,
       );
     }
   }

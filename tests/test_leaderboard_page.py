@@ -104,7 +104,29 @@ def _populated(root: Path) -> dict:
     meta["n_episodes"] = 2
     (partial / B.META_FILE).write_text(yaml.safe_dump(meta, sort_keys=False))
     reports = [validate_bundle(p, TINY_SUITE) for p in B.find_bundles([root])]
-    return build(reports, when=WHEN)
+    return _with_per_app_axes(build(reports, when=WHEN))
+
+
+def _with_per_app_axes(doc: dict) -> dict:
+    """The tiny suite only varies the theme, so give the worse row the
+    breakdown a content cell produces (``aggregate.axes_from_variation``):
+    per-app ``<app>.content`` keys plus the app-less combination, and the
+    partial row an unscorable episode."""
+
+    def cell(aligned, success):
+        return {"aligned": {"n": 1, "rate": aligned}, "success": {"n": 1, "rate": success}}
+
+    tab = doc["suites"]["tiny_v1"]
+    worse = next(r for r in tab["rows"] if r["id"] == "worse__dummy__tiny_v1")
+    worse["by_axis"].update(
+        {
+            "todo.content": {"german": cell(0.0, 1.0)},
+            "calendar.content": {"german": cell(1.0, 1.0)},
+            "content": {"calendar:german+todo:german": cell(0.5, 1.0)},
+        }
+    )
+    tab["partial"][0]["excluded_unscorable"] = 1
+    return doc
 
 
 @pytest.fixture(scope="module")
@@ -340,6 +362,32 @@ def test_drilldown_and_reproduce_href(page, site):
     assert "open=example__dummy__tiny_v1" in page.evaluate("location.hash")
 
 
+def test_drilldown_prefers_per_app_axes(page):
+    page.goto_board()
+    row(page, "dummy").nth(1).locator("button.expand").click()
+    detail = page.locator(f"{EL} tr.detail")
+    names = detail.locator(".axis-name").all_inner_texts()
+    # In reading order: appearance, then the per-app content keys in place
+    # of the app-less combination (which is not shown at all).
+    assert names == ["Appearance", "Calendar · content", "Todo · content"]
+    assert "calendar:german+todo:german" not in detail.inner_text()
+    not_varied = detail.locator(".axes .muted.small").inner_text()
+    assert "Not varied" in not_varied and "content" not in not_varied
+
+
+def test_unscorable_and_ci_method_are_surfaced(page, site):
+    page.goto_board()
+    partial = page.locator(f"{EL} .partial")
+    assert "1 unscorable" in partial.inner_text()
+    # A complete bundle never has one (an unscorable record covers no cell).
+    assert page.locator(f"{EL} table.board:not(.partial-table) .note-unscorable").count() == 0
+    footnote = page.locator(f"{EL} .footnote")
+    assert "task-clustered bootstrap" in footnote.inner_text()
+    method = footnote.locator("details.ci-method")
+    method.locator("summary").click()
+    assert site["full"]["bootstrap"]["ci_method"] in method.inner_text()
+
+
 def test_reproduce_without_a_known_agent_config(page, site):
     page.goto_board()
     row(page, "twin-agent").locator("button.expand").click()
@@ -401,5 +449,8 @@ def test_screenshots(page):
         page.evaluate("document.documentElement.classList.add('dark')")
         page.wait_for_function(f"document.querySelector('{EL}').dataset.scheme === 'dark'")
         page.locator(EL).screenshot(path=str(out / f"populated-{label}-dark.png"))
+        page.evaluate("document.documentElement.classList.remove('dark')")
+        page.goto_board("full", "#open=worse__dummy__tiny_v1")
+        page.locator(EL).screenshot(path=str(out / f"per-app-axes-{label}.png"))
         page.goto_board("empty")
         page.locator(EL).screenshot(path=str(out / f"empty-{label}.png"))

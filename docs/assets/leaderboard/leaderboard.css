@@ -767,6 +767,29 @@ th[aria-sort] .arrow {
   color: var(--muted);
 }
 
+.footnote p {
+  margin: 0;
+}
+
+.ci-method {
+  margin-top: 8px;
+}
+
+.ci-method summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.ci-method p {
+  margin-top: 6px;
+}
+
+.note-unscorable {
+  padding: 0 5px;
+  border: 1px dashed var(--line-soft);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
