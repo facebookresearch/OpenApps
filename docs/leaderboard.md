@@ -229,8 +229,12 @@ The verified tier re-runs a merged submission's `agent.yaml` on held-out seeds. 
 seeds are private: they are never committed, printed or published, because a public held-out
 seed is just another public seed. The tooling reads them from the file named by
 `$OPENAPPS_HELDOUT_SEEDS` (YAML, `{seeds: [...], salt: ...}`; the format is in
-`config/benchmark/heldout_seeds.example.yaml`) or from a gitignored local copy, as the sweep
-does, and fails with a clear error if neither exists.
+`leaderboard/heldout_seeds.example.yaml`) or from the gitignored local copy
+`leaderboard/internal-heldout_seeds.yaml`, as the sweep does, and fails with a clear error if
+neither exists. Copy the example there and replace its placeholder seeds and salt. The seeds
+file deliberately lives outside `config/benchmark/`, where Hydra would list it as a suite; a
+copy at the old `config/benchmark/internal-heldout_seeds.yaml` is still read for one release,
+with a warning to move it.
 
 ```bash
 uv run -m open_apps.leaderboard.verify plan leaderboard/submissions/<org>__<agent>__align_v1

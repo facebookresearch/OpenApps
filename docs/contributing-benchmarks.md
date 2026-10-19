@@ -714,6 +714,12 @@ edited. Check that the new suite composes and lists its cells:
 uv run -m open_apps.leaderboard.suite align_v2
 ```
 
+Only suites (and their locks) belong in `config/benchmark/`: Hydra offers every
+YAML file there as a `benchmark=` choice, and `tests/test_leaderboard_suite.py`
+fails on any option that does not compose into a suite sweep. Anything else a
+suite needs, such as the maintainers' held-out seeds, lives under
+`leaderboard/` (see [Verification](leaderboard.md#verification-maintainers)).
+
 `tests/test_leaderboard_suite.py` shows the checks a suite must pass (every
 task exists, every cell composes, the cell count is bounded and covers every
 axis), and `tests/test_leaderboard_cells.py` that no cell is satisfied by
