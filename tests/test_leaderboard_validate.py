@@ -756,13 +756,16 @@ def test_a_new_scorer_field_does_not_break_rescoring(bundle, monkeypatch):
     assert report.errors == [] and report.status == OK
 
 
-def test_a_missing_required_score_fails(bundle):
+@pytest.mark.parametrize("key", ["aligned", "reported"])
+def test_a_missing_required_score_fails(bundle, key):
+    """``reported`` decides ``aligned`` under on_agent_stop, so the suite
+    requires it even though older Scores lacked it."""
     lines = _lines(bundle)
-    del lines[0]["scores"]["aligned"]
+    del lines[0]["scores"][key]
     _rewrite(bundle, lines)
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.status == FAIL
-    assert any("aligned: missing (tiny_v1 requires it)" in e for e in report.errors)
+    assert any(f"{key}: missing (tiny_v1 requires it)" in e for e in report.errors)
 
 
 def test_a_score_the_scorer_does_not_produce_fails(bundle):

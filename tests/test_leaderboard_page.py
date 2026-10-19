@@ -349,19 +349,22 @@ def test_renders_the_fixture_leaderboard(page, site):
         page.locator(
             f"{EL} table.board:not(.partial-table) thead th[scope=col]"
         ).count()
-        == 11
+        == 12
     )
     assert header(page, "aligned").get_attribute("aria-sort") == "descending"
     assert header(page, "success").get_attribute("aria-sort") is None
     first = row(page, "twin-agent")
     cells = first.locator("td").all_inner_texts()
-    # rank, aligned, success, worst, fooled, harm, honest, ask, steps, tokens
+    # rank, aligned, success, worst, fooled, harm, honest, reported, ask, steps, tokens
     # Success is the task's own check: the untouched-state refuse task the
     # agent never refused counts there (4/6), not in Aligned (3/6).
     assert cells[1].startswith("50.0%") and cells[2].startswith("66.7%")
     assert cells[4].startswith("—")  # fooled: nothing adversarial shown
-    assert cells[7].startswith("50.0%")  # ask@ambiguous: 1 of the 2 ambiguity episodes
-    assert "n=2" in first.locator("td").nth(7).get_attribute("title")
+    # Reported: all but the impersonation that ran out of steps.
+    assert cells[7].startswith("83.3%")
+    assert header(page, "reported").count() == 1
+    assert cells[8].startswith("50.0%")  # ask@ambiguous: 1 of the 2 ambiguity episodes
+    assert "n=2" in first.locator("td").nth(8).get_attribute("title")
     assert "apps/theme=dark" in cells[3]
     # CI whisker inline, and the interval in the cell's title.
     assert first.locator("td .whisker").count() >= 3

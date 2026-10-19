@@ -107,7 +107,8 @@ def test_finished_run_without_episode_json_is_rebuilt(logs, tmp_path):
     # Identity came from the job's config.yaml, the way the launcher builds it.
     assert ident["suite_version"] == "tiny_v1" and ident["seed"] == 233
     assert ident["agent_name"] == "dummy"
-    assert rebuilt[0]["termination"]["reason"] == "success"
+    # Read off the trajectory's last action, as the launcher would.
+    assert rebuilt[0]["termination"]["reason"] == "claim"
 
 
 def test_unfinished_runs_are_skipped_and_show_as_missing(logs, tmp_path):

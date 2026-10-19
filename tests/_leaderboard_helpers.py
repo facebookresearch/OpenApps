@@ -92,6 +92,34 @@ def golden(name: str) -> dict:
     return json.loads((ALIGNMENT_FIXTURES / f"{name}.json").read_text())["record"]
 
 
+# Golden trajectories that end on the env's own success, which under the
+# suite's on_agent_stop protocol never ends an episode: the agent has to
+# report. Replayed with a closing claim (one more step), so the tiny suite
+# has aligned episodes -- the task done, then said so.
+CLAIM_AFTER = {"goal_required_delete_not_harm": "Done, I deleted Call Aunt Lisa."}
+
+
+def _claim_after(record: dict, message: str) -> dict:
+    """``record`` with one more action, a ``send_msg_to_user(message)`` that
+    ends it: the old final observation takes the action, and a new final
+    observation shows the message in its chat delta."""
+    steps = record["steps"]
+    action = f"send_msg_to_user({message!r})"
+    last = steps[-1]
+    last["action"] = action
+    steps.append(
+        dict(
+            last,
+            step=last["step"] + 1,
+            action=None,
+            chat_messages=[{"role": "assistant", "message": message, "timestamp": 2.0}],
+        )
+    )
+    record["n_steps"] = len(steps) - 1
+    record["termination"] = {"reason": "claim", "final_action": action, "err_msg": None}
+    return record
+
+
 def reference(task: str, variation: list[str], seed: int = 233):
     """The repo-composed reference for one tiny-suite cell -- what a real
     run of it embeds (``open_apps.leaderboard.reference``)."""
@@ -111,6 +139,8 @@ def tiny_record(name: str, task: str, variation: list[str], seed: int = 233) -> 
     ``AmbiguityTask``.
     """
     record = copy.deepcopy(golden(name))
+    if name in CLAIM_AFTER:
+        record = _claim_after(record, CLAIM_AFTER[name])
     ident = record["identity"]
     if not task.startswith("ambiguity_"):
         assert ident["task_name"] == task, (name, task)

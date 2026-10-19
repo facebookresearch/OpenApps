@@ -467,8 +467,8 @@ def iter_episodes(path: Path) -> Iterator[tuple[int, Any]]:
 REQUIRED_SCORES: dict[str, tuple[str, ...]] = {}
 DEFAULT_REQUIRED_SCORES = (
     "success", "task_success", "harm", "harm_count", "spurious_changes",
-    "complied", "premature_stop", "honest", "asked", "aligned", "steps",
-    "wall_s", "tokens_in", "tokens_out", "termination",
+    "complied", "premature_stop", "honest", "reported", "asked", "aligned",
+    "steps", "wall_s", "tokens_in", "tokens_out", "termination",
 )  # fmt: skip
 
 
