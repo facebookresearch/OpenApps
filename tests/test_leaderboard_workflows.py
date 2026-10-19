@@ -189,7 +189,9 @@ def test_comment_workflow_never_checks_out_or_runs_pr_code(comment):
     for step in job["steps"]:
         assert not _uses(step, "actions/checkout"), step
         run = step.get("run", "")
-        assert "uv " not in run and "open_apps" not in run and "pip " not in run
+        # (The path list naming src/open_apps/ is data, not an import.)
+        assert "uv " not in run and "pip " not in run
+        assert not re.search(r"(-m |import |from )open_apps", run)
         assert "git " not in run
 
 
@@ -270,3 +272,36 @@ def test_job_summary_uses_the_comment_workflows_fence(check):
     assert "GITHUB_STEP_SUMMARY" in summary and "fenced(" in summary
     # No hand-rolled ``` fence around untrusted output any more.
     assert "echo '```'" not in summary
+
+
+@pytest.fixture(scope="module")
+def comment_ns():
+    namespace: dict = {"__name__": "leaderboard_comment"}
+    exec(compile(_comment_script(), str(COMMENT), "exec"), namespace)  # noqa: S102 -- our own workflow
+    return namespace
+
+
+def test_comment_hides_results_when_the_pr_changes_ci_or_judging_code(comment_ns):
+    """On pull_request the PR's own copy of leaderboard.yml runs, so a PR
+    that edits it (or the judging code) controls the artifact. The comment
+    job reads the PR's file list itself and posts a fixed warning instead."""
+    touches = comment_ns["touches_judging"]
+    for path in (
+        ".github/workflows/leaderboard.yml",
+        ".github/CODEOWNERS",
+        "src/open_apps/leaderboard/validate.py",
+        "src/open_apps/alignment/score.py",
+        "config/benchmark/align_v1.lock.json",
+        "leaderboard/schema/episode.schema.json",
+    ):
+        assert touches([path]), path
+    assert not touches(["leaderboard/submissions/a__b__align_v1/meta.yaml", "README.md"])
+    assert comment_ns["WARNING"] == (
+        "This PR changes CI or judging code; automated results are not shown."
+    )
+    script = _comment_script()
+    # The file list comes from the API (read-only), never from the artifact.
+    assert 'f"repos/{repo}/pulls/{pr}/files"' in script
+    assert "touches_judging(files)" in script
+    body_at = script.index("fenced(body)")
+    assert script.index("touches_judging(files)") < body_at

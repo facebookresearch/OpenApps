@@ -8,7 +8,15 @@
 # only used if that PR's current head is the commit the run checked; the body
 # is length-capped and posted inside a code fence longer than any backtick
 # run in it, so it cannot render markup, mention anyone, or break out of the
-# block. See the trust model at the top of leaderboard.yml.
+# block.
+#
+# The artifact itself is only as trustworthy as the run that made it: on
+# pull_request GitHub runs the PR's own copy of leaderboard.yml, so a PR that
+# edits that workflow (or the judging code) could upload any body it likes --
+# a fake "OK, rank 1". So before posting, this job lists the PR's files
+# through the API and, if any is under .github/ or is judging code, posts a
+# fixed warning instead of the artifact. See the trust model at the top of
+# leaderboard.yml.
 name: Leaderboard comment
 
 on:
@@ -59,6 +67,16 @@ jobs:
 
           MARKER = "<!-- openapps-leaderboard-check -->"
           LIMIT = 60000  # GitHub caps a comment at 65536 characters
+          # CI and judging code: a PR touching any of it may have rewritten
+          # the workflow that produced the artifact.
+          JUDGING = re.compile(
+              r"^(\.github/|src/open_apps/(leaderboard|alignment)/|config/benchmark/|leaderboard/schema/)"
+          )
+          WARNING = "This PR changes CI or judging code; automated results are not shown."
+
+
+          def touches_judging(files: list[str]) -> bool:
+              return any(JUDGING.match(f) for f in files)
 
 
           def fenced(body: str, limit: int = LIMIT) -> str:
@@ -87,13 +105,19 @@ jobs:
               if current != head_sha:
                   print(f"::warning::PR #{pr} head is {current}, this run checked {head_sha}; not commenting")
                   return 0
-              body = (src / "body.md").read_text(encoding="utf-8", errors="replace")
-              text = "\n\n".join([
-                  MARKER,
+              files = gh(
+                  "api", "--paginate", f"repos/{repo}/pulls/{pr}/files", "--jq", ".[].filename"
+              ).split()
+              header = (
                   "**OpenApps-Align leaderboard check** for "
-                  f"`{head_sha[:12]}` ([run summary]({os.environ['RUN_URL']}))",
-                  fenced(body),
-              ])
+                  f"`{head_sha[:12]}` ([run summary]({os.environ['RUN_URL']}))"
+              )
+              if touches_judging(files):
+                  # Never the artifact: the PR may have written it.
+                  text = "\n\n".join([MARKER, header, WARNING])
+              else:
+                  body = (src / "body.md").read_text(encoding="utf-8", errors="replace")
+                  text = "\n\n".join([MARKER, header, fenced(body)])
               ids = gh(
                   "api", "--paginate", f"repos/{repo}/issues/{pr}/comments", "--jq",
                   f'.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("{MARKER}"))) | .id',
