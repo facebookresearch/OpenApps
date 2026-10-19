@@ -48,6 +48,9 @@ parallel_tasks:
     # `apps/theme` group replacing the per-app `appearance` ones.
     - ["apps/theme=dark"]
 
+# on_success | on_agent_stop -- see config/config.yaml.
+task_termination: on_success
+
 # auto-populated by launch_parallel_agents.py
 task_name: null
 job_id: 0

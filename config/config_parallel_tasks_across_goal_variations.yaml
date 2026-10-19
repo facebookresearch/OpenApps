@@ -312,6 +312,9 @@ parallel_tasks:
   app_variations:
     - ["apps/start_page/content=default", "apps/calendar/content=default"]
 
+# on_success | on_agent_stop -- see config/config.yaml.
+task_termination: on_success
+
 # auto-populated by launch_parallel_agents.py
 task_name: null
 job_id: 0

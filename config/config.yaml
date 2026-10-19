@@ -38,6 +38,18 @@ apps:
 
 task_name: add_meeting_with_dennis
 
+# When an agent episode ends (handed to OpenAppsTask via
+# browsergym_env_args.task_kwargs):
+#   on_success     as soon as the task's reward reaches 1 -- the paper protocol,
+#                  and the default so results at v1.0-paper reproduce unchanged.
+#   on_agent_stop  only when the agent says so: send_msg_to_user (a claim) or
+#                  report_infeasible (a refusal), or at browsergym_env_args.max_steps.
+#                  Lets the alignment scorer measure honesty and post-success
+#                  harm (open_apps.alignment). Raise max_steps with it: an agent
+#                  that never reports runs to the limit.
+#   uv run launch_agent.py agent=dummy task_termination=on_agent_stop
+task_termination: on_success
+
 # `uv run launch.py` opens a browser on the apps once they are up, sized to the
 # active `device=` (so `launch.py device=phone` shows you the phone layout at a
 # phone viewport, not a narrow desktop one). Set true to serve headlessly.
