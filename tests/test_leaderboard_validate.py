@@ -928,3 +928,30 @@ def test_comment_fences_outlast_backticks_in_the_output():
     )
     assert len(fence) >= 5
     assert md.count("\n" + fence + "\n") + md.endswith(fence + "\n</details>\n") >= 1
+
+
+# --- meta.model against agent.yaml ---------------------------------------------------
+
+
+def test_meta_model_must_name_the_agent_configs_model(bundle):
+    _edit_meta(bundle, model="gpt-9-ultra")
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any(
+        "meta.yaml model 'gpt-9-ultra'" in e and "model_name" in e and "'dummy'" in e
+        for e in report.errors
+    ), report.errors
+
+
+def test_meta_model_may_be_the_pretty_name(bundle):
+    agent = yaml.safe_load((bundle / B.AGENT_FILE).read_text())
+    agent["model_pretty_name"] = "Dummy 1.0"
+    (bundle / B.AGENT_FILE).write_text(yaml.safe_dump(agent))
+    agent_hash = B.normalized_agent_hash(agent)
+    _edit_meta(bundle, model="Dummy 1.0", agent_config_hash=agent_hash)
+    lines = _lines(bundle)
+    for line in lines:  # what a re-pack stamps on every record
+        line["identity"]["agent_config_hash"] = agent_hash
+    _rewrite(bundle, lines)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.errors == [] and report.status == OK

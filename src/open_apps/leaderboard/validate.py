@@ -263,11 +263,34 @@ def _check_agent(path: Path, report: BundleReport) -> None:
         report.errors.append(
             f"{B.AGENT_FILE} hashes to {got}, meta says {want} (edited after packing?)"
         )
+    if report.kind == SUBMISSION:
+        _check_model(agent_cfg, report)
     _, leaked = B.redact(agent_cfg)
     if leaked:
         report.errors.append(
             f"{B.AGENT_FILE} has unredacted secret-looking values at {leaked}; "
             "re-pack, or replace them with <redacted>"
+        )
+
+
+#: agent.yaml keys meta.yaml's ``model`` may name (what pack fills it from).
+MODEL_KEYS = ("model_name", "model_pretty_name")
+
+
+def _check_model(agent_cfg: dict, report: BundleReport) -> None:
+    """``meta.model`` is the column a reader compares agents by, so it must
+    be the model the agent config ran, not free text: one of agent.yaml's
+    ``model_name`` / ``model_pretty_name`` (the agent slug only when the
+    config names neither, as pack then falls back to it)."""
+    allowed = [str(agent_cfg[k]) for k in MODEL_KEYS if agent_cfg.get(k)]
+    if not allowed:
+        allowed = [str(report.meta.get("agent"))]
+    model = report.meta.get("model")
+    if model not in allowed:
+        report.errors.append(
+            f"{B.META_FILE} model {model!r} is not the agent config's "
+            f"{' or '.join(MODEL_KEYS)} ({', '.join(map(repr, allowed))}); "
+            "set it to one of those (pack does)"
         )
 
 
