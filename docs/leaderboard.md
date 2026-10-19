@@ -98,8 +98,8 @@ This writes `leaderboard/submissions/<org>__<agent>__align_v1/`:
 | File | What it is |
 | --- | --- |
 | `meta.yaml` | who, what, when: model, org, contact, date, agent config hash, `verified: false` |
-| `agent.yaml` | the agent config the runs used, with keys, tokens, hosts and endpoints redacted |
-| `episodes.jsonl.gz` | one episode record per suite cell, with the scores `pack` computed |
+| `agent.yaml` | the agent config the runs used, with keys, tokens, hosts, URLs, headers and anything secret-looking redacted (every value under such a key, list items included) |
+| `episodes.jsonl.gz` | one episode record per suite cell, with the scores `pack` computed; error messages and chat scrubbed of hosts, URLs and secrets, and each record's `agent_config_hash` set to the bundle's |
 
 `--wandb-report <https URL>` adds an optional public W&B report link, and `--compute-notes`
 a free-text note. Videos are linked, not committed: add `https://` links to `videos:` in

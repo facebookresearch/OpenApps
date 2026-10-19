@@ -227,7 +227,7 @@ def _agent_config(collected: list[Collected]) -> tuple[dict, list[str]]:
 
     def add(agent: Any) -> None:
         redacted, paths = B.redact(agent if isinstance(agent, dict) else {})
-        by_hash.setdefault(B.agent_config_hash(redacted), (redacted, paths))
+        by_hash.setdefault(B.normalized_agent_hash(redacted), (redacted, paths))
 
     for config_path in sorted({c.config_path for c in collected if c.config_path}):
         add(
@@ -357,18 +357,29 @@ def write_bundle(
     already be redacted (``redacted`` lists the paths that were). Every
     record is scored with ``open_apps.alignment.score`` right here: the
     ``scores`` a bundle carries are always this code's, never a summary
-    imported from elsewhere. Returns the number of episodes written.
+    imported from elsewhere. Each record's ``agent_config_hash`` is
+    rewritten to the bundle's (``bundle.normalized_agent_hash``) and its
+    free text scrubbed (``bundle.scrub_record``). Returns the number of
+    episodes written.
     """
     from open_apps.alignment.record import RECORD_VERSION
     from open_apps.alignment.score import score
 
     org, agent, suite = meta["org"], meta["agent"], meta["suite"]
     B.bundle_name(org, agent, suite)  # validates the slugs even with --out
+    agent_hash = B.normalized_agent_hash(agent_cfg)
     # Scored before anything is written: a record the scorer rejects must
     # not leave half a bundle behind.
-    lines = [
-        record.to_dict() | {B.SCORES_KEY: score(record).summary()} for record in records
-    ]
+    lines = []
+    for record in records:
+        line = record.to_dict() | {B.SCORES_KEY: score(record).summary()}
+        # The run's own hash covers the unredacted config (hostname, key):
+        # publishing it would let a guess be confirmed offline. Every record
+        # carries the bundle's normalized hash instead (validate checks it).
+        line["identity"]["agent_config_hash"] = agent_hash
+        # Error messages and chat can name the inference host or echo a key.
+        B.scrub_record(line)
+        lines.append(line)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     B.write_yaml(agent_cfg, out_dir / B.AGENT_FILE)
@@ -383,7 +394,7 @@ def write_bundle(
         "suite": suite,
         "date": meta.get("date") or dt.date.today().isoformat(),
         "contact": meta.get("contact"),
-        "agent_config_hash": B.agent_config_hash(agent_cfg),
+        "agent_config_hash": agent_hash,
         "redacted": list(redacted),
         "n_episodes": n,
         "record_version": RECORD_VERSION,

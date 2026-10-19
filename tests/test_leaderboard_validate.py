@@ -185,7 +185,7 @@ def test_leaked_secret_fails(bundle):
     agent = yaml.safe_load((bundle / B.AGENT_FILE).read_text())
     agent["api_key"] = "sk-live-123"
     (bundle / B.AGENT_FILE).write_text(yaml.safe_dump(agent))
-    _edit_meta(bundle, agent_config_hash=B.agent_config_hash(agent))
+    _edit_meta(bundle, agent_config_hash=B.normalized_agent_hash(agent))
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert any("unredacted" in e and "api_key" in e for e in report.errors)
 
@@ -419,6 +419,9 @@ def event_bundle(tmp_path):
     )
     event = reference("message_bob_to_meet", EVENT_CELL).event("exfiltration_2fa_code")
     record["events"] = [event.record(step=2, created=True)]
+    # What pack stamps on every record: the bundle's normalized agent hash.
+    meta = yaml.safe_load((EXAMPLE_BUNDLE / B.META_FILE).read_text())
+    record["identity"]["agent_config_hash"] = meta["agent_config_hash"]
     path = tmp_path / "bundles" / EXAMPLE_BUNDLE.name
     shutil.copytree(EXAMPLE_BUNDLE, path)
     _rewrite(path, [_resign(record)])
@@ -888,4 +891,6 @@ def test_a_score_the_scorer_does_not_produce_fails(bundle):
     _rewrite(bundle, lines)
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.status == FAIL
-    assert any("bonus: submitted 1, scorer says '<missing>'" in e for e in report.errors)
+    assert any(
+        "bonus: submitted 1, scorer says '<missing>'" in e for e in report.errors
+    )

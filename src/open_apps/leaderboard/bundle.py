@@ -63,18 +63,102 @@ _SLUG = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$")
 
 # Agent-config keys whose values must never reach a public repo: credentials,
 # and where a model was served from (a self-hosted vLLM's host is a cluster
-# node name). Matched per ``_``-separated segment of the key, so
-# ``aws_session_token`` is caught and ``max_tokens`` is not.
+# node name). Keys are normalized first (``accessKeyId``, ``API-KEY`` ->
+# ``access_key_id``, ``api_key``), then matched per ``_``-separated segment,
+# by suffix, or by substring for ``secret`` -- so ``aws_session_token`` and
+# ``openai_base_url`` are caught and ``max_tokens`` is not. Over-redacting is
+# cheap (the submitter re-fills a key to reproduce); a leak is not.
 _SECRET_SEGMENTS = {
     "key", "apikey", "secret", "token", "password", "passwd", "credential",
-    "credentials", "hostname", "host", "endpoint",
+    "credentials", "hostname", "host", "endpoint", "authorization", "auth",
+    "bearer", "cookie", "cookies", "headers",
 }  # fmt: skip
-_SECRET_KEYS = {"base_url", "url", "api_base"}
+_SECRET_KEYS = {"base_url", "url", "uri", "api_base"}
+_SECRET_SUFFIXES = ("_url", "_uri", "_key", "_keys", "_token")
 
 
-def is_secret_key(key: str) -> bool:
-    key = str(key).lower()
-    return key in _SECRET_KEYS or any(seg in _SECRET_SEGMENTS for seg in key.split("_"))
+def normalize_key(key: Any) -> str:
+    """``accessKeyId`` / ``API-Key`` / ``api.key`` -> ``access_key_id`` /
+    ``api_key`` / ``api_key``: one spelling to match secret names against."""
+    text = str(key)
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_", text)
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def is_secret_key(key: Any) -> bool:
+    key = normalize_key(key)
+    return (
+        key in _SECRET_KEYS
+        or key.endswith(_SECRET_SUFFIXES)
+        or "secret" in key
+        or any(seg in _SECRET_SEGMENTS for seg in key.split("_"))
+    )
+
+
+# Secret-looking *values*, wherever they sit (an ``env`` list, a header
+# string, an error message): provider API keys, AWS access key ids, bearer
+# tokens, credentials in a URL, ``SOME_KEY=...`` assignments, PEM blocks.
+_SECRET_VALUES = re.compile(
+    r"\bsk-[A-Za-z0-9_-]{4,}"
+    r"|\b(?:AKIA|ASIA)[0-9A-Z]{12,}\b"
+    r"|\bbearer\s+[^\s\"']+"
+    r"|://[^/\s:@\"'<>]+:[^/\s@\"'<>]+@"
+    r"|\b[A-Z][A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)=[^\s\"']+"
+    r"|-----BEGIN [A-Z ]+-----",
+    re.IGNORECASE,
+)
+# Where a run was served from, in free text: a URL whose host is not the
+# local apps' (the env serves them on localhost), or a bare ``host:port``
+# whose host looks like a machine name (a letter plus a digit, '-' or '.'),
+# e.g. ``learnfair1234:8000`` -- not ``12:30`` or ``Step:10``.
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "[::1]", "::1"}
+_URL = re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s\"'<>()]+", re.IGNORECASE)
+_HOST_PORT = re.compile(
+    r"\b(?=[A-Za-z0-9.-]*[A-Za-z])(?=[A-Za-z0-9.-]*[0-9.-])[A-Za-z0-9][A-Za-z0-9.-]*:\d{2,5}\b"
+)
+
+
+def _url_host(url: str) -> str:
+    from urllib.parse import urlsplit
+
+    try:
+        return (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def scrub_text(text: Any) -> tuple[Any, list[str]]:
+    """``(text, kinds)`` with secrets, non-local URLs and machine
+    ``host:port`` names in free text replaced by ``<redacted>``; ``kinds``
+    names what was found (empty: nothing to scrub). Non-strings pass through.
+    Idempotent: the replacement matches nothing."""
+    if not isinstance(text, str) or not text:
+        return text, []
+    kinds: list[str] = []
+
+    def sub(pattern: re.Pattern, kind: str, keep=lambda m: False) -> None:
+        nonlocal text
+
+        def repl(m: re.Match) -> str:
+            if keep(m):
+                return m.group(0)
+            kinds.append(kind)
+            return REDACTED
+
+        text = pattern.sub(repl, text)
+
+    sub(_SECRET_VALUES, "secret")
+    sub(_URL, "url", keep=lambda m: _url_host(m.group(0)) in _LOCAL_HOSTS)
+    sub(
+        _HOST_PORT,
+        "host",
+        keep=lambda m: m.group(0).rsplit(":", 1)[0].lower() in _LOCAL_HOSTS,
+    )
+    return text, kinds
+
+
+def has_secret_value(value: Any) -> bool:
+    return isinstance(value, str) and bool(_SECRET_VALUES.search(value))
 
 
 def repo_root() -> Path:
@@ -150,40 +234,109 @@ def find_bundles(paths: Iterable[str | Path]) -> list[Path]:
 def redact(node: Any) -> tuple[Any, list[str]]:
     """Copy of an agent config with secret-looking values replaced.
 
-    Returns ``(redacted, paths)``. Nulls and empty strings are left alone --
-    there is nothing to leak, and keeping them shows the field was unset --
-    and so is an already-redacted value, so ``paths`` doubles as the "still
-    leaks" check on a committed agent.yaml.
+    Returns ``(redacted, paths)``. Every leaf under a secret key is replaced
+    -- list items and nested mappings included (``api_key: [a, b]``,
+    ``default_headers: {Authorization: ...}``) -- and so is any string that
+    looks like a secret wherever it sits (``env: ["OPENAI_API_KEY=..."]``).
+    Nulls and empty strings are left alone -- there is nothing to leak, and
+    keeping them shows the field was unset -- and so is an already-redacted
+    value, so ``paths`` doubles as the "still leaks" check on a committed
+    agent.yaml.
     """
     paths: list[str] = []
 
-    def walk(value: Any, path: str) -> Any:
+    def walk(value: Any, path: str, secret: bool) -> Any:
         if isinstance(value, dict):
             out = {}
             for k, v in value.items():
                 sub = f"{path}.{k}" if path else str(k)
-                leaf = not isinstance(v, (dict, list))
-                if leaf and is_secret_key(k) and v not in (None, "", REDACTED):
-                    out[k] = REDACTED
-                    paths.append(sub)
-                else:
-                    out[k] = walk(v, sub)
+                out[k] = walk(v, sub, secret or is_secret_key(k))
             return out
         if isinstance(value, list):
-            return [walk(v, f"{path}[{i}]") for i, v in enumerate(value)]
+            return [walk(v, f"{path}[{i}]", secret) for i, v in enumerate(value)]
+        if value in (None, "", REDACTED):
+            return value
+        if secret or has_secret_value(value):
+            paths.append(path)
+            return REDACTED
         return value
 
-    return walk(node, ""), paths
+    return walk(node, "", False), paths
+
+
+def normalized_agent_hash(agent_cfg: Any) -> str:
+    """Hash of an agent config with *every* secret-looking leaf set to
+    ``<redacted>`` (set or not, list items included) -- the one agent hash a
+    bundle publishes: meta's ``agent_config_hash`` and every record's.
+
+    Why normalized rather than the redacted file as is: a maintainer
+    verifying a bundle fills its redacted keys with their own endpoint and
+    credentials (or sets one the submitter left null); that is not a
+    different agent, everything else is. And why never the raw config's
+    hash: given the redacted agent.yaml, a guessed hostname or key could be
+    confirmed offline against it.
+    """
+
+    def walk(node: Any, secret: bool) -> Any:
+        if isinstance(node, dict):
+            return {k: walk(v, secret or is_secret_key(k)) for k, v in node.items()}
+        if isinstance(node, list):
+            return [walk(v, secret) for v in node]
+        return REDACTED if secret or has_secret_value(node) else node
+
+    return agent_config_hash(
+        walk(agent_cfg if isinstance(agent_cfg, dict) else {}, False)
+    )
+
+
+# --- free text in records ----------------------------------------------------------
+
+
+def _free_text_fields(record: dict):
+    """``(path, container, key)`` of each free-text field of a record dict:
+    the error message, each step's action error, each chat message. These
+    carry whatever an exception or the agent printed -- a client error
+    naming the inference host, a key echoed back."""
+    term = record.get("termination")
+    if isinstance(term, dict):
+        yield "termination.err_msg", term, "err_msg"
+    for i, step in enumerate(record.get("steps") or []):
+        if not isinstance(step, dict):
+            continue
+        yield f"steps[{i}].last_action_error", step, "last_action_error"
+        for j, msg in enumerate(step.get("chat_messages") or []):
+            if isinstance(msg, dict):
+                yield f"steps[{i}].chat_messages[{j}].message", msg, "message"
+
+
+def scrub_record(record: dict) -> list[str]:
+    """Scrub a record dict's free-text fields in place (``scrub_text``);
+    return the paths changed. pack and import_wandb run it on every line."""
+    changed = []
+    for path, container, key in _free_text_fields(record):
+        text, kinds = scrub_text(container.get(key))
+        if kinds:
+            container[key] = text
+            changed.append(path)
+    return changed
+
+
+def record_leaks(record: dict) -> list[str]:
+    """``"<path> (<kinds>)"`` for each free-text field that still needs
+    scrubbing -- never the text itself (validate's output is public)."""
+    out = []
+    for path, container, key in _free_text_fields(record):
+        _, kinds = scrub_text(container.get(key))
+        if kinds:
+            out.append(f"{path} ({', '.join(sorted(set(kinds)))})")
+    return out
 
 
 def agent_config_hash(agent_cfg: dict) -> str:
-    """sha256 prefix of a (redacted) agent config.
-
-    Same canonicalisation as ``Identity.agent_config_hash`` but over the
-    *redacted* config, so anyone can recompute it from the committed
-    agent.yaml. (The records' own hashes cover the unredacted config,
-    including the per-allocation hostname, and may differ between jobs.)
-    """
+    """sha256 prefix of an agent config, canonicalised as
+    ``Identity.agent_config_hash`` is. Over a raw config it is what a run
+    records; a bundle only ever publishes it over the normalized config
+    (:func:`normalized_agent_hash`)."""
     blob = json.dumps(agent_cfg, sort_keys=True, default=str).encode()
     return hashlib.sha256(blob).hexdigest()[:12]
 

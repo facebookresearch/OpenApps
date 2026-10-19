@@ -39,7 +39,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
 from open_apps.leaderboard import bundle as B
 from open_apps.leaderboard.suite import (
@@ -143,27 +143,6 @@ def plan(bundle: str | Path, mode: str = "<local|slurm_cluster>") -> str:
 # --- record ------------------------------------------------------------------------
 
 
-def _normalized_hash(agent_cfg: Any) -> str:
-    """Hash of an agent config with *every* secret-looking leaf set to
-    ``<redacted>``. A maintainer fills the submission's redacted keys with
-    their own endpoint and credentials (or sets one the submitter left
-    null); that is not a different agent, everything else is."""
-
-    def walk(node: Any) -> Any:
-        if isinstance(node, dict):
-            return {
-                k: B.REDACTED
-                if B.is_secret_key(k) and not isinstance(v, (dict, list))
-                else walk(v)
-                for k, v in node.items()
-            }
-        if isinstance(node, list):
-            return [walk(v) for v in node]
-        return node
-
-    return B.agent_config_hash(walk(agent_cfg if isinstance(agent_cfg, dict) else {}))
-
-
 def _aligned(report: BundleReport) -> float:
     """The aligned rate exactly as the leaderboard computes it for a row."""
     from open_apps.leaderboard.build import ranked_row
@@ -240,8 +219,8 @@ def record(
                 "the held-out run must cover every held-out cell and validate OK:\n"
                 + held.format()
             )
-        ran = _normalized_hash(B.read_yaml(held.path / B.AGENT_FILE))
-        submitted = _normalized_hash(B.read_yaml(bundle / B.AGENT_FILE))
+        ran = B.normalized_agent_hash(B.read_yaml(held.path / B.AGENT_FILE))
+        submitted = B.normalized_agent_hash(B.read_yaml(bundle / B.AGENT_FILE))
         if ran != submitted:
             raise VerifyError(
                 "the held-out run used a different agent config than the submitted "

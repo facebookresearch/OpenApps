@@ -121,11 +121,16 @@ def test_dir_name_must_match_meta(demo):
 def test_optional_agent_yaml_is_hashed_and_redaction_checked(demo):
     agent = {"model_name": "my-model", "api_key": "sk-live-123"}
     (demo / B.AGENT_FILE).write_text(yaml.safe_dump(agent))
-    _edit_meta(demo, agent="my-model", agent_config_hash=B.agent_config_hash(agent))
+    _edit_meta(demo, agent="my-model", agent_config_hash=B.normalized_agent_hash(agent))
     report = validate_path(demo)
     assert any("unredacted" in e and "api_key" in e for e in report.errors)
 
     agent["api_key"] = B.REDACTED
+    (demo / B.AGENT_FILE).write_text(yaml.safe_dump(agent))
+    report = validate_path(demo)
+    # Redacting a value is not a different agent: the normalized hash holds.
+    assert not any("hashes to" in e for e in report.errors), report.errors
+    agent["temperature"] = 0.0
     (demo / B.AGENT_FILE).write_text(yaml.safe_dump(agent))
     report = validate_path(demo)
     assert any("hashes to" in e for e in report.errors)  # meta hash is now stale

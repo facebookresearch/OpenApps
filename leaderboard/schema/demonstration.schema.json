@@ -15,7 +15,7 @@
     "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
     "contact": {"type": ["string", "null"]},
     "description": {"type": ["string", "null"]},
-    "agent_config_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{12}$", "description": "Required with an agent.yaml: sha256 prefix of the redacted config (open_apps.leaderboard.bundle.agent_config_hash)."},
+    "agent_config_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{12}$", "description": "Required with an agent.yaml: sha256 prefix of the config with every secret-looking value normalized to <redacted> (open_apps.leaderboard.bundle.normalized_agent_hash)."},
     "n_episodes": {"type": "integer", "minimum": 0},
     "record_version": {"type": "integer", "minimum": 1},
     "videos": {"type": "array", "items": {"type": "string", "pattern": "^https://"}, "description": "Linked, not committed."}

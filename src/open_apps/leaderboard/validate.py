@@ -258,7 +258,7 @@ def _check_agent(path: Path, report: BundleReport) -> None:
         report.errors.append(f"{B.AGENT_FILE} must be a mapping")
         return
     want = report.meta.get("agent_config_hash")
-    got = B.agent_config_hash(agent_cfg)
+    got = B.normalized_agent_hash(agent_cfg)
     if want and want != got:
         report.errors.append(
             f"{B.AGENT_FILE} hashes to {got}, meta says {want} (edited after packing?)"
@@ -303,6 +303,13 @@ def _check_episodes(
         errs = B.schema_errors(data, schema)
         if errs:
             report.errors += [f"{where}: {e}" for e in errs[:3]]
+            continue
+        leaks = B.record_leaks(data)
+        if leaks:
+            report.errors.append(
+                f"{where}: unredacted host, URL or secret in free text at "
+                f"{', '.join(leaks[:5])}; re-pack (pack scrubs it) or replace it with {B.REDACTED}"
+            )
             continue
         try:
             record = EpisodeRecord.from_dict(data)
@@ -423,6 +430,15 @@ def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> Non
     agents = Counter(r.identity.agent_name for r, _ in parsed)
     if len(agents) > 1:
         report.errors.append(f"one agent per bundle; found {dict(agents)}")
+    want = report.meta.get("agent_config_hash")
+    hashes = Counter(r.identity.agent_config_hash for r, _ in parsed)
+    wrong = {h: n for h, n in hashes.items() if h != want}
+    if want and wrong:
+        report.errors.append(
+            f"identity.agent_config_hash must be meta's {want} on every record (one agent "
+            f"config per bundle; pack writes it): found "
+            + ", ".join(f"{h!r} x{n}" for h, n in sorted(wrong.items(), key=str))
+        )
     suites = Counter(r.identity.suite_version for r, _ in parsed)
     wrong = {s: n for s, n in suites.items() if s != report.suite}
     if wrong:
