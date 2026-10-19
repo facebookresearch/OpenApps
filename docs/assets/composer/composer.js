@@ -962,6 +962,9 @@
       else if (k === "class") el.className = v;
       else if (k === "text") el.textContent = v;
       else if (k === "style") el.style.cssText = v;
+      // The muted *attribute* only sets defaultMuted on an element made by
+      // script; the media stays audible, so browsers block its autoplay.
+      else if (k === "muted") el.muted = el.defaultMuted = true;
       else el.setAttribute(k, v === true ? "" : String(v));
     }
     for (const kid of kids.flat(Infinity)) {

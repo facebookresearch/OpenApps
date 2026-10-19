@@ -791,6 +791,10 @@ def test_the_clip_has_a_visible_pause_toggle_that_sticks(ui):
     toggle = page.locator("openapps-composer [data-part=clip-toggle]")
     toggle.wait_for()
     assert toggle.is_visible()
+    # Chromium holds muted autoplay for video outside the viewport.
+    page.locator(
+        "openapps-composer [data-part=preview] video"
+    ).scroll_into_view_if_needed()
     _wait_clip(page, paused=False)
     assert toggle.inner_text() == "Pause"
     toggle.click()
