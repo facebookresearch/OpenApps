@@ -642,7 +642,11 @@
     links(row, tab) {
       const repo = httpsURL(this.getAttribute("repo")) || DEFAULT_REPO;
       const branch = encodeURIComponent(this.getAttribute("branch") || "main");
-      const path = String(row.bundle || "").split("/").filter((p) => p && p !== "..").map(encodeURIComponent).join("/");
+      // build writes leaderboard/submissions/<bundle dir>; anything else is
+      // not a bundle path, and gets no link.
+      const bundle = String(row.bundle || "");
+      const path = /^leaderboard\/(submissions|demonstrations)\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(bundle)
+        ? bundle.split("/").map(encodeURIComponent).join("/") : "";
       const file = (name) => `${repo.replace(/\/$/, "")}/blob/${branch}/${path}/${name}`;
       const items = [];
       if (path) {

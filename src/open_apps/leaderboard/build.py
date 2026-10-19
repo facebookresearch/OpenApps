@@ -123,10 +123,10 @@ def _metric_cell(summary: dict) -> dict:
 
 
 def _rel(path: Path) -> str:
-    try:
-        return str(path.resolve().relative_to(B.repo_root().resolve()))
-    except ValueError:
-        return str(path)
+    """The bundle's path in the repo, ``leaderboard/submissions/<dir>`` -- the
+    shape the page links (it links nothing else), wherever the bundle was
+    built from."""
+    return f"leaderboard/{path.parent.name}/{path.name}"
 
 
 def composer_agent(agent: Optional[str]) -> Optional[str]:

@@ -295,7 +295,9 @@ def test_comment_hides_results_when_the_pr_changes_ci_or_judging_code(comment_ns
         "leaderboard/schema/episode.schema.json",
     ):
         assert touches([path]), path
-    assert not touches(["leaderboard/submissions/a__b__align_v1/meta.yaml", "README.md"])
+    assert not touches(
+        ["leaderboard/submissions/a__b__align_v1/meta.yaml", "README.md"]
+    )
     assert comment_ns["WARNING"] == (
         "This PR changes CI or judging code; automated results are not shown."
     )

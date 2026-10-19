@@ -159,6 +159,31 @@ def _with_per_app_axes(doc: dict) -> dict:
     return doc
 
 
+XSS = '<img src=x onerror="window.__pwned=1">'
+JS_URL = "javascript:window.__pwned=1"
+
+
+def _hostile(full: dict) -> dict:
+    """The populated document with markup and ``javascript:`` URLs in every
+    string a row carries -- the page must show them as text and link none
+    of them. (validate never lets such a bundle through; this guards the
+    page on its own.)"""
+    doc = json.loads(json.dumps(full))
+    tab = doc["suites"]["tiny_v1"]
+    row = tab["rows"][0]
+    row.update(
+        agent=XSS, org="</td><script>window.__pwned=1</script>", model=XSS,
+        wandb_report=JS_URL, videos=[JS_URL, " javascript:alert(1)", "https://ok.example/v.mp4"],
+        bundle=f"../../{JS_URL}", composer_agent=XSS, date=XSS,
+    )  # fmt: skip
+    row["worst_variation"]["aligned"]["cell"] = XSS
+    row["by_axis"]["theme"][XSS] = row["by_axis"]["theme"].pop("dark")
+    tab["partial"][0].update(agent=XSS, model=XSS, org=XSS)
+    tab["invalid"][0].update(agent=XSS, reason=XSS)
+    tab["suite"] = XSS
+    return doc
+
+
 @pytest.fixture(scope="module")
 def site(tmp_path_factory):
     """A served directory laid out like the built docs site: the page at
@@ -173,6 +198,7 @@ def site(tmp_path_factory):
     full = _populated(tmp_path_factory.mktemp("subs") / "submissions")
     (data / "full.json").write_text(json.dumps(full))
     (data / "empty.json").write_text(json.dumps(build([], when=WHEN)))
+    (data / "hostile.json").write_text(json.dumps(_hostile(full)))
     (root / "composer").mkdir()
     (root / "composer" / "index.html").write_text(
         "<!doctype html><title>composer</title>"
@@ -185,6 +211,7 @@ def site(tmp_path_factory):
         "full": "../data/full.json",
         "empty": "../data/empty.json",
         "missing": "../data/nope.json",
+        "hostile": "../data/hostile.json",
         # The site once the composer page is merged: docs/leaderboard.md
         # then sets composer-href, and Reproduce appears.
         "with-composer": "../data/full.json",
@@ -544,6 +571,22 @@ def test_verified_badge(page):
     assert "maintainer re-run" in tip.inner_text()
     footnote = page.locator(f"{EL} .footnote").inner_text()
     assert "maintainer re-ran" in footnote and "verifications.yaml" in footnote
+
+
+def test_hostile_strings_render_as_text_and_link_nothing(page):
+    page.goto_board("hostile", "#open=example__dummy__tiny_v1")
+    root = f"document.querySelector('{EL}').shadowRoot"
+    assert page.evaluate("window.__pwned") is None
+    assert page.evaluate(f"{root}.querySelectorAll('img, script').length") == 0
+    hrefs = page.evaluate(
+        f"[...{root}.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))"
+    )
+    assert hrefs and all(h.startswith("https://") for h in hrefs), hrefs
+    assert not any("javascript" in h.lower() for h in hrefs), hrefs
+    # The strings are there, as text.
+    text = page.locator(f"{EL} .olb").inner_text()
+    assert XSS in text
+    assert "https://ok.example/v.mp4" in hrefs
 
 
 def test_missing_file_explains_how_to_build_it(page):
