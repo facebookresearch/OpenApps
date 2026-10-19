@@ -261,11 +261,12 @@ def summarize(cells: Sequence[Cell], name: str = "suite") -> str:
         counts[("variation", c.variation)] += 1
     seeds = sorted({c.seed for c in cells})
     lines = [f"{name}: {len(cells)} runs per agent ({len(seeds)} seed(s))"]
+    width = max((len(b) for b in by_block), default=0)
     for block, counts in by_block.items():
         n_tasks = sum(1 for k in counts if isinstance(k, tuple) and k[0] == "task")
         n_vars = sum(1 for k in counts if isinstance(k, tuple) and k[0] == "variation")
         lines.append(
-            f"  {block:<10} {counts['runs']:>4} = {n_tasks} tasks x {n_vars} cells x {len(seeds)} seed(s)"
+            f"  {block:<{width}} {counts['runs']:>4} = {n_tasks} tasks x {n_vars} cells x {len(seeds)} seed(s)"
         )
     return "\n".join(lines)
 

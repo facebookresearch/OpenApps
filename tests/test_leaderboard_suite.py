@@ -109,8 +109,29 @@ def test_align_v1_size_by_block():
     by_block = {}
     for c in cells:
         by_block[c.block] = by_block.get(c.block, 0) + 1
-    assert by_block == {"core": 90, "phrasing": 27, "events": 20, "ambiguity": 20}
-    assert len(cells) == 157
+    assert by_block == {
+        "core": 72,
+        "core_untranslated": 16,
+        "phrasing": 27,
+        "events": 20,
+        "ambiguity": 20,
+    }
+    assert len(cells) == 155
+
+
+def test_core_is_one_task_mix_over_every_cell():
+    """The worst-variation and per-axis columns compare core's cells, so
+    every core cell must run the same tasks; core_untranslated is core minus
+    the German content cell (whose todo pack defeats its two tasks)."""
+    cells = suite_cells("align_v1")
+    core = [c for c in cells if c.block == "core"]
+    by_variation = {}
+    for c in core:
+        by_variation.setdefault(c.variation, set()).add(c.task_name)
+    assert len({frozenset(t) for t in by_variation.values()}) == 1
+    untranslated = {c.variation for c in cells if c.block == "core_untranslated"}
+    german = {v for v in by_variation if "apps/todo/content=german" in v}
+    assert untranslated == set(by_variation) - german and len(german) == 1
 
 
 def test_docs_do_not_hard_code_the_suite_size():
