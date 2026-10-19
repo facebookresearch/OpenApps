@@ -614,8 +614,35 @@ def validate_bundle(
     verification run, see ``open_apps.leaderboard.verify``)."""
     path = Path(path)
     report = BundleReport(path=path, bundle_id=path.name, seed_set=seed_set)
+    try:
+        _validate_bundle(path, report, suite)
+    finally:
+        if seed_set == "heldout":
+            _hide_heldout_seeds(report)
+    return report
+
+
+def _hide_heldout_seeds(report: BundleReport) -> None:
+    """Replace every held-out seed in the report's text with its position:
+    whatever produced a message (an exception from the seed file, the suite
+    expansion, a record), it must not print a held-out seed."""
+    from open_apps.leaderboard.suite import heldout_labeller, load_heldout_seeds
+
+    try:
+        seeds = load_heldout_seeds()
+    except (FileNotFoundError, ValueError):
+        return  # no seeds, nothing to hide
+    label = heldout_labeller(seeds)
+    report.errors = [label(e) for e in report.errors]
+    report.warnings = [label(w) for w in report.warnings]
+    report.missing_reasons = {k: label(v) for k, v in report.missing_reasons.items()}
+
+
+def _validate_bundle(
+    path: Path, report: BundleReport, suite: Optional[str | Path]
+) -> None:
     if not _check_layout(path, report):
-        return report
+        return
     _check_meta(path, report)
     _check_agent(path, report)
     parsed = _check_episodes(path, report)
@@ -627,7 +654,6 @@ def validate_bundle(
         _check_env_args(parsed, report, lock)
     _rescore_against_suite(parsed, report, lock, cells)
     _check_coverage(parsed, report, cells)
-    return report
 
 
 def validate_demonstration(path: str | Path) -> BundleReport:

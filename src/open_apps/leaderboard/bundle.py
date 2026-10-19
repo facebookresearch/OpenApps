@@ -624,7 +624,9 @@ def schema_errors(
             # The branch of the right type (the number of an Optional[int])
             # says what is wrong with the value; else no shape fits.
             typed = [b for b in branches if not any(": expected " in e for e in b)]
-            errors += typed[0] if typed else [f"{path}: matches none of the allowed shapes"]
+            errors += (
+                typed[0] if typed else [f"{path}: matches none of the allowed shapes"]
+            )
         return errors
     if "const" in schema and instance != schema["const"]:
         errors.append(f"{path}: must be {schema['const']!r}, got {instance!r}")

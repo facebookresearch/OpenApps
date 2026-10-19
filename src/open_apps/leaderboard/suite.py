@@ -184,7 +184,28 @@ def load_heldout_seeds(path: str | Path | None = None) -> list[int]:
     seeds would make a "verified" run verify nothing.
     """
     _, data = _heldout_data(path)
-    return [int(s) for s in data["seeds"]]
+    # Deduped, first occurrence first: a repeated seed would only repeat
+    # cells, and the duplicate-cell error would print the seed.
+    return list(dict.fromkeys(int(s) for s in data["seeds"]))
+
+
+def heldout_labeller(seeds: Sequence[int]):
+    """A function that replaces every held-out seed in a string with its
+    position (``held-out#<i>`` in sorted order), for anything that might
+    print one: a held-out seed that leaks is a public seed."""
+    import re
+
+    index = {int(s): i for i, s in enumerate(sorted(set(seeds)))}
+    if not index:
+        return lambda text: text
+    pattern = re.compile(
+        r"(?<![0-9])("
+        + "|".join(map(str, sorted(index, key=lambda s: -len(str(s)))))
+        + r")(?![0-9])"
+    )
+    return lambda text: pattern.sub(
+        lambda m: f"held-out#{index[int(m.group(1))]}", str(text)
+    )
 
 
 def heldout_seeds_hash(path: str | Path | None = None) -> tuple[str, bool]:
@@ -383,11 +404,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
     bench = load_suite(args.suite)
     cells = suite_cells(bench, args.seed_set)
+    label = (
+        heldout_labeller([c.seed for c in cells]) if args.seed_set == "heldout" else str
+    )
     print(summarize(cells, str(bench.name)))
     if args.list:
         for c in cells:
             print(
-                f"{c.block}\t{c.task_name}\t{' '.join(c.variation) or '-'}\tseed={c.seed}"
+                f"{c.block}\t{c.task_name}\t{' '.join(c.variation) or '-'}\tseed={label(c.seed)}"
             )
     if len(cells) > MAX_CELLS:
         print(f"suite exceeds MAX_CELLS={MAX_CELLS}", file=sys.stderr)

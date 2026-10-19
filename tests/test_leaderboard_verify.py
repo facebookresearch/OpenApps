@@ -363,3 +363,43 @@ def test_a_malformed_entry_is_refused(tmp_path):
         path.write_text(yaml.safe_dump(bad))
         with pytest.raises(ValueError, match="malformed"):
             VF.load(path)
+
+
+# --- held-out seeds never leak through an error -------------------------------------
+
+
+def test_duplicate_heldout_seeds_are_deduped(tmp_path, monkeypatch):
+    """The review's seeds file ([9137, 9137]) made suite_cells raise
+    "duplicate cells ... 9137" -- printing the seed."""
+    path = tmp_path / "dup.yaml"
+    path.write_text(yaml.safe_dump({"seeds": [9137, 9137, 4], "salt": "s"}))
+    monkeypatch.setenv(HELDOUT_ENV, str(path))
+    assert suite_mod.load_heldout_seeds() == [9137, 4]
+    cells = suite_mod.suite_cells(TINY_SUITE, seed_set="heldout")
+    assert len(cells) == 2 * len(JOBS)
+
+
+def test_errors_in_heldout_mode_name_positions_not_seeds(
+    seeds_file, bundle, monkeypatch
+):
+    import open_apps.leaderboard.validate as val
+
+    def boom(bench, seed_set="public", heldout_path=None):
+        seeds = suite_mod.load_heldout_seeds()
+        raise ValueError(f"cannot expand cells for seeds {seeds}")
+
+    monkeypatch.setattr(val, "suite_cells", boom)
+    report = validate_bundle(bundle, suite=TINY_SUITE, seed_set="heldout")
+    text = report.format() + "\n".join(report.errors)
+    assert report.status == FAIL
+    for seed in HELDOUT_SEEDS:
+        assert str(seed) not in text
+    assert "held-out#0" in text and "held-out#1" in text
+
+
+def test_suite_cli_lists_heldout_cells_by_position(seeds_file, capsys):
+    assert suite_mod.main([str(TINY_SUITE), "--seed-set", "heldout", "--list"]) == 0
+    out = capsys.readouterr().out
+    for seed in HELDOUT_SEEDS:
+        assert str(seed) not in out
+    assert "seed=held-out#1" in out
