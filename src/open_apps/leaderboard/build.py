@@ -163,7 +163,8 @@ def ranked_row(
         "agent": meta.get("agent"),
         "model": meta.get("model"),
         "date": meta.get("date"),
-        "verified": meta.get("verified", False),
+        # Set by build() from leaderboard/verifications.yaml only.
+        "verified": False,
         "bundle": _rel(report.path),
         "composer_agent": composer_agent(meta.get("agent")),
         "wandb_report": meta.get("wandb_report"),
@@ -274,12 +275,21 @@ def build(
     n_boot: int = N_BOOT,
     seed: int = BOOT_SEED,
     lenient: bool = False,
+    verifications: Optional[list[dict]] = None,
 ) -> dict:
     """The leaderboard document. Raises if any bundle failed validation --
     unless ``lenient`` (the docs deploy), where a failing bundle is listed
     under its suite's ``invalid`` with the reason and everything else is
     built as usual: one bundle gone stale on main (a scorer fix, a lock
-    update) must not take the whole page down."""
+    update) must not take the whole page down.
+
+    ``verifications`` are the entries of the maintainer-owned
+    ``leaderboard/verifications.yaml`` (``verifications.load``): the only
+    source of a row's ``verified``. An entry whose bundle is not ranked, or
+    whose episodes or agent config hash no longer match, is dropped and
+    listed under ``stale_verifications``. A bundle's own meta.yaml is never
+    read for it.
+    """
     from open_apps.alignment.aggregate import CI_METHOD
     from open_apps.alignment.record import RECORD_VERSION
 
@@ -289,6 +299,10 @@ def build(
             "cannot build with failing bundles: "
             + ", ".join(r.path.name for r in failed)
         )
+    from open_apps.leaderboard import verifications as VF
+
+    ranked = {r.path.name: (r.path, r.meta) for r in reports if r.status == OK}
+    checked = VF.match(verifications or [], ranked)
     names = sorted({*suites, *(r.suite for r in reports if r.suite)})
     out_suites = {}
     for name in names:
@@ -300,7 +314,12 @@ def build(
             "n_cells": max((r.n_expected for r in mine), default=0)
             or _suite_size(name),
             "rows": _rank(
-                [ranked_row(r, n_boot, seed) for r in mine if r.status == OK]
+                [
+                    dict(row, verified=checked.verified.get(row["id"], False))
+                    for row in (
+                        ranked_row(r, n_boot, seed) for r in mine if r.status == OK
+                    )
+                ]
             ),
             "partial": sorted(
                 (partial_row(r) for r in mine if r.status == PARTIAL),
@@ -332,6 +351,9 @@ def build(
             for c, m, hb, label, desc in COLUMNS
         ],
         "suites": out_suites,
+        "stale_verifications": [
+            {"bundle": name, "reason": why} for name, why in checked.stale
+        ],
     }
 
 
@@ -434,6 +456,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="check every bundle against this suite name/YAML (default: each bundle's meta.suite)",
     )  # fmt: skip
     parser.add_argument(
+        "--verifications", type=Path, default=None,
+        help="maintainer verifications file (default: leaderboard/verifications.yaml)",
+    )  # fmt: skip
+    parser.add_argument(
         "--lenient", action="store_true",
         help=(
             "list failing bundles as 'not currently valid' instead of failing the build "
@@ -457,8 +483,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     reports = [validate_bundle(p, args.suite) for p in bundles]
     for report in reports:
         print(report.format())
+    from open_apps.leaderboard import verifications as VF
+
     try:
-        doc = build(reports, when=args.generated_at, lenient=args.lenient)
+        entries = VF.load(args.verifications)
+    except ValueError as exc:
+        if not args.lenient:
+            print(f"build failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"warning: ignoring every verification: {exc}", file=sys.stderr)
+        entries = []
+    try:
+        doc = build(
+            reports, when=args.generated_at, lenient=args.lenient, verifications=entries
+        )
     except ValueError as exc:
         print(f"build failed: {exc}", file=sys.stderr)
         if args.comment_out:
@@ -467,6 +505,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                 comment_markdown({"suites": {}}, reports, args.comment_for)
             )
         return 1
+    for stale in doc["stale_verifications"]:
+        print(f"stale verification dropped: {stale['bundle']} ({stale['reason']})")
     out = args.out or (B.repo_root() / DEFAULT_OUT)
     write(doc, out)
     n_rows = sum(len(s["rows"]) for s in doc["suites"].values())

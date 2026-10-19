@@ -144,26 +144,24 @@ def test_meta_schema_violation_fails(bundle):
     assert any("unexpected key 'surprise'" in e for e in report.errors)
 
 
-def test_verified_block_is_accepted_and_schema_checked(bundle):
-    good = {
-        "date": "2026-10-20",
-        "seeds_hash": "0123456789abcdef",
-        "aligned": 0.4,
-        "delta": -0.05,
-    }
-    _edit_meta(bundle, verified=good)
-    report = validate_bundle(bundle, suite=TINY_SUITE)
-    assert report.status == OK and report.meta["verified"] == good
-    for bad in (
-        {k: v for k, v in good.items() if k != "delta"},
-        dict(good, aligned=-0.1),
-        dict(good, seeds=[1, 2]),  # never publish the seeds
-        dict(good, date="20/10/2026"),
+def test_verified_in_meta_is_rejected(bundle):
+    """Verification lives in the maintainer-owned leaderboard/verifications.yaml;
+    a ``verified`` block in a submitter's meta.yaml is refused outright."""
+    for value in (
+        {
+            "date": "2026-10-20",
+            "seeds_hash": "0123456789abcdef",
+            "aligned": 0.4,
+            "delta": -0.05,
+        },
+        True,
     ):
-        _edit_meta(bundle, verified=bad)
+        _edit_meta(bundle, verified=value)
         report = validate_bundle(bundle, suite=TINY_SUITE)
-        assert report.status == FAIL, bad
-        assert any("$.verified" in e for e in report.errors), report.errors
+        assert report.status == FAIL
+        assert any("verifications.yaml" in e for e in report.errors), report.errors
+    _edit_meta(bundle, verified=False)  # deprecated, but harmless
+    assert validate_bundle(bundle, suite=TINY_SUITE).status == OK
 
 
 def test_dir_name_must_match_meta(bundle):
@@ -599,18 +597,10 @@ def test_mini_validator_agrees_with_jsonschema(bundle):
     meta = yaml.safe_load((bundle / B.META_FILE).read_text())
     bad_metas = [
         dict(meta, verified=True),
+        dict(meta, verified={"date": "2026-10-17"}),
         dict(meta, date="16/10/2026"),
         dict(meta, agent_config_hash="xyz"),
         {k: v for k, v in meta.items() if k != "org"},
-        dict(
-            meta,
-            verified={
-                "date": "2026-10-17",
-                "seeds_hash": "abc",
-                "aligned": 0.5,
-                "delta": -0.1,
-            },
-        ),
     ]
     for candidate in [meta, *bad_metas]:
         ours = not B.schema_errors(candidate, meta_schema)
@@ -629,117 +619,6 @@ def test_mini_validator_agrees_with_jsonschema(bundle):
 def test_mini_validator_refuses_unknown_keywords():
     with pytest.raises(ValueError, match="not supported"):
         B.schema_errors({}, {"type": "object", "oneOf": []})
-
-
-# --- maintainer-only fields: `verified` against the base branch -------------------------
-
-VERIFIED = {
-    "date": "2026-10-20",
-    "seeds_hash": "0123456789abcdef",
-    "aligned": 0.4,
-    "delta": -0.05,
-}
-
-
-@pytest.fixture
-def base_and_pr(tmp_path):
-    """The example bundle as the base branch has it, and the PR's copy."""
-    base_root = tmp_path / "base"
-    base = base_root / "leaderboard" / "submissions" / EXAMPLE_BUNDLE.name
-    pr = tmp_path / "pr" / "leaderboard" / "submissions" / EXAMPLE_BUNDLE.name
-    shutil.copytree(EXAMPLE_BUNDLE, base)
-    shutil.copytree(EXAMPLE_BUNDLE, pr)
-    return base_root, base, pr
-
-
-def _check(pr, base_root, approved=False):
-    from open_apps.leaderboard.validate import check_against_base
-
-    return check_against_base(pr, base_root, maintainer_approved=approved)
-
-
-def test_submission_that_adds_verified_fails(base_and_pr, tmp_path):
-    from open_apps.leaderboard.validate import VERIFIED_BY_MAINTAINERS
-
-    base_root, base, pr = base_and_pr
-    _edit_meta(pr, verified=VERIFIED)
-    assert _check(pr, base_root) == [VERIFIED_BY_MAINTAINERS]
-    # A bundle new on the PR has no verification to keep.
-    shutil.rmtree(base)
-    assert _check(pr, base_root) == [VERIFIED_BY_MAINTAINERS]
-    # ...not even under the label.
-    assert "not on the base branch" in _check(pr, base_root, approved=True)[0]
-
-
-def test_submission_that_changes_verified_fails(base_and_pr):
-    from open_apps.leaderboard.validate import VERIFIED_BY_MAINTAINERS
-
-    base_root, base, pr = base_and_pr
-    _edit_meta(base, verified=VERIFIED)
-    _edit_meta(pr, verified=dict(VERIFIED, delta=0.0))
-    assert _check(pr, base_root) == [VERIFIED_BY_MAINTAINERS]
-
-
-def test_submission_that_leaves_verified_unchanged_passes(base_and_pr):
-    base_root, base, pr = base_and_pr
-    assert _check(pr, base_root) == []  # verified: false on both sides
-    # Re-packing (episodes change) with verified: false is a normal update.
-    lines = _lines(pr)
-    _rewrite(pr, lines[1:])
-    assert _check(pr, base_root) == []
-    # A new bundle with verified: false.
-    shutil.rmtree(base)
-    assert _check(pr, base_root) == []
-
-
-def test_verified_bundle_whose_episodes_change_must_reset_verified(base_and_pr):
-    base_root, base, pr = base_and_pr
-    _edit_meta(base, verified=VERIFIED)
-    _edit_meta(pr, verified=VERIFIED)
-    assert _check(pr, base_root) == []
-    _rewrite(pr, _lines(pr)[1:])
-    (err,) = _check(pr, base_root)
-    assert "episodes.jsonl.gz changed" in err and "verified: false" in err
-    # Dropping the badge is always allowed.
-    _edit_meta(pr, verified=False)
-    assert _check(pr, base_root) == []
-
-
-def test_labelled_maintainer_pr_that_changes_only_verified_passes(base_and_pr):
-    base_root, base, pr = base_and_pr
-    _edit_meta(pr, verified=VERIFIED)
-    assert _check(pr, base_root, approved=True) == []
-    _edit_meta(base, verified=VERIFIED)
-    _edit_meta(pr, verified=dict(VERIFIED, date="2026-11-01"))
-    assert _check(pr, base_root, approved=True) == []
-
-
-def test_labelled_pr_that_also_changes_episodes_or_meta_fails(base_and_pr):
-    from open_apps.leaderboard.validate import MAINTAINER_LABEL
-
-    base_root, base, pr = base_and_pr
-    _edit_meta(pr, verified=VERIFIED)
-    _rewrite(pr, _lines(pr)[1:])
-    (err,) = _check(pr, base_root, approved=True)
-    assert MAINTAINER_LABEL in err and "episodes.jsonl.gz" in err
-
-    shutil.copy(base / B.EPISODES_FILE, pr / B.EPISODES_FILE)
-    _edit_meta(pr, contact="someone-else")
-    (err,) = _check(pr, base_root, approved=True)
-    assert "meta.yaml fields other than verified" in err
-
-
-def test_cli_base_dir_and_label(base_and_pr, capsys):
-    from open_apps.leaderboard.validate import VERIFIED_BY_MAINTAINERS, main
-
-    base_root, base, pr = base_and_pr
-    _edit_meta(pr, verified=VERIFIED)
-    argv = [str(pr), "--suite", str(TINY_SUITE), "--base-dir", str(base_root)]
-    assert main(argv) == 1
-    assert VERIFIED_BY_MAINTAINERS in capsys.readouterr().out
-    assert main(argv + ["--maintainer-approved"]) == 0
-    # Without --base-dir (local use, the docs build) there is no base to compare.
-    assert main(argv[:3]) == 0
 
 
 # --- the trace against the suite's step budget ---------------------------------------

@@ -352,7 +352,7 @@ def write_bundle(
 
     ``meta`` holds what the submitter chose (org, agent, suite, and optionally
     date, contact, compute_notes, wandb_report); everything derivable --
-    model, config hash, episode count, record version, ``verified: false`` --
+    model, config hash, episode count, record version --
     is filled here, so no ingestion path can claim it. ``agent_cfg`` must
     already be redacted (``redacted`` lists the paths that were). Every
     record is scored with ``open_apps.alignment.score`` right here: the
@@ -401,7 +401,6 @@ def write_bundle(
         "compute_notes": meta.get("compute_notes"),
         "wandb_report": meta.get("wandb_report"),
         "videos": [],
-        "verified": False,
     }
     B.write_yaml(full, out_dir / B.META_FILE)
     return n

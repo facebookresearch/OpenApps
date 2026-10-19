@@ -88,19 +88,34 @@ def _make_worse(bundle):
     B.write_episodes(lines, bundle / B.EPISODES_FILE)
 
 
+def _verification(bundle, **shown) -> dict:
+    """A verifications.yaml entry pinned to ``bundle`` as it is now."""
+    from open_apps.leaderboard import verifications as VF
+
+    meta = yaml.safe_load((bundle / B.META_FILE).read_text())
+    return {
+        "bundle": bundle.name,
+        "episodes_sha256": VF.episodes_sha256(bundle),
+        "agent_config_hash": meta["agent_config_hash"],
+        **shown,
+    }
+
+
 def _populated(root: Path) -> dict:
     """Four bundles: the example (verified, small delta), a tie under an agent
-    name with no config (verified, large delta), a worse one, a partial one."""
+    name with no config (verified, large delta), a worse one, a partial one --
+    plus one that no longer validates. Verification comes from
+    verifications.yaml entries, never from the bundles."""
     root.mkdir()
-    _clone(
+    example = _clone(
         root, "example",
-        verified={"date": "2026-10-20", "seeds_hash": "abc123", "aligned": 0.48, "delta": -0.02},
         wandb_report="https://wandb.ai/example/report", videos=["https://example.org/v1.mp4"],
     )  # fmt: skip
-    _clone(
-        root, "twin", agent="twin-agent",
-        verified={"date": "2026-10-21", "seeds_hash": "def456", "aligned": 0.25, "delta": -0.25},
-    )  # fmt: skip
+    twin = _clone(root, "twin", agent="twin-agent")
+    entries = [
+        _verification(example, date="2026-10-20", seeds_hash="abc123", aligned=0.48, delta=-0.02),
+        _verification(twin, date="2026-10-21", seeds_hash="def456", aligned=0.25, delta=-0.25),
+    ]  # fmt: skip
     _make_worse(_clone(root, "worse"))
     partial = _clone(root, "partial")
     B.write_episodes(_lines(partial)[:2], partial / B.EPISODES_FILE)
@@ -114,7 +129,9 @@ def _populated(root: Path) -> dict:
     lines[0]["scores"]["aligned"] = not lines[0]["scores"]["aligned"]
     B.write_episodes(lines, stale / B.EPISODES_FILE)
     reports = [validate_bundle(p, TINY_SUITE) for p in B.find_bundles([root])]
-    return _with_per_app_axes(build(reports, when=WHEN, lenient=True))
+    return _with_per_app_axes(
+        build(reports, when=WHEN, lenient=True, verifications=entries)
+    )
 
 
 def _with_per_app_axes(doc: dict) -> dict:
@@ -484,6 +501,9 @@ def test_verified_badge(page):
     assert (
         row(page, "dummy").nth(1).locator(".badge").count() == 0
     )  # the unverified copy
+    assert "maintainer re-run" in tip.inner_text()
+    footnote = page.locator(f"{EL} .footnote").inner_text()
+    assert "maintainer re-ran" in footnote and "verifications.yaml" in footnote
 
 
 def test_missing_file_explains_how_to_build_it(page):

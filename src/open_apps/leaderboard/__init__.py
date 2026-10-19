@@ -19,10 +19,12 @@ Modules:
   bundle    bundle layout, hashing, (de)serialization, mini JSON Schema check
   pack      logs_dir -> bundle (and write_bundle, shared by every ingestion path)
   import_wandb  W&B episode_record artifacts -> bundle, through pack's code
-  reference the repo's config for a suite cell (what a record must embed)
+  reference the repo's config for a suite cell (what a record must embed), and
+            the committed suite lock validate reads it from
   validate  schema + provenance + re-score + coverage
   build     all bundles -> docs/assets/leaderboard/leaderboard.json (generated)
-  verify    held-out re-run -> verified: {date, seeds_hash, aligned, delta} in meta.yaml
+  verify    held-out re-run -> an entry in leaderboard/verifications.yaml
+  verifications  the maintainer-owned verifications file: load, write, match to bundles
 
 Scores are never trusted from a submission: ``open_apps.alignment.score`` is
 the single authority, re-run on every record -- under the repo's task, event

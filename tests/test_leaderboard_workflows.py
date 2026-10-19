@@ -132,31 +132,48 @@ def test_code_changes_with_submissions_fail_with_a_clear_message(check):
         assert path in check["on"]["pull_request"]["paths"]
 
 
-def test_verified_is_judged_against_the_base_branch(check):
-    """A submitter cannot set ``verified``: validate compares each changed
-    bundle with the base's copy, and only the maintainer label, read through
-    the API with a read-only token, lifts that."""
-    from open_apps.leaderboard.validate import MAINTAINER_LABEL
-
+def test_verifications_travel_alone_and_are_code_owned(check):
+    """Verified status lives in leaderboard/verifications.yaml: a PR touching
+    it must touch nothing else, and CODEOWNERS makes a maintainer approve it.
+    The old label/base-branch diff is gone (a PR can edit this workflow, so
+    it never enforced anything)."""
     scope = check["jobs"]["scope"]
-    assert _write_scopes(scope.get("permissions")) == []
     classify = "\n".join(s.get("run", "") for s in scope["steps"])
-    assert f'index("{MAINTAINER_LABEL}")' in classify
-    assert scope["outputs"]["maintainer"] == "${{ steps.classify.outputs.maintainer }}"
-    # Labelling re-runs the check.
-    assert {"labeled", "unlabeled"} <= set(check["on"]["pull_request"]["types"])
-
-    steps = {s["name"]: s for s in check["jobs"]["validate"]["steps"]}
-    overlay = steps["Overlay the PR's changed bundles on the base's"]["run"]
-    assert overlay.index('cp -R "base/$dir" "orig/$dir"') < overlay.index(
-        'rm -rf "base/$dir"'
+    assert "grep -qxF 'leaderboard/verifications.yaml' changed.txt" in classify
+    assert (
+        scope["outputs"]["verifications"]
+        == "${{ steps.classify.outputs.verifications }}"
     )
-    validate = steps["Validate the changed bundles"]
-    assert "--base-dir ../orig" in validate["run"]
-    assert "--maintainer-approved" in validate["run"]
-    assert validate["env"]["MAINTAINER"] == "${{ needs.scope.outputs.maintainer }}"
+    assert scope["outputs"]["others"] == "${{ steps.classify.outputs.others }}"
+    job = check["jobs"]["verifications-only"]
+    assert job["needs"] == "scope" and job.get("permissions") == {}
+    run = "\n".join(s.get("run", "") for s in job["steps"])
+    assert '[ "$VERIFICATIONS" = true ] && [ "${OTHERS:-0}" != 0 ]' in run
+    assert "exit 1" in run
+
+    text = CHECK.read_text()
+    for gone in (
+        "verified-by-maintainer",
+        "--base-dir",
+        "--maintainer-approved",
+        "labeled",
+    ):
+        assert gone not in text, gone
+    owners = (WORKFLOWS.parent / "CODEOWNERS").read_text().splitlines()
+    rules = [
+        line.split() for line in owners if line.strip() and not line.startswith("#")
+    ]
+    assert [
+        "/leaderboard/verifications.yaml",
+        "@facebookresearch/openapps-maintainers",
+    ] in rules
+
+
+def test_header_says_pr_ci_is_advisory():
     header = CHECK.read_text().split("name: Leaderboard")[0]
-    assert MAINTAINER_LABEL in header and "verify record" in header
+    assert "ADVISORY" in header
+    assert "static.yml" in header and "verifications.yaml" in header
+    assert "pull_request_target" not in CHECK.read_text()
 
 
 def test_comment_workflow_follows_the_check_by_name(check, comment):

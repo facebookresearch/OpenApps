@@ -480,7 +480,8 @@ def schema_errors(
     Hand-rolled on purpose: ``jsonschema`` is only a transitive dependency
     (via agentlab), and the schemas here use a small, fixed vocabulary --
     type, properties, required, additionalProperties, items, anyOf, enum,
-    const, $ref (local), pattern, minLength, minimum, format (ignored).
+    const, $ref (local), pattern, minLength, maxLength, minimum, maximum,
+    format (ignored).
     Unknown keywords raise, so a schema can't quietly outgrow the checker.
     The tests cross-check against ``jsonschema`` when it is installed.
     """
@@ -489,7 +490,8 @@ def schema_errors(
     known = {
         "$schema", "$id", "$defs", "title", "description", "type", "properties",
         "required", "additionalProperties", "items", "anyOf", "enum", "const",
-        "$ref", "pattern", "minLength", "minimum", "format", "examples", "default",
+        "$ref", "pattern", "minLength", "maxLength", "minimum", "maximum",
+        "format", "examples", "default",
     }  # fmt: skip
     unknown = set(schema) - known
     if unknown:
@@ -518,6 +520,8 @@ def schema_errors(
     if isinstance(instance, str):
         if "minLength" in schema and len(instance) < schema["minLength"]:
             errors.append(f"{path}: shorter than {schema['minLength']}")
+        if "maxLength" in schema and len(instance) > schema["maxLength"]:
+            errors.append(f"{path}: longer than {schema['maxLength']}")
         if "pattern" in schema and not re.search(schema["pattern"], instance):
             errors.append(f"{path}: does not match {schema['pattern']}")
     if (
@@ -526,6 +530,12 @@ def schema_errors(
         and instance < schema["minimum"]
     ):
         errors.append(f"{path}: below minimum {schema['minimum']}")
+    if (
+        "maximum" in schema
+        and _is_type(instance, "number")
+        and instance > schema["maximum"]
+    ):
+        errors.append(f"{path}: above maximum {schema['maximum']}")
     if isinstance(instance, dict):
         for key in schema.get("required", []):
             if key not in instance:

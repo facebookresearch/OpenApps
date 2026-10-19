@@ -296,7 +296,7 @@ def test_agent_config_is_redacted_and_no_credential_is_written(
     meta = yaml.safe_load((out / B.META_FILE).read_text())
     assert sorted(meta["redacted"]) == ["api_key", "base_url", "hostname"]
     assert meta["wandb_report"] == "https://wandb.ai/<entity>/<project>/reports/x"
-    assert meta["verified"] is False
+    assert "verified" not in meta  # maintainers record it in verifications.yaml
     blob = b"".join(
         (gzip.decompress(p.read_bytes()) if p.suffix == ".gz" else p.read_bytes())
         for p in out.iterdir()

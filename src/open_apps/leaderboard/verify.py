@@ -5,7 +5,8 @@ This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
 The verification tier, maintainer side: re-run a submission's ``agent.yaml``
-on the suite's held-out seeds and record the summary in its ``meta.yaml``.
+on the suite's held-out seeds and record the summary in the maintainer-owned
+``leaderboard/verifications.yaml``.
 
     uv run -m open_apps.leaderboard.verify plan <bundle>
     uv run -m open_apps.leaderboard.verify record <bundle> <heldout_logs_dir> [...]
@@ -15,19 +16,23 @@ the suite with ``benchmark.seed_set=heldout``, plus the held-out set's
 ``seeds_hash``. ``record`` packs the finished held-out run *in a temporary
 directory* (the same ``pack`` code), validates it against the suite's cells
 expanded with the held-out seeds (``validate --seed-set heldout``), computes
-its aligned rate the way the leaderboard does, and writes
+its aligned rate the way the leaderboard does, and writes one entry
 
-    verified: {date, seeds_hash, aligned, delta}
+    {bundle, episodes_sha256, agent_config_hash, date, seeds_hash, aligned, delta}
 
-into the bundle's ``meta.yaml`` -- ``aligned`` the held-out aligned rate and
-``delta`` held-out minus public aligned, both as rates in [0, 1] like every
-other rate in ``leaderboard.json`` (the page renders ``delta`` in points:
--0.05 is "-5.0 points").
+to ``leaderboard/verifications.yaml`` (``open_apps.leaderboard.verifications``)
+-- ``aligned`` the held-out aligned rate and ``delta`` held-out minus public
+aligned, both as rates in [0, 1] like every other rate in ``leaderboard.json``
+(the page renders ``delta`` in points: -0.05 is "-5.0 points"). The bundle
+itself is never touched: verified status is not the submitter's to carry, and
+the sha256 and agent hash pin the entry to exactly the bundle verified.
+Commit the file in a PR of its own (CI fails one that touches anything else;
+CODEOWNERS requires a maintainer's review).
 
 Held-out seeds are read where the sweep reads them (``$OPENAPPS_HELDOUT_SEEDS``
 or the gitignored ``config/benchmark/internal-heldout_seeds.yaml``). Nothing
 here prints or writes a seed, and nothing per-episode from the held-out run
-reaches the repo: only the four summary fields above. A seed that leaks is a
+reaches the repo: only the summary fields above. A seed that leaks is a
 public seed, and the tier would stop measuring overfitting.
 """
 
@@ -42,6 +47,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from open_apps.leaderboard import bundle as B
+from open_apps.leaderboard import verifications as VF
 from open_apps.leaderboard.suite import (
     HELDOUT_ENV,
     heldout_seeds_hash,
@@ -130,7 +136,7 @@ def plan(bundle: str | Path, mode: str = "<local|slurm_cluster>") -> str:
         f"   uv run launch_parallel_agents.py benchmark={suite} benchmark.seed_set=heldout \\",
         f'       "hydra.searchpath=[file://{stage}]" agent={name} mode={mode}',
         "",
-        "3. Record the result in the bundle's meta.yaml:",
+        "3. Record the result in leaderboard/verifications.yaml (then commit that file alone):",
         "",
         f"   uv run -m open_apps.leaderboard.verify record {bundle} log_outputs/<timestamp>",
     ]
@@ -159,6 +165,7 @@ class Verification:
     public_aligned: float
     n_heldout: int
     salted: bool
+    path: Optional[Path] = None
 
 
 def heldout_report(
@@ -194,8 +201,11 @@ def record(
     logs_dirs: Iterable[str | Path],
     suite: Optional[str | Path] = None,
     date: Optional[str] = None,
+    verifications: Optional[str | Path] = None,
 ) -> Verification:
-    """Validate the held-out run, then write ``verified`` into ``meta.yaml``.
+    """Validate the held-out run, then write its entry to ``verifications``
+    (default ``leaderboard/verifications.yaml``), replacing any earlier one
+    for the bundle.
 
     Refuses (``VerifyError``) unless the public bundle and the held-out run
     both validate ``OK`` -- a partial held-out run would compare different
@@ -231,23 +241,18 @@ def record(
         n_heldout = held.n_records
     public_aligned = _aligned(public)
 
-    verified = {
+    entry = {
+        "bundle": bundle.name,
+        "episodes_sha256": VF.episodes_sha256(bundle),
+        "agent_config_hash": str(meta["agent_config_hash"]),
         "date": date or dt.date.today().isoformat(),
         "seeds_hash": seeds_hash,
         "aligned": round(held_aligned, DIGITS),
         "delta": round(held_aligned - public_aligned, DIGITS),
     }
-    raw = B.read_yaml(bundle / B.META_FILE)
-    raw["verified"] = verified
-    check = {
-        k: v.isoformat() if isinstance(v, (dt.date, dt.datetime)) else v
-        for k, v in raw.items()
-    }
-    errors = B.schema_errors(check, B.load_schema("meta.schema.json"))
-    if errors:
-        raise VerifyError(f"{B.META_FILE} would not validate: {errors}")
-    B.write_yaml(raw, bundle / B.META_FILE)
-    return Verification(verified, public_aligned, n_heldout, salted)
+    path = VF.upsert(entry, Path(verifications) if verifications else None)
+    verified = {k: entry[k] for k in VF.SHOWN}
+    return Verification(verified, public_aligned, n_heldout, salted, path)
 
 
 # --- CLI ---------------------------------------------------------------------------
@@ -257,7 +262,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Maintainer tooling for the verified tier: re-run a submission on the "
-            "held-out seeds and record the summary in its meta.yaml. Held-out seeds "
+            "held-out seeds and record the summary in leaderboard/verifications.yaml. Held-out seeds "
             f"come from ${HELDOUT_ENV} or the gitignored internal seeds file and are "
             "never printed or written."
         )
@@ -273,7 +278,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     p_record = sub.add_parser(
         "record",
-        help="validate a held-out run and write verified: {...} into the bundle's meta.yaml",
+        help="validate a held-out run and write its entry to leaderboard/verifications.yaml",
     )
     p_record.add_argument("bundle", type=Path)
     p_record.add_argument(
@@ -282,6 +287,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_record.add_argument(
         "--date", default=None, help="ISO date to record (default: today)"
     )
+    p_record.add_argument(
+        "--verifications", type=Path, default=None,
+        help="the verifications file to write (default: leaderboard/verifications.yaml)",
+    )  # fmt: skip
     p_record.add_argument(
         "--suite",
         default=None,
@@ -292,7 +301,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         if args.command == "plan":
             print(plan(args.bundle, mode=args.mode))
             return 0
-        result = record(args.bundle, args.logs_dirs, suite=args.suite, date=args.date)
+        result = record(
+            args.bundle,
+            args.logs_dirs,
+            suite=args.suite,
+            date=args.date,
+            verifications=args.verifications,
+        )
     except (FileNotFoundError, ValueError, VerifyError) as exc:
         print(f"verify {args.command} failed: {exc}", file=sys.stderr)
         return 1
@@ -303,7 +318,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         f"(delta {v['delta'] * 100:+.1f} points) over {result.n_heldout} held-out episodes; "
         f"seeds_hash {v['seeds_hash']}"
     )
-    print(f"wrote verified: to {args.bundle / B.META_FILE}")
+    print(f"wrote {args.bundle.name} to {result.path} (commit it in a PR of its own)")
     warning = _salt_warning(result.salted)
     if warning:
         print(warning, file=sys.stderr)

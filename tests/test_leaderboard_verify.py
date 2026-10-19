@@ -6,9 +6,11 @@ LICENSE file in the root directory of this source tree.
 
 ``open_apps.leaderboard.verify`` and ``validate --seed-set heldout``: the
 plan prints no seed, a held-out run is checked against the held-out cells,
-``record`` writes exactly the ``verified`` summary (and nothing per-episode),
-build surfaces it, a missing seed source is a clear error, and the seeds hash
-is deterministic. Held-out seeds come from a temp file via the env var; no
+``record`` writes exactly one summary entry to the maintainer-owned
+``leaderboard/verifications.yaml`` (and nothing per-episode, and nothing to
+the bundle), build surfaces it only while the entry still matches the
+bundle, a missing seed source is a clear error, and the seeds hash is
+deterministic. Held-out seeds come from a temp file via the env var; no
 real seed is ever involved.
 """
 
@@ -65,6 +67,12 @@ def bundle(tmp_path):
     dst = tmp_path / "bundles" / EXAMPLE_BUNDLE.name
     shutil.copytree(EXAMPLE_BUNDLE, dst)
     return dst
+
+
+@pytest.fixture
+def ledger(tmp_path):
+    """Where ``record`` writes: a temp verifications.yaml, never the repo's."""
+    return tmp_path / "verifications.yaml"
 
 
 def heldout_logs(root, worse: bool = False):
@@ -158,11 +166,12 @@ def test_cli_plan(seeds_file, bundle):
 # --- missing seed source ---------------------------------------------------------------
 
 
-def test_missing_seed_source_is_a_clear_error(no_seeds, bundle, tmp_path):
+def test_missing_seed_source_is_a_clear_error(no_seeds, bundle, tmp_path, ledger):
     with pytest.raises(FileNotFoundError, match=HELDOUT_ENV):
         V.plan(bundle)
     with pytest.raises(FileNotFoundError, match=HELDOUT_ENV):
-        V.record(bundle, [tmp_path / "logs"], suite=TINY_SUITE)
+        V.record(bundle, [tmp_path / "logs"], suite=TINY_SUITE, verifications=ledger)
+    assert not ledger.exists()
     report = validate_bundle(bundle, suite=TINY_SUITE, seed_set="heldout")
     assert report.status == FAIL
     assert any(HELDOUT_ENV in e for e in report.errors)
@@ -200,24 +209,30 @@ def test_heldout_validation_uses_the_heldout_cells(seeds_file, bundle, tmp_path)
 
 
 def test_partial_heldout_run_is_refused_without_naming_seeds(
-    seeds_file, bundle, tmp_path
+    seeds_file, bundle, tmp_path, ledger
 ):
     logs = tmp_path / "logs"
     write_logs_tree(logs / "only", rebuilt_job=None, seed=HELDOUT_SEEDS[0])
     with pytest.raises(V.VerifyError, match="every held-out cell") as info:
-        V.record(bundle, [logs], suite=TINY_SUITE, date=FIXED_DATE)
+        V.record(
+            bundle, [logs], suite=TINY_SUITE, date=FIXED_DATE, verifications=ledger
+        )
     # 918273 ran, so the missing cells are the other seed: position 0 of the sorted set.
     assert "missing: " in str(info.value) and "seed=held-out#0" in str(info.value)
     for seed in HELDOUT_SEEDS:
         assert str(seed) not in str(info.value)
-    assert "verified: false" in (bundle / B.META_FILE).read_text()
+    assert not ledger.exists()
 
 
 # --- record ----------------------------------------------------------------------------
 
 
-def test_record_writes_the_verified_block(seeds_file, bundle, tmp_path):
-    episodes = (bundle / B.EPISODES_FILE).read_bytes()
+def test_record_writes_one_entry_to_the_verifications_file(
+    seeds_file, bundle, tmp_path, ledger
+):
+    from open_apps.leaderboard import verifications as VF
+
+    before = _bundle_text(bundle)
     public = validate_bundle(bundle, suite=TINY_SUITE)
     public_rate = sum(r["aligned"] for r in public.rows) / len(public.rows)
 
@@ -226,37 +241,59 @@ def test_record_writes_the_verified_block(seeds_file, bundle, tmp_path):
         [heldout_logs(tmp_path / "logs", worse=True)],
         suite=TINY_SUITE,
         date="2026-10-20",
+        verifications=ledger,
     )
+    (entry,) = VF.load(ledger)
     meta = yaml.safe_load((bundle / B.META_FILE).read_text())
-    verified = meta["verified"]
-    assert set(verified) == {"date", "seeds_hash", "aligned", "delta"}
-    assert verified["date"] == "2026-10-20"
-    assert verified["seeds_hash"] == heldout_seeds_hash()[0]
+    assert entry["bundle"] == bundle.name
+    assert entry["episodes_sha256"] == VF.episodes_sha256(bundle)
+    assert entry["agent_config_hash"] == meta["agent_config_hash"]
+    assert entry["date"] == "2026-10-20"
+    assert entry["seeds_hash"] == heldout_seeds_hash()[0]
     # One of 2 x 6 held-out episodes lost its aligned verdict.
     n = len(JOBS) * len(HELDOUT_SEEDS)
     held_rate = (public_rate * n - 1) / n
-    assert verified["aligned"] == round(held_rate, V.DIGITS)
-    assert verified["delta"] == round(held_rate - public_rate, V.DIGITS) < 0
+    assert entry["aligned"] == round(held_rate, V.DIGITS)
+    assert entry["delta"] == round(held_rate - public_rate, V.DIGITS) < 0
     assert result.n_heldout == n
+    assert result.verified == {k: entry[k] for k in VF.SHOWN}
 
-    # Only the summary reached the bundle: episodes untouched, no seed anywhere.
-    assert (bundle / B.EPISODES_FILE).read_bytes() == episodes
-    text = _bundle_text(bundle)
+    # Nothing reached the bundle, and no seed reached the ledger.
+    assert _bundle_text(bundle) == before
     for seed in HELDOUT_SEEDS:
-        assert str(seed) not in text
-    assert sorted(p.name for p in bundle.iterdir()) == sorted(
-        [B.META_FILE, B.AGENT_FILE, B.EPISODES_FILE]
-    )
+        assert str(seed) not in ledger.read_text()
 
-    # Still a valid bundle (meta.schema.json accepts the block), and build
-    # carries it to the page.
+    # build carries it to the page...
     from open_apps.leaderboard.build import build
 
     report = validate_bundle(bundle, suite=TINY_SUITE)
-    assert report.errors == [] and report.status == OK
-    doc = build([report], when="2026-10-20T00:00:00Z", n_boot=10)
+    doc = build([report], when="2026-10-20T00:00:00Z", n_boot=10, verifications=[entry])
     (row,) = doc["suites"]["tiny_v1"]["rows"]
-    assert row["verified"] == verified
+    assert row["verified"] == result.verified
+    assert doc["stale_verifications"] == []
+
+    # ...until the bundle changes under it: re-recorded episodes drop the badge.
+    lines = [line for _, line in B.iter_episodes(bundle / B.EPISODES_FILE)]
+    B.write_episodes(list(reversed(lines)), bundle / B.EPISODES_FILE)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    doc = build([report], when="2026-10-20T00:00:00Z", n_boot=10, verifications=[entry])
+    (row,) = doc["suites"]["tiny_v1"]["rows"]
+    assert row["verified"] is False
+    assert doc["stale_verifications"] == [
+        {
+            "bundle": bundle.name,
+            "reason": "episodes.jsonl.gz changed since it was verified",
+        }
+    ]
+
+
+def test_record_replaces_an_earlier_entry(seeds_file, bundle, tmp_path, ledger):
+    from open_apps.leaderboard import verifications as VF
+
+    logs = heldout_logs(tmp_path / "logs")
+    V.record(bundle, [logs], suite=TINY_SUITE, date="2026-10-20", verifications=ledger)
+    V.record(bundle, [logs], suite=TINY_SUITE, date="2026-11-01", verifications=ledger)
+    assert [e["date"] for e in VF.load(ledger)] == ["2026-11-01"]
 
 
 def test_record_refuses_a_different_agent_config(seeds_file, bundle, tmp_path):
@@ -266,28 +303,63 @@ def test_record_refuses_a_different_agent_config(seeds_file, bundle, tmp_path):
         data["agent"]["max_tokens"] = 1
         config.write_text(yaml.safe_dump(data))
     with pytest.raises(V.VerifyError, match="different agent config"):
-        V.record(bundle, [logs], suite=TINY_SUITE)
+        V.record(bundle, [logs], suite=TINY_SUITE, verifications=tmp_path / "v.yaml")
 
 
-def test_record_accepts_filled_in_secrets(seeds_file, bundle, tmp_path):
+def test_record_accepts_filled_in_secrets(seeds_file, bundle, tmp_path, ledger):
     """The maintainer's own endpoint and key are not a different agent."""
     logs = heldout_logs(tmp_path / "logs")
     for config in logs.rglob("config.yaml"):
         data = yaml.safe_load(config.read_text())
         data["agent"].update(api_key="maintainer-key", hostname="maintainer-host")
         config.write_text(yaml.safe_dump(data))
-    V.record(bundle, [logs], suite=TINY_SUITE, date=FIXED_DATE)
-    text = _bundle_text(bundle)
+    V.record(bundle, [logs], suite=TINY_SUITE, date=FIXED_DATE, verifications=ledger)
+    text = _bundle_text(bundle) + ledger.read_text()
     assert "maintainer-key" not in text and "maintainer-host" not in text
 
 
-def test_cli_record(seeds_file, bundle, tmp_path):
+def test_cli_record(seeds_file, bundle, tmp_path, ledger):
     logs = heldout_logs(tmp_path / "logs")
     cmd = [sys.executable, "-m", "open_apps.leaderboard.verify", "record"]
     cmd += [str(bundle), str(logs), "--suite", str(TINY_SUITE), "--date", FIXED_DATE]
+    cmd += ["--verifications", str(ledger)]
     proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
     assert "delta +0.0 points" in proc.stdout
     assert heldout_seeds_hash()[0] in proc.stdout
+    assert f"wrote {bundle.name} to {ledger}" in proc.stdout
     for seed in HELDOUT_SEEDS:
         assert str(seed) not in proc.stdout + proc.stderr
+
+
+def test_the_repo_verifications_file_is_well_formed():
+    """Whatever maintainers committed loads (empty until the first one)."""
+    from open_apps.leaderboard import verifications as VF
+
+    assert VF.default_path().is_file()
+    assert isinstance(VF.load(), list)
+
+
+def test_a_malformed_entry_is_refused(tmp_path):
+    from open_apps.leaderboard import verifications as VF
+
+    path = tmp_path / "v.yaml"
+    for bad in (
+        {"verifications": [{"bundle": "x__y__z"}]},
+        {
+            "verifications": [
+                {
+                    "bundle": "x__y__z",
+                    "episodes_sha256": "0" * 64,
+                    "agent_config_hash": "0" * 12,
+                    "date": "2026-10-20",
+                    "seeds_hash": "s",
+                    "aligned": 1.5,
+                    "delta": 0,
+                }
+            ]
+        },  # fmt: skip
+    ):
+        path.write_text(yaml.safe_dump(bad))
+        with pytest.raises(ValueError, match="malformed"):
+            VF.load(path)

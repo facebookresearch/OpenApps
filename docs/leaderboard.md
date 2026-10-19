@@ -31,17 +31,34 @@ There are two trust tiers:
   scorer and fails the submission on any disagreement. The numbers in the table are always the
   scorer's, never the submitter's.
 - **Verified** (the ✓ badge): a maintainer re-ran the submitted `agent.yaml` on held-out seeds
-  that are not public. Hover or focus the badge for the date and the held-out vs public
-  difference; a large difference is flagged as a sign of overfitting to the public seeds.
+  that are not public, and recorded the result in `leaderboard/verifications.yaml`, a
+  maintainer-owned file. The badge's held-out figures are that re-run's, never the
+  submitter's. Hover or focus the badge for the date and the held-out vs public difference; a
+  large difference is flagged as a sign of overfitting to the public seeds.
+
+The authoritative check is the docs build on `main`: it re-validates every merged bundle with
+`main`'s code against the suite's committed lock, and reads verified status from
+`leaderboard/verifications.yaml` only. The pull-request CI runs the same checks with the base
+branch's code, but it is advisory (a PR can edit the workflow that runs it); it exists to tell
+you, before review, what `main` will say.
 
 An episode record carries copies of everything a run takes from config: the task's config
 (goal, `expected`, `clarified`, ...), the irreversibility map, each fired event with its
 `forbidden` predicates, and the adversarial pop-up/content flags. For a submission none of
-those copies is trusted. `validate` composes the record's suite cell (task, variation, seed)
-from the repository's own config, the way the sweep does, and fails the bundle with the exact
-path of any difference: an edited goal or `expected`, a dropped predicate, a shrunken map, or
-a fired event the cell does not configure (or whose id, category or text was changed). The
-re-score then runs under the repository's task, events and map, never the record's.
+those copies is trusted. `validate` reads the record's suite cell (task, variation, seed)
+from the suite's committed lock (`config/benchmark/<suite>.lock.json`, the cell's config as the
+sweep composes it), and fails the bundle with the exact path of any difference: an edited goal
+or `expected`, a dropped predicate, a shrunken map, or a fired event the cell does not
+configure (or whose id, category or text was changed). The re-score then runs under the
+lock's task, events and map, never the record's. The lock is what makes "frozen" true: a
+later change to a task, a content pack or an event fails the repository's tests until it is
+made a deliberate suite-version decision, so it cannot quietly move a published table.
+
+The trace is held to itself and to the suite's step budget: every episode must carry the
+suite's pinned `max_steps` and `task_seed`; `n_steps` must be the trace's action count (steps
+indexed `0..n`, at most `max_steps`); a `max_steps` ending only at the budget; and a claim or
+refusal ending only when the last action made one (its action, its snapshot or its chat
+message).
 
 A configured event that should have fired but is absent from the record (the episode reached
 its trigger step and kept going) does not fail the bundle, since a failed delivery is
@@ -97,7 +114,7 @@ This writes `leaderboard/submissions/<org>__<agent>__align_v1/`:
 
 | File | What it is |
 | --- | --- |
-| `meta.yaml` | who, what, when: model, org, contact, date, agent config hash, `verified: false` |
+| `meta.yaml` | who, what, when: model (the agent config's `model_name` or `model_pretty_name`), org, contact, date, agent config hash |
 | `agent.yaml` | the agent config the runs used, with keys, tokens, hosts, URLs, headers and anything secret-looking redacted (every value under such a key, list items included) |
 | `episodes.jsonl.gz` | one episode record per suite cell, with the scores `pack` computed; error messages and chat scrubbed of hosts, URLs and secrets, and each record's `agent_config_hash` set to the bundle's |
 
@@ -177,8 +194,9 @@ adds a submission, so every bundle is judged by code that is already on `main`.
 2. **Review**: a maintainer checks the bundle and the agent config and merges. The table is
    rebuilt from all merged bundles when the docs deploy.
 3. **Verification** (optional): a maintainer re-runs your `agent.yaml` on the held-out seeds
-   and records `verified: {date, seeds_hash, aligned, delta}` in your `meta.yaml`, which shows
-   the ✓ badge (see [Verification](#verification-maintainers)).
+   and records the result in `leaderboard/verifications.yaml`, which shows the ✓ badge (see
+   [Verification](#verification-maintainers)). Your bundle is not changed; if you later
+   re-submit it, the badge drops until it is re-verified.
 
 ## Verification (maintainers)
 
@@ -203,25 +221,26 @@ uv run -m open_apps.leaderboard.verify record leaderboard/submissions/<org>__<ag
 - `record` packs the held-out run in a temporary directory with the same code as `pack`,
   validates it against the suite's cells expanded with the held-out seeds
   (`validate --seed-set heldout`, which labels held-out seeds by position, never by value),
-  and writes `verified: {date, seeds_hash, aligned, delta}` to the bundle's `meta.yaml`.
+  and writes one entry to `leaderboard/verifications.yaml`: the bundle, the sha256 of its
+  `episodes.jsonl.gz`, its `agent_config_hash`, and `{date, seeds_hash, aligned, delta}`.
   It refuses unless both the public bundle and the held-out run validate `OK`, and unless the
-  held-out run used the submitted agent config (only redacted values may differ).
+  held-out run used the submitted agent config (only redacted values may differ). The bundle
+  itself is never touched.
 - `aligned` is the held-out aligned rate and `delta` is held-out minus public aligned, both as
-  rates (`-0.05` is 5 points lower), computed the way the table computes a row. Only these
-  four fields reach the repository; no per-episode held-out data does.
+  rates (`-0.05` is 5 points lower), computed the way the table computes a row. Only this
+  summary reaches the repository; no per-episode held-out data does.
 - `seeds_hash` identifies the seed set so two verifications can be compared. It mixes in the
   seeds file's secret `salt`, since an unsalted hash of a few small integers can be reversed by
   enumeration; the tooling warns when the salt is missing.
 
-Commit the `meta.yaml` change in its own PR and give it the `verified-by-maintainer` label.
-CI compares every changed bundle with its copy on the base branch and fails any PR that adds
-or changes a `verified` block ("verified is set by maintainers via `verify record`; remove it
-from this PR"), including a new bundle that arrives with one. The label lifts that only for a
-PR that changes nothing in the bundle but the `verified` block; only users with triage
-rights can apply labels, and CI reads the label when it runs (labelling re-runs it).
-Resetting `verified` to `false` is always allowed, and a submitter must do so when
-re-submitting a verified bundle with a different `agent.yaml` or episodes, since the
-verification no longer applies. Once merged, the table shows the ✓ badge and flags a large
+Commit `leaderboard/verifications.yaml` in a PR of its own. Two things protect it: CODEOWNERS
+(`.github/CODEOWNERS`) requires a maintainer's approval for any change to it, and CI fails a
+PR that touches it together with anything else, so a verification PR carries exactly what
+`verify record` wrote. The table reads verified status from this file only (a `verified` in a
+bundle's `meta.yaml` is deprecated, and `validate` fails anything but `false`). Each entry is
+pinned to the bundle it verified: when the bundle's episodes or agent config hash change (a
+re-submission), the docs build drops the entry, logs it as stale, and the badge disappears
+until the bundle is re-verified. Once merged, the table shows the ✓ badge and flags a large
 `delta` as possible overfitting to the public seeds.
 
 ## Demonstrations

@@ -181,7 +181,11 @@ def _logs_with_leaky_text(root):
 def test_pack_scrubs_free_text_and_the_bundle_validates(tmp_path):
     logs = _logs_with_leaky_text(tmp_path / "logs")
     out = pack(
-        [logs], org="example", agent="dummy", out=tmp_path / EXAMPLE_BUNDLE.name, date=FIXED_DATE
+        [logs],
+        org="example",
+        agent="dummy",
+        out=tmp_path / EXAMPLE_BUNDLE.name,
+        date=FIXED_DATE,
     ).out
     blob = gzip.decompress((out / B.EPISODES_FILE).read_bytes()).decode()
     for leak in ("learnfair1234", "gpu-node-12", "sk-live-abc123"):

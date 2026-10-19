@@ -70,7 +70,7 @@ def test_meta_is_filled_from_the_runs(logs, tmp_path):
     assert meta["model"] == "dummy"
     assert meta["date"] == FIXED_DATE
     assert meta["n_episodes"] == len(JOBS)
-    assert meta["verified"] is False
+    assert "verified" not in meta  # maintainers record it in verifications.yaml
     assert meta["agent_config_hash"] == B.normalized_agent_hash(agent)
 
 

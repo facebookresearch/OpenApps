@@ -1,0 +1,7 @@
+# Maintainer-owned (CODEOWNERS): which bundles were re-run on the held-out
+# seeds, and the result. Written by `uv run -m open_apps.leaderboard.verify
+# record`; never edit by hand, and never in a PR that touches anything else
+# (CI fails it). The leaderboard reads verified status from here only, and an
+# entry whose episodes_sha256 or agent_config_hash no longer matches its
+# bundle is dropped (reported as stale). See docs/leaderboard.md#verification.
+verifications: []
