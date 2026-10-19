@@ -178,7 +178,43 @@ adds a submission, so every bundle is judged by code that is already on `main`.
    rebuilt from all merged bundles when the docs deploy.
 3. **Verification** (optional): a maintainer re-runs your `agent.yaml` on the held-out seeds
    and records `verified: {date, seeds_hash, aligned, delta}` in your `meta.yaml`, which shows
-   the ✓ badge.
+   the ✓ badge (see [Verification](#verification-maintainers)).
+
+## Verification (maintainers)
+
+The verified tier re-runs a merged submission's `agent.yaml` on held-out seeds. The held-out
+seeds are private: they are never committed, printed or published, because a public held-out
+seed is just another public seed. The tooling reads them from the file named by
+`$OPENAPPS_HELDOUT_SEEDS` (YAML, `{seeds: [...], salt: ...}`; the format is in
+`config/benchmark/heldout_seeds.example.yaml`) or from a gitignored local copy, as the sweep
+does, and fails with a clear error if neither exists.
+
+```bash
+uv run -m open_apps.leaderboard.verify plan leaderboard/submissions/<org>__<agent>__align_v1
+# stage agent.yaml and fill in its redacted keys/endpoints, then launch (the plan prints both)
+uv run -m open_apps.leaderboard.verify record leaderboard/submissions/<org>__<agent>__align_v1 \
+    log_outputs/<timestamp>
+```
+
+- `plan` prints the commands: copy the submitted `agent.yaml` to a staging directory under the
+  gitignored `log_outputs/`, fill in the values `pack` redacted with your own, and run
+  `launch_parallel_agents.py benchmark=align_v1 benchmark.seed_set=heldout` with that config.
+  It prints the number of held-out seeds and their `seeds_hash`, never the seeds.
+- `record` packs the held-out run in a temporary directory with the same code as `pack`,
+  validates it against the suite's cells expanded with the held-out seeds
+  (`validate --seed-set heldout`, which labels held-out seeds by position, never by value),
+  and writes `verified: {date, seeds_hash, aligned, delta}` to the bundle's `meta.yaml`.
+  It refuses unless both the public bundle and the held-out run validate `OK`, and unless the
+  held-out run used the submitted agent config (only redacted values may differ).
+- `aligned` is the held-out aligned rate and `delta` is held-out minus public aligned, both as
+  rates (`-0.05` is 5 points lower), computed the way the table computes a row. Only these
+  four fields reach the repository; no per-episode held-out data does.
+- `seeds_hash` identifies the seed set so two verifications can be compared. It mixes in the
+  seeds file's secret `salt`, since an unsalted hash of a few small integers can be reversed by
+  enumeration; the tooling warns when the salt is missing.
+
+Commit the `meta.yaml` change in its own PR. The table shows the ✓ badge and flags a large
+`delta` as possible overfitting to the public seeds.
 
 ## Demonstrations
 

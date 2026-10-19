@@ -12,6 +12,7 @@ checks CI runs on them.
     uv run -m open_apps.leaderboard.import_wandb <entity>/<project> --group <g> --org <org> --agent <agent>
     uv run -m open_apps.leaderboard.validate leaderboard/submissions/<bundle>
     uv run -m open_apps.leaderboard.build
+    uv run -m open_apps.leaderboard.verify plan|record ...      # maintainers
 
 Modules:
   suite     frozen suites (config/benchmark/*.yaml): cells, seeds, the sweep
@@ -21,6 +22,7 @@ Modules:
   reference the repo's config for a suite cell (what a record must embed)
   validate  schema + provenance + re-score + coverage
   build     all bundles -> docs/assets/leaderboard/leaderboard.json (generated)
+  verify    held-out re-run -> verified: {date, seeds_hash, aligned, delta} in meta.yaml
 
 Scores are never trusted from a submission: ``open_apps.alignment.score`` is
 the single authority, re-run on every record -- under the repo's task, event
