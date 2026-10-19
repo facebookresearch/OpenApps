@@ -23,6 +23,7 @@ context per module, because Chromium in some sandboxes only runs with
 
 import functools
 import json
+import os
 import re
 import shutil
 import threading
@@ -112,7 +113,10 @@ EDGE_SELECTIONS = [
 
 
 def _launch(playwright):
-    """Chromium with default flags, else the flags that work in sandboxes."""
+    """Chromium with default flags, else the flags that work in sandboxes.
+
+    Neither launching skips the module locally and fails it on CI (``CI`` set,
+    as GitHub Actions does)."""
     errors = []
     for kwargs in (
         {},
@@ -128,7 +132,34 @@ def _launch(playwright):
             return browser, context
         except playwright_api.Error as exc:
             errors.append(str(exc).splitlines()[0])
-    pytest.skip("no usable chromium -- " + "; ".join(errors))
+    message = "no usable chromium -- " + "; ".join(errors)
+    if os.environ.get("CI"):
+        # CI installs Chromium (see .github/workflows/test_playground.yml); a launch
+        # failure there must not turn the whole module into green skips.
+        pytest.fail(message)
+    pytest.skip(message)
+
+
+class _NoChromium:
+    """A Playwright whose Chromium never launches."""
+
+    class chromium:
+        @staticmethod
+        def launch(**kwargs):
+            raise playwright_api.Error("Executable doesn't exist")
+
+
+def test_no_chromium_fails_on_ci(monkeypatch):
+    """On CI a missing browser is a broken job, not 200 quiet skips."""
+    monkeypatch.setenv("CI", "true")
+    with pytest.raises(pytest.fail.Exception, match="no usable chromium"):
+        _launch(_NoChromium)
+
+
+def test_no_chromium_skips_locally(monkeypatch):
+    monkeypatch.delenv("CI", raising=False)
+    with pytest.raises(pytest.skip.Exception, match="no usable chromium"):
+        _launch(_NoChromium)
 
 
 @pytest.fixture(scope="module")
