@@ -94,8 +94,8 @@ class TestMarkup:
     def test_has_one_arc_and_two_rays(self):
         assert brand.wordmark_markup().count("<path") == 3
 
-    def test_carries_the_dark_mode_flip_hook(self):
-        """styles.py flips this class; without it dark mode silently does nothing."""
+    def test_mark_is_grouped_apart_from_the_word(self):
+        """CSS can target the mark without touching the word."""
         assert 'class="ui-wordmark-mark"' in brand.wordmark_markup()
 
     def test_gradient_runs_bottom_to_top(self):
@@ -133,7 +133,7 @@ class TestLogomark:
         # Two elements with one id resolve to the first one's stops.
         assert brand._GRADIENT_ID not in brand.logomark_markup()
 
-    def test_carries_the_dark_mode_flip_hook(self):
+    def test_mark_is_grouped_like_the_wordmarks(self):
         assert 'class="ui-wordmark-mark"' in brand.logomark_markup()
 
 
@@ -172,7 +172,10 @@ def test_composer_sits_under_manual_installation_in_the_nav():
     assert "composer.md" in nav[install + 1]
 
 
-def test_docs_logomark_stays_upright_in_dark_mode():
-    # The launch screen flips its mark in dark mode; beside the docs title that
-    # read as upside down, so the docs header carries no flip.
+def test_mark_stays_upright_in_dark_mode():
+    # A dark-mode scaleY(-1) flip read as the logo being upside down, on the
+    # launch screen and in the docs header alike.
+    from open_apps.ui import styles
+    css = " ".join(str(v) for v in vars(styles).values() if isinstance(v, str))
+    assert "scaleY" not in css
     assert "scaleY" not in brand.docs_icon_template()
