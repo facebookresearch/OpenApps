@@ -71,6 +71,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import sys
+import zlib
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -180,7 +181,7 @@ def _load_meta(path: Path, report: BundleReport) -> Optional[dict]:
     try:
         meta = B.read_yaml(path / B.META_FILE)
     except Exception as exc:  # noqa: BLE001 -- any parse failure is the finding
-        report.errors.append(f"{B.META_FILE} is not valid YAML: {exc}")
+        report.errors.append(f"cannot read {B.META_FILE}: {exc}")
         return None
     if not isinstance(meta, dict):
         report.errors.append(f"{B.META_FILE} must be a mapping")
@@ -251,7 +252,7 @@ def _check_agent(path: Path, report: BundleReport) -> None:
     try:
         agent_cfg = B.read_yaml(path / B.AGENT_FILE)
     except Exception as exc:  # noqa: BLE001
-        report.errors.append(f"{B.AGENT_FILE} is not valid YAML: {exc}")
+        report.errors.append(f"cannot read {B.AGENT_FILE}: {exc}")
         return
     if not isinstance(agent_cfg, dict):
         report.errors.append(f"{B.AGENT_FILE} must be a mapping")
@@ -275,49 +276,72 @@ def _check_episodes(
 ) -> list[tuple[Any, Optional[dict]]]:
     """Schema-check and parse every line; return ``(record, submitted_scores)``
     (``None`` scores only when not ``require_scores``)."""
-    from open_apps.alignment.record import EpisodeRecord
-
     schema = B.episode_schema()
     parsed = []
     try:
-        lines = list(B.iter_episodes(path / B.EPISODES_FILE))
-    except (OSError, EOFError) as exc:
+        for line_no, data in B.iter_episodes(path / B.EPISODES_FILE):
+            item = _parse_line(line_no, data, schema, report, require_scores)
+            if item is not None:
+                parsed.append(item)
+    except B.EpisodesTooLarge as exc:
+        report.errors.append(f"{exc}; stopped reading")
+    except (OSError, EOFError, zlib.error) as exc:
         report.errors.append(f"{B.EPISODES_FILE} is not a readable gzip file: {exc}")
-        return parsed
-    for line_no, data in lines:
-        where = f"{B.EPISODES_FILE}:{line_no}"
-        if isinstance(data, Exception):
-            report.errors.append(f"{where}: not JSON ({data})")
-            continue
-        if not isinstance(data, dict):
-            report.errors.append(f"{where}: expected an object")
-            continue
-        data = dict(data)
-        submitted = data.pop(B.SCORES_KEY, None)
-        if not isinstance(submitted, dict) and (
-            require_scores or submitted is not None
-        ):
-            report.errors.append(f"{where}: missing the {B.SCORES_KEY!r} object")
-            continue
-        errs = B.schema_errors(data, schema)
-        if errs:
-            report.errors += [f"{where}: {e}" for e in errs[:3]]
-            continue
-        leaks = B.record_leaks(data)
-        if leaks:
-            report.errors.append(
-                f"{where}: unredacted host, URL or secret in free text at "
-                f"{', '.join(leaks[:5])}; re-pack (pack scrubs it) or replace it with {B.REDACTED}"
-            )
-            continue
-        try:
-            record = EpisodeRecord.from_dict(data)
-        except (ValueError, TypeError) as exc:
-            report.errors.append(f"{where}: {exc}")
-            continue
-        parsed.append((record, submitted))
     report.n_records = len(parsed)
     return parsed
+
+
+def _parse_line(
+    line_no: int, data: Any, schema: dict, report: BundleReport, require_scores: bool
+) -> Optional[tuple[Any, Optional[dict]]]:
+    """One episodes line -> ``(record, submitted scores)``, or None with the
+    reason in ``report.errors``. Anything a hostile line can make the
+    checks raise is caught here, per line, with the line number."""
+    where = f"{B.EPISODES_FILE}:{line_no}"
+    try:
+        return _parse_line_unsafe(where, data, schema, report, require_scores)
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError) as exc:
+        report.errors.append(
+            f"{where}: cannot read the record ({type(exc).__name__}: {exc})"
+        )
+    except RecursionError:
+        report.errors.append(f"{where}: cannot read the record (nested too deeply)")
+    return None
+
+
+def _parse_line_unsafe(
+    where: str, data: Any, schema: dict, report: BundleReport, require_scores: bool
+) -> Optional[tuple[Any, Optional[dict]]]:
+    from open_apps.alignment.record import EpisodeRecord
+
+    if isinstance(data, Exception):
+        report.errors.append(f"{where}: not JSON ({data})")
+        return None
+    if not isinstance(data, dict):
+        report.errors.append(f"{where}: expected an object")
+        return None
+    data = dict(data)
+    submitted = data.pop(B.SCORES_KEY, None)
+    if not isinstance(submitted, dict) and (require_scores or submitted is not None):
+        report.errors.append(f"{where}: missing the {B.SCORES_KEY!r} object")
+        return None
+    errs = B.schema_errors(data, schema)
+    if errs:
+        report.errors += [f"{where}: {e}" for e in errs[:3]]
+        return None
+    leaks = B.record_leaks(data)
+    if leaks:
+        report.errors.append(
+            f"{where}: unredacted host, URL or secret in free text at "
+            f"{', '.join(leaks[:5])}; re-pack (pack scrubs it) or replace it with {B.REDACTED}"
+        )
+        return None
+    try:
+        record = EpisodeRecord.from_dict(data)
+    except (ValueError, TypeError) as exc:
+        report.errors.append(f"{where}: {exc}")
+        return None
+    return record, submitted
 
 
 def _label(record: Any, report: BundleReport) -> str:

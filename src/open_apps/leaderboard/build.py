@@ -389,7 +389,10 @@ def build(
 
 def write(doc: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(doc, indent=2, default=str) + "\n")
+    # allow_nan=False: NaN/Infinity are not JSON, and the page's parser
+    # would reject the whole file. validate refuses non-finite input, so
+    # one here is a bug to surface, not to publish.
+    path.write_text(json.dumps(doc, indent=2, default=str, allow_nan=False) + "\n")
 
 
 # --- PR comment ------------------------------------------------------------------

@@ -15,6 +15,7 @@ Offline -- the example bundle is re-scored by the real scorer.
 from __future__ import annotations
 
 import gzip
+import re
 import json
 import shutil
 import subprocess
@@ -773,3 +774,118 @@ def test_a_score_the_scorer_does_not_produce_fails(bundle):
     assert any(
         "bonus: submitted 1, scorer says '<missing>'" in e for e in report.errors
     )
+
+
+# --- malformed data -----------------------------------------------------------------
+#
+# The review's shapes (/tmp/lbexp/exp1.py): every one must fail the bundle
+# with a message, never crash validate or reach the page as NaN/Infinity.
+
+
+def _mutate(bundle, fn, raw=False):
+    """Apply ``fn`` to the first record (re-signed, so only the bound or
+    the parse can fail it)."""
+    lines = _lines(bundle)
+    fn(lines[0])
+    if not raw:
+        lines[0] = _resign(lines[0])
+    _rewrite(bundle, lines)
+    return validate_bundle(bundle, suite=TINY_SUITE)
+
+
+@pytest.mark.parametrize(
+    "field, value, message",
+    [
+        ("tokens_in", -(10**9), "below minimum 0"),
+        ("tokens_in", 10**400, "above maximum"),
+        ("tokens_out", 10**12, "above maximum"),
+        ("env_elapsed_s", -1.0, "below minimum 0"),
+    ],
+)
+def test_step_counts_are_bounded(bundle, field, value, message):
+    def fn(line):
+        for step in line["steps"]:
+            step[field] = value
+
+    report = _mutate(bundle, fn, raw=True)
+    assert report.status == FAIL
+    assert any(field in e and message in e for e in report.errors), report.errors
+
+
+def test_negative_n_steps_and_out_of_range_rewards_fail(bundle):
+    def fn(line):
+        line["n_steps"] = -1000
+        line["cum_reward"] = 5.0
+
+    report = _mutate(bundle, fn, raw=True)
+    assert report.status == FAIL
+    assert any("$.n_steps: below minimum 0" in e for e in report.errors), report.errors
+    assert any("$.cum_reward: above maximum 1" in e for e in report.errors)
+
+
+@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity", "1e400"])
+def test_non_finite_numbers_are_refused(bundle, token):
+    lines = _lines(bundle)
+    text = "\n".join(json.dumps(line) for line in lines)
+    text = text.replace('"wall_s": null', f'"wall_s": {token}', 1)
+    if f'"wall_s": {token}' not in text:  # golden records have a number there
+        text = re.sub(r'"wall_s": [0-9.e+-]+', f'"wall_s": {token}', text, count=1)
+    (bundle / B.EPISODES_FILE).write_bytes(gzip.compress(text.encode()))
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any(
+        "episodes.jsonl.gz:1: not JSON" in e and "finite" in e for e in report.errors
+    ), report.errors
+
+
+def test_deeply_nested_json_is_a_line_error_not_a_crash(bundle):
+    lines = [json.dumps(line) for line in _lines(bundle)]
+    deep = "[" * 100_000 + "]" * 100_000
+    lines[1] = lines[1].replace('"final_url"', f'"x": {deep}, "final_url"', 1)
+    (bundle / B.EPISODES_FILE).write_bytes(gzip.compress("\n".join(lines).encode()))
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any(
+        e.startswith("episodes.jsonl.gz:2:") and "nested" in e for e in report.errors
+    ), report.errors
+
+
+def test_a_truncated_gzip_is_reported(bundle):
+    data = (bundle / B.EPISODES_FILE).read_bytes()
+    (bundle / B.EPISODES_FILE).write_bytes(data[: len(data) // 2])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("not a readable gzip file" in e for e in report.errors), report.errors
+
+
+def test_decompressed_size_is_capped(bundle, monkeypatch):
+    """A small gzip can inflate to many GB: reading stops at the cap."""
+    monkeypatch.setattr(B, "MAX_DECOMPRESSED", 10_000)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("decompresses to more than 10000 bytes" in e for e in report.errors)
+
+
+def test_yaml_alias_bombs_are_refused(bundle):
+    bomb = "a: &a [x, x, x, x, x, x, x, x, x]\nb: &b [*a, *a, *a, *a, *a, *a, *a, *a]\n"
+    bomb += "c: &c [*b, *b, *b, *b, *b, *b, *b, *b]\nmodel_name: dummy\n"
+    (bundle / B.AGENT_FILE).write_text(bomb)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("agent.yaml" in e and "aliases" in e for e in report.errors), (
+        report.errors
+    )
+
+
+def test_oversized_yaml_is_refused(bundle, monkeypatch):
+    monkeypatch.setattr(B, "MAX_YAML_BYTES", 100)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("larger than 100 bytes" in e for e in report.errors), report.errors
+
+
+def test_build_never_writes_nan(tmp_path):
+    from open_apps.leaderboard.build import write
+
+    with pytest.raises(ValueError):
+        write({"x": float("nan")}, tmp_path / "lb.json")

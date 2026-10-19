@@ -344,8 +344,37 @@ def agent_config_hash(agent_cfg: dict) -> str:
 # --- YAML / JSONL --------------------------------------------------------------
 
 
+#: A bundle's YAML files are a few KB; anything this big is not one.
+MAX_YAML_BYTES = 1 << 20
+#: ``episodes.jsonl.gz`` is streamed and stops at this many decompressed
+#: bytes (a few KB of gzip can inflate to many GB), and no line may exceed
+#: ``MAX_LINE_BYTES`` (a line is read whole before it is parsed).
+MAX_DECOMPRESSED = 1 << 30
+MAX_LINE_BYTES = 64 << 20
+
+
+class _NoAliasLoader(yaml.SafeLoader):
+    """``yaml.SafeLoader`` without anchors/aliases: no bundle file needs
+    them, and nested aliases are the "billion laughs" -- a few hundred bytes
+    that expand to gigabytes."""
+
+    def compose_node(self, parent, index):  # noqa: ANN001 -- PyYAML's signature
+        if self.check_event(yaml.AliasEvent):
+            event = self.peek_event()
+            raise yaml.composer.ComposerError(
+                None, None, "YAML aliases are not allowed in a bundle", event.start_mark
+            )
+        return super().compose_node(parent, index)
+
+
 def read_yaml(path: Path) -> Any:
-    return yaml.safe_load(Path(path).read_text())
+    """Parse a bundle's YAML safely: ``safe_load`` semantics, no aliases,
+    at most :data:`MAX_YAML_BYTES`. Raises ``ValueError`` / ``yaml.YAMLError``."""
+    path = Path(path)
+    size = path.stat().st_size
+    if size > MAX_YAML_BYTES:
+        raise ValueError(f"{path.name} is larger than {MAX_YAML_BYTES} bytes ({size})")
+    return yaml.load(path.read_text(), Loader=_NoAliasLoader)  # noqa: S506 -- a SafeLoader
 
 
 def write_yaml(data: Any, path: Path) -> None:
@@ -365,15 +394,63 @@ def write_episodes(lines: Iterable[dict], path: Path) -> int:
     return n
 
 
+class EpisodesTooLarge(ValueError):
+    """``episodes.jsonl.gz`` inflates past :data:`MAX_DECOMPRESSED`, or a
+    line past :data:`MAX_LINE_BYTES`."""
+
+
+def _reject_constant(token: str) -> Any:
+    raise ValueError(f"{token} is not a finite number")
+
+
+def _finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError(f"{text} is not a finite number")
+    return value
+
+
+def loads_strict(raw: str | bytes) -> Any:
+    """``json.loads`` that refuses what JSON itself does not allow but
+    Python's parser accepts: ``NaN``, ``Infinity`` and numbers too large for
+    a float (``1e400`` would become ``inf``). A value that cannot be written
+    back as strict JSON must not reach the leaderboard."""
+    return json.loads(raw, parse_constant=_reject_constant, parse_float=_finite_float)
+
+
 def iter_episodes(path: Path) -> Iterator[tuple[int, Any]]:
-    """``(line_no, parsed_or_exception)`` per non-empty line."""
-    with gzip.open(path, "rt", encoding="utf-8") as fh:
-        for i, raw in enumerate(fh, start=1):
+    """``(line_no, parsed_or_exception)`` per non-empty line, streamed.
+
+    A line that does not parse yields its exception (``ValueError`` for bad
+    or non-finite JSON, ``RecursionError`` for absurd nesting) so the caller
+    can report it and go on. A stream that inflates past the caps raises
+    :class:`EpisodesTooLarge`; a corrupt gzip raises ``OSError`` /
+    ``EOFError`` / ``zlib.error``.
+    """
+    total = 0
+    with gzip.open(path, "rb") as fh:
+        i = 0
+        while True:
+            raw = fh.readline(MAX_LINE_BYTES + 1)
+            if not raw:
+                return
+            i += 1
+            total += len(raw)
+            if total > MAX_DECOMPRESSED:
+                raise EpisodesTooLarge(
+                    f"{EPISODES_FILE} decompresses to more than {MAX_DECOMPRESSED} bytes"
+                )
+            if len(raw) > MAX_LINE_BYTES:
+                raise EpisodesTooLarge(
+                    f"{EPISODES_FILE}:{i}: line longer than {MAX_LINE_BYTES} bytes"
+                )
             if not raw.strip():
                 continue
             try:
-                yield i, json.loads(raw)
-            except json.JSONDecodeError as exc:
+                yield i, loads_strict(raw)
+            except RecursionError:
+                yield i, ValueError("nested too deeply to parse")
+            except (ValueError, UnicodeDecodeError) as exc:
                 yield i, exc
 
 
@@ -436,10 +513,49 @@ def scores_diff(
 # --- schemas -------------------------------------------------------------------
 
 
+# Bounds the record dataclasses cannot express, added to the generated
+# schema: ``{def name (or "$" for the record): {field: (minimum, maximum)}}``.
+# Counts and token usage are non-negative and sane-sized (a 10**400 token
+# count is not a measurement, and overflows float conversion downstream);
+# rewards are rates (a step's reward is a delta under on_agent_stop, so it
+# may be negative); seeds fit a float exactly.
+_MAX_STEPS = 10_000
+_MAX_SECONDS = 1e7
+_SEED_MAX = 2**53
+_BOUNDS: dict[str, dict[str, tuple[float, float]]] = {
+    "$": {"n_steps": (0, _MAX_STEPS), "cum_reward": (0, 1), "wall_s": (0, _MAX_SECONDS)},
+    "Identity": {
+        "seed": (0, _SEED_MAX), "task_seed": (0, _SEED_MAX), "max_steps": (1, _MAX_STEPS),
+    },
+    "StepRecord": {
+        "step": (0, _MAX_STEPS), "reward": (-1, 1),
+        "env_elapsed_s": (0, _MAX_SECONDS), "agent_elapsed_s": (0, _MAX_SECONDS),
+        "tokens_in": (0, 10**9), "tokens_out": (0, 10**9),
+    },
+    "Snapshot": {"reward": (0, 1)},
+    "EventRecord": {"step": (0, _MAX_STEPS)},
+    "ChatMessage": {"timestamp": (0, 1e11)},
+}  # fmt: skip
+
+
+def _bound(prop: dict, lo: float, hi: float) -> None:
+    """Bound the numeric branch(es) of a property schema (an Optional is an
+    ``anyOf`` of the number and null)."""
+    for option in prop.get("anyOf", [prop]):
+        if option.get("type") in ("integer", "number"):
+            option["minimum"], option["maximum"] = lo, hi
+
+
 def episode_schema() -> dict:
+    """``alignment.record.json_schema()`` plus the leaderboard's bounds."""
     from open_apps.alignment.record import json_schema
 
-    return json_schema()
+    schema = json_schema()
+    for where, fields in _BOUNDS.items():
+        props = (schema if where == "$" else schema["$defs"][where])["properties"]
+        for name, (lo, hi) in fields.items():
+            _bound(props[name], lo, hi)
+    return schema
 
 
 def load_schema(name: str) -> dict:
@@ -503,8 +619,12 @@ def schema_errors(
             raise ValueError(f"only local $defs refs are supported, got {ref}")
         return schema_errors(instance, root["$defs"][ref.split("/")[-1]], root, path)
     if "anyOf" in schema:
-        if not any(not schema_errors(instance, s, root, path) for s in schema["anyOf"]):
-            errors.append(f"{path}: matches none of the allowed shapes")
+        branches = [schema_errors(instance, s, root, path) for s in schema["anyOf"]]
+        if all(branches):
+            # The branch of the right type (the number of an Optional[int])
+            # says what is wrong with the value; else no shape fits.
+            typed = [b for b in branches if not any(": expected " in e for e in b)]
+            errors += typed[0] if typed else [f"{path}: matches none of the allowed shapes"]
         return errors
     if "const" in schema and instance != schema["const"]:
         errors.append(f"{path}: must be {schema['const']!r}, got {instance!r}")
