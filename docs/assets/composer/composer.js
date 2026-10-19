@@ -790,7 +790,8 @@
     for (const token of selection.extra) {
       const at = token.indexOf("=");
       if (at < 0) continue;
-      const key = token.slice(0, at);
+      // +key / ++key set the key like key= does; ~key deletes it (no value).
+      const key = token.slice(0, at).replace(/^\+\+?/, "");
       if (!/^[+~-]/.test(key)) out[key] = [yamlScalar(token.slice(at + 1))];
     }
 

@@ -97,7 +97,9 @@ def facts(selection: "Selection", catalog: "Catalog") -> dict[str, list[Any]]:
     :attr:`~open_apps.compose.catalog.Option.sets` in catalog order -- so
     ``+experiment`` overrides ``browsergym_env_args`` as it does at runtime --
     then the target script's own defaults, explicit scalars, and finally
-    ``key=value`` extra overrides.
+    ``key=value`` extra overrides -- ``+key=value`` (add) and ``++key=value``
+    (add or override) set the key just the same; ``~key`` deletes it, which
+    is no value to test.
     """
     from open_apps.compose.catalog import TARGETS
     from open_apps.compose.command import (
@@ -141,6 +143,7 @@ def facts(selection: "Selection", catalog: "Catalog") -> dict[str, list[Any]]:
 
     for token in selection.extra:
         key, sep, raw = token.partition("=")
+        key = key[2:] if key.startswith("++") else key.removeprefix("+")
         if sep and not key.startswith(("+", "~", "-")):
             out[key] = [_yaml_scalar(raw)]
 

@@ -49,6 +49,16 @@ def test_evaluate(catalog, case):
     assert [f.rule_id for f in findings] == case["findings"]
 
 
+def test_plus_extras_set_facts_and_deletions_do_not(catalog):
+    known = facts(
+        Selection(extra=["++a.b=false", "+a.c=3", "~a.d=1", "+++a.e=1"]), catalog
+    )
+    assert known["a.b"] == [False]
+    assert known["a.c"] == [3]
+    assert "a.d" not in known and "~a.d" not in known
+    assert "a.e" not in known and "+a.e" not in known  # not Hydra grammar
+
+
 # --------------------------------------------------------------------------
 # The rules file itself
 # --------------------------------------------------------------------------

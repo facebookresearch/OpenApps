@@ -48,6 +48,21 @@
       "findings": ["shop_task_with_shop_disabled"]
     },
     {
+      "name": "shop task with the shop forced off by a ++ override",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["++apps.onlineshop.enable=false"]},
+      "findings": ["shop_task_with_shop_disabled"]
+    },
+    {
+      "name": "shop task with the shop switched off by a + override",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["+apps.onlineshop.enable=false"]},
+      "findings": ["shop_task_with_shop_disabled"]
+    },
+    {
+      "name": "a ~ deletion is not a value",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["~apps.onlineshop.enable=false"]},
+      "findings": []
+    },
+    {
       "name": "a sweep where one task needs the shop",
       "selection": {"choices": {"agent": ["dummy"], "task_name": ["add_call_mom_to_my_todo", "navigate_to_onlineshop"], "apps/onlineshop/content": ["default"]}},
       "findings": ["shop_task_without_catalog"]
