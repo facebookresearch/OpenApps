@@ -19,11 +19,11 @@ exclude_docs: |
 nav:
   - Start: index.md
   - Manual Installation: installation.md
+  - "Config Composer": composer.md
   - Online Shop: onlineshop.md
   - "Intro to UI Agents": Intro to UI Agents.md
   - Agents: agents.md
   - Tasks: tasks.md
-  - "Config Composer": composer.md
   - "Inspecting the Databases": inspecting_databases.md
 
 markdown_extensions:
