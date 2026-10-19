@@ -7,19 +7,29 @@ LICENSE file in the root directory of this source tree.
 Retail online-banking surface: an account index and a per-account transaction
 ledger, modelled on a real bank dashboard.
 
-Deliberately read-only. Nothing an agent can click mutates the seeded state,
-so ``/openbanking_all`` is byte-identical at episode start and end. That is
-load-bearing: ``AppStateComparison`` builds every task's target by deep-copying
-the *initial* cross-app state, so an app that drifted on its own (auto
-timestamps, nondeterministic row order) would inject a spurious diff into every
-unrelated todo/calendar task's reward. Scorable work therefore lands in another
-app -- the bank supplies the information-retrieval half of a ``CompositeTask``
-and the delta shows up in todo/calendar/messenger.
+Read-only from the browser. Nothing an agent can click in *this* app mutates
+the seeded state, so ``/openbanking_all`` is byte-identical at episode start
+and end unless a purchase happens. That is load-bearing: ``AppStateComparison``
+builds every task's target by deep-copying the *initial* cross-app state, so an
+app that drifted on its own (auto timestamps, nondeterministic row order) would
+inject a spurious diff into every unrelated todo/calendar task's reward.
+
+The one write path is ``authorize_card_purchase``: the online shop calls it to
+charge a card at checkout (see ``openbanking_app.main`` imports in
+``onlineshop_app``). It is deliberately the only one, it only fires on an
+explicit checkout, and it posts *pending* rows -- ``date=None``,
+``balance=None`` -- so the payload still gains nothing but the rows the
+checkout actually added: the charge, or the declined authorization when the
+card could not cover it. A task that involves a shop purchase therefore has to
+expect a delta in the ``openbanking`` slice as well as ``online_shop``; a task
+that does not involve one still sees a byte-identical bank.
 """
 
 from fasthtml.common import *
 from dataclasses import dataclass
+from datetime import date
 import json
+import re
 from typing import List, Optional
 from urllib.parse import urlencode
 from open_apps.apps.start_page.helper import create_logo_header
@@ -49,6 +59,10 @@ class Account:
     credit_limit: Optional[float] = None
     card_brand: Optional[str] = None
     card_expiration: Optional[str] = None
+    # The card's security code. Masked on the card face until clicked, like
+    # the PAN -- a checkout elsewhere in the environment needs it, so it has to
+    # be reachable, but it should cost the agent the same extra click.
+    card_cvv: Optional[str] = None
     statement_balance: Optional[float] = None
     statement_close_date: Optional[str] = None
     minimum_payment: Optional[float] = None
@@ -404,6 +418,13 @@ def set_environment(config):
     accounts = db.create(Account, pk="id")
     transactions = db.create(Transaction, pk="id")
 
+    # set_environment is called again on reset, so clear before re-seeding
+    # rather than relying on the caller having dropped the tables. It also
+    # matters now that a purchase writes here: a reset has to put the card's
+    # figures back, not collide on the seeded primary keys.
+    for table in (transactions, accounts):
+        table.delete_where()
+
     print("Populating initial accounts and transactions from config")
     txn_id = 0
     for account_id, account_cfg in enumerate(config.openbanking.accounts):
@@ -432,6 +453,7 @@ def set_environment(config):
                 credit_limit=opt_float("credit_limit"),
                 card_brand=opt_str("card_brand"),
                 card_expiration=opt_str("card_expiration"),
+                card_cvv=opt_str("card_cvv"),
                 statement_balance=opt_float("statement_balance"),
                 statement_close_date=opt_str("statement_close_date"),
                 minimum_payment=opt_float("minimum_payment"),
@@ -585,6 +607,257 @@ def get_account(account_id: int) -> Optional[Account]:
         if account.id == account_id:
             return account
     return None
+
+
+# ---------------------------------------------------------------------------
+# Payments -- the app's only write path.
+#
+# Called by the online shop's checkout, never from this app's own UI. See the
+# module docstring for why that exception is narrow on purpose. The posted rows
+# are pending (`date=None`, `balance=None`): a real issuer shows a card charge
+# that way until the statement cuts, and it keeps `datetime.now()` -- the one
+# thing guaranteed to differ between two runs -- out of `/openbanking_all`.
+
+
+@dataclass
+class ChargeResult:
+    """Outcome of an authorization attempt.
+
+    `code` is for the caller to branch on, `message` is for the shopper. The
+    shop renders `message` verbatim, so it says what went wrong without ever
+    naming the figure the agent was supposed to look up: a declined card does
+    not tell you the balance.
+    """
+
+    approved: bool
+    code: str
+    message: str
+    account_id: Optional[int] = None
+    card_last4: str = ""
+    # How far past `available_credit` the charge went. Non-zero only on an
+    # approval inside the grace band.
+    over_limit_by: float = 0.0
+
+
+def _digits(value) -> str:
+    return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
+def _norm_holder(value) -> str:
+    return " ".join(str(value or "").split()).casefold()
+
+
+def parse_expiry(value) -> Optional[tuple]:
+    """Card expiry as ``(year, month)``, or None when it is not a real date.
+
+    Accepts what a checkout form realistically receives -- "09/29", "9/29",
+    "09 / 2029", "0929", "092029" -- so a correct card is not declined over
+    punctuation. Rejects anything that is not a month 1-12 with a two- or
+    four-digit year, so "13/29" cannot slip through as a lucky digit match.
+    """
+    parts = re.findall(r"\d+", str(value or ""))
+    if len(parts) == 1 and len(parts[0]) in (4, 6):  # MMYY / MMYYYY, unseparated
+        parts = [parts[0][:2], parts[0][2:]]
+    if len(parts) != 2:
+        return None
+    month, year = parts
+    if len(month) > 2 or len(year) not in (2, 4) or not 1 <= int(month) <= 12:
+        return None
+    return (int(year) + (2000 if len(year) == 2 else 0), int(month))
+
+
+def as_of_date() -> date:
+    """The bank's "today", which decides whether a card has expired.
+
+    Pinned in config (`as_of_date`) rather than read off the wall clock so a
+    seeded card does not quietly expire under a task years from now and turn
+    every purchase on it into a decline. Null falls back to the real date.
+    """
+    value = getattr(cfg(), "as_of_date", None)
+    return date.fromisoformat(str(value)) if value else date.today()
+
+
+def expiry_has_passed(expiry: tuple) -> bool:
+    """Whether a parsed ``(year, month)`` is before the bank's current month.
+
+    A card is good through the last day of its expiry month, so 08/26 still
+    works on 2026-08-31 and stops on 2026-09-01.
+    """
+    today = as_of_date()
+    return expiry < (today.year, today.month)
+
+
+def overlimit_grace() -> float:
+    """Dollars a charge may exceed `available_credit` by and still authorize."""
+    return float(getattr(cfg(), "overlimit_grace", 0.0) or 0.0)
+
+
+def find_card(number) -> Optional[Account]:
+    """The card account with this PAN, ignoring spacing, or None."""
+    wanted = _digits(number)
+    if not wanted:
+        return None
+    for account in account_rows():
+        if account.is_card and _digits(account.account_number) == wanted:
+            return account
+    return None
+
+
+def _next_txn_id() -> int:
+    ids = [t.id for t in transactions()]
+    return max(ids) + 1 if ids else 0
+
+
+def _next_position(account_id: int) -> int:
+    """Position for a row that should sort above every existing one.
+
+    `txns_for` orders ascending and treats 0 as most-recent, so a new posting
+    goes *below* zero rather than renumbering the seeded rows. Shifting every
+    existing row up by one on each purchase would rewrite the whole ledger in
+    `/openbanking_all` and drown the two rows that actually changed.
+    """
+    positions = [t.position for t in transactions() if t.account_id == account_id]
+    return min(positions) - 1 if positions else 0
+
+
+def _post(account_id: int, rows: List[Transaction]) -> None:
+    """Insert `rows` above the account's existing ledger, first row on top."""
+    base = _next_position(account_id)
+    next_id = _next_txn_id()
+    for offset, row in enumerate(reversed(rows)):
+        row.position = base - offset
+    for row in rows:
+        row.id = next_id
+        next_id += 1
+        transactions.insert(row)
+
+
+def authorize_card_purchase(
+    number: str,
+    expiration: str,
+    cvv: str,
+    holder: str,
+    amount: float,
+    descriptor: str,
+    merchant: Optional[str] = None,
+) -> ChargeResult:
+    """Authorize `amount` against a seeded credit card and post it.
+
+    Every detail has to match the card on file: PAN, expiry, CVV and cardholder
+    name, and the card must not have expired. A mismatch declines without
+    saying *which* field was wrong beyond the coarse reason -- enumerating the
+    failure would let an agent brute-force the CVV three digits at a time.
+
+    Approves when `amount` fits inside `available_credit + overlimit_grace()`.
+    A charge that lands in the grace band still goes through, and posts a second
+    row naming the overage so the ledger reports it.
+
+    A charge past the grace band is refused, but not silently: it posts one
+    zero-amount row recording the declined authorization, as a real card's
+    activity feed does. Without it a refused checkout left both apps exactly as
+    they were before the attempt, so a task could not tell "tried to pay and
+    was refused" from "never tried". That row names `merchant` rather than
+    `descriptor`, because a descriptor carries an order id and a refused
+    checkout never creates the order it would point to. `merchant` defaults to
+    `descriptor` for callers that have no order id to leave out.
+
+    Detail mismatches still write nothing. Those are typos, and a ledger row
+    per typo would fail every purchase task whose agent mistyped the CVV once
+    before getting it right.
+    """
+    c = cfg()
+    if accounts is None or transactions is None:
+        return ChargeResult(False, "unavailable", c.charge_unavailable_message)
+
+    account = find_card(number)
+    if account is None:
+        return ChargeResult(False, "unknown_card", c.charge_declined_message)
+
+    last4 = _digits(account.account_number)[-4:]
+    on_file = parse_expiry(account.card_expiration)
+    if on_file is None or parse_expiry(expiration) != on_file:
+        return ChargeResult(False, "bad_details", c.charge_declined_message, account.id, last4)
+    if expiry_has_passed(on_file):
+        return ChargeResult(False, "expired", c.charge_declined_message, account.id, last4)
+    if _digits(cvv) != _digits(account.card_cvv):
+        return ChargeResult(False, "bad_details", c.charge_declined_message, account.id, last4)
+    if _norm_holder(holder) != _norm_holder(account.holder):
+        return ChargeResult(False, "bad_details", c.charge_declined_message, account.id, last4)
+
+    amount = round(float(amount), 2)
+    if amount <= 0:
+        return ChargeResult(False, "bad_amount", c.charge_declined_message, account.id, last4)
+
+    headroom = round(account.available_credit, 2)
+    over_by = round(amount - headroom, 2)
+    if over_by > round(overlimit_grace(), 2):
+        # No money moves and the balances stay put; the row is the record that
+        # the attempt happened. The attempted amount is in the text, the
+        # shortfall is not -- the decline still does not tell you the balance.
+        _post(account.id, [
+            Transaction(
+                id=None,
+                account_id=account.id,
+                position=0,
+                date=None,
+                description=c.declined_description.format(
+                    merchant=merchant if merchant is not None else descriptor,
+                    amount=fmt_money(amount),
+                ),
+                type=c.declined_type,
+                amount=0.0,
+                balance=None,
+            )
+        ])
+        return ChargeResult(
+            False, "insufficient_credit", c.charge_insufficient_message, account.id, last4
+        )
+
+    # Approved. The charge first, then -- only if it broke the limit -- the
+    # notice, so the ledger reads top-down as "this happened, and here is what
+    # was unusual about it".
+    rows = [
+        Transaction(
+            id=None,
+            account_id=account.id,
+            position=0,
+            date=None,
+            description=descriptor,
+            type=c.purchase_type,
+            amount=-amount,
+            balance=None,
+        )
+    ]
+    if over_by > 0:
+        rows.append(
+            Transaction(
+                id=None,
+                account_id=account.id,
+                position=0,
+                date=None,
+                description=c.overlimit_description.format(amount=fmt_money(over_by)),
+                type=c.overlimit_type,
+                amount=0.0,
+                balance=None,
+            )
+        )
+
+    _post(account.id, rows)
+
+    # A card's `present_balance` is what is owed, carried negative, so a charge
+    # pushes it further down while eating the same amount of headroom.
+    account.present_balance = round(account.present_balance - amount, 2)
+    account.available_credit = round(headroom - amount, 2)
+    accounts.update(account)
+
+    return ChargeResult(
+        approved=True,
+        code="over_limit_grace" if over_by > 0 else "approved",
+        message=c.charge_approved_message,
+        account_id=account.id,
+        card_last4=last4,
+        over_limit_by=max(over_by, 0.0),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -771,6 +1044,16 @@ def card_face(account: Account, revealed: bool = False):
                 Div(
                     f"{c.card_expires_label} {account.card_expiration}"
                     if account.card_expiration
+                    else "",
+                    cls="ob-cardface-expiry",
+                ),
+                # Rides the same disclosure as the PAN -- one click turns the
+                # card over, which is also how you read a real one. A checkout
+                # needs the CVV, so it has to be reachable somewhere.
+                Div(
+                    f"{c.card_cvv_label} "
+                    f"{account.card_cvv if revealed else '•' * len(account.card_cvv)}"
+                    if account.card_cvv
                     else "",
                     cls="ob-cardface-expiry",
                 ),

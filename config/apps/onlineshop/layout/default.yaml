@@ -1,4 +1,6 @@
 # @package apps.onlineshop
-# Structure only -- no colors/fonts (those come from the shared theme).
+# Structure only -- colors and fonts come from the shared theme
+# (`config/apps/theme/`). Select with `apps/onlineshop/layout=<name>`.
+#
 # One product per row: image left, details right.
 layout: default

@@ -25,6 +25,7 @@ hide_number_label: "隐藏号码"
 
 card_number_label: "卡号"
 card_expires_label: "有效期至"
+card_cvv_label: "安全码"
 payment_heading: "还款"
 statement_balance_label: "账单余额"
 minimum_payment_label: "最低还款额"
@@ -52,6 +53,19 @@ column_labels:
   type: "类型"
   amount: "金额"
   balance: "余额"
+
+
+# --- 付款记录 --------------------------------------------------------------
+# 参见 `default.yaml`：网上商店刷卡付款时写入账单的记录行。
+purchase_type: "银行卡"
+overlimit_type: "手续费"
+overlimit_description: "超限通知 - 超出信用额度 {amount}"
+declined_type: "已拒绝"
+declined_description: "已拒绝 - {merchant} {amount} - 可用信用额度不足"
+charge_approved_message: "付款已批准。"
+charge_declined_message: "银行卡被拒绝。请检查卡片信息后重试。"
+charge_insufficient_message: "银行卡被拒绝：可用信用额度不足。"
+charge_unavailable_message: "目前无法使用银行卡付款。"
 
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
@@ -150,6 +164,7 @@ accounts:
     routing_number: null
     card_brand: "Meridian"
     card_expiration: "09/29"
+    card_cvv: "418"
     available_balance: 0.00
     present_balance: -1284.19
     available_credit: 8715.81

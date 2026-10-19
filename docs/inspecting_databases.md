@@ -84,7 +84,7 @@ you get a snapshot missing every write still sitting in the write-ahead log.
 Copying just the `.db` of a *stopped* app is fine — the WAL is checkpointed back
 into it on a clean shutdown.
 
-## Two schema quirks
+## Schema quirks
 
 - A credit card's `available_balance` is `0.00` by design. The figures that mean
   something on a card are `present_balance`, `statement_balance`, and
@@ -95,6 +95,15 @@ into it on a clean shutdown.
 - In `transaction`, `amount` is signed (negative is money out), `position` is
   ledger order with 0 newest, and a `NULL` `balance` means the posting is still
   pending.
+- A card's `card_cvv` is stored in the clear. The card's page masks it until
+  revealed, so an agent has to open the card to read it.
+- The bank is read-only from its own UI, with one exception: a purchase in the
+  online shop authorizes against a card here and posts to its ledger. Those
+  rows are pending (`date` and `balance` are `NULL`) and carry a negative
+  `position`, so they sort above the seeded ones without renumbering them. A
+  charge that used the `overlimit_grace` band posts a second, zero-amount row
+  naming the overage. See `apps.openbanking.overlimit_grace` and
+  `apps.onlineshop.enable_credit_card_check`.
 
 ## Reading it from the command line
 
