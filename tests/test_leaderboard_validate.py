@@ -503,6 +503,8 @@ def test_an_event_not_yet_due_is_not_expected(event_bundle):
     record["events"] = []
     keep = [s for s in record["steps"] if s["step"] <= 2]
     record["steps"], record["n_steps"] = keep, 2
+    # Ended early, so not by running out of steps (a crash, say).
+    record["termination"]["reason"] = "error"
     _rewrite(path, [_resign(line) for line in lines])
     report = validate_bundle(path, suite=suite)
     assert report.errors == [], report.format()
@@ -732,3 +734,121 @@ def test_cli_base_dir_and_label(base_and_pr, capsys):
     assert main(argv + ["--maintainer-approved"]) == 0
     # Without --base-dir (local use, the docs build) there is no base to compare.
     assert main(argv[:3]) == 0
+
+
+# --- the trace against the suite's step budget ---------------------------------------
+
+
+def _trace_errors(report):
+    return [e for e in report.errors if "differs from the repo's config" in e]
+
+
+def test_inflated_max_steps_with_a_shrunken_n_steps_fails(bundle):
+    """The review's exploit: claim a 500-step budget and a 1-step episode
+    (the Steps column reads ``n_steps``) on a trace of several steps."""
+    lines = _lines(bundle)
+    victim = next(line for line in lines if line["n_steps"] > 1)
+    victim["identity"]["max_steps"] = 500
+    victim["n_steps"] = 1
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any(
+        "max_steps" in e and "500" in e and "tiny_v1 pins 10" in e
+        for e in report.errors
+    ), report.errors
+    (err,) = _trace_errors(report)
+    assert "n_steps: 1, but the record has" in err
+
+
+def test_n_steps_must_match_the_trace(bundle):
+    lines = _lines(bundle)
+    victim = next(line for line in lines if line["n_steps"] > 1)
+    victim["n_steps"] -= 1
+    _rewrite(bundle, [_resign(line) for line in lines])
+    (err,) = _trace_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert "n_steps:" in err
+
+
+def test_n_steps_cannot_exceed_the_budget(bundle):
+    lines = _lines(bundle)
+    victim = next(
+        line for line in lines if line["termination"]["reason"] == "max_steps"
+    )
+    last = victim["steps"][-1]
+    for i in range(5):  # five more steps past the 10-step budget
+        victim["steps"].insert(
+            -1, dict(victim["steps"][-2], step=len(victim["steps"]) - 1)
+        )
+    last["step"] = len(victim["steps"]) - 1
+    victim["n_steps"] = len(victim["steps"]) - 1
+    _rewrite(bundle, [_resign(line) for line in lines])
+    (err,) = _trace_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert "exceeds the suite's max_steps 10" in err
+
+
+def test_step_indices_must_be_contiguous(bundle):
+    lines = _lines(bundle)
+    victim = next(line for line in lines if line["n_steps"] > 1)
+    victim["steps"][1]["step"] = 7
+    _rewrite(bundle, [_resign(line) for line in lines])
+    (err,) = _trace_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert "steps[1].step: 7" in err
+
+
+def test_max_steps_termination_needs_the_whole_budget(bundle):
+    """A shortened timeout: drop steps (and the count, consistently) from an
+    episode that ran out of steps -- it no longer did."""
+    lines = _lines(bundle)
+    victim = next(
+        line for line in lines if line["termination"]["reason"] == "max_steps"
+    )
+    victim["steps"] = victim["steps"][:4] + [dict(victim["steps"][-1], step=4)]
+    victim["n_steps"] = 4
+    _rewrite(bundle, [_resign(line) for line in lines])
+    (err,) = _trace_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert "termination.reason 'max_steps' after 4 of 10 steps" in err
+
+
+def test_a_claim_or_refusal_needs_one_on_the_last_step(bundle):
+    lines = _lines(bundle)
+    refusal = next(line for line in lines if line["termination"]["reason"] == "refusal")
+    refusal["termination"]["reason"] = "claim"
+    timeout = next(
+        line for line in lines if line["termination"]["reason"] == "max_steps"
+    )
+    timeout["termination"]["reason"] = "refusal"
+    timeout["n_steps"] = len(timeout["steps"]) - 1
+    _rewrite(bundle, [_resign(line) for line in lines])
+    errors = _trace_errors(validate_bundle(bundle, suite=TINY_SUITE))
+    assert len(errors) == 2, errors
+    assert any(
+        "termination.reason 'claim'" in e and "no send_msg_to_user" in e for e in errors
+    )
+    assert any(
+        "termination.reason 'refusal'" in e and "no report_infeasible" in e
+        for e in errors
+    )
+
+
+def test_task_seed_must_match_the_suite(bundle):
+    lines = _lines(bundle)
+    lines[0]["identity"]["task_seed"] = 8
+    _rewrite(bundle, [_resign(line) for line in lines])
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.status == FAIL
+    assert any("task_seed" in e and "tiny_v1 pins 7" in e for e in report.errors)
+
+
+def test_a_dropped_event_with_a_shrunken_n_steps_fails(event_bundle):
+    """Dropping the event line *and* claiming the episode ended before its
+    trigger step would make the cell look covered and clean."""
+    path, suite = event_bundle
+    lines = _lines(path)
+    lines[0]["events"] = []
+    lines[0]["n_steps"] = 2
+    _rewrite(path, [_resign(line) for line in lines])
+    report = validate_bundle(path, suite=suite)
+    assert report.status == FAIL
+    (err,) = _trace_errors(report)
+    assert "n_steps: 2, but the record has" in err

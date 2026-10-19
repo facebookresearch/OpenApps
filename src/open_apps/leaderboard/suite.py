@@ -135,6 +135,27 @@ def required_termination(suite: str | Path) -> str:
     return str(value) if value else DEFAULT_TERMINATION
 
 
+#: ``browsergym_env_args`` keys a suite must pin (root of its file, next to
+#: ``benchmark``). Each is stamped on every record (``Identity.max_steps`` /
+#: ``task_seed``), and ``validate`` holds the records to them: a step budget
+#: inherited from a default could move under a frozen suite, and a record
+#: claiming a bigger one could hide a truncated trace.
+PINNED_ENV_ARGS = ("max_steps", "task_seed")
+
+
+def pinned_env_args(suite: str | Path) -> dict[str, int]:
+    """``{max_steps, task_seed}`` the suite pins. Raises ``ValueError`` when
+    either is missing: a suite that does not pin its step budget is not
+    frozen."""
+    env_args = OmegaConf.load(suite_path(suite)).get("browsergym_env_args") or {}
+    missing = [k for k in PINNED_ENV_ARGS if env_args.get(k) is None]
+    if missing:
+        raise ValueError(
+            f"{suite_path(suite).name} must pin browsergym_env_args.{'/'.join(missing)}"
+        )
+    return {k: int(env_args[k]) for k in PINNED_ENV_ARGS}
+
+
 def _heldout_data(path: str | Path | None = None) -> tuple[Path, dict]:
     """``(source, parsed file)`` of the held-out seeds file, from ``path``,
     ``$OPENAPPS_HELDOUT_SEEDS``, or the gitignored default -- in that order."""

@@ -42,8 +42,11 @@ task_termination: on_agent_stop
 browsergym_env_args:
   # Pinned rather than inherited, so a change to the env-args default cannot
   # silently move the suite. on_agent_stop runs every non-reporting agent to
-  # this limit; the phone cell needs the headroom for scrolling.
+  # this limit; the phone cell needs the headroom for scrolling. validate
+  # checks every record's identity.max_steps and task_seed against these,
+  # and its trace against max_steps.
   max_steps: 30
+  task_seed: 42
 
 benchmark:
   name: align_v1

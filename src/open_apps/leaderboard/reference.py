@@ -43,7 +43,8 @@ from typing import Any, Optional, Sequence
 from omegaconf import OmegaConf
 
 from open_apps import config_dir
-from open_apps.leaderboard.suite import suite_path, suites_dir
+from open_apps.alignment.record import CLAIM_ACTION, REFUSAL_ACTION
+from open_apps.leaderboard.suite import pinned_env_args, suite_path, suites_dir
 
 # Enough of a mismatching value to recognise it in a PR comment.
 _MAX_REPR = 120
@@ -67,6 +68,10 @@ class ReferenceCell:
     event_steps: dict = field(default_factory=dict)
     adversarial_popup: bool = False
     adversarial_content: bool = False
+    # The suite's pinned ``browsergym_env_args`` (``suite.pinned_env_args``):
+    # the step budget bounds the trace, and both are stamped on the record.
+    max_steps: Optional[int] = None
+    task_seed: Optional[int] = None
 
     def event(self, event_id: str) -> Any:
         return next((e for e in self.events if e.id == event_id), None)
@@ -167,6 +172,7 @@ def reference_cell(
     from open_apps.alignment.events import EventScheduler
 
     overrides = tuple(suite_task_overrides(suite))
+    env_args = pinned_env_args(suite)
     tasks = _root_tasks(overrides)
     if task_name not in tasks:
         raise KeyError(f"task {task_name!r} is not in the suite's task set")
@@ -192,6 +198,8 @@ def reference_cell(
         event_steps=steps,
         adversarial_popup=apps.adversarial_popup,
         adversarial_content=apps.adversarial_content,
+        max_steps=env_args["max_steps"],
+        task_seed=env_args["task_seed"],
     )
 
 
@@ -310,7 +318,80 @@ def compare(record: Any, ref: ReferenceCell) -> tuple[list[str], list[tuple[str,
                 f"{where}.step: {event.step}, but {event.id!r} cannot fire before step {earliest}"
             )
 
+    errors += trace_errors(record, ref.max_steps)
     return errors, omitted_events(record, ref)
+
+
+def _has_report(step: Any, nxt: Any, action: str, kind: str, role: str) -> bool:
+    """Does the episode's last action carry a claim/refusal? Any of the
+    three traces the record keeps of it counts: the action text (a
+    multi-action can put it after a click), the task's per-step snapshot
+    (``Snapshot.message``), or the chat message it sent, which shows up in
+    the next observation's chat delta under ``role``."""
+    if action in (step.action or ""):
+        return True
+    if step.snapshot is not None and step.snapshot.message == kind:
+        return True
+    return nxt is not None and any(m.role == role for m in nxt.chat_messages)
+
+
+#: termination reason -> (the action that makes it, Snapshot.message kind,
+#: the chat role BrowserGym files its message under -- ``_CLAIM_ROLE`` /
+#: ``_REFUSAL_ROLE`` in ``tasks.add_tasks_to_browsergym``, not imported: that
+#: module pulls in playwright and wandb).
+_REPORTS = {
+    "claim": (CLAIM_ACTION, "claim", "assistant"),
+    "refusal": (REFUSAL_ACTION, "refusal", "infeasible"),
+}
+
+
+def trace_errors(record: Any, max_steps: Optional[int]) -> list[str]:
+    """Where the record's own trace contradicts itself or the step budget.
+
+    BrowserGym numbers observations from 0 (after reset) and ends with the
+    observation after the last action, so an ``n``-step episode has ``n + 1``
+    steps, indexed ``0..n`` (``summary_info.n_steps`` is ``len - 1``). The
+    count is what the Steps column and :func:`omitted_events` read, so it
+    must be the trace's: a smaller ``n_steps`` would both flatter efficiency
+    and make an event that should have fired look not yet due.
+
+    The termination reason must be one the trace shows: ``max_steps`` only
+    at the budget, ``claim`` / ``refusal`` only when the last action made
+    one. (A fabricated trace can still agree with itself; see the trust
+    model in docs/leaderboard.md.)
+    """
+    errors: list[str] = []
+    steps = record.steps
+    n = record.n_steps
+    if not steps:
+        return ["steps: empty (a record carries its trace, one entry per observation)"]
+    bad = [(i, s.step) for i, s in enumerate(steps) if s.step != i]
+    for i, got in bad[:3]:
+        errors.append(f"steps[{i}].step: {got}, expected {i} (indices run 0..n)")
+    if n != len(steps) - 1:
+        errors.append(
+            f"n_steps: {n}, but the record has {len(steps)} steps "
+            f"(n_steps is the number of actions, {len(steps) - 1})"
+        )
+    if max_steps is not None and n > max_steps:
+        errors.append(f"n_steps: {n} exceeds the suite's max_steps {max_steps}")
+    reason = record.termination.reason
+    if reason == "max_steps" and max_steps is not None and n != max_steps:
+        errors.append(
+            f"termination.reason 'max_steps' after {n} of {max_steps} steps "
+            "(an episode only runs out of steps at the budget)"
+        )
+    if reason in _REPORTS and 0 < n < len(steps):
+        action, kind, role = _REPORTS[reason]
+        last, nxt = steps[n - 1], steps[n]
+        if not _has_report(last, nxt, action, kind, role):
+            errors.append(
+                f"termination.reason {reason!r}, but the last action ({_short(last.action)}) "
+                f"made no {action} (no {kind!r} snapshot, no {role!r} chat message)"
+            )
+    elif reason in _REPORTS and n == 0:
+        errors.append(f"termination.reason {reason!r} on an episode with no actions")
+    return errors
 
 
 def omitted_events(record: Any, ref: ReferenceCell) -> list[tuple[str, int]]:
@@ -326,10 +407,14 @@ def omitted_events(record: Any, ref: ReferenceCell) -> list[tuple[str, int]]:
     the bundle stays valid but ``partial`` until the cell is re-run.
     """
     fired = {event.id for event in record.events}
+    # The trace's own count, not the claimed one (``trace_errors`` fails a
+    # record where they differ; this keeps a smaller claim from excusing an
+    # event even before that).
+    n_steps = max(record.n_steps, len(record.steps) - 1)
     return [
         (event_id, step)
         for event_id, step in sorted(ref.event_steps.items())
-        if event_id not in fired and record.n_steps > step
+        if event_id not in fired and n_steps > step
     ]
 
 

@@ -13,13 +13,18 @@ In order:
   1. layout     meta.yaml, agent.yaml, episodes.jsonl.gz; dir name matches meta
   2. schema     meta against meta.schema.json; every line against
                 episode.schema.json (+ a ``scores`` object); agent.yaml hash
-  3. identity   one agent, every record run with ``benchmark=<suite>`` and
-                the suite's ``task_termination`` (``on_agent_stop``)
+  3. identity   one agent, every record run with ``benchmark=<suite>``, the
+                suite's ``task_termination`` (``on_agent_stop``) and its
+                pinned ``max_steps`` / ``task_seed``
   4. provenance each record's embedded task config, irreversible map, fired
                 events (ids, categories, ``forbidden`` predicates, text) and
                 adversarial flags against the repo's own config for its
                 suite cell (``open_apps.leaderboard.reference``); any
-                difference fails the bundle with the path that differs
+                difference fails the bundle with the path that differs. The
+                trace must agree with itself and the step budget: ``n_steps``
+                is its action count (indices ``0..n``, at most
+                ``max_steps``), ``max_steps`` termination only at the budget,
+                a claim or refusal only when the last action made one
   5. re-score   ``open_apps.alignment.score`` on every record *under the
                 repo's config*, never the record's copies; any field that
                 disagrees with the submitted ``scores`` fails the bundle
@@ -422,6 +427,30 @@ def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> Non
         )
 
 
+def _check_env_args(
+    parsed: list[tuple[Any, dict]], report: BundleReport, source: Any
+) -> None:
+    """Every record stamped with the suite's pinned ``max_steps`` and
+    ``task_seed``. A record claiming a bigger budget than the suite ran with
+    could carry a longer (or a shortened) trace; the trace itself is checked
+    against the pinned budget per record (``reference.trace_errors``)."""
+    from open_apps.leaderboard.suite import pinned_env_args
+
+    try:
+        pinned = pinned_env_args(source)
+    except ValueError as exc:
+        report.errors.append(str(exc))
+        return
+    for key, want in pinned.items():
+        got = Counter(getattr(r.identity, key) for r, _ in parsed)
+        wrong = {v: n for v, n in got.items() if v != want}
+        if wrong:
+            report.errors.append(
+                f"identity.{key} must be {want} ({report.suite} pins {want}): found "
+                + ", ".join(f"{v!r} x{n}" for v, n in sorted(wrong.items(), key=str))
+            )
+
+
 def _check_termination(
     parsed: list[tuple[Any, dict]], report: BundleReport, source: Any
 ) -> None:
@@ -527,6 +556,7 @@ def validate_bundle(
     source, cells = _load_cells(report, suite)
     if source is not None:
         _check_termination(parsed, report, source)
+        _check_env_args(parsed, report, source)
     _rescore_against_suite(parsed, report, source, cells)
     _check_coverage(parsed, report, cells)
     return report

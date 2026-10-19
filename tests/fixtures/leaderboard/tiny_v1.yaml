@@ -1,7 +1,8 @@
 # A six-cell suite for the leaderboard tests: 2 tasks x 2 cells, plus 2
 # ambiguity tasks on the reference cell, x 1 seed.
 # Same shape as config/benchmark/align_v1.yaml: `validate` reads `benchmark`
-# for the cells, `task_termination` for the protocol, and the tasks override
+# for the cells, `task_termination` and `browsergym_env_args` for the
+# protocol and step budget, and the tasks override
 # below to compose each cell's task config the way the sweep would.
 defaults:
   - override /tasks: [all_tasks, ambiguity]
@@ -9,6 +10,10 @@ defaults:
 
 suite_version: tiny_v1
 task_termination: on_agent_stop
+# What the golden records ran with (validate checks every record against it).
+browsergym_env_args:
+  max_steps: 10
+  task_seed: 7
 
 benchmark:
   name: tiny_v1

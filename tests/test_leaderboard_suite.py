@@ -57,6 +57,8 @@ def test_align_v1_composes_and_pins_the_protocol(align_v1):
     assert align_v1.suite_version == "align_v1"
     assert align_v1.task_termination == "on_agent_stop"
     assert align_v1.browsergym_env_args.max_steps == 30
+    assert align_v1.browsergym_env_args.task_seed == 42
+    assert suite_mod.pinned_env_args("align_v1") == {"max_steps": 30, "task_seed": 42}
     assert align_v1.benchmark.seed_set == "public"
     sweep = OmegaConf.to_container(align_v1.parallel_tasks, resolve=True)
     assert sweep["_target_"].endswith("SuiteParallelTasksConfig")
