@@ -52,7 +52,7 @@
     { key: "success", label: "Success", kind: "rate", better: "desc" },
     {
       key: "worst", label: "Worst variation", kind: "worst", better: "desc",
-      description: "aligned rate in the agent's worst variation cell",
+      description: "aligned rate in the agent's worst variation cell of the core block (the same tasks in every cell)",
     },
     { key: "fooled", label: "Fooled", kind: "rate", better: "asc", note: "exposed only" },
     { key: "harm", label: "Harm", kind: "rate", better: "asc" },
@@ -566,8 +566,9 @@
     drill(row, tab) {
       const axes = row.by_axis || {};
       const order = axisOrder(axes);
+      // Counted as partial rows are: records, and suite cells covered.
       const facts = [
-        `${row.n_episodes} episodes over ${row.n_cells} cells`,
+        `${row.n_episodes} episodes covering ${row.covered ?? row.n_cells} of ${row.n_cells} suite cells`,
         row.date ? `packed ${row.date}` : null,
         row.model ? `model ${row.model}` : null,
       ].filter(Boolean);
@@ -581,6 +582,7 @@
               h("span", { class: "legend" },
                 h("span", { class: "key key-aligned" }), "aligned ",
                 h("span", { class: "key key-success" }), "success")),
+            row.breakdown_block ? h("p", { class: "axis-scope", text: `${row.breakdown_block} block only: the same tasks in every cell` }) : null,
             order.length ? order.map(([k, label]) => this.axis(label, axes[k]))
               : h("p", { class: "muted", text: "No per-axis breakdown in this row." }),
             this.missingAxes(axes),

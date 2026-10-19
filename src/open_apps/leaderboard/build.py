@@ -88,6 +88,13 @@ COLUMNS: list[tuple[str, str, bool, str, str]] = [
 #
 # The worst variation cell is reported for these columns.
 WORST_OF = ("aligned", "success")
+# Worst variation and the per-axis breakdown read this suite block only: the
+# same tasks run in each of its variation cells (align_v1's core), so a
+# cell's rate moves with the variation. Over every block, the reference cell
+# would also hold the phrasing, event and ambiguity tasks that run nowhere
+# else, and "worst variation" would mostly measure which tasks a cell has. A
+# suite without the block shows no breakdown rather than a mixed one.
+BREAKDOWN_BLOCK = "core"
 
 
 def _derive_row(row: dict) -> dict:
@@ -169,8 +176,11 @@ def ranked_row(
         "composer_agent": composer_agent(meta.get("agent")),
         "wandb_report": meta.get("wandb_report"),
         "videos": meta.get("videos") or [],
-        "n_episodes": data["n"],
-        "n_cells": data["cells"],
+        # Counted like a partial row: records submitted, suite cells covered.
+        "n_episodes": report.n_records,
+        "covered": report.n_expected - len(report.missing),
+        "n_cells": report.n_expected,
+        "n_variations": data["cells"],
         "task_termination": data.get("task_termination"),
         # Counted, never scored (a complete bundle has none: an unscorable
         # record covers no cell).
@@ -178,16 +188,36 @@ def ranked_row(
     }
     for column, metric, _, _, _ in COLUMNS:
         out[column] = _metric_cell(data["metrics"][metric])
-    metric_of = {column: metric for column, metric, _, _, _ in COLUMNS}
-    out["worst_variation"] = {
-        col: {
-            "rate": data["metrics"][metric_of[col]]["worst"],
-            "cell": data["metrics"][metric_of[col]]["worst_cell"],
-        }
-        for col in WORST_OF
-    }
-    out["by_axis"] = data["by_axis"]
+    out.update(_breakdown(rows, metrics))
     return out
+
+
+def _breakdown(rows: list[dict], metrics: dict) -> dict:
+    """``worst_variation`` and ``by_axis`` over the :data:`BREAKDOWN_BLOCK`
+    rows only (rates only: no bootstrap, so n_boot 0)."""
+    from open_apps.alignment.aggregate import aggregate
+
+    metric_of = {column: metric for column, metric, _, _, _ in COLUMNS}
+    core = [r for r in rows if r.get("block") == BREAKDOWN_BLOCK]
+    groups = aggregate(core, metrics=metrics, n_boot=0)["agents"] if core else {}
+    if len(groups) != 1:
+        return {
+            "breakdown_block": None,
+            "worst_variation": {c: {"rate": None, "cell": None} for c in WORST_OF},
+            "by_axis": {},
+        }
+    (data,) = groups.values()
+    return {
+        "breakdown_block": BREAKDOWN_BLOCK,
+        "worst_variation": {
+            col: {
+                "rate": data["metrics"][metric_of[col]]["worst"],
+                "cell": data["metrics"][metric_of[col]]["worst_cell"],
+            }
+            for col in WORST_OF
+        },
+        "by_axis": data["by_axis"],
+    }
 
 
 def partial_row(report: BundleReport) -> dict:

@@ -332,7 +332,11 @@ def _key(record: Any) -> tuple[str, str, int]:
 
 
 def _score_one(
-    record: Any, submitted: Optional[dict], report: BundleReport, keep: bool = True
+    record: Any,
+    submitted: Optional[dict],
+    report: BundleReport,
+    keep: bool = True,
+    block: Optional[str] = None,
 ) -> None:
     """Score ``record`` as given, check the submitted scores, keep its row.
 
@@ -378,6 +382,9 @@ def _score_one(
         return
     row = row_from_record(record, scores)
     row["agent"] = report.bundle_id
+    # The suite block the cell belongs to: build compares variation cells
+    # within one block (the same tasks in each), never across task mixes.
+    row["block"] = block
     report.rows.append(row)
     report.records.append(record)
 
@@ -422,7 +429,9 @@ def _rescore_against_suite(
                 )
                 + f" ({record.n_steps}-step episode, not in the record); re-run this cell"
             )
-        _score_one(rebased(record, ref), submitted, report, keep=not omitted)
+        _score_one(
+            rebased(record, ref), submitted, report, keep=not omitted, block=cell.block
+        )
 
 
 def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:

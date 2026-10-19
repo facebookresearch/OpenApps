@@ -424,6 +424,11 @@ def test_drilldown_and_reproduce_href(page, site):
     assert expand.get_attribute("aria-controls") == detail.get_attribute("id")
     text = detail.inner_text()
     assert "Appearance" in text and "dark" in text and "default" in text
+    # Counted like the partial table: records and suite cells.
+    assert "6 episodes covering 6 of 6 suite cells" in text
+    assert detail.locator(".axis-scope").text_content() == (
+        "core block only: the same tasks in every cell"
+    )
     assert detail.locator(".axis-row").count() == 2
     # Both bars are filled: the success bar reads build's task_success.
     assert all("—" not in t for t in detail.locator(".axis-num").all_inner_texts())

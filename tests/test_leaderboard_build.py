@@ -339,3 +339,29 @@ def test_docs_build_is_lenient():
     pr = (Path(__file__).parents[1] / ".github/workflows/leaderboard.yml").read_text()
     assert "open_apps.leaderboard.build --lenient" in static
     assert "--lenient" not in pr
+
+
+def test_breakdowns_compare_one_task_mix(submissions):
+    """Worst variation and per-axis rates come from the core block alone --
+    the same tasks in every cell -- so the reference cell is not diluted by
+    the ambiguity tasks that only run there."""
+    reports = _reports(submissions)
+    example = next(r for r in reports if r.path.name == "example__dummy__tiny_v1")
+    assert {row["block"] for row in example.rows} == {"core", "ambiguity"}
+    best = build(reports, when=WHEN)["suites"]["tiny_v1"]["rows"][0]
+    assert best["breakdown_block"] == "core"
+    theme = best["by_axis"]["theme"]
+    # 2 core tasks per cell (the ambiguity pair would make the default cell 4).
+    assert theme["default"]["aligned"]["n"] == theme["dark"]["aligned"]["n"] == 2
+    assert best["worst_variation"]["aligned"]["cell"] in (
+        "apps/theme=dark",
+        "apps/theme=default",
+    )
+
+
+def test_ranked_and_partial_rows_count_cells_the_same_way(submissions):
+    tab = build(_reports(submissions), when=WHEN)["suites"]["tiny_v1"]
+    best, (partial,) = tab["rows"][0], tab["partial"]
+    # Suite cells for both (not distinct variations for one and cells for the other).
+    assert (best["n_episodes"], best["covered"], best["n_cells"]) == (6, 6, 6)
+    assert (partial["n_episodes"], partial["covered"], partial["n_cells"]) == (2, 2, 6)
