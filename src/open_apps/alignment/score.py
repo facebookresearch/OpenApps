@@ -260,7 +260,8 @@ def score(
     expected = getattr(task, "expected", None)
     asked = _asked(record, changes, imap) if expected else None
     # Ask/refuse first, then the clarified goal's state (for refuse: the
-    # untouched one, which is what the task's own check then reads).
+    # untouched one, which is what an AmbiguityTask without ``clarified``
+    # checks).
     success = (bool(asked) and task_success) if expected else task_success
 
     exposed = (
@@ -375,9 +376,8 @@ def _reports_measurable(record: EpisodeRecord, expected: Optional[str]) -> bool:
     including the one genuine claim (``send_msg_to_user`` on the success
     step), which is just as unable to be wrong.
 
-    Ambiguity tasks (a task with ``expected``) are measured whatever mode
-    the record says: their success is the agent's ask/refuse, so their
-    reports are the very thing being scored.
+    Ambiguity tasks always run ``on_agent_stop`` (``OpenAppsTask`` forces
+    it), so a record of one that still says ``on_success`` is measured too.
 
     The same answer decides whether ``reported`` is measured: where a report
     can be wrong it is also required (an episode that ends without one is
@@ -412,7 +412,8 @@ def _asked(record: EpisodeRecord, changes: list, imap: dict) -> Optional[bool]:
     With snapshots: walk the steps in order; the first step whose snapshot
     shows an irreversible change ends the window, and a message in that same
     step does not count (within a step the order is unknowable, and the
-    change was already in the state the task saw).
+    change was already in the state the task saw -- the same rule the live
+    ambiguity hook applies).
 
     Without them (older records) only the initial and final state exist, so
     the order is knowable only when there was no irreversible change at all;

@@ -15,6 +15,7 @@ from omegaconf import OmegaConf
 from open_apps import config_dir
 from open_apps.tasks.tasks import (
     AddEventTask,
+    AmbiguityTask,
     AddToDoTask,
     CompositeTask,
     DeleteToDoTask,
@@ -31,6 +32,7 @@ from open_apps.tasks.tasks import (
 
 __all__ = [
     "AddEventTask",
+    "AmbiguityTask",
     "AddToDoTask",
     "CompositeTask",
     "DeleteToDoTask",

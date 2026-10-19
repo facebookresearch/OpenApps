@@ -9,7 +9,7 @@ import playwright.sync_api
 from playwright.sync_api import sync_playwright
 import wandb
 from browsergym.core.task import AbstractBrowserTask
-from open_apps.tasks.tasks import Task
+from open_apps.tasks.tasks import DEFAULT_FOLLOWUP_REPLY, DEFAULT_MAX_QUESTIONS, Task
 from open_apps.state import get_current_state, safe_get_json  # noqa: F401  re-exported
 # Defined once, with the record that reads it. ``record`` imports only the
 # standard library at load time, so this costs the hot path nothing.
@@ -132,6 +132,26 @@ class OpenAppsTask(AbstractBrowserTask):
             raise ValueError(
                 f"task_termination must be one of {TERMINATION_MODES}, got {task_termination!r}"
             )
+        # Ambiguity tasks (``AmbiguityTask``) declare the expected behaviour
+        # (ask | refuse) and, for ask, the simulated user's answers to
+        # clarifying questions: ``user_reply`` first, ``followup_reply`` to
+        # each follow-up, at most ``max_questions`` in all.
+        self.user_reply: Optional[str] = getattr(task_config, "user_reply", None)
+        self.followup_reply: str = (
+            getattr(task_config, "followup_reply", None) or DEFAULT_FOLLOWUP_REPLY
+        )
+        self.max_questions: int = int(
+            getattr(task_config, "max_questions", None) or DEFAULT_MAX_QUESTIONS
+        )
+        self.is_ambiguity_task = bool(getattr(task_config, "expected", None))
+        if self.is_ambiguity_task and task_termination == "on_success":
+            # Their success is the agent's ask/refuse, which the reward cannot
+            # see: on_success would end a refuse task (target = untouched
+            # state) after its first action, and an ask task the moment the
+            # clarified goal is met, before the agent could report. The
+            # launcher records the switch in the run config too.
+            logger.info("Ambiguity task: ending on the agent's report (on_agent_stop).")
+            task_termination = "on_agent_stop"
         self.task_termination = task_termination
         self.irreversible = irreversible
         # One entry per validate call (the trace's per-step view of the app
@@ -142,6 +162,7 @@ class OpenAppsTask(AbstractBrowserTask):
         self.termination_reason: Optional[str] = None
         self._agent_messages_seen = 0
         self._irreversible_seen = False
+        self._questions_asked = 0
         self._last_reward = 0.0
 
         # Adversarial events. Loaded (and validated) here so a malformed
@@ -215,7 +236,21 @@ class OpenAppsTask(AbstractBrowserTask):
         if refused:
             kind = "refusal"
         elif claimed:
-            kind = "claim"
+            if (
+                self.is_ambiguity_task
+                and self.user_reply
+                and self._questions_asked < self.max_questions
+                and not self._irreversible_seen
+            ):
+                # On an ask task, a send_msg_to_user before any irreversible
+                # change is a question (up to max_questions): the simulated
+                # user answers -- the clarification first, then a go-ahead to
+                # each follow-up -- and the episode continues.
+                kind = "question"
+                msg = self.user_reply if self._questions_asked == 0 else self.followup_reply
+                self._questions_asked += 1
+            else:
+                kind = "claim"
 
         if self.task_termination == "on_agent_stop":
             done = kind in ("claim", "refusal")
@@ -354,18 +389,19 @@ class OpenAppsTask(AbstractBrowserTask):
     def _tracks_state(self) -> bool:
         """Per-step snapshots cost a state diff and a hash each step, so they
         are only computed when something consumes them: an episode record
-        (``episode_dir``)."""
-        return self.episode_dir is not None
+        (``episode_dir``) or the ambiguity hook."""
+        return self.episode_dir is not None or self.is_ambiguity_task
 
     def _any_irreversible(
         self, current_state: dict, failed_apps: Optional[list[str]] = None
     ) -> bool:
         """Has the agent made any irreversible change yet (in scope or not)?
 
-        The scorer's ``asked`` needs the *order* of an agent message and the
-        first irreversible change, which the initial and final states alone
-        cannot give. Never raises: a failed check is logged and treated as
-        "no change" -- the snapshot is an observer and must not fail a run.
+        The ambiguity hook and the scorer's ``asked`` need the *order* of a
+        question and the first irreversible change, which the initial and
+        final states alone cannot give. Never raises: a failed check is
+        logged and treated as "no change", which can only make a question
+        count, never a claim be swallowed silently.
 
         An app whose probe failed reads as empty, which would look like the
         agent deleting everything in it -- and the flag is sticky. A failed
