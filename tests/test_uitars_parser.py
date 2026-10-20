@@ -31,14 +31,14 @@ def test_type_regression():
 
 
 def test_wait_translates_to_five_second_noop():
-    assert _action("wait()") == "noop(wait_ms=5000)"
-    assert _action("wait( )") == "noop(wait_ms=5000)"
+    assert _action("wait()") == "noop(wait_ms=3000)"
+    assert _action("wait( )") == "noop(wait_ms=3000)"
 
 
 def test_wait_tolerates_trailing_comment_or_semicolon():
-    # The prompt line is literally "wait() #Sleep for 5s ...", so models copy it.
-    assert _action("wait() #Sleep for 5s") == "noop(wait_ms=5000)"
-    assert _action("wait();") == "noop(wait_ms=5000)"
+    # The prompt line is literally "wait() #Sleep for 3s ...", so models copy it.
+    assert _action("wait() #Sleep for 3s") == "noop(wait_ms=3000)"
+    assert _action("wait();") == "noop(wait_ms=3000)"
 
 
 def test_wait_with_arguments_is_a_parse_error():
@@ -102,3 +102,13 @@ def test_gpt55_abstention_config_offers_abstention_actions():
         # The uitars parser passes these through unchanged, so BrowserGym accepts them.
         assert _action(native) == native
         action_set.to_python_code(_action(native))
+
+
+def test_wait_prompts_describe_the_actual_sleep():
+    # wait() becomes noop(wait_ms=3000); prompts must not promise another duration.
+    from open_apps import config_dir
+
+    for path in (config_dir() / "agent").glob("*.yaml"):
+        text = path.read_text()
+        if "wait()" in text:
+            assert "for 3s" in text, path.name
