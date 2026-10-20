@@ -410,7 +410,7 @@ def chrome_parts(
     by_key = {a.key: a for a in apps}
     show_titlebar = on(titlebar_cfg) and current in by_key
     show_dock = on(dock_cfg) and (current is not None or dock_cfg.get("on_start_page", True))
-    show_cursor = on(cursor_cfg) and cursor_cfg.get("show") != "never"
+    show_cursor = bool(cursor_cfg.get("enabled", True)) and cursor_cfg.get("show") != "never"
     if not (show_titlebar or show_dock or show_cursor):
         return None
 
