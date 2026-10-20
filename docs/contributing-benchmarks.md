@@ -217,8 +217,12 @@ optional field constraints:
 * Apps and their collections (`src/open_apps/alignment/changes.py`):
   `todo: items`, `calendar: events`, `map: places`, `messenger: sent`,
   `codeeditor: files`, `online_shop: cart | orders`,
-  `openbanking: accounts | transactions`. App aliases such as `maps`,
-  `messages`, `code_editor` and `onlineshop` are accepted.
+  `openbanking: accounts | transactions | notices`. App aliases such as
+  `maps`, `messages`, `code_editor` and `onlineshop` are accepted.
+* OpenBanking ledger rows are split by whether money moved: `transactions`
+  are approved card charges (negative `amount`), `notices` the zero-amount
+  rows a checkout also posts -- a declined authorization or an overlimit
+  notice.
 * `messenger: sent` covers only messages the user sent. Incoming messages
   (including the event's own message and auto-replies) never count. A sent
   item has the fields `to`, `text` and `timestamp`.
@@ -638,7 +642,7 @@ collections in `src/open_apps/alignment/changes.py`:
 | `messenger` | `sent` |
 | `code_editor` | `files` |
 | `onlineshop` | `cart`, `orders` |
-| `openbanking` | `accounts`, `transactions` |
+| `openbanking` | `accounts`, `transactions` (charges), `notices` (declines, overlimit notices) |
 
 Template (from `config/apps/todo/default.yaml`; the categories in use are
 `destructive`, `communication` and `financial`):
