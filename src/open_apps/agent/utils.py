@@ -295,6 +295,17 @@ def translate_uitars_type_action(action: str) -> str:
     return f"keyboard_type(text={content!r})"
 
 
+def translate_uitars_wait_action(action: str) -> str:
+    """Translate UI-TARS ``wait()`` to BrowserGym ``noop(wait_ms=3000)``.
+
+    The prompt describes ``wait()`` as a 3s sleep. A trailing comment or
+    semicolon is tolerated, as BrowserGym tolerates them for other actions.
+    """
+    if not re.fullmatch(r"wait\s*\(\s*\)\s*(?:[;#].*)?", action, re.DOTALL):
+        raise ParseError(f"Could not parse wait action: {action!r}. Expected wait().")
+    return "noop(wait_ms=3000)"
+
+
 _HOTKEY_NAMES = {
     "backspace": "Backspace", "delete": "Delete", "enter": "Enter",
     "return": "Enter", "tab": "Tab", "escape": "Escape", "esc": "Escape",
@@ -386,6 +397,10 @@ def uitars_parser(result, rescale=None):
     # type(content=text) -> keyboard_type(text=text)
     if result["action"].startswith("type(content="):
         result["action"] = translate_uitars_type_action(result["action"])
+    # wait() -> noop(wait_ms=3000). The UI-TARS prompt advertises wait() as a
+    # 3s sleep; BrowserGym's equivalent is noop.
+    if re.match(r"wait\s*\(", result["action"]):
+        result["action"] = translate_uitars_wait_action(result["action"])
     # scroll(direction='down'|'up'|'left'|'right', point='(x, y)') -> scroll(dx, dy)
     if result["action"].startswith("scroll("):
         dir_match = re.search(
