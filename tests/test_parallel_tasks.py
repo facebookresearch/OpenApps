@@ -39,9 +39,14 @@ def _fake_default_config(task_names: list[str]) -> OmegaConf:
 
 
 def _stub_compose(monkeypatch) -> None:
-    """Replace hydra.compose with a stub returning a trivial config with .apps."""
-    fake = OmegaConf.create({"apps": {"stub": True}})
-    monkeypatch.setattr(pt_mod.hydra, "compose", lambda *a, **k: fake)
+    """Replace hydra.compose with a stub returning a fresh trivial config.
+
+    Fresh per call: create_configs keeps and edits each composed config, so a
+    shared object would make every run the last one.
+    """
+    monkeypatch.setattr(
+        pt_mod.hydra, "compose", lambda *a, **k: OmegaConf.create({"apps": {"stub": True}})
+    )
 
 
 # --------------------------------------------------------------------------
@@ -169,6 +174,67 @@ class TestVariationOverridesCompose:
                 pytest.fail(f"screenshot variation {name!r} no longer composes: {e}")
 
 
+class TestCommandLineOverridesReachEveryRun:
+    """Each run is composed from the command line plus its variation.
+
+    The old fan-out copied the parent and swapped in a freshly composed
+    `apps`, which silently dropped any command-line override under `apps.*`.
+    Composes for real, like TestVariationOverridesCompose.
+    """
+
+    CLI = [
+        "apps.todo.title=From the command line",
+        "browsergym_env_args.max_steps=40",
+        "parallel_tasks.task_names=[navigate_to_todo,navigate_to_calendar]",
+    ]
+    VARIATIONS = [[], ["apps/theme=dark"]]
+
+    @pytest.fixture(scope="class")
+    def runs(self):
+        from hydra import compose, initialize_config_dir
+        from hydra.core.global_hydra import GlobalHydra
+
+        GlobalHydra.instance().clear()
+        with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+            parent = compose(config_name="config_parallel_tasks", overrides=self.CLI)
+            # What freeze_recording_dir does before the fan-out.
+            parent.record_video_dir = "/frozen/recordings"
+            cfg = AppVariationParallelTasksConfig(
+                app_variations=self.VARIATIONS, task_names=["navigate_to_todo", "navigate_to_calendar"]
+            )
+            return parent, cfg.create_configs(default_config=parent, cli_overrides=self.CLI)
+
+    def test_one_run_per_variation_and_task(self, runs):
+        _, configs = runs
+        assert len(configs) == 4
+        assert sorted(c.task_name for c in configs) == sorted(["navigate_to_todo", "navigate_to_calendar"] * 2)
+
+    def test_app_override_from_the_command_line_survives(self, runs):
+        _, configs = runs
+        assert {c.apps.todo.title for c in configs} == {"From the command line"}
+
+    def test_other_overrides_survive(self, runs):
+        _, configs = runs
+        assert {c.browsergym_env_args.max_steps for c in configs} == {40}
+
+    def test_variation_still_applies(self, runs):
+        parent, configs = runs
+        dark = [c for c in configs if c.app_overrides == ["apps/theme=dark"]]
+        plain = [c for c in configs if c.app_overrides == []]
+        assert len(dark) == len(plain) == 2
+        assert all(c.apps.theme != parent.apps.theme for c in dark)
+        assert all(c.apps.theme == parent.apps.theme for c in plain)
+
+    def test_launcher_settled_keys_come_from_the_parent(self, runs):
+        parent, configs = runs
+        raw_parent = OmegaConf.to_container(parent, resolve=False)
+        for c in configs:
+            raw = OmegaConf.to_container(c, resolve=False)
+            assert raw["record_video_dir"] == "/frozen/recordings"
+            # Still an interpolation, so it resolves per job on the node.
+            assert raw["logs_dir"] == raw_parent["logs_dir"]
+
+
 # --------------------------------------------------------------------------
 # device as a cell axis
 # --------------------------------------------------------------------------
@@ -177,10 +243,12 @@ class TestVariationOverridesCompose:
 class TestDeviceInCells:
     """A cell's ``device=`` override must reach the run.
 
-    ``create_configs`` copies the parent config and swaps in only the
-    composed ``apps`` subtree, so a ``device=phone`` cell used to come out on
-    the parent's desktop -- the viewport, input model and ``apps.device`` all
-    interpolate ``${device}`` from the root. Composes for real.
+    ``device`` is a root-level group, not under ``apps``: when
+    ``create_configs`` swapped in only the composed ``apps`` subtree, a
+    ``device=phone`` cell came out on the parent's desktop. Composing each
+    run whole fixes that by construction; this pins it, since align_v1's
+    phone cells depend on it -- the viewport, input model and ``apps.device``
+    all interpolate ``${device}`` from the root. Composes for real.
     """
 
     @staticmethod
@@ -211,3 +279,4 @@ class TestDeviceInCells:
     def test_cells_without_device_keep_the_parent_device(self):
         (only,) = self._configs([["apps/theme=dark"]])
         assert only.device.name == "desktop"
+

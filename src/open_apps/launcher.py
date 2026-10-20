@@ -378,6 +378,20 @@ class AgentLauncher(OpenAppsLauncher):
         cum_reward = float(exp_record.get("cum_reward") or 0.0)
         for key, value in self._success_summary(cum_reward, scores).items():
             wandb.run.summary[key] = value
+
+        # Why the run failed, if it did. Both come from `summary_info.json` via
+        # `get_exp_record`, and without them a crashed episode reaches W&B as
+        # an empty actions table and a zero reward -- indistinguishable from an
+        # agent that ran and got everything wrong. The stack trace is truncated
+        # because a summary value is rendered on one line in the runs table;
+        # the full text stays in the exp dir, which `job_logs_dir` points at.
+        err_msg = exp_record.get("err_msg")
+        wandb.run.summary["errored"] = int(bool(err_msg))
+        if err_msg:
+            wandb.run.summary["err_msg"] = str(err_msg)
+            stack_trace = exp_record.get("stack_trace")
+            if stack_trace:
+                wandb.run.summary["stack_trace"] = str(stack_trace)[-2000:]
         steps_info = exp_result.steps_info
 
         def action_error(i: int) -> str:

@@ -44,6 +44,7 @@ ROUTES = [
     "/messages",
     "/codeeditor/",
     "/maps",
+    "/onlineshop",
     "/openbanking",
     "/openbanking/accounts/0",
     "/onlineshop",

@@ -181,6 +181,20 @@ srun --account=example_account --qos=example_qos --partition=example_partition \
 vllm serve google/gemma-4-E2B-it --host 0.0.0.0 --port 8000
 ```
 
+Or submit it as a batch job with `scripts/serve_vllm.sbatch`, which does the
+same thing plus the parts that are easy to forget — caching weights under
+`/checkpoint` rather than the quota-capped `/home`, clearing any inherited
+proxy vars before the HuggingFace download, and writing the node name to
+`~/logs/vllm_host_<jobid>.txt`:
+
+```bash
+VLLM_MODEL=ByteDance-Seed/UI-TARS-1.5-7B \
+  sbatch --account=... --qos=... --partition=... scripts/serve_vllm.sbatch
+```
+
+`--host 0.0.0.0` is the load-bearing flag in both forms. Bound to localhost the
+server still passes its own health check and is invisible to the eval node.
+
 Confirm it's healthy from its own node:
 
 ```bash

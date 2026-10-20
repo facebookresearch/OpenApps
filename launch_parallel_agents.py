@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 
 import hydra
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig
 from pathlib import Path
 from omegaconf import OmegaConf
@@ -37,9 +38,14 @@ def main(config: DictConfig) -> None:
     if config.get("record_video"):
         print("Recording every episode to", config.record_video_dir)
 
+    hydra_cfg = HydraConfig.get()
     parallel_configs: list[DictConfig] = hydra.utils.instantiate(
         config.parallel_tasks
-    ).create_configs(default_config=config)
+    ).create_configs(
+        default_config=config,
+        cli_overrides=list(hydra_cfg.overrides.task),
+        config_name=hydra_cfg.job.config_name,
+    )
     num_jobs = len(parallel_configs)
     # Always say how big the sweep is before anything is queued (a
     # `benchmark=` suite also prints its per-block breakdown above).

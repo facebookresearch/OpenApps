@@ -37,7 +37,7 @@ import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fasthtml.common import *
 # Svg/Rect/Text are not re-exported by fasthtml.common.
@@ -94,6 +94,10 @@ class Order:
     date: str
     status: str
     total: float
+    # Last four of the card that paid, or "" when the run has the card check
+    # off. Recorded so a task can assert *which* card an order went on without
+    # having to read it back out of the bank's ledger.
+    card_last4: str = ""
 
 
 @dataclass
@@ -916,6 +920,7 @@ def _seed_orders(config):
                 # Prefer the configured total when given, so a fixture can pin
                 # a historical price that no longer matches the catalog.
                 total=float(raw["total"]) if raw.get("total") is not None else round(total, 2),
+                card_last4=str(raw.get("card_last4", "")),
             )
         )
         for sku, options, quantity, unit_price in lines:
@@ -1887,6 +1892,33 @@ def _allowed_cards() -> list:
     return [str(c) for c in (_plain(getattr(_cfg(), "allowed_credit_cards", [])) or [])]
 
 
+def _card_check_on() -> bool:
+    return bool(getattr(_cfg(), "enable_credit_card_check", False))
+
+
+def _bank():
+    """The OpenBanking module, or None when this run has no bank.
+
+    Every app is imported into one process and merged into one route table by
+    `start_page.initialize_routes_and_configure_task`, so the shop calls the
+    bank directly instead of going back out over HTTP to its own server. The
+    import is lazy and guarded on `accounts`: a config that leaves the bank out
+    (or has not seeded it yet) should decline cleanly, not raise out of a
+    checkout handler.
+    """
+    try:
+        from open_apps.apps.openbanking_app import main as openbanking
+    except ImportError:
+        return None
+    return openbanking if openbanking.accounts is not None else None
+
+
+def _checkout_error(message: str):
+    return RedirectResponse(
+        url=f"/onlineshop/checkout?{urlencode({'error': message})}", status_code=303
+    )
+
+
 @rt("/onlineshop/checkout")
 def get(error: str = ""):
     selected = [row for row in _cart_rows() if row.selected]
@@ -1901,13 +1933,30 @@ def get(error: str = ""):
             ),
         )
 
-    card_field = ""
-    if getattr(_cfg(), "enable_credit_card_check", False):
-        card_field = Div(
-            Label("Card Type", _for="card_type"),
-            Select(*[Option(card, value=card) for card in _allowed_cards()],
-                   id="card_type", name="card_type"),
-            cls="option-group",
+    # The card fields are a real payment form when the check is on: they are
+    # matched against a card seeded in OpenBanking, not pattern-checked. The
+    # PAN, expiry and CVV are all on that card's page in the bank app, which is
+    # what makes "pay for this" a cross-app task rather than a form-fill.
+    card_fields = ""
+    if _card_check_on():
+        card_fields = Fieldset(
+            Legend("Payment"),
+            Div(Label("Card Number", _for="card_number"),
+                Input(id="card_number", name="card_number", required=True,
+                      autocomplete="off", placeholder="0000 0000 0000 0000"),
+                cls="option-group"),
+            Div(Label("Expiry (MM/YY)", _for="card_expiry"),
+                Input(id="card_expiry", name="card_expiry", required=True,
+                      autocomplete="off", placeholder="MM/YY"),
+                cls="option-group"),
+            Div(Label("CVV", _for="card_cvv"),
+                Input(id="card_cvv", name="card_cvv", required=True,
+                      autocomplete="off", placeholder="000"),
+                cls="option-group"),
+            Div(Label("Name on Card", _for="card_name"),
+                Input(id="card_name", name="card_name", required=True,
+                      autocomplete="off"),
+                cls="option-group"),
         )
 
     return page_shell(
@@ -1924,7 +1973,7 @@ def get(error: str = ""):
                     Div(Label("Shipping Address", _for="address"),
                         Input(id="address", name="address", required=True,
                               autocomplete="street-address"), cls="option-group"),
-                    card_field,
+                    card_fields,
                     Button("Place Order", cls="btn btn-primary btn-lg", type="submit"),
                     action="/onlineshop/checkout",
                     method="post",
@@ -1948,20 +1997,64 @@ def get(error: str = ""):
 
 
 @rt("/onlineshop/checkout")
-def post(name: str = "", address: str = "", card_type: str = ""):
+def post(
+    name: str = "",
+    address: str = "",
+    card_number: str = "",
+    card_expiry: str = "",
+    card_cvv: str = "",
+    card_name: str = "",
+):
     selected = [row for row in _cart_rows() if row.selected]
     if not selected:
         return RedirectResponse(url="/onlineshop/cart", status_code=303)
 
-    if getattr(_cfg(), "enable_credit_card_check", False):
+    order_id = uuid.uuid4().hex[:8]
+    total = _cart_total()
+    card_last4 = ""
+
+    # Charge before writing the order: an order that exists without a matching
+    # authorization is the one state a checkout must never leave behind.
+    if _card_check_on():
+        bank = _bank()
+        if bank is None:
+            return _checkout_error("Card payments are unavailable right now.")
+
+        # Brand allow-list first, off the card on file rather than off anything
+        # the shopper typed -- a shop knows which networks it takes before it
+        # asks the issuer for money.
         allowed = _allowed_cards()
-        if card_type not in allowed:
-            message = f"{card_type or 'That card'} is not accepted. Allowed: {', '.join(allowed)}."
-            return RedirectResponse(
-                url=f"/onlineshop/checkout?error={message}", status_code=303
+        card = bank.find_card(card_number)
+        if card is not None and allowed and card.card_brand not in allowed:
+            return _checkout_error(
+                f"{card.card_brand} is not accepted. Allowed: {', '.join(allowed)}."
             )
 
-    order_id = uuid.uuid4().hex[:8]
+        # Expiry is checked here, before the issuer is asked, the way a real
+        # payment form does. It tells the shopper nothing about the card on
+        # file -- only that what they typed is not a date that is still good.
+        expiry = bank.parse_expiry(card_expiry)
+        if expiry is None:
+            return _checkout_error("Enter the card's expiry date as MM/YY.")
+        if bank.expiry_has_passed(expiry):
+            return _checkout_error("That expiry date has passed. Check the card and try again.")
+
+        descriptor = str(getattr(_cfg(), "card_descriptor", "ONLINE SHOP {order_id}"))
+        result = bank.authorize_card_purchase(
+            number=card_number,
+            expiration=card_expiry,
+            cvv=card_cvv,
+            holder=card_name,
+            amount=total,
+            descriptor=descriptor.format(order_id=order_id.upper()),
+            # What a refused charge is recorded under: the same name with the
+            # order id left out, since a declined checkout writes no order.
+            merchant=" ".join(descriptor.format(order_id="").split()),
+        )
+        if not result.approved:
+            return _checkout_error(result.message)
+        card_last4 = result.card_last4
+
     orders.insert(
         Order(
             order_id=order_id,
@@ -1969,7 +2062,8 @@ def post(name: str = "", address: str = "", card_type: str = ""):
             address=address,
             date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             status="Processing",
-            total=_cart_total(),
+            total=total,
+            card_last4=card_last4,
         )
     )
     for row in selected:
@@ -2016,6 +2110,9 @@ def order_card(order):
             Div(Span("Total", cls="order-label"), Span(money(order.total), cls="cart-total")),
             Div(Span("Ship to", cls="order-label"), Span(order.name),
                 Span(order.address, cls="muted")),
+            Div(Span("Paid with", cls="order-label"),
+                Span(f"Card ending {order.card_last4}"))
+            if order.card_last4 else "",
             Div(H3(f"Order {order.order_id}", cls="card-title"),
                 Span(order.status, cls="status-pill"), cls="order-id"),
             cls="order-head",
@@ -2076,6 +2173,7 @@ def get_all(include_catalog: bool = False):
             "date": order.date,
             "status": order.status,
             "total": order.total,
+            "card_last4": order.card_last4,
             "items": [
                 {
                     "sku": row.sku,

@@ -30,6 +30,7 @@ hide_number_label: "Nummer ausblenden"
 
 card_number_label: "Kartennummer"
 card_expires_label: "Gültig bis"
+card_cvv_label: "Prüfziffer"
 payment_heading: "Zahlung"
 statement_balance_label: "Abrechnungssaldo"
 minimum_payment_label: "Mindestzahlung fällig"
@@ -57,6 +58,20 @@ column_labels:
   type: "Art"
   amount: "Betrag"
   balance: "Saldo"
+
+
+# --- Zahlungszeilen --------------------------------------------------------
+# Siehe `default.yaml`: die Zeilen, die der Online-Shop bei einer
+# Kartenzahlung in das Kontoblatt schreibt.
+purchase_type: "Karte"
+overlimit_type: "Gebühr"
+overlimit_description: "HINWEIS ÜBERZIEHUNG - Kreditlimit überschritten um {amount}"
+declined_type: "Abgelehnt"
+declined_description: "ABGELEHNT - {merchant} {amount} - nicht genügend verfügbarer Kredit"
+charge_approved_message: "Zahlung genehmigt."
+charge_declined_message: "Karte abgelehnt. Bitte Kartendaten prüfen und erneut versuchen."
+charge_insufficient_message: "Karte abgelehnt: nicht genügend verfügbarer Kredit."
+charge_unavailable_message: "Kartenzahlungen sind derzeit nicht möglich."
 
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
@@ -156,6 +171,7 @@ accounts:
     routing_number: null
     card_brand: "Meridian"
     card_expiration: "09/29"
+    card_cvv: "418"
     available_balance: 0.00
     present_balance: -1284.19
     available_credit: 8715.81
