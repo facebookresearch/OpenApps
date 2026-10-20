@@ -259,6 +259,13 @@ input {
   color: var(--muted);
 }
 
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 /* -- Pills ---------------------------------------------------------------- */
 
 .pills {
@@ -455,6 +462,18 @@ input {
 .option.blocked {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.option-group {
+  padding: 10px 12px 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.option-group:not(:first-child) {
+  margin-top: 4px;
+  border-top: 1px solid var(--line-soft);
 }
 
 .option-label {

@@ -610,6 +610,52 @@ def test_switching_task_groups_keeps_a_valid_task(ui, catalog):
     assert "not a key of the selected tasks group" not in findings
 
 
+def test_combining_task_groups_lists_their_union(ui, catalog):
+    """The user who picked "All tasks" wanted OpenBanking too: Combine adds a
+    group to the inventory, the command carries both as one quoted word, and
+    the task picker offers the union, headed by source group."""
+    page = ui()
+    tasks_row = page.locator("openapps-composer [data-key=tasks]")
+    assert "Pick several to combine sets" in tasks_row.inner_text()
+    page.get_by_role("button", name="Combine", exact=True).click()
+    page.get_by_role("group", name="Tasks", exact=True).get_by_role(
+        "checkbox", name="OpenBanking", exact=True
+    ).click()
+    expect_command(page, "uv run launch_agent.py 'tasks=[all_tasks,openbanking]'")
+
+    total = len(catalog.tasks_in(["all_tasks", "openbanking"]))
+    page.get_by_role("button", name=re.compile("^Task:")).click()
+    listbox = page.get_by_role("listbox", name="Task")
+    assert listbox.get_by_role("option", name=f"All {total} tasks", exact=False).count()
+    headings = listbox.locator(".option-group").all_inner_texts()
+    assert headings == ["Paper tasks (original + goal variations)", "OpenBanking"]
+    bob = catalog.task("openbanking", "message_bob_the_savings_balance")
+    listbox.get_by_role("option", name=bob.label, exact=True).click()
+    expect_command(
+        page,
+        "uv run launch_agent.py 'tasks=[all_tasks,openbanking]' "
+        "task_name=message_bob_the_savings_balance",
+    )
+    findings = page.locator("openapps-composer [data-part=findings]").inner_text()
+    assert "not a key of the selected tasks group" not in findings
+
+    # Dropping the paper tasks keeps the OpenBanking task: it is still listed.
+    page.get_by_role("group", name="Tasks", exact=True).get_by_role(
+        "checkbox", name="Paper tasks (original + goal variations)", exact=True
+    ).click()
+    expect_command(
+        page,
+        "uv run launch_agent.py tasks=openbanking "
+        "task_name=message_bob_the_savings_balance",
+    )
+
+
+def test_shift_click_combines_task_groups_without_the_toggle(ui):
+    page = ui()
+    pill(page, "Tasks", "OpenBanking").click(modifiers=["Shift"])
+    expect_command(page, "uv run launch_agent.py 'tasks=[all_tasks,openbanking]'")
+
+
 def test_an_impossible_selection_shows_the_reference_error(ui, catalog):
     page = ui("index.html#device=desktop,phone")
     with pytest.raises(CommandError) as raised:

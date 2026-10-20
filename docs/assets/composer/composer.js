@@ -1189,7 +1189,8 @@
 
     canVary(key) {
       const group = has(this.catalog.groups, key) ? this.catalog.groups[key] : null;
-      return key === "agent" || key === "task_name" || Boolean(group && group.sweepable);
+      // A combined group (tasks) takes several values too: one inventory, not a sweep.
+      return key === "agent" || key === "task_name" || Boolean(group && (group.sweepable || group.combinable));
     }
 
     normalized(sel) {
@@ -1203,7 +1204,7 @@
 
     /**
      * The selection after choosing `values` for `key` (null = back to the
-     * default). Changing the tasks group re-points task_name at a task that
+     * default). Changing the tasks groups re-points task_name at a task that
      * group has, so a group switch never leaves an unregisterable task.
      */
     withChoice(sel, key, values) {
@@ -1214,8 +1215,7 @@
         const probe = { ...sel, choices };
         let target;
         try { target = resolveTarget(probe, this.catalog); } catch (e) { target = "single"; }
-        const option = (choices.tasks || [defaultFor("tasks", target, this.catalog)])[0];
-        const names = (this.catalog.tasks[option] || []).map((t) => t.name);
+        const names = taskNames({ ...probe, choices }, target, this.catalog);
         const fallback = this.catalog.scalars.task_name.defaults.config;
         const chosen = choices.task_name || [fallback];
         if (!listEq(chosen, [ALL_TASKS]) && !chosen.every((n) => names.includes(n))) {
@@ -1516,11 +1516,13 @@
     }
 
     field(key, label, control, opts = {}) {
+      if (opts.hint) control.setAttribute("aria-describedby", `hint-${key}`);
       return h("div", { class: "field" + (opts.wide ? " wide" : ""), "data-key": key },
         h("div", { class: "field-head" },
           h("span", { class: "label", id: `label-${key}`, text: label }),
           opts.aside || null),
-        control);
+        control,
+        opts.hint ? h("p", { class: "field-hint", id: `hint-${key}`, text: opts.hint }) : null);
     }
 
     groupField(path, label) {
@@ -1541,25 +1543,51 @@
       if (group.control === "pills") {
         const varies = this.canVary(path);
         const multi = varies && (this.multi[path] || this.current(path).length > 1);
+        // Several values of a combined group merge into one inventory; of
+        // any other group, they are a sweep.
+        const [toggle, why] = group.combinable
+          ? ["Combine", "Pick several sets to run the union of their tasks"]
+          : ["Sweep", "Pick several values to sweep over them"];
         const aside = varies
           ? h("button", {
             class: "multi", type: "button", "aria-pressed": String(Boolean(multi)),
-            "data-fk": `multi:${path}`, title: "Pick several values to sweep over them",
+            "data-fk": `multi:${path}`, title: why,
             onclick: () => { this.multi[path] = !multi; this.render(); },
-          }, "Sweep")
+          }, toggle)
           : null;
-        return this.field(path, label, this.pills(path, options, this.current(path), (v) => this.choose(path, [v]), multi, label), { aside });
+        const hint = group.combinable ? "Pick several to combine sets: turn on Combine, or shift-click." : null;
+        return this.field(path, label, this.pills(path, options, this.current(path), (v) => this.choose(path, [v]), multi, label), { aside, hint });
       }
       return this.field(path, label, this.selectControl(path, label, options, group.searchable));
     }
 
     taskField() {
       const target = this.target();
-      const option = this.current("tasks")[0] || defaultFor("tasks", target, this.catalog);
-      const tasks = this.catalog.tasks[option] || [];
+      const groups = this.current("tasks").filter((o) => o !== null);
+      if (!groups.length) groups.push(defaultFor("tasks", target, this.catalog));
+      const tasks = tasksIn(this.catalog, groups);
+      // Combined groups: head each group's tasks with its label. A task two
+      // groups share is listed once, under the first (Hydra merges them).
+      const source = {};
+      for (const option of [...groups].reverse()) {
+        for (const t of this.catalog.tasks[option] || []) source[t.name] = option;
+      }
+      const tasksGroup = this.catalog.groups.tasks;
+      const groupLabel = (name) => {
+        const o = tasksGroup && tasksGroup.options.find((x) => x.name === name);
+        return o ? o.label : name;
+      };
+      const ordered = groups.flatMap((g) => tasks.filter((t) => source[t.name] === g));
       const options = [
-        { value: ALL_TASKS, label: `All ${tasks.length} tasks in ${option}`, summary: "Every task in the group: a sweep.", single: true },
-        ...tasks.map((t) => ({ value: t.name, label: t.label, summary: t.goal, details: `${t.kind} · touches ${t.apps.join(", ") || "no app state"}` })),
+        {
+          value: ALL_TASKS, label: `All ${tasks.length} tasks in ${groups.join(" + ")}`, single: true,
+          summary: groups.length > 1 ? "Every task in the combined groups: a sweep." : "Every task in the group: a sweep.",
+        },
+        ...ordered.map((t) => ({
+          value: t.name, label: t.label, summary: t.goal,
+          details: `${t.kind} · touches ${t.apps.join(", ") || "no app state"}`,
+          heading: groups.length > 1 ? groupLabel(source[t.name]) : null,
+        })),
       ];
       return this.field("task_name", "Task", this.selectControl("task_name", "Task", options, true), { wide: false });
     }
@@ -1665,7 +1693,7 @@
       const visible = q
         ? options.filter((o) => [o.label, o.value, o.summary].some((t) => t != null && String(t).toLowerCase().includes(q)))
         : options;
-      const rows = visible.map((o) => {
+      const row = (o) => {
         const isChecked = selected.some((v) => pyEq(v, o.value));
         const box = varies && !o.single && o.value !== null
           // Decorative for assistive tech: in a multi-select listbox
@@ -1700,7 +1728,17 @@
         box,
         h("span", { class: "option-label", text: o.label }),
         o.value !== null && o.value !== o.label ? h("code", { class: "option-key", text: String(o.value) }) : null);
-      });
+      };
+      const rows = [];
+      let heading = null;
+      for (const o of visible) {
+        // Combined task groups: a heading where the source group changes.
+        if (o.heading && o.heading !== heading) {
+          rows.push(h("div", { class: "option-group", role: "presentation", text: o.heading }));
+        }
+        heading = o.heading || null;
+        rows.push(row(o));
+      }
       const search = searchable
         ? h("input", {
           type: "search", class: "search", placeholder: `Search ${options.length} options`,
@@ -1728,7 +1766,9 @@
             "aria-multiselectable": varies ? "true" : null,
           }, rows.length ? rows : h("p", { class: "empty", text: "No match." })),
           h("p", { class: "popover-hint" },
-            varies ? "Click a row to choose it · tick boxes to sweep · Esc closes" : "Click a row to choose it · Esc closes")));
+            !varies ? "Click a row to choose it · Esc closes"
+              : combines(key, this.catalog) ? "Click a row to choose it · tick boxes to combine · Esc closes"
+              : "Click a row to choose it · tick boxes to sweep · Esc closes")));
     }
 
     optionKey(event, key, option, box) {
