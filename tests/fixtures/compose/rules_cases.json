@@ -28,6 +28,31 @@
       "findings": []
     },
     {
+      "name": "an OpenBanking task is not in the paper tasks",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["message_bob_the_savings_balance"]}},
+      "findings": ["task_not_in_tasks_group"]
+    },
+    {
+      "name": "an OpenBanking task in paper + OpenBanking combined",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
+      "findings": []
+    },
+    {
+      "name": "a paper task in paper + OpenBanking combined",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"]}},
+      "findings": []
+    },
+    {
+      "name": "longer horizon combined with the paper tasks at a low step budget",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "longer_horizon"], "browsergym_env_args.max_steps": [20]}},
+      "findings": ["longer_horizon_step_budget"]
+    },
+    {
+      "name": "every task of a combined inventory includes the shop task",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"], "task_name": ["all"], "apps/onlineshop/content": ["default"]}},
+      "findings": ["shop_task_without_catalog"]
+    },
+    {
       "name": "the default task is not in longer_horizon",
       "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"]}},
       "findings": ["task_not_in_tasks_group"]

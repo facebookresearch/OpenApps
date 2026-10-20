@@ -21,6 +21,10 @@ picked automatically unless forced:
 * any of the above (but a sweep) with
   ``mode=slurm_cluster``                   -> ``AGENTS=... sbatch scripts/conduct_slurm.sh``
 
+Several ``tasks`` groups are not a sweep: they combine into one inventory,
+``'tasks=[all_tasks,openbanking]'`` (catalog option order), on any target --
+see :data:`open_apps.compose.catalog.COMBINABLE_GROUPS`.
+
 A sweep on SLURM stays ``launch_parallel_agents.py mode=slurm_cluster``
 (submitit). Only non-default values are emitted, with deliberate exceptions.
 Sweeps always spell out ``app_variations`` and ``task_names``:
@@ -115,6 +119,25 @@ class Selection:
 # ---------------------------------------------------------------------------
 
 
+def combines(key: str, catalog: Catalog) -> bool:
+    """Whether several values of ``key`` merge into one (``tasks=[a,b]``)
+    rather than vary across runs."""
+    group = catalog.groups.get(key)
+    return group is not None and group.combinable
+
+
+def _varied(choices: dict[str, list[Any]], catalog: Catalog) -> list[str]:
+    """Keys with several values that vary across runs (not combined ones)."""
+    return [k for k, v in choices.items() if len(v) > 1 and not combines(k, catalog)]
+
+
+def task_names(selection: "Selection", target: str, catalog: Catalog) -> list[str]:
+    """Every task the selected task groups hold -- what ``task_name=all``
+    expands to: the union of the groups (or the target's default group)."""
+    options = selection.choices.get("tasks") or [default_for("tasks", target, catalog)]
+    return [t.name for t in catalog.tasks_in([o for o in options if o is not None])]
+
+
 def _bound(choices: dict[str, list[Any]], catalog: Catalog) -> list[str]:
     """Chosen groups only some targets can bind (see ``Group.targets``)."""
     return [
@@ -159,7 +182,7 @@ def resolve_target(selection: Selection, catalog: Catalog) -> str:
         or selection.max_parallel is not None
     ):
         return "slurm_pool" if slurm else "pool"
-    varied = {k for k, v in choices.items() if len(v) > 1 and k != "agent"}
+    varied = [k for k in _varied(choices, catalog) if k != "agent"]
     if varied or choices.get("task_name") == [ALL_TASKS]:
         return "sweep"
     return "slurm_pool" if slurm else "single"
@@ -195,6 +218,10 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
     choices: dict[str, list[Any]] = {}
     for key, values in selection.choices.items():
         unique = list(dict.fromkeys(values))
+        if unique and combines(key, catalog):
+            # One inventory whatever order it was picked in: the catalog's.
+            order = [o.name for o in catalog.groups[key].options]
+            unique.sort(key=lambda v: order.index(v) if v in order else len(order))
         if unique:
             choices[key] = unique
     sel = replace(selection, choices=choices)
@@ -256,6 +283,14 @@ def _override(key: str, value: Any, catalog: Catalog) -> str:
     return f"{prefix}{key}={format_value(value)}"
 
 
+def _choice_override(key: str, values: list[Any], catalog: Catalog) -> str:
+    """The one override for a key's values: ``key=v``, or ``key=[a,b]`` for
+    a combined group (Hydra composes every option of the list)."""
+    if len(values) > 1 and combines(key, catalog):
+        return _override(key, _hydra_list([str(v) for v in values], False), catalog)
+    return _override(key, values[0], catalog)
+
+
 def _ordered_keys(choices: dict[str, list[Any]], catalog: Catalog) -> list[str]:
     known = [k for k in catalog.groups if k in choices]
     known += [k for k in catalog.scalars if k in choices]
@@ -266,7 +301,7 @@ def _check_expressible(sel: Selection, target: str, catalog: Catalog) -> None:
     for key in sel.choices:
         if key not in catalog.groups and key not in catalog.scalars:
             raise CommandError(f"unknown key {key!r}; pass it as an extra override")
-    varied = [k for k, v in sel.choices.items() if len(v) > 1]
+    varied = _varied(sel.choices, catalog)
     if target == "single":
         allowed: set[str] = set()
     elif target == "sweep":
@@ -353,7 +388,7 @@ def render(selection: Selection, catalog: Catalog) -> str:
         ):
             continue  # inside app_variations / task_names below
         else:
-            overrides.append(_override(key, values[0], catalog))
+            overrides.append(_choice_override(key, values, catalog))
 
     if pool:
         count = sel.count
@@ -409,10 +444,7 @@ def run_count(selection: Selection, catalog: Catalog) -> int | None:
     if target == "sweep":
         names = sel.choices.get("task_name") or [None]
         if names == [ALL_TASKS]:
-            tasks_option = sel.choices.get("tasks", [None])[0] or default_for(
-                "tasks", target, catalog
-            )
-            names = catalog.tasks[tasks_option]
+            names = task_names(sel, target, catalog)
         return len(_sweep_cells(sel, catalog)) * len(names)
     return 1
 
@@ -546,6 +578,21 @@ def parse(command: str, catalog: Catalog) -> Selection:
     return normalize(sel, catalog)
 
 
+def _combined_values(token: str, raw: str) -> list[str]:
+    """``[a,b]`` (Hydra's list grammar) -> its options; a plain value is one.
+    Anything else -- an empty or nested list, a sweep -- is no values, so the
+    token stays verbatim."""
+    if not raw.startswith("["):
+        return [raw]
+    try:
+        value = _hydra_value(token)
+    except HydraException:
+        return []
+    if isinstance(value, list) and all(isinstance(v, str) for v in value):
+        return list(value)
+    return []
+
+
 def _parse_override(
     token: str, target: str, choices: dict[str, list[Any]], catalog: Catalog
 ) -> bool:
@@ -590,11 +637,13 @@ def _parse_override(
             return False  # a no-op outside app_variations; keep it visible
         if prefix != ("+" if group.append else ""):
             return False
-        if raw not in {o.name for o in group.options}:
+        values = _combined_values(token, raw) if group.combinable else [raw]
+        names = {o.name for o in group.options}
+        if not values or any(v not in names for v in values):
             return False
         if key == "mode" and target in POOL_TARGETS:
             return False  # the script decides; a forwarded mode is just an extra
-        choices[key] = [raw]
+        choices[key] = values
         return True
     if key in catalog.scalars and prefix == "":
         scalar = catalog.scalars[key]

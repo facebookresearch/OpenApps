@@ -81,6 +81,13 @@ EDGE_COMMANDS = [
     "HEADLESS=false bash scripts/conduct.sh",
     "sbatch --qos=q scripts/conduct_slurm.sh device=phone",
     "python3 launch_agent.py",
+    # Combined task groups: any order, repeats, and lists that are not groups.
+    "uv run launch_agent.py tasks=[openbanking,all_tasks] task_name=navigate_to_openbanking",
+    "uv run launch_agent.py 'tasks=[openbanking,openbanking]'",
+    "uv run launch_agent.py 'tasks=[ all_tasks , openbanking ]'",
+    "uv run launch_parallel_agents.py 'tasks=[longer_horizon,all_tasks]' parallel_tasks.task_names=all",
+    "./scripts/conduct.sh 'tasks=[all_tasks,openbanking]' tasks=longer_horizon",
+    "uv run launch_agent.py '+tasks=[all_tasks,openbanking]'",
     "uv run train.py",
     "uv run",
     "",
@@ -102,6 +109,13 @@ EDGE_SELECTIONS = [
     {"choices": {"made_up": ["x"]}},
     {"choices": {"apps/theme": ["dark", "mono"], "task_name": ["a", "b", "c"]}},
     {"choices": {"tasks": ["longer_horizon"], "task_name": ["all"]}},
+    {"choices": {"tasks": ["openbanking", "all_tasks"]}},
+    {"choices": {"tasks": ["all_tasks", "openbanking"]}, "target": "single"},
+    {
+        "choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["all"]},
+        "target": "pool",
+    },
+    {"choices": {"tasks": ["all_tasks", "longer_horizon"], "task_name": ["all"]}},
     {"count": 3},
     {"max_parallel": 2, "sbatch_args": ["--qos=q"]},
 ]
@@ -440,6 +454,16 @@ def test_apply_fix_parity(js, catalog, case):
             10,
         ),
         ({}, "tasks", "longer_horizon"),
+        (
+            {
+                "choices": {
+                    "tasks": ["all_tasks", "openbanking"],
+                    "task_name": ["navigate_to_openbanking"],
+                }
+            },
+            "tasks",
+            "all_tasks",
+        ),
         ({}, "agent", "gemma-4-2B-computer-use"),
     ],
 )

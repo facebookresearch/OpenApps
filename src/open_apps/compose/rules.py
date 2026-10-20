@@ -151,16 +151,17 @@ def facts(selection: "Selection", catalog: "Catalog") -> dict[str, list[Any]]:
         choices.get("task_name")
         or [default_for("task_name", effective_target, catalog)]
     )
+    # Several task groups combine into one inventory (tasks=[a,b]): a task
+    # counts as present if any of them holds it.
+    entries = {t.name: t for t in catalog.tasks_in(out["tasks"])}
+    wanted = list(entries) if names == [ALL_TASKS] else names
     apps: set[str] = set()
     in_tasks = True
-    for tasks_option in out["tasks"]:
-        entries = {t.name: t for t in catalog.tasks.get(tasks_option, [])}
-        wanted = list(entries) if names == [ALL_TASKS] else names
-        for name in wanted:
-            if name in entries:
-                apps.update(entries[name].apps)
-            else:
-                in_tasks = False
+    for name in wanted:
+        if name in entries:
+            apps.update(entries[name].apps)
+        else:
+            in_tasks = False
     out["task_app"] = sorted(apps)
     out["task_in_tasks"] = [in_tasks]
     out["target"] = [target]

@@ -67,6 +67,14 @@ PILLS_MAX = 5
 #: A group with more than this many options gets a search box.
 SEARCHABLE_MIN = 12
 
+#: Groups whose options merge rather than replace each other: a list override
+#: (``tasks=[all_tasks,openbanking]``) composes them all. Each ``tasks``
+#: option is a flat ``{task_key: task_config}`` map in the one ``tasks``
+#: package, so Hydra's list form is their union -- picking several selects a
+#: bigger inventory, not a sweep axis. No other group's options compose that
+#: way (two agents or two devices would just overwrite each other's keys).
+COMBINABLE_GROUPS = ("tasks",)
+
 # Labels for groups whose path does not humanize into something readable.
 _GROUP_LABELS = {
     "browsergym_env_args": "Episode settings",
@@ -170,6 +178,9 @@ class Group:
     #: ``benchmark=align_v1``). The sweep command then spells out neither,
     #: and apps/* and task_name choices have nothing to act on.
     pins_sweep: bool = False
+    #: Several options merge into one: ``group=[a,b]``, in option order, on
+    #: any target. See :data:`COMBINABLE_GROUPS`.
+    combinable: bool = False
 
     def option(self, name: str) -> Option:
         for option in self.options:
@@ -267,7 +278,7 @@ _SCALAR_SPECS: list[tuple[str, str, str, str, str | None]] = [
     (
         "task_name",
         "Task",
-        "Which task in the selected tasks group to run.",
+        "Which task of the selected task groups to run.",
         "select",
         None,
     ),
@@ -326,6 +337,16 @@ class Catalog:
             if entry.name == name:
                 return entry
         raise KeyError(f"tasks={tasks_option} has no task {name!r}")
+
+    def tasks_in(self, tasks_options: list[str]) -> list[TaskEntry]:
+        """The tasks ``tasks=[a,b,...]`` composes: the union of the options'
+        task maps, merged in order as Hydra merges them (a key two options
+        share keeps its first position; the later option's entry wins)."""
+        merged: dict[str, TaskEntry] = {}
+        for option in tasks_options:
+            for entry in self.tasks.get(option, []):
+                merged[entry.name] = entry
+        return list(merged.values())
 
     def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -720,6 +741,7 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
                 null_label=null_label,
                 null_summary=null_summary,
                 pins_sweep=targets == ["sweep"] and _pins_sweep(group_path, names),
+                combinable=group_path in COMBINABLE_GROUPS,
             )
 
         tasks = {}

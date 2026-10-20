@@ -301,6 +301,26 @@ def test_no_label_spells_openbanking_as_one_lowercase_word(catalog):
     assert not [label for label in labels if "Openbanking" in label]
 
 
+def test_only_the_tasks_group_combines(catalog):
+    """Each tasks option is a flat {task_key: config} map in one package, so
+    Hydra's list form (`tasks=[a,b]`) composes their union; no other group's
+    options merge like that."""
+    combinable = [p for p, g in catalog.groups.items() if g.combinable]
+    assert combinable == ["tasks"]
+
+
+def test_tasks_in_is_the_union_hydra_composes(catalog):
+    union = catalog.tasks_in(["all_tasks", "openbanking"])
+    names = [t.name for t in union]
+    assert len(names) == len(set(names))
+    assert set(names) == {t.name for t in catalog.tasks["all_tasks"]} | {
+        t.name for t in catalog.tasks["openbanking"]
+    }
+    # Overlapping groups merge, as Hydra merges their keys.
+    overlap = catalog.tasks_in(["all_tasks", "original_tasks"])
+    assert len(overlap) == len(catalog.tasks["all_tasks"])
+
+
 def test_task_label_is_the_goals_first_sentence(catalog):
     task = catalog.task("all_tasks", "add_call_mom_to_my_todo")
     assert task.label == "Add 'Call Mom' to my todo list."

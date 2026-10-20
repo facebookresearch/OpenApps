@@ -187,6 +187,59 @@
       "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy", "claude_4_sonnet"]}},
       "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
       "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"]}
+    },
+    {
+      "name": "two task groups combine into one inventory",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
+      "command": "uv run launch_agent.py agent=dummy 'tasks=[all_tasks,openbanking]' task_name=message_bob_the_savings_balance",
+      "labels": {
+        "agent": ["Dummy / smoke test"],
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "task_name": ["In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
+      }
+    },
+    {
+      "name": "every task of two combined groups is a sweep",
+      "selection": {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["all"]}},
+      "command": "uv run launch_parallel_agents.py 'tasks=[all_tasks,openbanking]' 'parallel_tasks.app_variations=[[]]' parallel_tasks.task_names=all",
+      "labels": {"tasks": ["Paper tasks (original + goal variations)", "OpenBanking"]}
+    },
+    {
+      "name": "a sweep picks tasks from both combined groups",
+      "selection": {
+        "choices": {
+          "tasks": ["all_tasks", "openbanking"],
+          "apps/theme": ["default", "dark"],
+          "task_name": ["add_call_mom_to_my_todo", "message_bob_the_savings_balance"]
+        }
+      },
+      "command": "uv run launch_parallel_agents.py 'tasks=[all_tasks,openbanking]' 'parallel_tasks.app_variations=[[\"apps/theme=default\"],[\"apps/theme=dark\"]]' 'parallel_tasks.task_names=[add_call_mom_to_my_todo,message_bob_the_savings_balance]'",
+      "labels": {
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "apps/theme": ["Default", "Dark"],
+        "task_name": ["Add 'Call Mom' to my todo list.", "In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
+      }
+    },
+    {
+      "name": "a worker pool runs a combined inventory",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "tasks": ["longer_horizon", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
+      "command": "AGENTS='dummy claude_4_sonnet' ./scripts/conduct.sh 'tasks=[longer_horizon,openbanking]' task_name=message_bob_the_savings_balance",
+      "labels": {
+        "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"],
+        "tasks": ["Longer horizon", "OpenBanking"],
+        "task_name": ["In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
+      }
+    },
+    {
+      "name": "a SLURM worker pool runs a combined inventory",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "tasks": ["all_tasks", "openbanking"], "task_name": ["navigate_to_openbanking"]}, "count": 4},
+      "command": "AGENTS=gemma-4-2B-computer-use COUNT=4 sbatch scripts/conduct_slurm.sh 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking",
+      "labels": {
+        "mode": ["Slurm cluster"],
+        "agent": ["Gemma 4 2B computer use"],
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "task_name": ["Navigate to the OpenBanking app."]
+      }
     }
   ],
   "parse_cases": [
@@ -241,6 +294,30 @@
       "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
       "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}},
       "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh"
+    },
+    {
+      "name": "a combined tasks list in any order reads back in catalog order",
+      "command": "uv run launch_agent.py tasks=[openbanking,all_tasks] task_name=navigate_to_openbanking",
+      "selection": {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["navigate_to_openbanking"]}},
+      "rendered": "uv run launch_agent.py 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking"
+    },
+    {
+      "name": "a one-group tasks list is that group",
+      "command": "uv run launch_agent.py 'tasks=[openbanking]' task_name=navigate_to_openbanking",
+      "selection": {"choices": {"tasks": ["openbanking"], "task_name": ["navigate_to_openbanking"]}},
+      "rendered": "uv run launch_agent.py tasks=openbanking task_name=navigate_to_openbanking"
+    },
+    {
+      "name": "a tasks list naming no group stays verbatim",
+      "command": "uv run launch_agent.py 'tasks=[]'",
+      "selection": {"extra": ["tasks=[]"]},
+      "rendered": "uv run launch_agent.py 'tasks=[]'"
+    },
+    {
+      "name": "a tasks list with an unknown group stays verbatim",
+      "command": "uv run launch_agent.py 'tasks=[all_tasks,no_such_set]'",
+      "selection": {"extra": ["tasks=[all_tasks,no_such_set]"]},
+      "rendered": "uv run launch_agent.py 'tasks=[all_tasks,no_such_set]'"
     }
   ],
   "errors": [
@@ -258,11 +335,6 @@
       "name": "a forced single run cannot hold several values",
       "selection": {"target": "single", "choices": {"apps/theme": ["default", "dark"]}},
       "match": "apps/theme"
-    },
-    {
-      "name": "two task groups at once",
-      "selection": {"choices": {"tasks": ["all_tasks", "longer_horizon"]}},
-      "match": "tasks"
     }
   ]
 }

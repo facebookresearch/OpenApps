@@ -361,7 +361,8 @@ def single_view(selection: Selection, catalog: Catalog) -> Selection:
     """
     groups = catalog.groups
     choices = {
-        key: values[:1]
+        # A combined group (tasks=[a,b]) is one inventory, not an axis.
+        key: values if key in groups and groups[key].combinable else values[:1]
         for key, values in selection.choices.items()
         if key != "mode"
         and not (key == "task_name" and values == [ALL_TASKS])

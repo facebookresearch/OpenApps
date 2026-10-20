@@ -373,6 +373,29 @@
   // Targets and defaults (command.py)
   // -------------------------------------------------------------------------
 
+  /** Several values merge into one (tasks=[a,b]) rather than vary across runs. */
+  const combines = (key, catalog) => has(catalog.groups, key) && Boolean(catalog.groups[key].combinable);
+
+  /** Keys with several values that vary across runs (not combined ones). */
+  const variedKeys = (choices, catalog) =>
+    Object.keys(choices).filter((k) => choices[k].length > 1 && !combines(k, catalog));
+
+  /** Catalog.tasks_in: the union tasks=[a,b,...] composes, in Hydra's merge order. */
+  function tasksIn(catalog, options) {
+    const merged = new Map();
+    for (const option of options) {
+      const list = typeof option === "string" && has(catalog.tasks, option) ? catalog.tasks[option] : [];
+      for (const entry of list) merged.set(entry.name, entry);
+    }
+    return [...merged.values()];
+  }
+
+  /** command.task_names: what task_name=all expands to. */
+  function taskNames(sel, target, catalog) {
+    const options = sel.choices.tasks && sel.choices.tasks.length ? sel.choices.tasks : [defaultFor("tasks", target, catalog)];
+    return tasksIn(catalog, options.filter((o) => o !== null)).map((t) => t.name);
+  }
+
   /** Chosen groups only some targets can bind (Group.targets). */
   function bound(choices, catalog) {
     const all = Object.keys(catalog.targets).length;
@@ -402,7 +425,7 @@
     if ((choices.agent || []).length > 1 || (sel.count || 0) > 1 || sel.max_parallel !== null) {
       return slurm ? "slurm_pool" : "pool";
     }
-    const varied = Object.keys(choices).filter((k) => choices[k].length > 1 && k !== "agent");
+    const varied = variedKeys(choices, catalog).filter((k) => k !== "agent");
     if (varied.length || listEq(choices.task_name, [ALL_TASKS])) return "sweep";
     return slurm ? "slurm_pool" : "single";
   }
@@ -423,6 +446,12 @@
     const choices = {};
     for (const [key, values] of Object.entries(selection.choices)) {
       const unique = dedupe(values);
+      if (unique.length && combines(key, catalog)) {
+        // One inventory whatever order it was picked in: the catalog's.
+        const order = catalog.groups[key].options.map((o) => o.name);
+        const rank = (v) => (order.includes(v) ? order.indexOf(v) : order.length);
+        unique.sort((a, b) => rank(a) - rank(b));
+      }
       if (unique.length) choices[key] = unique;
     }
     let sel = { ...selection, choices };
@@ -469,6 +498,12 @@
     return `${group && group.append ? "+" : ""}${key}=${formatValue(value)}`;
   }
 
+  /** One override for a key's values: key=v, or key=[a,b] for a combined group. */
+  function choiceOverride(key, values, catalog) {
+    if (values.length > 1 && combines(key, catalog)) return override(key, hydraList(values.map(pyStr), false), catalog);
+    return override(key, values[0], catalog);
+  }
+
   function orderedKeys(choices, catalog) {
     const known = Object.keys(catalog.groups).filter((k) => has(choices, k));
     known.push(...Object.keys(catalog.scalars).filter((k) => has(choices, k)));
@@ -481,7 +516,7 @@
         throw new CommandError(`unknown key ${pyRepr(key)}; pass it as an extra override`);
       }
     }
-    const varied = Object.keys(sel.choices).filter((k) => sel.choices[k].length > 1);
+    const varied = variedKeys(sel.choices, catalog);
     let allowed;
     if (target === "single") allowed = [];
     else if (target === "sweep") {
@@ -551,7 +586,7 @@
       else if (pool && key === "mode") continue;
       else if (pool && scalar && scalar.pool_env) env.push(`${scalar.pool_env}=${formatValue(values[0])}`);
       else if (target === "sweep" && (key === "task_name" || (has(catalog.groups, key) && catalog.groups[key].sweepable))) continue;
-      else overrides.push(override(key, values[0], catalog));
+      else overrides.push(choiceOverride(key, values, catalog));
     }
 
     if (pool) {
@@ -601,10 +636,7 @@
     }
     if (target === "sweep") {
       let names = sel.choices.task_name || [null];
-      if (listEq(names, [ALL_TASKS])) {
-        const option = (sel.choices.tasks || [null])[0] || defaultFor("tasks", target, catalog);
-        names = catalog.tasks[option];
-      }
+      if (listEq(names, [ALL_TASKS])) names = taskNames(sel, target, catalog);
       return sweepCells(sel, catalog).length * names.length;
     }
     return 1;
@@ -714,6 +746,19 @@
     return normalizeSel(sel, catalog);
   }
 
+  /** [a,b] (Hydra's list grammar) -> its options; a plain value is one. */
+  function combinedValues(raw) {
+    if (!raw.startsWith("[")) return [raw];
+    let value;
+    try {
+      value = hydraValue(raw);
+    } catch (e) {
+      if (e instanceof SyntaxError) return [];
+      throw e;
+    }
+    return Array.isArray(value) && value.every((v) => typeof v === "string") ? [...value] : [];
+  }
+
   function parseOverride(token, target, choices, catalog) {
     const match = OVERRIDE.exec(token);
     if (!match) return false;
@@ -754,9 +799,10 @@
       if (!group.targets.includes(target)) return false; // this script cannot bind it
       if (group.sweepable && target === "sweep") return false;
       if (prefix !== (group.append ? "+" : "")) return false;
-      if (!group.options.some((o) => o.name === raw)) return false;
+      const values = group.combinable ? combinedValues(raw) : [raw];
+      if (!values.length || !values.every((v) => group.options.some((o) => o.name === v))) return false;
       if (key === "mode" && POOL_TARGETS.includes(target)) return false;
-      choices[key] = [raw];
+      choices[key] = values;
       return true;
     }
     if (has(catalog.scalars, key) && prefix === "") {
@@ -828,17 +874,15 @@
     const names = choices.task_name && choices.task_name.length
       ? choices.task_name
       : [defaultFor("task_name", effective, catalog)];
+    // Several task groups combine into one inventory: present in any is enough.
+    const entries = {};
+    for (const t of tasksIn(catalog, out.tasks)) entries[t.name] = t;
+    const wanted = listEq(names, [ALL_TASKS]) ? Object.keys(entries) : names;
     const apps = new Set();
     let inTasks = true;
-    for (const option of out.tasks) {
-      const entries = {};
-      const list = typeof option === "string" && has(catalog.tasks, option) ? catalog.tasks[option] : [];
-      for (const t of list) entries[t.name] = t;
-      const wanted = listEq(names, [ALL_TASKS]) ? Object.keys(entries) : names;
-      for (const name of wanted) {
-        if (typeof name === "string" && has(entries, name)) entries[name].apps.forEach((a) => apps.add(a));
-        else inTasks = false;
-      }
+    for (const name of wanted) {
+      if (typeof name === "string" && has(entries, name)) entries[name].apps.forEach((a) => apps.add(a));
+      else inTasks = false;
     }
     out.task_app = [...apps].sort();
     out.task_in_tasks = [inTasks];

@@ -243,6 +243,46 @@ def test_validate_checks_a_sweep(client):
     assert result["config"] == "config_parallel_tasks"
 
 
+COMBINED = {
+    "tasks": ["all_tasks", "openbanking"],
+    "task_name": ["message_bob_the_savings_balance"],
+}
+
+
+def test_validate_composes_combined_task_groups(client):
+    """`tasks=[all_tasks,openbanking]` composes in-process as the launcher
+    would, and the task map in the diff is the union."""
+    result = post(client, "/validate", {"choices": dict(COMBINED)}).json()
+    assert result["ok"], result.get("error")
+    assert "'tasks=[all_tasks,openbanking]'" in result["command"]
+    diff = {d["key"]: d for d in result["diff"]}
+    assert diff["tasks"]["value"] == "{283 keys}"
+
+
+def test_validate_composes_combined_task_groups_in_a_sweep(client):
+    sweep = {"choices": {**COMBINED, "task_name": ["all"]}}
+    result = post(client, "/validate", sweep).json()
+    assert result["ok"], result.get("error")
+    assert result["target"] == "sweep"
+
+
+@pytest.mark.parametrize(
+    "choices",
+    [
+        COMBINED,
+        {**COMBINED, "apps/theme": ["dark", "mono"]},
+        {**COMBINED, "agent": ["dummy", "claude_4_sonnet"]},
+    ],
+)
+def test_combined_task_groups_are_one_argv_word(catalog, choices):
+    """/run and /preview hand Popen the list as one word, unquoted."""
+    sel = checked_selection({"choices": dict(choices)}, catalog)
+    assert "tasks=[all_tasks,openbanking]" in plan(sel, catalog).overrides
+    view = single_view(sel, catalog)
+    assert view.choices["tasks"] == ["all_tasks", "openbanking"]
+    assert "tasks=[all_tasks,openbanking]" in plan(view, catalog).overrides
+
+
 # --------------------------------------------------------------------------
 # Run
 # --------------------------------------------------------------------------

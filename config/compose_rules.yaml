@@ -12,7 +12,8 @@
 #           catalog tracks (`agent.client_type`), any other dotted path set by
 #           an extra override (`apps.onlineshop.enable`), or a derived fact:
 #             task_app       config/apps apps the selected task(s) touch
-#             task_in_tasks  every selected task_name is in the tasks group
+#             task_in_tasks  every selected task_name is in the selected tasks
+#                            group(s) -- several combine into one inventory
 #             target         single | sweep | pool | slurm_pool (the resolved
 #                            target: Worker pool + mode=slurm_cluster is slurm_pool)
 #             sweep_axes     apps/* groups and task_name chosen away from

@@ -81,11 +81,14 @@ def test_fixture_selections_are_normalized(catalog, case):
 @pytest.mark.parametrize("case", CASES, ids=_ids(CASES))
 def test_fixture_labels_match_the_catalog(catalog, case):
     selection = Selection.from_dict(case["selection"])
-    tasks_option = selection.choices.get("tasks", ["all_tasks"])[0]
+    entries = {
+        t.name: t
+        for t in catalog.tasks_in(selection.choices.get("tasks", ["all_tasks"]))
+    }
     for key, labels in case["labels"].items():
         values = selection.choices[key]
         if key == "task_name":
-            expected = [catalog.task(tasks_option, v).label for v in values]
+            expected = [entries[v].label for v in values]
         else:
             expected = [catalog.groups[key].option(v).label for v in values]
         assert labels == expected, key
@@ -136,6 +139,12 @@ def test_inexpressible_selections_raise(catalog, case):
             "sweep",
         ),
         ({"target": "sweep"}, "sweep"),
+        # Combined task groups are one inventory, not a sweep axis.
+        ({"choices": {"tasks": ["all_tasks", "openbanking"]}}, "single"),
+        (
+            {"choices": {"tasks": ["all_tasks", "openbanking"], "agent": ["a", "b"]}},
+            "pool",
+        ),
     ],
 )
 def test_resolve_target(catalog, selection, target):
@@ -262,6 +271,60 @@ def test_run_count_expands_all_tasks(catalog):
     assert run_count(sel, catalog) == len(catalog.tasks["longer_horizon"])
 
 
+def test_run_count_expands_all_tasks_of_combined_groups(catalog):
+    sel = Selection.from_dict(
+        {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["all"]}}
+    )
+    expected = len(catalog.tasks["all_tasks"]) + len(catalog.tasks["openbanking"])
+    assert run_count(sel, catalog) == expected == 283
+
+
+# --------------------------------------------------------------------------
+# Combined task groups: one quoted word, on every target
+# --------------------------------------------------------------------------
+
+COMBINED = "tasks=[all_tasks,openbanking]"
+
+
+@pytest.mark.parametrize(
+    "selection",
+    [
+        {"choices": {"tasks": ["all_tasks", "openbanking"]}},
+        {"choices": {"tasks": ["openbanking", "all_tasks"]}},  # catalog order wins
+        {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["all"]}},
+        {
+            "choices": {
+                "tasks": ["all_tasks", "openbanking"],
+                "apps/theme": ["dark", "mono"],
+            }
+        },
+        {"target": "sweep", "choices": {"tasks": ["all_tasks", "openbanking"]}},
+        {"choices": {"tasks": ["all_tasks", "openbanking"], "agent": ["a", "b"]}},
+        {"target": "pool", "choices": {"tasks": ["all_tasks", "openbanking"]}},
+        {
+            "choices": {
+                "tasks": ["all_tasks", "openbanking"],
+                "mode": ["slurm_cluster"],
+                "agent": ["dummy"],
+            }
+        },
+    ],
+    ids=json.dumps,
+)
+def test_combined_task_groups_render_as_one_word(catalog, selection):
+    sel = Selection.from_dict(selection)
+    command = render(sel, catalog)
+    assert f"'{COMBINED}'" in command
+    assert COMBINED in shlex.split(command)
+    assert parse(command, catalog) == normalize(sel, catalog)
+    assert render(parse(command, catalog), catalog) == command
+
+
+def test_combined_task_groups_are_not_an_error_with_a_forced_single_run(catalog):
+    sel = Selection(target="single", choices={"tasks": ["all_tasks", "openbanking"]})
+    assert render(sel, catalog) == f"uv run launch_agent.py '{COMBINED}'"
+
+
 # --------------------------------------------------------------------------
 # Every rendered command composes
 # --------------------------------------------------------------------------
@@ -314,6 +377,29 @@ def test_rendered_overrides_compose(catalog, case):
                 if agent:
                     injected = [f"agent={agent}", *injected, f"wandb.job_type={agent}"]
                 _compose_ok("config", [*injected, *overrides])
+
+
+COMBINED_CASES = [
+    c for c in CASES if len(c["selection"].get("choices", {}).get("tasks", [])) > 1
+]
+
+
+@pytest.mark.parametrize("case", COMBINED_CASES, ids=_ids(COMBINED_CASES))
+def test_combined_commands_compose_the_union(catalog, case):
+    """`tasks=[a,b]` composes exactly the union of the groups' task maps, and
+    the selected task is in it -- on whichever primary config the target
+    composes."""
+    selection = Selection.from_dict(case["selection"])
+    script, overrides = _overrides_after_script(render(selection, catalog))
+    config_name = (
+        "config_parallel_tasks" if script == "launch_parallel_agents.py" else "config"
+    )
+    union = {t.name for t in catalog.tasks_in(selection.choices["tasks"])}
+    with hydra_context():
+        cfg = compose(config_name=config_name, overrides=[*overrides, *_FAST])
+    assert set(cfg.tasks) == union
+    for name in selection.choices.get("task_name", []):
+        assert name == "all" or name in cfg.tasks
 
 
 def test_the_env_name_pattern_has_one_home():
