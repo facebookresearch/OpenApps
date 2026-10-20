@@ -21,6 +21,9 @@ from the defaults, and the composer picks the launcher for you:
 - one value per axis runs `launch_agent.py`;
 - several themes, layouts, content packs or tasks become a `launch_parallel_agents.py` sweep
   (only `apps/*` groups and the task can vary in one sweep);
+- several task groups are not a sweep: they combine into one inventory,
+  `'tasks=[all_tasks,openbanking]'`, on any launcher, and the Task list offers the union
+  ("Paper tasks" is the paper's set only; OpenBanking and longer-horizon tasks are separate);
 - several agents, a repeat count or a parallelism cap use the `scripts/conduct.sh` worker pool,
   or `sbatch scripts/conduct_slurm.sh` with the SLURM mode;
 - a frozen benchmark suite (`benchmark=<name>`, from `config/benchmark/`) is a sweep of its own,
