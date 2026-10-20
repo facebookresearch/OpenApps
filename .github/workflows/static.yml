@@ -39,6 +39,10 @@ jobs:
         run: |
           pip install uv
           uv sync --extra dev
+      # Generated from config/ on every build and gitignored, so the composer's
+      # option lists cannot drift from the YAML. A failure here fails the deploy.
+      - name: Build the config composer catalog
+        run: uv run -m open_apps.compose.catalog --out docs/assets/composer/catalog.json
       - name: Build Docs
         run: |
           source .venv/bin/activate 

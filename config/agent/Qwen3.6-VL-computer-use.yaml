@@ -1,3 +1,5 @@
+# label: Qwen3.6-VL base (not runnable alone)
+#
 # Qwen3.6-VL family config: <tool_call> JSON grammar via the qwen3vl action_parser.
 # The <tools> schema lives in system_prompt; the user message is minimal
 # (task + history + screenshot). Not runnable on its own — the per-model

@@ -1,3 +1,8 @@
+# label: Gemini 2.5 Flash
+# Gemini 2.5 Flash on the default AXTree + screenshot observations, reached
+# through an OpenAI-compatible endpoint at http://<agent.hostname>:<agent.port>/
+# (`client_type: gemini`). Both the hostname and `api_key` are empty here, so
+# supply them at launch.
 defaults:
   - default
   - _self_

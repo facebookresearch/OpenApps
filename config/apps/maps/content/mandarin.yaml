@@ -1,4 +1,6 @@
 # @package apps.maps
+# Centres the map on Beijing and appends ~100 cities across China, named in
+# Chinese, to the default saved places (`+saved_places`).
 defaults:
   - default
 

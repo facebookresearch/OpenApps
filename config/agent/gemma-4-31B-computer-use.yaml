@@ -1,3 +1,5 @@
+# label: Gemma 4 31B set-of-marks
+#
 # Gemma 4 31B, screenshot-only via set-of-marks.
 #
 # The model sees ONLY the screenshot (no AXTree, no HTML), but the screenshot is

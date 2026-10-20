@@ -1,3 +1,8 @@
+# label: GPT-5.5 screen + AXTree
+# GPT-5.5 seeing both the screenshot and the accessibility tree, with the full
+# action set inherited from `default` (bid and coordinate actions). Same
+# endpoint and GPT55_API_KEY requirement as GPT-5.5-computer-use; differs from
+# GPT-5.5-text-only only in `use_screenshot`.
 defaults:
   - default
   - _self_

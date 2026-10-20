@@ -1,4 +1,7 @@
 # @package apps.calendar
+# The calendar's seed data and form strings: 47 events (conference
+# deadlines, birthdays, meetings -- the ones the calendar tasks add next to or
+# remove) plus the add-event placeholders and aria labels.
 
 style:
   # Add event visual placeholder and text aria label

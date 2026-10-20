@@ -1,0 +1,121 @@
+{
+  "about": "Shared fixtures for open_apps.compose.rules (Python reference) and the docs-site JS port: a selection (the Selection JSON from command_cases.json) and the ids of the rules evaluate() must report, in rules-file order.",
+  "cases": [
+    {"name": "repo defaults", "selection": {}, "findings": []},
+    {
+      "name": "longer horizon at a low step budget",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"], "task_name": ["plan_elena_birthday_todo_message"], "browsergym_env_args.max_steps": [20]}},
+      "findings": ["longer_horizon_step_budget"]
+    },
+    {
+      "name": "longer horizon at a raised step budget",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"], "task_name": ["plan_elena_birthday_todo_message"], "browsergym_env_args.max_steps": [40]}},
+      "findings": []
+    },
+    {
+      "name": "the screenshot env args lower the budget to 25",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"], "task_name": ["plan_elena_birthday_todo_message"], "browsergym_env_args": ["screenshot"]}},
+      "findings": ["longer_horizon_step_budget"]
+    },
+    {
+      "name": "so does the phone experiment",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"], "task_name": ["plan_elena_birthday_todo_message"], "experiment": ["phone"]}},
+      "findings": ["longer_horizon_step_budget"]
+    },
+    {
+      "name": "an explicit max_steps beats the experiment",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"], "task_name": ["plan_elena_birthday_todo_message"], "experiment": ["screenshot_agent"], "browsergym_env_args.max_steps": [50]}},
+      "findings": []
+    },
+    {
+      "name": "an OpenBanking task is not in the paper tasks",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["message_bob_the_savings_balance"]}},
+      "findings": ["task_not_in_tasks_group"]
+    },
+    {
+      "name": "an OpenBanking task in paper + OpenBanking combined",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
+      "findings": []
+    },
+    {
+      "name": "a paper task in paper + OpenBanking combined",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"]}},
+      "findings": []
+    },
+    {
+      "name": "longer horizon combined with the paper tasks at a low step budget",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "longer_horizon"], "browsergym_env_args.max_steps": [20]}},
+      "findings": ["longer_horizon_step_budget"]
+    },
+    {
+      "name": "every task of a combined inventory includes the shop task",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"], "task_name": ["all"], "apps/onlineshop/content": ["default"]}},
+      "findings": ["shop_task_without_catalog"]
+    },
+    {
+      "name": "the default task is not in longer_horizon",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["longer_horizon"]}},
+      "findings": ["task_not_in_tasks_group"]
+    },
+    {
+      "name": "shop task with the chrome-only content pack",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"], "apps/onlineshop/content": ["default"]}},
+      "findings": ["shop_task_without_catalog"]
+    },
+    {
+      "name": "shop task with a translated catalog",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"], "apps/onlineshop/content": ["german"]}},
+      "findings": []
+    },
+    {
+      "name": "shop task with the shop switched off",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["apps.onlineshop.enable=False"]},
+      "findings": ["shop_task_with_shop_disabled"]
+    },
+    {
+      "name": "shop task with the shop forced off by a ++ override",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["++apps.onlineshop.enable=false"]},
+      "findings": ["shop_task_with_shop_disabled"]
+    },
+    {
+      "name": "shop task with the shop switched off by a + override",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["+apps.onlineshop.enable=false"]},
+      "findings": ["shop_task_with_shop_disabled"]
+    },
+    {
+      "name": "a ~ deletion is not a value",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["navigate_to_onlineshop"]}, "extra": ["~apps.onlineshop.enable=false"]},
+      "findings": []
+    },
+    {
+      "name": "a sweep where one task needs the shop",
+      "selection": {"choices": {"agent": ["dummy"], "task_name": ["add_call_mom_to_my_todo", "navigate_to_onlineshop"], "apps/onlineshop/content": ["default"]}},
+      "findings": ["shop_task_without_catalog"]
+    },
+    {
+      "name": "vLLM agent without a host",
+      "selection": {"choices": {"agent": ["gemma-4-2B-computer-use"]}},
+      "findings": ["vllm_agent_needs_host"]
+    },
+    {
+      "name": "vLLM agent with a host",
+      "selection": {"choices": {"agent": ["gemma-4-2B-computer-use"]}, "extra": ["agent.hostname=node-001"]},
+      "findings": []
+    },
+    {
+      "name": "the SLURM pool discovers the vLLM host",
+      "selection": {"choices": {"agent": ["gemma-4-2B-computer-use"], "mode": ["slurm_cluster"]}},
+      "findings": []
+    },
+    {
+      "name": "a pool with one vLLM agent among others",
+      "selection": {"choices": {"agent": ["dummy", "UI-TARS-1.5-7B"]}},
+      "findings": ["vllm_agent_needs_host"]
+    },
+    {
+      "name": "GPT-5.5 needs its key",
+      "selection": {"choices": {"agent": ["GPT-5.5-computer-use"]}},
+      "findings": ["gpt55_agent_needs_key"]
+    }
+  ]
+}

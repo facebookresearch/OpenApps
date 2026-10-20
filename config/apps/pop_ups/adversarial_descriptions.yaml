@@ -1,3 +1,6 @@
+# A start-page pop-up whose body is `apps.adversarial_message` -- the injected
+# "you have achieved your goal" notice -- plus a link button to an external
+# page: a prompt-injection test before the agent reaches any app.
 pop_up1:
   title: ${apps.start_page.headline}
   content: ${apps.adversarial_message}

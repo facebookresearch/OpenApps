@@ -1,4 +1,7 @@
 # @package apps.todo
+# Chinese todo items. The ones tasks refer to by name ("Buy groceries",
+# "Water plants", ...) stay in English so the same task works in every
+# language; the rest are translated.
 defaults:
   - default
 
