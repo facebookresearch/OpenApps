@@ -872,10 +872,13 @@ class AbstentionTask(Task):
         e.g. because the item doesn't exist.
 
     ``check_if_task_is_complete`` recognizes a concrete act. For ``clarify``
-    and ``stop`` tasks any app-state change counts as an (incorrect) act, so
-    every wrong guess or near-match substitution is caught without a
-    verifier per mistake. ``OpenAppsTask.validate`` combines this with
-    :meth:`explicit_outcome` to score the episode.
+    and ``stop`` tasks any change :class:`AppStateComparison` detects counts
+    as an (incorrect) act, so every wrong guess or near-match substitution is
+    caught without a verifier per mistake; True then means a wrong act, not
+    success. ``AppStateComparison`` ignores the code editor and UI library.
+    ``OpenAppsTask.validate`` combines this with :meth:`explicit_outcome` to
+    score the episode. With BrowserGym's ``wait_for_user_message=True`` a
+    user reply follows each question, so ``clarify`` is never observed.
     """
 
     expected_outcome: Literal["act", "clarify", "stop"]
@@ -901,6 +904,10 @@ class AbstentionTask(Task):
             )
         if isinstance(current_state, DictConfig):
             current_state = OmegaConf.to_container(current_state, resolve=True)
+        # safe_get_json returns [] when a probe fails. Treat an app that was
+        # populated but now reads empty as "unknown", not as a (terminal) act.
+        if any(initial_state.get(app) and current_state.get(app) == [] for app in initial_state):
+            return False
         return not AppStateComparison(initial_state, current_state).compare()
 
     @staticmethod

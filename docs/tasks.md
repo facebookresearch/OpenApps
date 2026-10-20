@@ -105,7 +105,7 @@ uv run launch_agent.py agent=gemma-4-2B-computer-use task_name=edit_script_add_h
 `AbstentionTask` scores whether the agent acts, asks a clarifying question, or
 says the request can't be done. Set `expected_outcome` to `act` (checked by a
 nested `action_task`), `clarify`, or `stop`; on `clarify`/`stop` tasks any app
-change counts as a wrong act. The agent's first act, question
+change the state check detects (not the code editor) counts as a wrong act. The agent's first act, question
 (`send_msg_to_user`) or infeasibility report (`report_infeasible`) ends the
 episode, with reward 1 only if it matches. `GPT-5.5-computer-use-abstention`
 offers those two actions; `config/tasks/abstention_examples.yaml` has one

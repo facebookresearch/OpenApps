@@ -84,6 +84,9 @@ def _act_task() -> AbstentionTask:
         ([*_PREAMBLE, {"role": "info", "message": "x"}], None),
         # A question answered by a later user message no longer counts.
         ([*_PREAMBLE, _CLARIFY, {"role": "user", "message": "the AAAI one"}], None),
+        # Image goals arrive as user_image and also reset the window.
+        ([*_PREAMBLE, _CLARIFY, {"role": "user_image", "message": "img"}], None),
+        ([*_PREAMBLE, _CLARIFY, _STOP], "stop"),  # the last explicit message wins
         ([], None),
     ],
 )
@@ -136,6 +139,15 @@ def test_abstention_counts_any_change_as_act(outcome):
         assert task.check_if_task_is_complete(initial, changed)
 
 
+def test_failed_state_probe_is_not_an_act():
+    # safe_get_json returns [] when a probe fails; that must not end a
+    # clarify/stop episode as a wrong act.
+    initial = _initial()
+    task = AbstentionTask(goal="g", expected_outcome="clarify")
+    probe_failed = {**copy.deepcopy(initial), "todo": []}
+    assert not task.check_if_task_is_complete(initial, probe_failed)
+
+
 # -- OpenAppsTask.validate --------------------------------------------------
 
 
@@ -151,6 +163,7 @@ _CASES = [
     ("act", [_CLARIFY], False, "clarify", 0.0),  # wrong clarify
     ("act", [_STOP], False, "stop", 0.0),
     ("act", [], False, None, 0.0),  # nothing yet: keep going
+    ("act", [_CLARIFY], True, "clarify", 0.0),  # an explicit message beats state
     ("clarify", [_CLARIFY], False, "clarify", 1.0),
     ("clarify", [_STOP], False, "stop", 0.0),
     ("clarify", [], True, "act", 0.0),  # app change on a clarify task

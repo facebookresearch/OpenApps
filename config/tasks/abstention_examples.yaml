@@ -4,12 +4,12 @@
 #   act     - do the request (checked by the nested `action_task`);
 #   clarify - ask a question (send_msg_to_user): the request is ambiguous;
 #   stop    - say it can't be done (report_infeasible): the item is absent.
-# On clarify/stop tasks any app-state change is scored as a (wrong) act.
+# On clarify/stop tasks any detected app-state change (code editor excluded)
+# is scored as a (wrong) act.
 #
 # Pair with an agent that offers those actions, e.g.
 # `agent=GPT-5.5-computer-use-abstention tasks=abstention_examples
 #  task_name=abstention_clarify_paper_deadline`.
-# `_convert_: all` makes Hydra instantiate the nested action_task.
 # All three use the default app seed.
 
 # Exactly one saved place is named "Times Square".

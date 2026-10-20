@@ -30,7 +30,7 @@ def test_type_regression():
     assert _action("type(content='hello\\n')") == "keyboard_type(text='hello\\n')"
 
 
-def test_wait_translates_to_five_second_noop():
+def test_wait_translates_to_three_second_noop():
     assert _action("wait()") == "noop(wait_ms=3000)"
     assert _action("wait( )") == "noop(wait_ms=3000)"
 
@@ -111,4 +111,4 @@ def test_wait_prompts_describe_the_actual_sleep():
     for path in (config_dir() / "agent").glob("*.yaml"):
         text = path.read_text()
         if "wait()" in text:
-            assert "for 3s" in text, path.name
+            assert "for 3s" in text and "for 5s" not in text, path.name
