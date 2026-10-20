@@ -219,6 +219,7 @@ def test_parse_header_without_comment_is_empty():
         ("no_visual", "No visual"),
         ("sidebar_nav", "Sidebar nav"),
         ("ui_library", "UI library"),
+        ("openbanking", "OpenBanking"),
         ("Qwen3.6-VL-computer-use", "Qwen3.6 VL computer use"),
     ],
 )
@@ -281,6 +282,23 @@ def test_task_name_is_an_enum_over_the_selected_tasks_group(catalog):
 
 def test_every_tasks_option_has_a_task_list(catalog):
     assert set(catalog.tasks) == {o.name for o in catalog.groups["tasks"].options}
+
+
+def test_the_paper_task_set_says_what_it_holds(catalog):
+    """all_tasks is the paper's inventory, not every task: a user who picked
+    "All tasks" expected OpenBanking in it. The label and summary say what it
+    is, and that the other sets are separate groups to combine with it."""
+    option = catalog.groups["tasks"].option("all_tasks")
+    assert option.label == "Paper tasks (original + goal variations)"
+    for word in ("OpenBanking", "longer-horizon", "combine"):
+        assert word in option.summary, word
+
+
+def test_no_label_spells_openbanking_as_one_lowercase_word(catalog):
+    assert catalog.groups["tasks"].option("openbanking").label == "OpenBanking"
+    labels = [o.label for g in catalog.groups.values() for o in g.options]
+    labels += [g.label for g in catalog.groups.values()]
+    assert not [label for label in labels if "Openbanking" in label]
 
 
 def test_task_label_is_the_goals_first_sentence(catalog):

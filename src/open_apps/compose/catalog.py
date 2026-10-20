@@ -59,6 +59,7 @@ ACRONYMS = {
     "vl": "VL",
     "mcp": "MCP",
     "som": "SOM",
+    "openbanking": "OpenBanking",
 }
 
 #: A group with at most this many options renders as pills, otherwise a select.
