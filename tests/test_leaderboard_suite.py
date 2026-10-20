@@ -225,7 +225,111 @@ def test_sweep_fans_out_one_config_per_cell(monkeypatch, capsys, align_v1):
     # Same cells, same order, as validate will expect.
     got = [(c.task_name, tuple(c.app_overrides), c.seed) for c in configs]
     assert got == [(c.task_name, c.variation, c.seed) for c in cells]
-    assert {c.suite_version for c in configs} == {"align_v1"}
+
+
+# One cell per kind of axis the fan-out has to carry: a root-level group
+# (device), an apps group that schedules events, and the reference cell.
+_FANOUT_CELLS = {
+    "core": {
+        "task_names": ["add_call_mom_to_my_todo"],
+        "app_variations": [
+            ["apps/theme=default"],
+            ["apps/theme=default", "device=phone"],
+        ],
+    },
+    "events": {
+        "task_names": ["message_bob_to_meet"],
+        "app_variations": [["apps/theme=default", "apps/events=exfiltration_2fa_code"]],
+    },
+}
+_FANOUT_CLI = ["benchmark=align_v1", "agent=dummy", "use_wandb=True"]
+
+
+@pytest.fixture(scope="module")
+def fanout():
+    """A real fan-out, composed the way launch_parallel_agents.py drives it:
+    every run from the command line plus its cell."""
+    from hydra import compose, initialize_config_dir
+    from hydra.core.global_hydra import GlobalHydra
+
+    from open_apps.leaderboard.reference import _compose as reference_compose
+
+    GlobalHydra.instance().clear()
+    with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+        parent = compose(config_name="config_parallel_tasks", overrides=_FANOUT_CLI)
+        sweep = SuiteParallelTasksConfig(
+            blocks=_FANOUT_CELLS, seeds=[233, 7], suite_version="align_v1"
+        )
+        configs = sweep.create_configs(
+            default_config=parent,
+            cli_overrides=_FANOUT_CLI,
+            config_name="config_parallel_tasks",
+        )
+    by_cell = {(c.task_name, tuple(c.app_overrides), c.seed): c for c in configs}
+    reference_apps = {
+        tuple(v): OmegaConf.to_container(
+            reference_compose("config", v).apps, resolve=False
+        )
+        for spec in _FANOUT_CELLS.values()
+        for v in spec["app_variations"]
+    }
+    return configs, by_cell, reference_apps
+
+
+def test_fanout_runs_carry_the_suite_protocol(fanout):
+    configs, _, _ = fanout
+    assert len(configs) == 3 * 2
+    for c in configs:
+        assert c.suite_version == "align_v1"
+        assert c.task_termination == "on_agent_stop"
+        assert c.browsergym_env_args.max_steps == 30
+        assert c.use_wandb is True  # the command line reached the run
+    assert sorted({c.seed for c in configs}) == [7, 233]
+
+
+def test_fanout_carries_device_and_events_per_cell(fanout):
+    from open_apps.alignment.events import load_events
+
+    _, by_cell, _ = fanout
+    task = "add_call_mom_to_my_todo"
+    desktop = by_cell[(task, ("apps/theme=default",), 233)]
+    phone = by_cell[(task, ("apps/theme=default", "device=phone"), 233)]
+    assert desktop.device.name == "desktop"
+    assert phone.device.name == "phone"
+    assert phone.apps.device.form_factor == "phone"
+    assert load_events(desktop.apps.get("events")) == []
+
+    event_cell = ("apps/theme=default", "apps/events=exfiltration_2fa_code")
+    for seed in (233, 7):
+        run = by_cell[("message_bob_to_meet", event_cell, seed)]
+        assert [e.id for e in load_events(run.apps.get("events"))]
+        assert run.device.name == "desktop"
+
+
+def test_fanout_apps_match_the_reference_compose(fanout):
+    """The lock is built from ``config`` + the cell; each run is composed from
+    ``config_parallel_tasks`` + the command line + the cell. Same ``apps``."""
+    _, by_cell, reference_apps = fanout
+    for (_, variation, _), run in by_cell.items():
+        assert (
+            OmegaConf.to_container(run.apps, resolve=False) == reference_apps[variation]
+        )
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        "apps/theme=dark",
+        "apps.todo.title=X",
+        "device=phone",
+        "+device=phone",
+        "~apps.events",
+    ],
+)
+def test_suite_refuses_command_line_cell_axes(override, align_v1):
+    sweep = SuiteParallelTasksConfig(blocks={}, seeds=[1], suite_version="align_v1")
+    with pytest.raises(ValueError, match="pins every cell's apps"):
+        sweep.create_configs(align_v1, cli_overrides=["benchmark=align_v1", override])
 
 
 def test_suite_refuses_adhoc_task_overrides():

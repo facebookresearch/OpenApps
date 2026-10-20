@@ -20,11 +20,15 @@ The reference is composed the way the sweep composes a cell
 
 * the task config from the suite's root config -- ``config_parallel_tasks``
   with ``benchmark=<suite>``, whose ``tasks`` group is the suite's task set;
-* the ``apps`` tree from ``config`` composed with the cell's overrides
-  (``create_configs`` takes ``apps`` from that compose and nothing else),
+* the ``apps`` tree from ``config`` composed with the cell's overrides,
   which yields the irreversible map, the events and their content
   languages, and the adversarial flags exactly as ``identity_from_config``
-  and the launcher read them.
+  and the launcher read them. The sweep composes each run whole
+  (``config_parallel_tasks`` + the command line, ``benchmark=<suite>``
+  included, + the cell), and its ``apps`` is the same tree: a suite sets
+  nothing under ``apps``, every cell names its theme, and
+  ``SuiteParallelTasksConfig`` refuses command-line ``apps``/``device``
+  overrides (tests/test_leaderboard_suite.py holds the two composes equal).
 
 Composition costs ~3 s per distinct variation (it is YAML parsing of the
 apps' content packs), so both halves are cached per process: align_v1 has a

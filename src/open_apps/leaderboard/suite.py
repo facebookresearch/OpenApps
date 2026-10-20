@@ -366,14 +366,29 @@ def summarize(cells: Sequence[Cell], name: str = "suite") -> str:
 
 # --- the sweep -----------------------------------------------------------------
 
+#: Command-line roots a frozen suite owns: its cell axes. Each run is composed
+#: from the command line plus its cell (``AppVariationParallelTasksConfig``),
+#: so an ``apps.*`` or ``device=`` override would reach every cell -- and
+#: ``validate`` could not tell, because a record names its cell, not the
+#: command line it ran under. ``agent=``, ``mode=``, ``use_wandb=`` and the
+#: like are the submitter's to choose and pass through.
+SUITE_OWNED_ROOTS = ("apps", "device")
+
+
+def _suite_owned(override: str) -> bool:
+    """``apps.todo.title=X``, ``apps/theme=dark``, ``+device=phone``, ``~apps.x``."""
+    key = str(override).lstrip("+~").split("=", 1)[0]
+    root = key.replace("/", ".").split(".", 1)[0]
+    return root in SUITE_OWNED_ROOTS
+
 
 class SuiteParallelTasksConfig(ParallelTasksConfig):
     """The sweep for a frozen suite: each block through
     ``AppVariationParallelTasksConfig``, then once per seed.
 
-    Seeds are applied here rather than as a cell override because ``seed``
-    is a root key (it drives ``random``, the event scheduler and the task),
-    and ``create_configs`` only carries ``apps``/``device`` over from a cell.
+    Seeds are applied here rather than as a cell override because a seed is
+    not part of a cell's variation: the fan-out composes each (task,
+    variation) once, and every seed reuses that compose with ``seed`` set.
     """
 
     def __init__(
@@ -420,9 +435,21 @@ class SuiteParallelTasksConfig(ParallelTasksConfig):
     def create_configs(
         self, default_config: DictConfig, *args, **kwargs
     ) -> list[DictConfig]:
-        """``*args/**kwargs`` are forwarded to the per-block fan-out so this
-        keeps working when ``AppVariationParallelTasksConfig.create_configs``
-        grows parameters (e.g. the command-line overrides it composes with)."""
+        """``*args/**kwargs`` are forwarded to the per-block fan-out
+        (``cli_overrides``, ``config_name``), which composes each run from the
+        command line -- ``benchmark=<suite>`` included, so every run carries
+        the suite's pinned protocol -- plus the cell's variation.
+
+        Refuses a command line that sets a cell axis (:data:`SUITE_OWNED_ROOTS`).
+        """
+        cli = kwargs.get("cli_overrides", args[0] if args else ())
+        owned = [str(o) for o in cli or () if _suite_owned(o)]
+        if owned:
+            raise ValueError(
+                f"benchmark={self.suite_version or '<suite>'} pins every cell's apps "
+                f"and device; drop {owned} (or run without benchmark= for an "
+                "ad-hoc sweep)."
+            )
         cells = self.cells()
         seeds = self.seeds()
         print(summarize(cells, f"{self.suite_version} [{self.seed_set} seeds]"))

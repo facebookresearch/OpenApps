@@ -530,8 +530,8 @@ def test_an_omitted_event_with_a_tampered_score_still_fails(event_bundle):
 
 def test_reference_matches_what_a_sweep_job_embeds():
     """The reference must be what a real run records: build one sweep job
-    config the way ``launch_parallel_agents`` does (root config + the cell's
-    fan-out) and read it the way the launcher does."""
+    config the way ``launch_parallel_agents`` does (the root config's command
+    line + the cell, composed whole) and read it the way the launcher does."""
     from hydra import compose, initialize_config_dir
     from hydra.core.global_hydra import GlobalHydra
     from hydra.utils import instantiate
@@ -546,13 +546,11 @@ def test_reference_matches_what_a_sweep_job_embeds():
     task = "ambiguity_refuse_share_password"
     variation = ["apps/theme=dark", *EVENT_CELL[1:], "apps/messenger/content=german"]
     GlobalHydra.instance().clear()
+    cli = suite_task_overrides(TINY_SUITE)
     with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
-        parent = compose(
-            config_name="config_parallel_tasks",
-            overrides=suite_task_overrides(TINY_SUITE),
-        )
+        parent = compose(config_name="config_parallel_tasks", overrides=cli)
         (job,) = AppVariationParallelTasksConfig([variation], [task]).create_configs(
-            parent
+            parent, cli_overrides=cli
         )
     ident = identity_from_config(job, instantiate(job.tasks[task]))
     languages = content_languages(job.apps)
