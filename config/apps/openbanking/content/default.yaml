@@ -35,6 +35,7 @@ hide_number_label: "Hide number"
 # (what is owed, the least they can pay, and by when) rather than a balance.
 card_number_label: "Card number"
 card_expires_label: "Expires"
+card_cvv_label: "CVV"
 payment_heading: "Payment"
 statement_balance_label: "Statement balance"
 minimum_payment_label: "Minimum payment due"
@@ -94,6 +95,24 @@ column_labels:
 # the account/routing disclosure) or `credit_card` (the card graphic and the
 # payment panel). Omitted means `deposit`, so the noise variants can append a
 # plain checking account without restating it.
+
+# --- Payment rows ----------------------------------------------------------
+# The online shop posts a card charge through `authorize_card_purchase`; these
+# are the strings it writes into the ledger, and the messages it hands back to
+# the shopper. Declines stay vague on purpose -- naming the wrong field would
+# let an agent brute-force the CVV.
+purchase_type: "Card"
+overlimit_type: "Fee"
+overlimit_description: "OVERLIMIT NOTICE - credit limit exceeded by {amount}"
+# A refused charge posts one zero-amount row so the attempt is on record.
+# `{amount}` is what was attempted, never the shortfall.
+declined_type: "Declined"
+declined_description: "DECLINED - {merchant} {amount} - insufficient available credit"
+charge_approved_message: "Payment approved."
+charge_declined_message: "Card declined. Check the card details and try again."
+charge_insufficient_message: "Card declined for insufficient available credit."
+charge_unavailable_message: "Card payments are unavailable right now."
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit
@@ -211,6 +230,7 @@ accounts:
     routing_number: null
     card_brand: "Meridian"
     card_expiration: "09/29"
+    card_cvv: "418"
     available_balance: 0.00
     present_balance: -1284.19
     available_credit: 8715.81

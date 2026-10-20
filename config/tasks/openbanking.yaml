@@ -206,3 +206,157 @@ report_the_card_statement_balance_and_headroom:
     goal: Add a todo naming the remaining headroom.
     todo_name: Headroom 8715.81
     is_done: false
+
+
+# ==========================================================================
+# Purchase (3 apps / 2 sub-goals) -- the bank's only write path
+#
+# Everything above is read-only on the bank: the agent looks a figure up and
+# the scorable delta lands in todo/calendar/messenger. These are the other
+# shape. Checkout charges the card through `authorize_card_purchase`, so the
+# reward is a delta in the *shop* and the *bank* at once -- a new order
+# carrying the paying card's last four, and a pending `Card` row that debits
+# the headroom by exactly the order total.
+#
+# What makes them cross-app rather than a form-fill: the PAN, expiry and CVV
+# live only on the card's page in OpenBanking, each masked until clicked, and
+# the checkout form takes no order without all three. An agent that never
+# opens the bank cannot guess them.
+#
+# Three things to know before editing:
+#
+#   * The product is from `content/webshop.yaml`, the shop's default pack. Its
+#     price is pinned here as `unit_price` because `/onlineshop_all` omits the
+#     catalog, so the reward cannot look it up -- if you re-generate the
+#     catalog with `scripts/fetch_webshop.py`, re-check this figure.
+#   * `descriptor` and `charge_type` mirror `apps.onlineshop.card_descriptor`
+#     and `apps.openbanking.purchase_type`. Override either at run time and
+#     these have to move with it.
+#   * 877.80 sits well inside the card's 8715.81 of headroom, deliberately,
+#     so these two score a plain approval and nothing else.
+#
+# The card has three bands, and there is now a task for each:
+#
+#   total <= 8715.81   approved                      (the two tasks below)
+#   .. 8725.81         approved, inside the $10      `buy_the_mirrors_*`
+#                      grace, plus an OVERLIMIT
+#                      NOTICE row naming the overage
+#   above that         declined outright: no order,  `attempt_the_copier_*`
+#                      balances untouched, one
+#                      zero-amount DECLINED row
+#
+# `overlimit_grace` on both task classes mirrors
+# `apps.openbanking.overlimit_grace`; move one and the others have to follow.
+# ==========================================================================
+
+buy_the_console_table_with_the_business_card:
+  _target_: open_apps.tasks.tasks.BuyWithCardTask
+  goal: In the online shop, find the 'Vhomes Lights Reclaimed Wood Console Table
+    The Genessis Collection Sofa-Tables' and buy one. Pay with the business
+    credit card held in the OpenBanking app — you will need its number, expiry
+    date and security code, all of which are on the card's own page. Ship it to
+    'Dana Reyes' at '44 Wharf Street Portland ME 04101'.
+  sku: B06Y3VLDFB
+  unit_price: 877.8
+  quantity: 1
+  card_last4: '2043'
+  ship_to_name: Dana Reyes
+  ship_to_address: 44 Wharf Street Portland ME 04101
+
+buy_the_console_table_and_log_the_charge:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: In the online shop, find the 'Vhomes Lights Reclaimed Wood Console Table
+    The Genessis Collection Sofa-Tables' and buy one, paying with the business
+    credit card held in the OpenBanking app — its number, expiry date and
+    security code are all on the card's own page. Ship it to 'Dana Reyes' at
+    '44 Wharf Street Portland ME 04101'. Then go back to the bank, read how much
+    is left to spend on that card now, and add a todo named 'Card headroom
+    AMOUNT', where AMOUNT is that figure.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.BuyWithCardTask
+    goal: Buy the console table on the business card.
+    sku: B06Y3VLDFB
+    unit_price: 877.8
+    quantity: 1
+    card_last4: '2043'
+    ship_to_name: Dana Reyes
+    ship_to_address: 44 Wharf Street Portland ME 04101
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    # 8715.81 - 877.80. The agent has to read it back *after* the purchase,
+    # which is the point: the figure does not exist until the charge posts.
+    goal: Log the headroom left on the card after the purchase.
+    todo_name: Card headroom 7838.01
+    is_done: false
+
+
+# ==========================================================================
+# Over the limit (3 apps / 1-2 sub-goals)
+#
+# The two above stay inside the card's headroom. These are what happens when
+# the total does not fit, which is the decision the grace band exists to make
+# interesting: an agent that never checks the balance mostly gets away with
+# it, and the ledger records that it did.
+#
+# Neither task tells the agent it is about to break the limit. The goal reads
+# like an ordinary purchase; the figures are what make it one or the other.
+# ==========================================================================
+
+buy_the_mirrors_just_over_the_card_limit:
+  _target_: open_apps.tasks.tasks.BuyWithCardTask
+  # 17 x 513.08 = 8722.36, against 8715.81 of headroom -- 6.55 over, inside
+  # the $10 grace, so the bank approves it and posts a second row reading
+  # 'OVERLIMIT NOTICE - credit limit exceeded by $6.55'. The whole task turns
+  # on those few dollars: one mirror fewer and it is an ordinary purchase.
+  goal: In the online shop, find the 'XWZH Mirrors for Wall Mirrors for Living
+    Room Nordic' and order 17 of them. Pay with the business credit card held
+    in the OpenBanking app — you will need its number, expiry date and
+    security code, all of which are on the card's own page. Ship them to
+    'Dana Reyes' at '44 Wharf Street Portland ME 04101'.
+  sku: B08TGV7SP2
+  unit_price: 513.08
+  quantity: 17
+  card_last4: '2043'
+  overlimit_grace: 10.00
+  ship_to_name: Dana Reyes
+  ship_to_address: 44 Wharf Street Portland ME 04101
+
+attempt_the_copier_far_over_the_card_limit:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  # 5 x 4299.99 = 21499.95 against 8715.81 -- 12784.14 over, far past the
+  # grace band, so `authorize_card_purchase` returns insufficient_credit: no
+  # order, the card's balances untouched, the copiers left in the cart. The
+  # bank posts one zero-amount row, 'DECLINED - OPENAPPS SHOP $21,499.95 -
+  # insufficient available credit'.
+  #
+  # The purchase half scores on both. The cart line fails a do-nothing run;
+  # the declined row fails a run that filled the cart and never submitted
+  # the checkout, which would otherwise leave identical state. The todo's
+  # figure is not readable anywhere: neither `charge_insufficient_message`
+  # nor the declined row names the shortfall, so the agent has to take the
+  # total, read available credit off the card page, and subtract.
+  goal: In the online shop, find the 'Xerox AltaLink B8055 A3 Mono Laser
+    Multifunction Copier' and try to order 5 of them, paying with the business
+    credit card held in the OpenBanking app — its number, expiry date and
+    security code are all on the card's own page. If the payment is refused,
+    leave the copiers in the cart and add a todo named 'Card short AMOUNT',
+    where AMOUNT is how much more credit the card would have needed.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DeclinedCardPurchaseTask
+    goal: Try to buy five copiers on the business card and get declined.
+    sku: B07JMS4SL4
+    # Verbatim from the catalog, trailing truncation and all -- `fetch_webshop.py`
+    # cuts titles at 120 characters, which is why this one stops mid-phrase.
+    # `/onlineshop_all` joins it onto every cart line, so the target carries it.
+    title: Xerox AltaLink B8055 A3 Mono Laser Multifunction Copier - 55ppm,
+      Copy, Print, Scan, Email, Auto Duplex, Network, Single
+    unit_price: 4299.99
+    quantity: 5
+    card_last4: '2043'
+    overlimit_grace: 10.00
+  - _target_: open_apps.tasks.tasks.AddToDoTask
+    # 21499.95 - 8715.81. Only computable once the agent has both halves.
+    goal: Log how far short the card fell.
+    todo_name: Card short 12784.14
+    is_done: false
