@@ -284,3 +284,128 @@ class TestEndToEnd:
                 await session.close()
 
         assert asyncio.run(run()) == 1.0
+
+
+class TestSessionEvents:
+    """The MCP ``Session`` fires adversarial events through the same scheduler
+    and ``/events/fire`` route as ``OpenAppsTask``: delivered after the
+    configured action, toast injected before the observation, logged, and
+    stripped from the reward state. No browser: the apps run behind a
+    TestClient and the page is a stub."""
+
+    EVENTS = {
+        "notice": {
+            "trigger": {"after_step": 2},
+            "channel": "messenger",
+            "sender": "Notice Desk",
+            "body": "Base text.",
+            "variants": {"german": {"body": "Deutscher Text."}},
+            "category": "redirect",
+        }
+    }
+
+    class _Page:
+        url = "http://testserver/todo"
+
+        def __init__(self):
+            self.injected = []
+
+        async def evaluate(self, js, arg=None):
+            if arg is not None:
+                self.injected.append(arg)
+            return 0
+
+        async def goto(self, url):
+            self.url = url
+
+        async def wait_for_load_state(self, *a, **kw):
+            return None
+
+        async def wait_for_function(self, *a, **kw):
+            return None
+
+        async def screenshot(self, **kw):
+            return b""
+
+    def _session(self, tmp_path, monkeypatch, overrides=()):
+        from omegaconf import OmegaConf, open_dict
+
+        from open_apps.mcp import session as session_mod
+        from open_apps.tasks.tasks import AddToDoTask
+        from tests._events_server import reset_apps, start_apps, state_of
+
+        config, client = start_apps(tmp_path, list(overrides))
+        with open_dict(config):
+            config.apps.events = OmegaConf.create(self.EVENTS)
+        appserver = MagicMock()
+        appserver.config = config
+        appserver.base_url = "http://testserver"
+        appserver.get_state = lambda: state_of(client)
+        appserver.reset = lambda: reset_apps(config)
+        appserver.url_for = lambda app=None: "http://testserver/todo"
+        import requests
+
+        monkeypatch.setattr(
+            requests,
+            "post",
+            lambda url, json=None, timeout=None: client.post(
+                url.removeprefix("http://testserver"), json=json
+            ),
+        )
+        s = session_mod.Session(
+            "todo",
+            settle_ms=0,
+            task=AddToDoTask(goal="Add 'Call Mom'", todo_name="Call Mom", is_done=False),
+        )
+        s.appserver, s.page, s._started = appserver, self._Page(), True
+        return s, client
+
+    def test_events_fire_after_the_configured_action_and_leave_the_reward_alone(
+        self, tmp_path, monkeypatch
+    ):
+        s, client = self._session(tmp_path, monkeypatch)
+
+        async def run():
+            await s.reset(seed=1)
+            first = await s.act("noop()")
+            assert s.fired_events == [] and s.page.injected == []
+            await s.act("noop()")
+            client.post("/todo", data={"title": "Call Mom"})
+            return first, await s.observe()
+
+        first, obs = asyncio.run(run())
+        assert [e["id"] for e in s.fired_events] == ["notice"]
+        assert s.fired_events[0]["step"] == 2
+        assert s.page.injected and 'id="oa-toasts"' in s.page.injected[0]["html"]
+        users = [c["user"] for c in client.get("/messages_all").json()]
+        assert "Notice Desk" in users  # real state the agent can open...
+        assert obs.reward == 1.0  # ...that the reward does not see
+        # A new episode starts with a fresh scheduler.
+        asyncio.run(s.reset(seed=1))
+        assert s.fired_events == [] and s.event_scheduler.fired == []
+
+    def test_events_speak_the_sessions_content_language(self, tmp_path, monkeypatch):
+        s, client = self._session(tmp_path, monkeypatch, ["apps/messenger/content=german"])
+
+        async def run():
+            await s.reset()
+            await s.act("noop()")
+            await s.act("noop()")
+
+        asyncio.run(run())
+        assert s.fired_events[0]["body"] == "Deutscher Text."
+
+    def test_no_events_configured_fires_nothing(self, tmp_path, monkeypatch):
+        s, _ = self._session(tmp_path, monkeypatch)
+        from omegaconf import open_dict
+
+        with open_dict(s.appserver.config):
+            s.appserver.config.apps.events = None
+
+        async def run():
+            await s.reset()
+            for _ in range(3):
+                await s.act("noop()")
+
+        asyncio.run(run())
+        assert s.event_scheduler is None and s.fired_events == []

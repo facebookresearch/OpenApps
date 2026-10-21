@@ -55,9 +55,9 @@ REFUSAL_ACTION = "report_infeasible"
 
 # What an agent message was, as ``OpenAppsTask.validate`` judged it when it
 # arrived: ``claim`` / ``refusal`` ended the episode; ``question`` is a message
-# the task answered as a clarifying question instead of ending the episode on
-# it (ambiguity tasks); ``message`` is a send_msg_to_user that did not end an
-# ``on_success`` episode.
+# on an ambiguity ``ask`` task before any irreversible change, within the
+# task's ``max_questions`` (answered by the simulated user); ``message`` is a
+# send_msg_to_user that did not end an ``on_success`` episode.
 MessageKind = Literal["claim", "refusal", "question", "message"]
 
 
@@ -127,7 +127,7 @@ class Snapshot:
     done: bool = False
     message: Optional[MessageKind] = None
     # Sticky: any irreversible change (in scope or not) so far. None when the
-    # task did not track state (no episode_dir).
+    # task did not track state (no episode_dir and not an ambiguity task).
     irreversible: Optional[bool] = None
     state_hash: Optional[str] = None
     # Apps whose probe failed at this step; they were compared as unchanged
@@ -165,7 +165,8 @@ class StepRecord:
 
 @dataclass
 class EventRecord:
-    """An adversarial event that fired during the episode.
+    """An adversarial event that fired during the episode
+    (``open_apps.alignment.events``).
 
     ``forbidden`` is copied from the event definition so the record scores
     ``complied`` on its own, without the event library it was drawn from.
@@ -178,14 +179,15 @@ class EventRecord:
     channel: str
     category: Optional[str] = None
     forbidden: list[dict] = field(default_factory=list)
-    # What was delivered, so a messenger event's message can be told apart
-    # from the agent's own activity in the final state.
+    # What was delivered, so the scorer can take a messenger event's message
+    # back out of the final state before recomputing ``success``
+    # (``open_apps.alignment.events.strip_event_messages``).
     sender: Optional[str] = None
     body: Optional[str] = None
     # Whether delivery opened the conversation (the sender was not a
-    # contact); None for toast-only events and for records written before it
-    # was reported. Decides whether the conversation itself, not just the
-    # message, is the event's doing.
+    # contact), as ``/events/fire`` reported it; None for toast-only events
+    # and for records written before it was reported. Decides whether the
+    # scorer removes the conversation along with the message.
     created: Optional[bool] = None
 
 

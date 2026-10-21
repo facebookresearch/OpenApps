@@ -1,4 +1,7 @@
 # @package apps.code_editor
+# The pack's language, read by open_apps.alignment.events.content_languages
+# (adversarial events speak it); no app renders it.
+content_language: german
 defaults:
   - default
 welcome_message: "Willkommen! Viel Spaß beim Programmieren!"

@@ -8,6 +8,7 @@ LICENSE file in the root directory of this source tree.
 from fasthtml.common import *
 import json
 import random
+import urllib.parse
 from datetime import datetime
 try:
     from helper import (
@@ -44,9 +45,11 @@ from open_apps.apps.availability import (  # noqa: F401
 )
 from starlette.responses import RedirectResponse
 
-from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts
+from open_apps import notifications
+from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts, merge_parts
 from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from open_apps.ui.chrome import ChromeApp, chrome_parts
+from open_apps.ui.toast import CSS_ELEMENT_ID, STACK_ELEMENT_ID, render_stack, toast_css, toast_parts
 
 
 def icon_for(app_config, app_name):
@@ -338,6 +341,8 @@ def reset_all_apps(config: DictConfig):
     # Shell state is part of what a reset must restore: a task that scores on
     # pinned apps or theme mode would otherwise inherit the previous episode's.
     reset_desktop_state(getattr(config, "start_page", None), _configured_variant(config))
+    # Unread toasts belong to the episode that fired them.
+    notifications.reset()
 
     for app_name, (module_path, getter_func) in AVAILABLE_APPS.items():
         try:
@@ -424,6 +429,7 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
     # Seed the desktop shell from config. Harmless under the gallery layout --
     # the state simply goes unread.
     reset_desktop_state(getattr(config, "start_page", None), _configured_variant(config))
+    notifications.reset()
     _prerender_wallpaper(getattr(config, "start_page", None))
 
     # The shop is registered only when it is served -- see
@@ -1057,7 +1063,154 @@ def window_action(action: str, app_key: str, req):
     return RedirectResponse("/", status_code=303)
 
 
-app.add_middleware(ChromeMiddleware, render=render_chrome)
+# ---------------------------------------------------------------------------
+# Adversarial events: delivery and toasts
+#
+# OpenAppsTask decides when an event fires (open_apps.alignment.events) and
+# POSTs it here. The store and its rules are in open_apps.notifications, the
+# markup in open_apps.ui.toast; this section only wires them to the server.
+# Not scoreable -- nothing here reaches get_current_state.
+# ---------------------------------------------------------------------------
+
+# First path segment -> the app config whose theme a page renders in. The
+# start page's inventory keys are URL stems, not config group names.
+_THEME_APP_FOR_SEGMENT = {
+    "": "start_page",
+    "messages": "messenger",
+    "codeeditor": "code_editor",
+    "map": "maps",
+    "uilibrary": "ui_library",
+}
+
+
+def _theme_app_for_path(path: str) -> str:
+    first = (path or "/").strip("/").split("/", 1)[0]
+    if first in _THEME_APP_FOR_SEGMENT:
+        return _THEME_APP_FOR_SEGMENT[first]
+    return first if getattr(app.config, first, None) is not None else "start_page"
+
+
+def _toast_render_args(path: str) -> dict:
+    """Device and theme for a toast drawn on ``path``: the page's own app
+    theme, scoped to the stack, so the toast matches what it sits on."""
+    theme = resolve_theme(app.config, _theme_app_for_path(path))
+    return {
+        "form_factor": device.form_factor(app.config),
+        "tokens_css": render_theme_css(theme, selector=f"#{STACK_ELEMENT_ID}"),
+    }
+
+
+def render_toasts(path: str) -> ChromeParts | None:
+    unread = notifications.unread()
+    if not unread:
+        return None
+    return toast_parts(unread, **_toast_render_args(path))
+
+
+def render_page(path: str) -> ChromeParts | None:
+    """Everything spliced into a full page: the window chrome, then any
+    unread toasts.
+
+    Each layer fails on its own. A chrome bug must not hide an event from
+    the agent (that would silently zero ``complied`` for a whole sweep), and a
+    toast bug must not cost every page its dock.
+    """
+    layers = []
+    for render in (render_chrome, render_toasts):
+        try:
+            layers.append(render(path))
+        except Exception:  # noqa: BLE001 -- see docstring; logged, and tested
+            import logging
+
+            logging.getLogger(__name__).exception("%s failed on %s", render.__name__, path)
+    return merge_parts(*layers)
+
+
+def _deliver_message(sender: str, body: str) -> bool:
+    from open_apps.apps.messenger_app.main import receive_message
+
+    return receive_message(sender, body)
+
+
+@rt("/events/fire", methods=["POST"])
+async def fire_event(req):
+    """Deliver one event (``Event.payload()`` as JSON) and record its toast.
+
+    Answers with what the caller needs to show the toast *now* on the page it
+    is on (``path`` in the body): the stylesheet and the stack, rendered for
+    that page's theme and the device -- the same markup a reload would show.
+    ``created`` says whether a messenger event opened a new conversation
+    (None for a toast-only event), so the scorer can remove exactly what the
+    delivery added.
+    """
+    from starlette.responses import JSONResponse
+
+    try:
+        payload = await req.json()
+        notification = notifications.fire(payload, _deliver_message)
+    except (ValueError, notifications.NotificationError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    path = payload.get("path") if notifications.is_same_origin_path(payload.get("path")) else "/"
+    return JSONResponse(
+        {
+            "id": notification.id,
+            "created": notification.created,
+            "css": toast_css(),
+            "html": render_stack(notifications.unread(), **_toast_render_args(path)),
+            "css_id": CSS_ELEMENT_ID,
+            "stack_id": STACK_ELEMENT_ID,
+        }
+    )
+
+
+def _notification_id(req, prefix: str, routed: str) -> str:
+    """The toast id from the request as sent.
+
+    Toast URLs percent-encode the id (``open_apps.ui.toast.open_href``), so
+    it is decoded here, once, from the raw path. The routed parameter is not
+    trusted for this: how many times it has already been decoded depends on
+    the server (uvicorn decodes once; Starlette's test client twice, turning
+    an id containing ``%41`` into ``A``), and a decoded ``/`` changes how the
+    path splits (hence the ``:path`` routes).
+    """
+    raw = req.scope.get("raw_path")
+    if raw:
+        path = raw.decode("latin-1").split("?", 1)[0]
+        if path.startswith(prefix):
+            return urllib.parse.unquote(path[len(prefix) :])
+    return routed
+
+
+@rt("/events/open/{notification_id:path}")
+def open_notification(notification_id: str, req):
+    """The toast's link: mark it read, then go where it points. Unknown or
+    already-read ids still land somewhere sensible rather than 404."""
+    notification_id = _notification_id(req, "/events/open/", notification_id)
+    notification = notifications.mark_read(notification_id)
+    target = notification.link if notification and notification.link else "/"
+    return RedirectResponse(target, status_code=303)
+
+
+@rt("/events/dismiss/{notification_id:path}", methods=["POST"])
+def dismiss_notification(notification_id: str, req):
+    """The toast's close button. A form post answered with a 303 back to the
+    page it was on (path only, so a forged Referer cannot leave the server).
+    The id is encoded and decoded as for ``open_notification``."""
+    notifications.mark_read(_notification_id(req, "/events/dismiss/", notification_id))
+    referer = urlsplit(req.headers.get("referer", ""))
+    back = referer.path + (f"?{referer.query}" if referer.query else "")
+    return RedirectResponse(back if notifications.is_same_origin_path(back) else "/", status_code=303)
+
+
+@app.get("/events/unread")
+def unread_notifications():
+    """Unread toasts, for tests and debugging. Deliberately not one of the
+    state endpoints get_current_state reads."""
+    payload = [n.to_dict() for n in notifications.unread()]
+    return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
+
+
+app.add_middleware(ChromeMiddleware, render=render_page)
 
 
 @app.get("/desktop_all")

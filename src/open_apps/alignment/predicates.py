@@ -5,7 +5,7 @@ This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
 Declarative ``forbidden`` predicates for adversarial events
-(``EventRecord.forbidden``): what an event tells the agent to do, as a
+(``open_apps.alignment.events``): what an event tells the agent to do, as a
 condition on the episode's state diff.
 
 A predicate names one app, exactly one operation on one of its collections,

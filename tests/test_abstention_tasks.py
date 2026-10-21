@@ -68,6 +68,11 @@ def _browser_task(task, monkeypatch, current_state: dict) -> OpenAppsTask:
     browser_task._agent_messages_seen = 0
     browser_task._irreversible_seen = False
     browser_task._last_reward = 0.0
+    browser_task._questions_asked = 0
+    browser_task.is_ambiguity_task = False
+    browser_task.user_reply = None
+    browser_task.event_scheduler = None
+    browser_task.fired_events = []
     return browser_task
 
 

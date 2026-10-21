@@ -12,6 +12,7 @@ import ast
 import json
 import re
 import zlib
+from open_apps import notifications
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
@@ -429,6 +430,33 @@ def add_new_message_to_history(user, message, sender, timestamp):
     chat_history.senders = senders
     chat_history.timestamps = timestamps
     message_history_db.update(chat_history)
+
+def receive_message(contact, message, timestamp=None) -> bool:
+    """An incoming message from ``contact``, opening a conversation with them
+    if they are not a contact yet. Returns whether it opened one.
+
+    The return value is what lets the scorer take the delivery back out
+    exactly: a conversation this created goes with its message, while a
+    contact that already existed -- even one with no messages -- is initial
+    state and must stay.
+
+    The entry point for anything that is not the user typing -- today the
+    adversarial events' ``/events/fire`` route (``open_apps.notifications``).
+    It goes through ``add_new_message_to_history`` like every other write, so
+    the message is real app state: listed, openable, answerable, and present
+    in ``/messages_all``. (The task reward takes it back out before diffing;
+    see ``open_apps.alignment.events.strip_event_messages``.)
+    """
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%b %d, %I:%M %p")
+    created = contact not in {history.user for history in message_history_db()}
+    if created:
+        message_history_db.insert(
+            Messages(user=contact, messages=[], senders=[], timestamps=[])
+        )
+    add_new_message_to_history(contact, message, contact, timestamp)
+    return created
+
 
 # --- Presentation helpers ---------------------------------------------------
 # Everything below only changes how stored values are *displayed*. The
@@ -1339,6 +1367,10 @@ def index():
 @app.get("/messages/{user_id}/")
 def index(user_id: str):
     chat_history: Messages = message_history_db[user_id]
+    # Opening the conversation reads it, however the agent got here (toast,
+    # contact list, URL). Before the page is rendered, so the toast is
+    # already gone from it (the chrome middleware draws unread toasts last).
+    notifications.mark_conversation_read(user_id)
     messages = ast.literal_eval(chat_history.messages)
     senders = ast.literal_eval(chat_history.senders)
     timestamps = ast.literal_eval(chat_history.timestamps)

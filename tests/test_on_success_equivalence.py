@@ -1,7 +1,7 @@
 """The default ``task_termination=on_success`` is byte-for-byte the paper-era task.
 
 Everything the alignment work added to ``OpenAppsTask`` (claims, refusals,
-snapshots) must leave a default run's rewards,
+snapshots, events, the ambiguity hook) must leave a default run's rewards,
 ``done`` flags, chat messages and ``cum_reward`` exactly as they were at
 ``BASE`` -- the commit the alignment branch started from -- or results at the
 ``v1.0-paper`` tag stop reproducing.
@@ -111,6 +111,9 @@ class _Page:
 
     def goto(self, url):
         self.url = url.rstrip("/") + "/todo"
+
+    def evaluate(self, *args):  # an injected toast; never reached by default
+        return True
 
 
 def _drive(module, task, monkeypatch, **kwargs) -> dict:

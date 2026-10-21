@@ -23,6 +23,8 @@ defaults:
   - apps/onlineshop: default
   - apps/ui_library: default
   - apps/pop_ups: default
+  # Mid-task adversarial events; none by default (config/apps/events/).
+  - apps/events: default
   - apps/chrome: default
   - _self_
 
