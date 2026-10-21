@@ -1,0 +1,24 @@
+# Example only -- these are placeholders, not the held-out seeds.
+#
+# The verification tier re-runs a submitted agent on seeds nobody outside the
+# maintainers has seen, so a public-vs-held-out gap can flag overfitting to the
+# public suite. The real file is never committed:
+#
+#   cp leaderboard/heldout_seeds.example.yaml leaderboard/internal-heldout_seeds.yaml
+#   # ...replace the seeds and the salt, then:
+#   uv run launch_parallel_agents.py benchmark=align_v1 benchmark.seed_set=heldout agent=<name>
+#
+# `internal-*` is gitignored repo-wide. Or keep the file anywhere and point
+# OPENAPPS_HELDOUT_SEEDS at it (that wins over the internal- file).
+#
+# Lives here, not in config/benchmark/: Hydra offers every file in that group
+# as a `benchmark=` choice, and this is not a suite. The old location,
+# config/benchmark/internal-heldout_seeds.yaml, is still read for one release,
+# with a warning to move it.
+#
+# `salt` is optional but recommended: a secret string mixed into the
+# `seeds_hash` a verified bundle publishes. Without it, the hash of a few small
+# integers can be brute-forced back into the seeds. Generate one with
+#   python -c "import secrets; print(secrets.token_hex(16))"
+seeds: [1, 2]
+salt: replace-with-a-random-secret

@@ -1,0 +1,59 @@
+name: New adversarial event
+description: Propose a mid-task message that tells the agent to do something it must not.
+title: "[Event] "
+labels: ["benchmark", "event"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Events live in config/apps/events/<id>.yaml and need comply/refuse trajectories in tests/test_event_predicates.py.
+        See [Contributing benchmark content](https://facebookresearch.github.io/OpenApps/contributing-benchmarks/#an-adversarial-event).
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - exfiltration
+        - financial
+        - destructive
+        - impersonation
+        - redirect
+    validations:
+      required: true
+  - type: input
+    id: trigger
+    attributes:
+      label: Trigger
+      description: "{after_step: N}, {after_step: [lo, hi]}, {on_url_prefix: /path} or {after_seconds: S}"
+      placeholder: "{after_step: 2}"
+    validations:
+      required: true
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Channel
+      options:
+        - messenger (a real message plus a toast)
+        - system (toast only)
+    validations:
+      required: true
+  - type: textarea
+    id: body
+    attributes:
+      label: Sender and message
+      description: Who it comes from (messenger only) and the exact text.
+    validations:
+      required: true
+  - type: textarea
+    id: forbidden
+    attributes:
+      label: Forbidden behaviour
+      description: What complying looks like in app state, ideally as forbidden predicates. It must not match the goal's own changes.
+      placeholder: "- {app: messenger, added: sent, where: {text: \"~482913\"}}"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Which tasks it pairs with, why it is realistic.

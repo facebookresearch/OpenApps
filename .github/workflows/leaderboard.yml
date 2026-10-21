@@ -1,0 +1,322 @@
+# Checks leaderboard submissions and demonstrations on pull requests: schema,
+# suite coverage and a re-score of every record, then the row(s) the PR would
+# add to the table. The same checks run locally:
+#
+#   uv run -m open_apps.leaderboard.validate leaderboard/submissions/<bundle>
+#   uv run -m open_apps.leaderboard.build --comment-for leaderboard/submissions/<bundle> --comment-out row.md
+#
+# Trust model
+# -----------
+# This workflow is ADVISORY. It runs on `pull_request`, so GitHub uses the
+# workflow file from the PR itself, and a PR can edit it. Nothing here can be
+# the enforcement point, and nothing here is: the authoritative check is the
+# docs build on main (static.yml), which re-validates every merged bundle
+# with main's code against main's suite locks, and reads verified status from
+# the maintainer-owned leaderboard/verifications.yaml only. What this
+# workflow does is tell an honest submitter, before review, what main will
+# say -- and make a dishonest PR conspicuous to the reviewer.
+#
+# A PR is untrusted input, including its code: a submitter could edit
+# src/open_apps/leaderboard/ or the scorer to approve their own bundle. So the
+# code that judges a bundle comes from the base branch:
+#
+#   scope          lists the PR's changed files through the API (read-only
+#                  token). Checks out nothing.
+#   separate-code  fails when the PR changes judging code (the leaderboard
+#                  package, the scorer, frozen suites and their locks,
+#                  schemas, these workflows) AND submissions/demonstrations
+#                  together. Code changes need maintainer review on their own.
+#   verifications-only
+#                  fails when the PR changes leaderboard/verifications.yaml
+#                  (which bundles maintainers verified on held-out seeds) AND
+#                  anything else. That file is CODEOWNERS-protected
+#                  (.github/CODEOWNERS: a maintainer must approve), and a
+#                  verification PR is only what `verify record` writes, so it
+#                  can never carry other changes under a maintainer's review.
+#   validate       checks out the BASE commit for code and, into a separate
+#                  directory, only the PR's leaderboard/submissions/ and
+#                  leaderboard/demonstrations/ (sparse checkout, no persisted
+#                  credentials). It refuses symlinks and oversized files, then
+#                  runs the base's validate/build over the PR's bundles. Read-
+#                  only token, no secrets. The would-be row goes to the job
+#                  summary and to the `leaderboard-comment` artifact.
+#
+# Verified status is never a bundle's to claim: validate rejects a meta.yaml
+# `verified` other than false, and build reads verification only from
+# leaderboard/verifications.yaml, dropping an entry whose episodes sha256 or
+# agent config hash no longer matches its bundle (a re-submission loses the
+# badge until maintainers re-verify).
+#
+# leaderboard-comment.yml posts that artifact on the PR. It runs on
+# workflow_run, so GitHub always uses the default branch's copy of it; it has
+# pull-requests: write, never checks out or runs PR code, treats the artifact
+# as untrusted text (a length-capped fenced block, on the PR whose head commit
+# this run checked), and -- because this file may have been edited by the PR
+# -- posts a fixed warning instead of the artifact when the PR changes .github/
+# or judging code.
+name: Leaderboard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "leaderboard/**"
+      - "src/open_apps/leaderboard/**"
+      - "src/open_apps/alignment/**"
+      - "config/benchmark/**"
+      - ".github/workflows/leaderboard*.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leaderboard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      data: ${{ steps.classify.outputs.data }}
+      code: ${{ steps.classify.outputs.code }}
+      dirs: ${{ steps.classify.outputs.dirs }}
+      bad_names: ${{ steps.classify.outputs.bad_names }}
+      verifications: ${{ steps.classify.outputs.verifications }}
+      others: ${{ steps.classify.outputs.others }}
+    steps:
+      - name: Classify the PR's changed files
+        id: classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' > changed.txt
+          # leaderboard/<submissions|demonstrations>/<dir>/... -> that <dir>.
+          grep -oE '^leaderboard/(submissions|demonstrations)/[^/]+/' changed.txt \
+            | sed 's#/$##' | sort -u > dirs.txt || true
+          # Names reach shell commands below: keep only plain slugs.
+          slug='^leaderboard/(submissions|demonstrations)/[A-Za-z0-9][A-Za-z0-9._-]*$'
+          bad=$(grep -cvE "$slug" dirs.txt || true)
+          dirs=$(grep -E "$slug" dirs.txt | tr '\n' ' ' || true)
+          data=false
+          [ -s dirs.txt ] && data=true
+          code=false
+          grep -qE '^(src/open_apps/(leaderboard|alignment)/|config/benchmark/|leaderboard/schema/|\.github/workflows/leaderboard)' changed.txt && code=true
+          verifications=false
+          grep -qxF 'leaderboard/verifications.yaml' changed.txt && verifications=true
+          others=$(grep -cvxF 'leaderboard/verifications.yaml' changed.txt || true)
+          {
+            echo "data=$data"
+            echo "code=$code"
+            echo "dirs=$dirs"
+            echo "bad_names=$bad"
+            echo "verifications=$verifications"
+            echo "others=$others"
+          } >> "$GITHUB_OUTPUT"
+          echo "data=$data code=$code verifications=$verifications others=$others bundles: ${dirs:-none}"
+
+  separate-code:
+    needs: scope
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Code and submissions are separate PRs
+        env:
+          CODE: ${{ needs.scope.outputs.code }}
+          DATA: ${{ needs.scope.outputs.data }}
+        run: |
+          if [ "$CODE" = true ] && [ "$DATA" = true ]; then
+            msg="This PR changes leaderboard/scoring code (src/open_apps/leaderboard, src/open_apps/alignment, config/benchmark, leaderboard/schema or the leaderboard workflows) and also adds or edits submissions/demonstrations. Code changes need maintainer review; split submissions from code changes into separate PRs, so bundles are always judged by code already on the base branch."
+            echo "::error title=Split code from submissions::$msg"
+            echo "### Split code from submissions" >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "ok: code=$CODE data=$DATA"
+
+  verifications-only:
+    needs: scope
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: A verification PR changes verifications.yaml and nothing else
+        env:
+          VERIFICATIONS: ${{ needs.scope.outputs.verifications }}
+          OTHERS: ${{ needs.scope.outputs.others }}
+        run: |
+          if [ "$VERIFICATIONS" = true ] && [ "${OTHERS:-0}" != 0 ]; then
+            msg="This PR changes leaderboard/verifications.yaml (maintainers' record of held-out verifications) and $OTHERS other file(s). A verification PR must contain only what \`uv run -m open_apps.leaderboard.verify record\` writes; move every other change to its own PR."
+            echo "::error title=Verifications travel alone::$msg"
+            echo "### Verifications travel alone" >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "ok: verifications=$VERIFICATIONS others=$OTHERS"
+
+  validate:
+    needs: scope
+    if: needs.scope.outputs.data == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the base commit (the code that judges)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - name: Check out only the PR's leaderboard data
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /leaderboard/submissions/
+            /leaderboard/demonstrations/
+      - name: Refuse unusual names, symlinks and oversized files
+        env:
+          BAD_NAMES: ${{ needs.scope.outputs.bad_names }}
+        run: |
+          status=0
+          if [ "${BAD_NAMES:-0}" != 0 ]; then
+            echo "::error::$BAD_NAMES changed dir name(s) under leaderboard/ are not <letters, digits, . _ ->"
+            status=1
+          fi
+          links=$(find pr -path pr/.git -prune -o -type l -print)
+          if [ -n "$links" ]; then
+            echo "::error::symlinks are not allowed in a bundle:"; echo "$links"; status=1
+          fi
+          big=$(find pr/leaderboard -type f -size +100M 2>/dev/null)
+          if [ -n "$big" ]; then
+            echo "::error::files over 100 MB (link videos, don't commit them):"; echo "$big"; status=1
+          fi
+          exit $status
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: base
+        run: |
+          pip install uv
+          uv sync
+      - name: Overlay the PR's changed bundles on the base's
+        env:
+          DIRS: ${{ needs.scope.outputs.dirs }}
+        run: |
+          set -f  # names were filtered to slugs in `scope`; split on spaces, never glob
+          : > submissions.txt
+          : > demonstrations.txt
+          for dir in $DIRS; do
+            rm -rf "base/$dir"
+            # A deleted bundle has nothing to check.
+            [ -f "pr/$dir/meta.yaml" ] || continue
+            mkdir -p "base/$(dirname "$dir")"
+            cp -R "pr/$dir" "base/$dir"
+            case "$dir" in
+              leaderboard/submissions/*) echo "$dir" >> submissions.txt ;;
+              leaderboard/demonstrations/*) echo "$dir" >> demonstrations.txt ;;
+            esac
+          done
+          echo "submissions: $(tr '\n' ' ' < submissions.txt)"
+          echo "demonstrations: $(tr '\n' ' ' < demonstrations.txt)"
+      - name: Validate the changed bundles
+        id: validate
+        working-directory: base
+        run: |
+          set -f
+          status=0
+          # The output quotes record data: no workflow commands while it prints.
+          token=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+          echo "::stop-commands::$token"
+          for kind in submissions demonstrations; do
+            targets=$(tr '\n' ' ' < "../$kind.txt")
+            [ -n "$targets" ] || continue
+            uv run -m open_apps.leaderboard.validate $targets > "../validate-$kind.txt" 2>&1 || status=1
+            cat "../validate-$kind.txt"
+          done
+          echo "::$token::"
+          exit $status
+      - name: Build the would-be leaderboard
+        # Even after a failed validation: build re-validates everything and
+        # still writes the comment, so the PR is told why.
+        if: always() && steps.validate.outcome != 'skipped'
+        working-directory: base
+        run: |
+          set -f
+          subs=$(tr '\n' ' ' < ../submissions.txt)
+          [ -n "$subs" ] || { echo "no submissions changed"; exit 0; }
+          token=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+          echo "::stop-commands::$token"
+          status=0
+          uv run -m open_apps.leaderboard.build --out ../leaderboard.json \
+            --comment-for $subs --comment-out ../comment.md || status=$?
+          echo "::$token::"
+          exit $status
+      - name: Write the summary and the comment artifact
+        if: always() && steps.validate.outcome != 'skipped'
+        working-directory: base
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          cd ..  # the outputs live at the workspace root; base/ only scopes the step
+          mkdir -p artifact
+          {
+            # build's comment carries the submissions' validate output too.
+            if [ -s comment.md ]; then
+              cat comment.md
+            elif [ -s validate-submissions.txt ]; then
+              echo "### OpenApps-Align leaderboard check"
+              echo
+              head -200 validate-submissions.txt
+            fi
+            if [ -s validate-demonstrations.txt ]; then
+              echo
+              echo "### Demonstrations (validated, never ranked)"
+              echo
+              head -200 validate-demonstrations.txt
+            fi
+          } > artifact/body.md
+          echo "$PR" > artifact/pr.txt
+          echo "$HEAD_SHA" > artifact/head_sha.txt
+          # The body quotes record data, so the summary shows it as one inert
+          # block -- the same fence the comment workflow uses (a test keeps the
+          # two copies identical: that workflow checks out nothing to share).
+          python3 -I - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          LIMIT = 60000
+
+
+          def fenced(body: str, limit: int = LIMIT) -> str:
+              """Untrusted text as one inert code block, at most ``limit`` chars."""
+              body = body.replace("\r", "")
+              body = "".join(c for c in body if c in "\n\t" or c.isprintable())
+              if len(body) > limit:
+                  body = body[:limit] + "\n... (truncated; the full output is in the run summary)"
+              longest = max((len(m) for m in re.findall(r"`+", body)), default=0)
+              fence = "`" * max(3, longest + 1)
+              return f"{fence}text\n{body}\n{fence}"
+
+
+          body = Path("artifact/body.md").read_text(encoding="utf-8", errors="replace")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+              fh.write("### OpenApps-Align leaderboard check\n\n" + fenced(body) + "\n")
+          PY
+      - name: Upload the comment artifact
+        if: always() && steps.validate.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaderboard-comment
+          path: artifact/
+          retention-days: 7

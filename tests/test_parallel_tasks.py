@@ -233,3 +233,50 @@ class TestCommandLineOverridesReachEveryRun:
             assert raw["record_video_dir"] == "/frozen/recordings"
             # Still an interpolation, so it resolves per job on the node.
             assert raw["logs_dir"] == raw_parent["logs_dir"]
+
+
+# --------------------------------------------------------------------------
+# device as a cell axis
+# --------------------------------------------------------------------------
+
+
+class TestDeviceInCells:
+    """A cell's ``device=`` override must reach the run.
+
+    ``device`` is a root-level group, not under ``apps``: when
+    ``create_configs`` swapped in only the composed ``apps`` subtree, a
+    ``device=phone`` cell came out on the parent's desktop. Composing each
+    run whole fixes that by construction; this pins it, since align_v1's
+    phone cells depend on it -- the viewport, input model and ``apps.device``
+    all interpolate ``${device}`` from the root. Composes for real.
+    """
+
+    @staticmethod
+    def _configs(app_variations):
+        from hydra import compose, initialize_config_dir
+        from hydra.core.global_hydra import GlobalHydra
+
+        GlobalHydra.instance().clear()
+        with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+            parent = compose(config_name="config_parallel_tasks")
+            cfg = AppVariationParallelTasksConfig(
+                app_variations=app_variations, task_names=["navigate_to_todo"]
+            )
+            return cfg.create_configs(default_config=parent)
+
+    def test_device_override_reaches_the_run(self):
+        desktop, phone = self._configs([["apps/theme=default"], ["device=phone"]])
+        assert desktop.device.name == "desktop"
+        assert phone.device.name == "phone"
+        # Everything that interpolates ${device} follows the cell.
+        assert phone.apps.device.form_factor == "phone"
+        assert list(phone.browsergym_env_args.task_kwargs.screen_resolution) == [
+            390,
+            844,
+        ]
+        assert phone.app_overrides == ["device=phone"]
+
+    def test_cells_without_device_keep_the_parent_device(self):
+        (only,) = self._configs([["apps/theme=dark"]])
+        assert only.device.name == "desktop"
+

@@ -47,6 +47,9 @@ def main(config: DictConfig) -> None:
         config_name=hydra_cfg.job.config_name,
     )
     num_jobs = len(parallel_configs)
+    # Always say how big the sweep is before anything is queued (a
+    # `benchmark=` suite also prints its per-block breakdown above).
+    print(f"{num_jobs} runs in this sweep.")
 
     # get parent dir of logs_dir
     sweep_root_logs_dir = Path(config.logs_dir).parent
