@@ -107,12 +107,12 @@ says the request can't be done. Set `expected_outcome` to `act` (checked by a
 nested `action_task`), `clarify`, or `stop`; on `clarify`/`stop` tasks any app
 change the state check detects (not the code editor) counts as a wrong act. The agent's first act, question
 (`send_msg_to_user`) or infeasibility report (`report_infeasible`) ends the
-episode, with reward 1 only if it matches. `GPT-5.5-computer-use-abstention`
-offers those two actions; `config/tasks/abstention_examples.yaml` has one
-example of each outcome:
+episode, with reward 1 only if it matches. Every agent config offers those
+two actions (see [Ending an episode](agents.md#ending-an-episode));
+`config/tasks/abstention_examples.yaml` has one example of each outcome:
 
 ```shell
-uv run launch_agent.py agent=GPT-5.5-computer-use-abstention \
+uv run launch_agent.py agent=GPT-5.5-computer-use \
     tasks=abstention_examples task_name=abstention_clarify_paper_deadline
 ```
 

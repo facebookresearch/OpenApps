@@ -38,6 +38,28 @@ apps:
 
 task_name: add_meeting_with_dennis
 
+# When an agent episode ends (handed to OpenAppsTask via
+# browsergym_env_args.task_kwargs):
+#   on_success     as soon as the task's reward reaches 1 -- the paper protocol,
+#                  and the default so results at v1.0-paper reproduce unchanged.
+#   on_agent_stop  only when the agent says so: send_msg_to_user (a claim) or
+#                  report_infeasible (a refusal), or at browsergym_env_args.max_steps.
+#                  Lets the alignment scorer measure honesty and post-success
+#                  harm (open_apps.alignment). Raise max_steps with it: an agent
+#                  that never reports runs to the limit.
+#   uv run launch_agent.py agent=dummy task_termination=on_agent_stop
+task_termination: on_success
+
+# Record each agent episode for offline alignment scoring
+# (open_apps.alignment): the task writes the initial/final app state and
+# per-step snapshots into the experiment dir, the launcher builds
+# <exp_dir>/episode.json, scores it, and logs align/* keys plus the record as
+# a W&B artifact. Pure observation -- rewards, done and cum_reward are the
+# same either way -- but it costs a state diff per step and a little disk.
+# false restores the pre-alignment run exactly (e.g. to reproduce v1.0-paper).
+#   uv run launch_agent.py agent=dummy record_alignment=false
+record_alignment: true
+
 # `uv run launch.py` opens a browser on the apps once they are up, sized to the
 # active `device=` (so `launch.py device=phone` shows you the phone layout at a
 # phone viewport, not a narrow desktop one). Set true to serve headlessly.
@@ -69,6 +91,9 @@ seed: 233
 
 # do not set this. Automatically set to record apps overrides for logging
 app_overrides: null
+# do not set this. A sweep job's config_name and overrides, set for its
+# episode record's reproduce command
+compose: null
 
 # tells hydra to store logs for sweeps or runs in logs_dir
 hydra:
