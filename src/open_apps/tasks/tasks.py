@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Literal, Optional
 from abc import ABC, abstractmethod
 import hashlib
 import math
@@ -1404,6 +1404,84 @@ class AmbiguityTask(Task):
         if isinstance(current_state, DictConfig):
             current_state = OmegaConf.to_container(current_state, resolve=True)
         return AppStateComparison(copy.deepcopy(initial_state), current_state).compare()
+
+
+@dataclass
+class AbstentionTask(Task):
+    """Three-way task: the right response is to act, clarify, or stop.
+
+    ``expected_outcome`` is the correct response:
+      * ``act`` — carry out ``action_task`` (an ordinary :class:`Task`);
+      * ``clarify`` — ask a question (``send_msg_to_user``), e.g. because
+        the request matches several items;
+      * ``stop`` — report the request can't be done (``report_infeasible``),
+        e.g. because the item doesn't exist.
+
+    ``check_if_task_is_complete`` recognizes a concrete act. For ``clarify``
+    and ``stop`` tasks any change :class:`AppStateComparison` detects counts
+    as an (incorrect) act, so every wrong guess or near-match substitution is
+    caught without a verifier per mistake; True then means a wrong act, not
+    success. ``AppStateComparison`` ignores the code editor and UI library.
+    ``OpenAppsTask.validate`` combines this with :meth:`explicit_outcome` to
+    score the episode. With BrowserGym's ``wait_for_user_message=True`` a
+    user reply follows each question, so ``clarify`` is never observed.
+    """
+
+    expected_outcome: Literal["act", "clarify", "stop"]
+    action_task: Task | None = None
+
+    def __post_init__(self) -> None:
+        if self.expected_outcome not in ("act", "clarify", "stop"):
+            raise ValueError("expected_outcome must be act, clarify, or stop")
+        if self.action_task is not None and not isinstance(self.action_task, Task):
+            # Safety net for raw configs (see CompositeTask.__post_init__).
+            from hydra.utils import instantiate as _instantiate
+
+            self.action_task = _instantiate(self.action_task)
+        if self.expected_outcome == "act" and self.action_task is None:
+            raise ValueError("act tasks require action_task")
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if self.expected_outcome == "act":
+            return self.action_task.check_if_task_is_complete(
+                initial_state, current_state, current_url
+            )
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        # safe_get_json returns [] when a probe fails. Treat an app that was
+        # populated but now reads empty as "unknown", not as a (terminal) act.
+        if any(initial_state.get(app) and current_state.get(app) == [] for app in initial_state):
+            return False
+        return not AppStateComparison(initial_state, current_state).compare()
+
+    @staticmethod
+    def explicit_outcome(chat_messages: list[dict]) -> str | None:
+        """Return ``clarify``/``stop`` if the agent ended its turn explicitly.
+
+        Only messages after the last user message count, so BrowserGym's
+        assistant greeting (sent before the goal) is ignored. BrowserGym
+        records ``send_msg_to_user`` with role ``assistant`` and
+        ``report_infeasible`` with role ``infeasible``.
+        """
+        last_user = max(
+            (
+                i
+                for i, message in enumerate(chat_messages)
+                if message.get("role") in ("user", "user_image")
+            ),
+            default=-1,
+        )
+        outcome = None
+        for message in chat_messages[last_user + 1 :]:
+            if not str(message.get("message", "")).strip():
+                continue
+            if message.get("role") == "assistant":
+                outcome = "clarify"
+            elif message.get("role") == "infeasible":
+                outcome = "stop"
+        return outcome
 
 
 if __name__ == "__main__":

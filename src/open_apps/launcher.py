@@ -10,6 +10,7 @@ Orchestrates the configs to launch the web envirnoment,
 task, and agent.
 """
 
+import json
 import os
 import random
 import re
@@ -34,7 +35,6 @@ import wandb
 import yaml
 from browsergym.experiments import ExpArgs, get_exp_result
 from fasthtml.common import serve
-from killport import kill_ports
 
 # Third-party imports
 from omegaconf import DictConfig, OmegaConf, open_dict
@@ -95,6 +95,49 @@ def freeze_recording_dir(config: DictConfig) -> None:
         return
     value = config.record_video_dir or Path(config.logs_dir) / "recordings"
     config.record_video_dir = str(_absolute_path(value))
+
+
+def _group_alive(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Something in the group belongs to another user; it still exists.
+        return True
+
+
+def stop_process_group(process: subprocess.Popen, timeout: float = 10.0) -> None:
+    """Stop ``process`` and everything it started: SIGTERM, then SIGKILL.
+
+    The web app is launched as ``bash -c "source ... && uv run launch.py ..."``
+    with ``start_new_session=True``, so ``process`` is the bash wrapper and the
+    leader of its own process group. ``process.terminate()`` signals only that
+    wrapper: bash exits, and ``uv`` and the web server under it are reparented
+    to init and keep serving -- holding their port, and memory, until someone
+    kills them by hand. Signalling the group reaches all three.
+
+    Waits on the *group*, not on ``process``: bash can exit long before the
+    server it started does, and returning then would leave the server running.
+    """
+    pgid = process.pid  # start_new_session makes the leader's pid the pgid
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            break  # nothing left in the group
+        deadline = time.monotonic() + timeout
+        # poll() reaps the wrapper once it exits. Until then it is a zombie,
+        # and a zombie still counts as a member of the group.
+        while process.poll() is None or _group_alive(pgid):
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.2)
+        else:
+            break
+        if sig is signal.SIGTERM:
+            print("OpenApps did not stop on SIGTERM; killing it.")
 
 
 class OpenAppsLauncher:
@@ -583,6 +626,10 @@ class AgentLauncher(OpenAppsLauncher):
         record_alignment = self._record_alignment_enabled()
         if record_alignment:
             self._attach_episode_dir(exp_args, irreversible=self._irreversible_map())
+            # Read before the episode, while the checkout is the code that runs it.
+            from open_apps.alignment.record import git_state
+
+            self._git_state = git_state()
         exp_args.run()
 
         # loading and printing results
@@ -673,7 +720,10 @@ class AgentLauncher(OpenAppsLauncher):
                 save_record,
             )
             identity = identity_from_config(
-                self.config, self.task, task_seed=exp_args.env_args.task_seed
+                self.config,
+                self.task,
+                task_seed=exp_args.env_args.task_seed,
+                git=getattr(self, "_git_state", None),
             )
             record = build_episode_record(
                 exp_args.exp_dir,
@@ -710,7 +760,9 @@ class AgentLauncher(OpenAppsLauncher):
     @staticmethod
     def _log_alignment_to_wandb(record_path: Optional[Path], scores) -> None:
         """Scores to ``wandb.summary`` as ``align/<metric>``; the record as an
-        ``episode_record`` artifact, so the leaderboard can import from W&B."""
+        ``episode_record`` artifact, so the leaderboard can import from W&B.
+        The artifact's metadata carries the record's provenance (task, commit,
+        reproduce command), so a result can be traced without downloading it."""
         try:
             if scores is not None:
                 for key, value in scores.summary().items():
@@ -722,10 +774,19 @@ class AgentLauncher(OpenAppsLauncher):
                         int(value) if isinstance(value, bool) else value
                     )
             if record_path is not None:
+                identity = json.loads(Path(record_path).read_text())["identity"]
+                provenance = {
+                    k: identity.get(k)
+                    for k in ("task_name", "git_commit", "git_dirty", "command")
+                }
+                # Not under align/: those are scores a report averages. The
+                # run config already has task_name and git_hash.
+                if provenance["command"]:
+                    wandb.run.summary["reproduce_command"] = provenance["command"]
                 artifact = wandb.Artifact(
                     name=f"episode-{wandb.run.id}",
                     type="episode_record",
-                    metadata={"record_version": 1},
+                    metadata={"record_version": 1, **provenance},
                 )
                 artifact.add_file(str(record_path))
                 wandb.run.log_artifact(artifact)
@@ -735,16 +796,8 @@ class AgentLauncher(OpenAppsLauncher):
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:
             wandb.finish()
-        apps_process.terminate()
-        try:
-            apps_process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            print("Apps process is still running, stopping OpenApps...")
-            apps_process.kill()
-            apps_process.wait()
-            time.sleep(4)
-            kill_ports(ports=[self.web_app_port])
-            print("OpenApps successfully stopped.")
+        stop_process_group(apps_process)
+        print("OpenApps successfully stopped.")
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
             webapp_log_fh.close()
@@ -800,15 +853,18 @@ class AgentLauncher(OpenAppsLauncher):
         """
         self.check_task_can_run()
         apps_process = self.launch_apps_via_shell()
-        self.wait_until_apps_start(apps_process)
-        # TODO: check if agent model is available in case of VLLM or API
+        # `finally`, so the web app is stopped on every way out: a server that
+        # never came up, an agent error, and Ctrl-C, which raises
+        # KeyboardInterrupt and so slips past `except Exception`.
         try:
+            self.wait_until_apps_start(apps_process)
+            # TODO: check if agent model is available in case of VLLM or API
             self.launch_agent()
-            self.cleanup(apps_process)
         except Exception as e:
-            self.cleanup(apps_process)
             print("Error during agent launch: ", e)
-            raise e
+            raise
+        finally:
+            self.cleanup(apps_process)
 
 
 if __name__ == "__main__":

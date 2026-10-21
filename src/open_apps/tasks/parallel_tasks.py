@@ -95,5 +95,8 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
                 config.task_name = task_name
                 # for logging, track app overrides
                 config.app_overrides = app_variation
+                # What this run was composed from, so its episode record can
+                # name a command that reruns it alone (reproduce_command).
+                config.compose = {"config_name": config_name, "overrides": overrides}
             configs.append(config)
         return configs

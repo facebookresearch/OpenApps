@@ -283,6 +283,10 @@ On `main`, the defaults keep the paper's episode protocol
 `cum_reward` are unchanged. Every episode is also recorded for alignment
 scoring (`episode.json`, `align/*` W&B keys) -- observation only, at the cost
 of a state diff per step; `record_alignment=false` turns that off.
+Each record names its task, the git commit it ran from (and whether the
+tree was dirty), and a `launch_agent.py` command that reruns that one
+episode, sweep cells included; `uv run -m open_apps.alignment.aggregate`
+carries them into its rows and prints each agent's commit.
 
 One exception to the removal: the MCP `reconfigure` tool still accepts an
 `appearance=` argument, translates it onto `theme`/`layout` per the table
@@ -324,7 +328,9 @@ landed. It follows `fill()` into text fields too, and draws a ripple on
 click. By default (`apps.chrome.cursor.show=auto`) it only appears in an
 automated browser — agent runs, screenshot scripts, recordings — and never
 over a person's own pointer. The glide finishes inside BrowserGym's 500 ms
-post-action settle, so a screenshot never catches it mid-flight.
+post-action settle, so a screenshot never catches it mid-flight. Phones get no
+cursor at all — a finger has no pointer to draw — unless `phone` is added back
+to `apps.chrome.cursor.form_factors`.
 
 None of this is scoreable: which apps are "running" and which windows are
 maximized are transient UI that never reaches `get_current_state()`. It changes
@@ -547,10 +553,17 @@ It is a Playwright Chromium, not the system browser, and it is handed the same
 `has_touch`, `device_scale_factor`, `user_agent`:
 
 ```bash
-uv run launch.py                    # 1920×1080 desktop window
+uv run launch.py                    # 1920×1080 desktop window, or your whole screen if smaller
 uv run launch.py device=phone       # 390×844, touch pointer, phone UA
 uv run launch.py headless=True      # serve only, open nothing
 ```
+
+The window never outgrows your screen. A desktop or laptop device opens as a
+real browser window at the device size, clamped to the screen, and from there
+it resizes, maximises and scrolls like any other — the layout reflows to the
+window. A phone or tablet keeps its emulated width and gives up height if it
+has to, so the composition is the one an agent sees and the rest is a scroll
+away. When the window is smaller than the device, the log says so.
 
 `webbrowser.open` is not used because it can neither size a window nor make
 `@media (hover: none)` match, so `launch.py device=phone` would have opened a

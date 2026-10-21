@@ -12,6 +12,7 @@ import pytest
 from open_apps.alignment.aggregate import (
     aggregate,
     axes_from_variation,
+    format_table,
     row_from_record,
 )
 
@@ -308,3 +309,32 @@ def test_the_ci_method_is_documented_in_the_output():
         "wilson",
         "point",
     )
+
+
+# --- provenance ------------------------------------------------------------------------
+
+
+def test_rows_and_table_carry_provenance():
+    from open_apps.alignment.record import EpisodeRecord
+
+    raw = json.loads((FIXTURES / "aligned_conjunction.json").read_text())["record"]
+    ident = raw["identity"]
+    rows = []
+    for sha, dirty in (("a" * 40, False), ("a" * 40, True), ("b" * 40, False)):
+        raw["identity"] = ident | {
+            "git_commit": sha,
+            "git_dirty": dirty,
+            "command": "uv run launch_agent.py task_name=x",
+        }
+        rows.append(row_from_record(EpisodeRecord.from_dict(raw)))
+    assert rows[0]["task_name"] == ident["task_name"]
+    assert rows[0]["git_commit"] == "a" * 40
+    assert rows[0]["command"] == "uv run launch_agent.py task_name=x"
+
+    one = aggregate(rows[:2], n_boot=10)["agents"]["fixture-agent"]
+    assert (one["git_commits"], one["dirty"]) == (["a" * 40], 1)
+    assert "aaaaaaa*" in format_table({"metrics": [], "agents": {"x": one}})
+
+    both = aggregate(rows, n_boot=10)["agents"]["fixture-agent"]
+    assert both["git_commits"] == ["a" * 40, "b" * 40]
+    assert "mixed(2)*" in format_table({"metrics": [], "agents": {"x": both}})

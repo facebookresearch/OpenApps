@@ -115,6 +115,10 @@ def row_from_record(record: Any, scores: Any = None) -> dict:
         "agent": ident.agent_name or "unknown",
         "task_termination": ident.task_termination or DEFAULT_TERMINATION,
         "task_name": ident.task_name,
+        # Provenance: which code produced the row and how to rerun it.
+        "git_commit": ident.git_commit,
+        "git_dirty": ident.git_dirty,
+        "command": ident.command,
         # Its final state could not be read; aggregate() leaves it out.
         "unscorable": bool(getattr(record, "unscorable", None)),
         "cell": cell_of(ident.variation),
@@ -320,6 +324,11 @@ def aggregate(
             "n": len(agent_rows),
             "excluded_unscorable": excluded.get((agent, mode), 0),
             "cells": len({r.get("cell", DEFAULT_CELL) for r in agent_rows}),
+            # More than one means the entry pools runs of different code.
+            "git_commits": sorted(
+                {r["git_commit"] for r in agent_rows if r.get("git_commit")}
+            ),
+            "dirty": sum(bool(r.get("git_dirty")) for r in agent_rows),
             "metrics": summary,
             "by_axis": axes,
         }
@@ -346,12 +355,25 @@ _TABLE_METRICS = (
 )
 
 
+def _commit_cell(data: dict) -> str:
+    """Short sha, ``mixed(<k>)`` when the entry pools commits, ``-`` when
+    unknown; ``*`` when any episode ran from a dirty tree."""
+    commits = data.get("git_commits") or []
+    cell = commits[0][:7] if len(commits) == 1 else f"mixed({len(commits)})" if commits else "-"
+    return cell + ("*" if data.get("dirty") else "")
+
+
 def format_table(table: dict, metrics: Sequence[str] = _TABLE_METRICS) -> str:
     metrics = [m for m in metrics if m in table["metrics"]]
-    header = ["agent", "mode", "n", *metrics]
+    header = ["agent", "mode", "commit", "n", *metrics]
     lines = []
     for key, data in table["agents"].items():
-        cells = [data.get("agent", key), data.get("task_termination", ""), str(data["n"])]
+        cells = [
+            data.get("agent", key),
+            data.get("task_termination", ""),
+            _commit_cell(data),
+            str(data["n"]),
+        ]
         for m in metrics:
             s = data["metrics"][m]
             if s["rate"] is None:

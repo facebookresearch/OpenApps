@@ -21,7 +21,10 @@
       "adversarial_popup": false,
       "adversarial_content": false,
       "max_steps": 10,
-      "task_termination": "on_agent_stop"
+      "task_termination": "on_agent_stop",
+      "git_commit": null,
+      "git_dirty": null,
+      "command": null
     },
     "initial_state": {
       "todo": [
