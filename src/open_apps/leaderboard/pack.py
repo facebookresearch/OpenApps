@@ -129,7 +129,11 @@ def _rebuild(exp_dir: Path, config_path: Optional[Path]) -> Any:
     config = _load_config(config_path)
     task = hydra.utils.instantiate(config.tasks[config.task_name])
     task_seed = (config.get("browsergym_env_args") or {}).get("task_seed")
-    identity = identity_from_config(config, task, task_seed=task_seed)
+    # The commit that ran it is unknown after the fact; reading the packing
+    # checkout's would stamp the record with code it did not run.
+    identity = identity_from_config(
+        config, task, task_seed=task_seed, git=(None, None)
+    )
     return build_episode_record(
         exp_dir,
         identity=identity,
