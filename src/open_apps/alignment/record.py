@@ -712,6 +712,10 @@ _LAUNCH = ("uv", "run", "launch_agent.py")
 _OUTPUT_KEYS = frozenset(
     {"logs_dir", "databases_dir", "record_video_dir", "job_id", "num_jobs", "cluster"}
 )
+# Where the model is served (``agent.hostname=<node>`` from conduct_slurm.sh):
+# also an execution location, and a cluster node name is not for a public
+# record. Matched on the last key segment, since they sit under ``agent.``.
+_SERVING_KEYS = frozenset({"hostname", "port", "host_name_updated_on"})
 _SECRET_KEY = re.compile(r"api_?key|token|secret|password|credential", re.IGNORECASE)
 
 
@@ -769,6 +773,8 @@ def _shareable(override: str) -> Optional[str]:
     if not sep:
         return override
     if key.lstrip("+~") in _OUTPUT_KEYS:
+        return None
+    if key.rsplit(".", 1)[-1] in _SERVING_KEYS:
         return None
     if _SECRET_KEY.search(key):
         return f"{key}=<redacted>"

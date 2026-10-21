@@ -456,6 +456,8 @@ def test_reproduce_command_for_a_sweep_job_is_shareable():
                     "agent=gemma",
                     "agent.model_name=/checkpoint/someone/gemma-ft",
                     "agent.api_key=sk-live-123",
+                    "agent.hostname=gpu-node-17",
+                    "agent.port=8001",
                     "logs_dir=/checkpoint/someone/logs",
                     "cluster=slurm",
                     "parallel_tasks.task_names=[add_x,add_y]",
