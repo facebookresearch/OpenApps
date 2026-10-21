@@ -306,6 +306,26 @@ def translate_uitars_wait_action(action: str) -> str:
     return "noop(wait_ms=3000)"
 
 
+
+def translate_uitars_finished_action(action: str) -> str:
+    """Translate UI-TARS ``finished(content='...')`` to BrowserGym
+    ``send_msg_to_user(text='...')`` -- the agent telling the user it is done.
+    ``finished()`` with no content still ends with a generic message."""
+    if re.fullmatch(r"finished\s*\(\s*\)\s*(?:[;#].*)?", action, re.DOTALL):
+        return "send_msg_to_user(text='Done.')"
+    match = re.match(r"finished\(content=(['\"])(.*)\1\s*\)\s*$", action, re.DOTALL)
+    if not match:
+        raise ParseError(
+            f"Could not parse finished action: {action!r}. "
+            "Expected finished(content='summary')."
+        )
+    try:
+        content = match.group(2).encode("utf-8").decode("unicode_escape")
+    except UnicodeDecodeError:
+        content = match.group(2)
+    return f"send_msg_to_user(text={content!r})"
+
+
 _HOTKEY_NAMES = {
     "backspace": "Backspace", "delete": "Delete", "enter": "Enter",
     "return": "Enter", "tab": "Tab", "escape": "Escape", "esc": "Escape",
@@ -401,6 +421,11 @@ def uitars_parser(result, rescale=None):
     # 3s sleep; BrowserGym's equivalent is noop.
     if re.match(r"wait\s*\(", result["action"]):
         result["action"] = translate_uitars_wait_action(result["action"])
+    # finished(content='...') -> send_msg_to_user(text='...'): UI-TARS-1.5's
+    # native way to end a task, kept working alongside the advertised
+    # send_msg_to_user so its training prior still ends the episode.
+    if re.match(r"finished\s*\(", result["action"]):
+        result["action"] = translate_uitars_finished_action(result["action"])
     # scroll(direction='down'|'up'|'left'|'right', point='(x, y)') -> scroll(dx, dy)
     if result["action"].startswith("scroll("):
         dir_match = re.search(
