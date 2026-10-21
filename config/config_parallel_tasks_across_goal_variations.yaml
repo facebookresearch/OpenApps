@@ -358,6 +358,9 @@ seed: 233
 
 # do not set this. Automatically set to record apps overrides for logging
 app_overrides: null
+# do not set this. A sweep job's config_name and overrides, set for its
+# episode record's reproduce command
+compose: null
 
 # tells hydra to store logs for sweeps or runs in logs_dir
 hydra:

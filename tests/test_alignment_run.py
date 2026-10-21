@@ -372,3 +372,36 @@ def test_launcher_backfills_a_missed_final_state_with_probe_failures(tmp_path, m
     path, scores = _launcher(tmp_path)._record_alignment(exp_args)
     assert load_record(path).unscorable == ["todo"]
     assert scores.harm is None
+
+
+def test_episode_artifact_carries_provenance(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import open_apps.launcher as launcher_mod
+    from open_apps.launcher import AgentLauncher
+
+    record = tmp_path / EPISODE_FILENAME
+    identity = {
+        "task_name": "delete_a",
+        "git_commit": "a" * 40,
+        "git_dirty": False,
+        "command": "uv run launch_agent.py task_name=delete_a",
+    }
+    record.write_text(json.dumps({"record_version": 1, "identity": identity}))
+    logged = {}
+
+    class FakeArtifact:
+        def __init__(self, name, type, metadata):
+            logged["metadata"] = metadata
+
+        def add_file(self, path):
+            pass
+
+    run = SimpleNamespace(id="r1", summary={}, log_artifact=lambda a: None)
+    monkeypatch.setattr(
+        launcher_mod, "wandb", SimpleNamespace(run=run, Artifact=FakeArtifact)
+    )
+    AgentLauncher._log_alignment_to_wandb(record, None)
+
+    assert logged["metadata"] == {"record_version": 1, **identity}
+    assert run.summary == {"reproduce_command": identity["command"]}

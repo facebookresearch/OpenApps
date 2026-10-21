@@ -28,6 +28,8 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import re
+import shlex
 import sys
 import types
 import typing
@@ -92,6 +94,15 @@ class Identity:
     max_steps: Optional[int] = None
     # ``on_success`` | ``on_agent_stop`` (config ``task_termination``).
     task_termination: str = "on_success"
+    # Provenance, so a number in a table can be traced to code and rerun.
+    # The HEAD the run's code was loaded from; None outside a git checkout.
+    git_commit: Optional[str] = None
+    # The working tree differed from ``git_commit`` (tracked files only):
+    # the commit alone then does not reproduce the episode.
+    git_dirty: Optional[bool] = None
+    # A ``launch_agent.py`` command that reruns this one episode at
+    # ``git_commit``; see :func:`reproduce_command`.
+    command: Optional[str] = None
 
 
 @dataclass
@@ -627,10 +638,20 @@ def _event_record(raw: dict) -> EventRecord:
 
 
 def identity_from_config(
-    config: Any, task: Any, task_seed: Optional[int] = None
+    config: Any,
+    task: Any,
+    task_seed: Optional[int] = None,
+    git: Optional[tuple[Optional[str], Optional[bool]]] = None,
 ) -> Identity:
-    """Identity for a launcher run, from its resolved Hydra config."""
+    """Identity for a launcher run, from its resolved Hydra config.
+
+    ``git`` is :func:`git_state` as the launcher read it when the episode
+    started; read now when not given. A checkout edited or switched while a
+    sweep runs would otherwise stamp a record with code it did not run.
+    """
     from open_apps.alignment._config import plain
+
+    git_commit, git_dirty = git if git is not None else git_state()
 
     task_name = config.get("task_name")
     task_config = (
@@ -664,7 +685,96 @@ def identity_from_config(
         adversarial_content=adversarial_content(apps),
         max_steps=_int_or_none(env_args.get("max_steps")),
         task_termination=str(config.get("task_termination") or "on_success"),
+        git_commit=git_commit,
+        git_dirty=git_dirty,
+        command=reproduce_command(config),
     )
+
+
+def git_state(path: str | Path | None = None) -> tuple[Optional[str], Optional[bool]]:
+    """``(HEAD sha, dirty)`` of the checkout this package runs from, or
+    ``(None, None)`` outside one (an installed wheel). Never raises."""
+    try:
+        import git
+
+        repo = git.Repo(
+            Path(path or __file__).resolve().parent, search_parent_directories=True
+        )
+        return repo.head.object.hexsha, repo.is_dirty(untracked_files=False)
+    except Exception:  # noqa: BLE001 -- identity is best-effort metadata
+        return None, None
+
+
+# The entrypoint a reproduce command runs: one episode, any root config.
+_LAUNCH = ("uv", "run", "launch_agent.py")
+# Overrides that only decide where a run writes or executes; dropped from the
+# command so it runs anywhere (a sweep's per-job values are not inputs).
+_OUTPUT_KEYS = frozenset(
+    {"logs_dir", "databases_dir", "record_video_dir", "job_id", "num_jobs", "cluster"}
+)
+_SECRET_KEY = re.compile(r"api_?key|token|secret|password|credential", re.IGNORECASE)
+
+
+def reproduce_command(config: Any) -> Optional[str]:
+    """A shell command that reruns this one episode, or None.
+
+    A sweep job is composed from the sweep's command line plus its own cell
+    and task (``AppVariationParallelTasksConfig``), which it records under
+    ``compose``; the command recomposes exactly that from the sweep's root
+    config, so one cell of a sweep reruns alone. A single run's overrides
+    come from Hydra. ``task_name`` is always spelled out, so the command
+    names its task even when it was the config default.
+
+    Records are shared (W&B artifacts, leaderboard bundles), so values under
+    secret-looking keys become ``<redacted>`` and absolute paths ``<path>``
+    (a cluster's layout and a username, like :func:`_model_label` avoids);
+    output locations are dropped. Rerunning with a self-hosted model means
+    filling its ``<path>`` back in.
+    """
+    compose = config.get("compose")
+    if compose:
+        config_name, overrides = compose.get("config_name"), compose.get("overrides")
+    else:
+        config_name, overrides = _hydra_overrides()
+        if overrides is None:
+            return None
+    kept = [_shareable(str(o)) for o in overrides or ()]
+    kept = [o for o in kept if o is not None]
+    task_name = config.get("task_name")
+    if task_name and not any(o.startswith("task_name=") for o in kept):
+        kept.append(f"task_name={task_name}")
+    head = list(_LAUNCH)
+    if config_name and config_name != "config":
+        head.append(f"--config-name={config_name}")
+    return shlex.join([*head, *kept])
+
+
+def _hydra_overrides() -> tuple[Optional[str], Optional[list[str]]]:
+    """``(config_name, task overrides)`` of the running Hydra app, else
+    ``(None, None)``."""
+    try:
+        from hydra.core.hydra_config import HydraConfig
+
+        if HydraConfig.initialized():
+            cfg = HydraConfig.get()
+            return cfg.job.config_name, [str(o) for o in cfg.overrides.task]
+    except Exception:  # noqa: BLE001 -- identity is best-effort metadata
+        pass
+    return None, None
+
+
+def _shareable(override: str) -> Optional[str]:
+    """``override`` fit for a shared record; None to leave it out."""
+    key, sep, value = override.partition("=")
+    if not sep:
+        return override
+    if key.lstrip("+~") in _OUTPUT_KEYS:
+        return None
+    if _SECRET_KEY.search(key):
+        return f"{key}=<redacted>"
+    if value.startswith(("/", "~")):
+        return f"{key}=<path>"
+    return override
 
 
 def _agent_config_choice() -> Optional[str]:

@@ -415,3 +415,111 @@ def test_agent_name_never_falls_back_to_a_filesystem_path(agent, expected):
     config = OmegaConf.create({"task_name": None, "agent": agent})
     task = AddToDoTask(goal="g", todo_name="x", is_done=False)
     assert identity_from_config(config, task).agent_name == expected
+
+
+# --- provenance: commit and reproduce command ---------------------------------------
+
+
+def test_git_state_reads_this_checkout_and_tolerates_none(tmp_path):
+    from open_apps.alignment.record import git_state
+
+    sha, dirty = git_state()
+    assert len(sha) == 40 and isinstance(dirty, bool)
+    assert git_state(tmp_path) == (None, None)  # not a checkout: no guess
+
+
+def test_identity_carries_the_launch_time_git_state():
+    from omegaconf import OmegaConf
+
+    from open_apps.alignment.record import identity_from_config
+    from open_apps.tasks.tasks import AddToDoTask
+
+    config = OmegaConf.create({"task_name": "add_x", "agent": {}})
+    task = AddToDoTask(goal="g", todo_name="x", is_done=False)
+    identity = identity_from_config(config, task, git=("a" * 40, True))
+    assert (identity.git_commit, identity.git_dirty) == ("a" * 40, True)
+    # No Hydra app and no sweep compose: nothing to rebuild a command from.
+    assert identity.command is None
+
+
+def test_reproduce_command_for_a_sweep_job_is_shareable():
+    from omegaconf import OmegaConf
+
+    from open_apps.alignment.record import reproduce_command
+
+    config = OmegaConf.create(
+        {
+            "task_name": "add_x",
+            "compose": {
+                "config_name": "config_parallel_tasks",
+                "overrides": [
+                    "agent=gemma",
+                    "agent.model_name=/checkpoint/someone/gemma-ft",
+                    "agent.api_key=sk-live-123",
+                    "logs_dir=/checkpoint/someone/logs",
+                    "cluster=slurm",
+                    "parallel_tasks.task_names=[add_x,add_y]",
+                    "apps/todo/layout=kanban_board",
+                    "task_name=add_x",
+                ],
+            },
+        }
+    )
+    assert reproduce_command(config) == (
+        "uv run launch_agent.py --config-name=config_parallel_tasks agent=gemma "
+        "'agent.model_name=<path>' 'agent.api_key=<redacted>' "
+        "'parallel_tasks.task_names=[add_x,add_y]' "
+        "apps/todo/layout=kanban_board task_name=add_x"
+    )
+
+
+def test_reproduce_command_names_the_task_of_a_single_run(monkeypatch):
+    from omegaconf import OmegaConf
+
+    import open_apps.alignment.record as record_mod
+
+    monkeypatch.setattr(
+        record_mod, "_hydra_overrides", lambda: ("config", ["agent=dummy", "seed=1"])
+    )
+    config = OmegaConf.create({"task_name": "add_meeting_with_dennis", "compose": None})
+    # The default root config needs no --config-name; the default task is
+    # spelled out anyway, so the command says what it ran.
+    assert record_mod.reproduce_command(config) == (
+        "uv run launch_agent.py agent=dummy seed=1 task_name=add_meeting_with_dennis"
+    )
+
+
+def test_reproduce_command_recomposes_the_sweep_job():
+    """The command's overrides, composed from its root config, are the job's
+    config: one sweep cell reruns alone."""
+    import shlex
+
+    from hydra import compose, initialize_config_dir
+    from omegaconf import OmegaConf
+
+    from open_apps import config_dir
+    from open_apps.alignment.record import reproduce_command
+    from open_apps.tasks.parallel_tasks import AppVariationParallelTasksConfig
+
+    cli = ["agent=dummy", "seed=5"]
+    with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+        parent = compose(config_name="config_parallel_tasks", overrides=cli)
+        sweep = AppVariationParallelTasksConfig(
+            app_variations=[["apps/todo/layout=kanban_board"]],
+            task_names=[next(iter(parent.tasks))],
+        )
+        (job,) = sweep.create_configs(parent, cli_overrides=cli)
+        argv = shlex.split(reproduce_command(job))
+        assert argv[:4] == [
+            "uv", "run", "launch_agent.py", "--config-name=config_parallel_tasks"
+        ]
+        rerun = compose(config_name="config_parallel_tasks", overrides=argv[4:])
+
+    def plain(cfg):
+        data = OmegaConf.to_container(cfg, resolve=False)
+        # Run plumbing the sweep sets per job, not inputs to the episode.
+        for key in ("compose", "app_overrides", "logs_dir", "databases_dir", "record_video_dir"):
+            data.pop(key, None)
+        return data
+
+    assert plain(rerun) == plain(job)

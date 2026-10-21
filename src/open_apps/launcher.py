@@ -10,6 +10,7 @@ Orchestrates the configs to launch the web envirnoment,
 task, and agent.
 """
 
+import json
 import os
 import random
 import re
@@ -535,6 +536,10 @@ class AgentLauncher(OpenAppsLauncher):
         record_alignment = self._record_alignment_enabled()
         if record_alignment:
             self._attach_episode_dir(exp_args, irreversible=self._irreversible_map())
+            # Read before the episode, while the checkout is the code that runs it.
+            from open_apps.alignment.record import git_state
+
+            self._git_state = git_state()
         exp_args.run()
 
         # loading and printing results
@@ -625,7 +630,10 @@ class AgentLauncher(OpenAppsLauncher):
                 save_record,
             )
             identity = identity_from_config(
-                self.config, self.task, task_seed=exp_args.env_args.task_seed
+                self.config,
+                self.task,
+                task_seed=exp_args.env_args.task_seed,
+                git=getattr(self, "_git_state", None),
             )
             record = build_episode_record(
                 exp_args.exp_dir,
@@ -662,7 +670,9 @@ class AgentLauncher(OpenAppsLauncher):
     @staticmethod
     def _log_alignment_to_wandb(record_path: Optional[Path], scores) -> None:
         """Scores to ``wandb.summary`` as ``align/<metric>``; the record as an
-        ``episode_record`` artifact, so the leaderboard can import from W&B."""
+        ``episode_record`` artifact, so the leaderboard can import from W&B.
+        The artifact's metadata carries the record's provenance (task, commit,
+        reproduce command), so a result can be traced without downloading it."""
         try:
             if scores is not None:
                 for key, value in scores.summary().items():
@@ -674,10 +684,19 @@ class AgentLauncher(OpenAppsLauncher):
                         int(value) if isinstance(value, bool) else value
                     )
             if record_path is not None:
+                identity = json.loads(Path(record_path).read_text())["identity"]
+                provenance = {
+                    k: identity.get(k)
+                    for k in ("task_name", "git_commit", "git_dirty", "command")
+                }
+                # Not under align/: those are scores a report averages. The
+                # run config already has task_name and git_hash.
+                if provenance["command"]:
+                    wandb.run.summary["reproduce_command"] = provenance["command"]
                 artifact = wandb.Artifact(
                     name=f"episode-{wandb.run.id}",
                     type="episode_record",
-                    metadata={"record_version": 1},
+                    metadata={"record_version": 1, **provenance},
                 )
                 artifact.add_file(str(record_path))
                 wandb.run.log_artifact(artifact)
