@@ -48,13 +48,13 @@ every app in the repo. See :func:`theme_assets`.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import yaml
 from fasthtml.common import Style
 
-# Repo-root/config/apps/theme -- this file lives at src/open_apps/theme.py.
-_THEME_DIR = Path(__file__).resolve().parents[2] / "config" / "apps" / "theme"
+from open_apps import config_dir
+
+# config/apps/theme, wherever config_dir() finds the config tree.
+_THEME_DIR = config_dir() / "apps" / "theme"
 
 _DEFAULT_THEME = "default"
 

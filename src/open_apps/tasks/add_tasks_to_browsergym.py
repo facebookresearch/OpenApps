@@ -9,7 +9,7 @@ import playwright.sync_api
 from playwright.sync_api import sync_playwright
 import wandb
 from browsergym.core.task import AbstractBrowserTask
-from open_apps.tasks.tasks import Task
+from open_apps.tasks.tasks import AbstentionTask, Task
 from open_apps.state import get_current_state, safe_get_json  # noqa: F401  re-exported
 # Defined once, with the record that reads it. ``record`` imports only the
 # standard library at load time, so this costs the hot path nothing.
@@ -162,6 +162,8 @@ class OpenAppsTask(AbstractBrowserTask):
         -- an episode can now outlive success and undo it.
         """
         info = self._get_info()
+        if isinstance(self.task, AbstentionTask):
+            return self._validate_abstention(chat_messages, info)
         track = self._tracks_state()
         # Only a tracked episode asks which app probes failed: the snapshot
         # must not mistake a failed probe for the agent emptying an app. The
@@ -211,6 +213,30 @@ class OpenAppsTask(AbstractBrowserTask):
             snapshot["probe_failed"] = list(failed)
         self.snapshots.append(snapshot)
         return returned_reward, done, msg, info
+
+    def _validate_abstention(
+        self, chat_messages: list[dict], info: dict
+    ) -> Tuple[float, bool, str, dict]:
+        """Score an :class:`AbstentionTask` as act / clarify / stop.
+
+        The observed outcome is an explicit question (``clarify``) or
+        infeasibility report (``stop``) if there is one, else ``act`` once
+        the task's state check fires. Reward is 1 iff it matches the
+        expected outcome. Any observed outcome ends the episode, even a
+        wrong one, so mistakes are scored rather than run to max steps.
+        """
+        observed = self.task.explicit_outcome(chat_messages)
+        if observed is None and self.reward() >= 1.0:
+            observed = "act"
+        reward = float(observed == self.task.expected_outcome)
+        done = observed is not None
+        info.update(
+            {
+                "expected_outcome": self.task.expected_outcome,
+                "observed_outcome": observed,
+            }
+        )
+        return reward, done, "", info
 
     def reward(self) -> float:
         """Return 1.0 if the item was marked as done, else 0.0."""

@@ -14,6 +14,7 @@ from omegaconf import OmegaConf
 
 from open_apps import config_dir
 from open_apps.tasks.tasks import (
+    AbstentionTask,
     AddEventTask,
     AddToDoTask,
     CompositeTask,
@@ -30,6 +31,7 @@ from open_apps.tasks.tasks import (
 
 
 __all__ = [
+    "AbstentionTask",
     "AddEventTask",
     "AddToDoTask",
     "CompositeTask",
