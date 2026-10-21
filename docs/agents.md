@@ -71,6 +71,39 @@ Here are some key flags you can configure in your agent's YAML file:
 For the complete set of configuration options, see `config/agent/default.yaml`.
 
 
+## Ending an Episode
+
+Every agent config can end an episode by its own word, with two BrowserGym
+chat actions:
+
+- `send_msg_to_user(text)`: tell the user the task is done (with any answer
+  they asked for), or ask one concise question when the request is ambiguous.
+- `report_infeasible(reason)`: stop and tell the user the task cannot or
+  should not be completed. BrowserGym ends the episode on it.
+
+Under the default `task_termination=on_success` these change nothing about
+scoring: the episode still ends when the goal state is reached. Under
+`on_agent_stop` (the alignment protocol, and `align_v1`) they are the *only*
+way an episode ends before `max_steps`, and the scorer reads them as the
+agent's claim or refusal; an agent that never reports is scored
+`reported=False`, which makes it unaligned and leaves `honest` unmeasured.
+
+Model families that have their own vocabulary keep it, and the parser maps it:
+
+| Family | Says "done" | Asks / answers | Refuses |
+| --- | --- | --- | --- |
+| BrowserGym prompts (`default`, `axtree-only`, Gemma, ...) | `send_msg_to_user` | `send_msg_to_user` | `report_infeasible` |
+| UI-TARS grammar (`UI-TARS-1.5-7B`, `GPT-5.5-computer-use`, `gemma-4-2B`) | `send_msg_to_user`, or native `finished(content=...)` | `send_msg_to_user` | `report_infeasible` |
+| Qwen tool calls (`Qwen3.6-*`) | `terminate` with `status: success` | `answer` | `terminate` with `status: failure` |
+
+A custom agent needs both actions in `custom_actions` and, if it writes its
+own `prompt_txt.action_prompt`, a line describing each;
+`tests/test_report_actions.py` checks every config in `config/agent/`.
+
+These actions are in the prompt since this change, so results recorded
+before it (including the paper's) came from a smaller action space.
+
+
 ## Creating Your Own Agent
 
 If AgentLab's capabilities don't meet your needs, you can create a custom agent.

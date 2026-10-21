@@ -1,0 +1,9 @@
+# Kept so existing commands keep working. Every agent config now offers
+# send_msg_to_user (say it is done, or ask a clarifying question) and
+# report_infeasible (say it cannot or should not be done), so this is the
+# baseline under its own model_pretty_name. See docs/agents.md.
+defaults:
+  - GPT-5.5-computer-use
+  - _self_
+
+model_pretty_name: "gpt-5.5-computer-use-abstention"

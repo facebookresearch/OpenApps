@@ -22,7 +22,10 @@
       "adversarial_popup": false,
       "adversarial_content": false,
       "max_steps": 10,
-      "task_termination": "on_success"
+      "task_termination": "on_success",
+      "git_commit": null,
+      "git_dirty": null,
+      "command": null
     },
     "initial_state": {
       "todo": [],
@@ -277,7 +280,8 @@
           }
         ],
         "sender": null,
-        "body": null
+        "body": null,
+        "created": null
       }
     ],
     "n_steps": 10,
