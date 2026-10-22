@@ -513,6 +513,80 @@ _COMPONENT_STYLES = Style(
         font-size: var(--font-size-sm);
     }
 
+    /* Syntax highlighting without CodeMirror (`syntax_highlight`): the
+       textarea stays the input and turns transparent over a highlighted
+       <pre>. Both layers share every rule that moves a glyph -- font, size,
+       line height, padding, tab size, no wrapping -- or the colours drift
+       off the text they belong to. The textarea only goes transparent once
+       code_highlight.js has attached (`is-highlighted`), so a page whose
+       script failed still shows readable text. */
+    .codeeditor-app .ce-code-wrap {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        background-color: var(--color-bg);
+    }
+    .codeeditor-app .ce-code-wrap > .ce-code,
+    .codeeditor-app .ce-code-wrap > .ce-hl {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: var(--space) calc(var(--space) * 2);
+        border: 0;
+        font-family: var(--font-mono);
+        font-size: var(--font-size-sm);
+        font-variant-ligatures: none;
+        letter-spacing: normal;
+        word-spacing: normal;
+        line-height: 1.6;
+        tab-size: 4;
+        white-space: pre;
+        overflow-wrap: normal;
+    }
+    .codeeditor-app .ce-hl {
+        /* Extra room at the bottom: the textarea's horizontal scrollbar adds
+           to how far it can scroll, and the layer has to be able to follow. */
+        padding-bottom: calc(var(--space) + 24px);
+        overflow: hidden;
+        background: transparent;
+        color: var(--color-fg);
+        pointer-events: none;
+    }
+    .codeeditor-app .ce-hl code {
+        display: block;
+        padding: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+    }
+    .codeeditor-app .ce-code-wrap.is-highlighted > .ce-code {
+        background: transparent;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        caret-color: var(--color-fg);
+    }
+    .codeeditor-app .ce-code-wrap.is-highlighted > .ce-code::selection {
+        background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+    }
+    /* Every theme defines the `color-syntax-*` tokens (VS Code Dark+ or
+       Light+ where they fit, AA-adjusted hues elsewhere); a theme that does
+       not falls back to uncoloured text, not to a palette picked for some
+       other background. Punctuation and operators stay in --color-fg, as in
+       Dark+/Light+. */
+    .codeeditor-app .tok-keyword { color: var(--color-syntax-keyword, var(--color-fg)); }
+    .codeeditor-app .tok-control { color: var(--color-syntax-control, var(--color-fg)); }
+    .codeeditor-app .tok-string { color: var(--color-syntax-string, var(--color-fg)); }
+    .codeeditor-app .tok-number { color: var(--color-syntax-number, var(--color-fg)); }
+    .codeeditor-app .tok-comment { color: var(--color-syntax-comment, var(--color-fg)); }
+    .codeeditor-app .tok-function { color: var(--color-syntax-function, var(--color-fg)); }
+    .codeeditor-app .tok-type { color: var(--color-syntax-type, var(--color-fg)); }
+    .codeeditor-app .tok-property { color: var(--color-syntax-property, var(--color-fg)); }
+    .codeeditor-app .tok-constant { color: var(--color-syntax-constant, var(--color-fg)); }
+    .codeeditor-app .tok-tag { color: var(--color-syntax-tag, var(--color-fg)); }
+
     /* `default` only: the ways out as full buttons under the code. */
     .codeeditor-app .ce-editor-footer {
         display: flex;
@@ -1056,6 +1130,69 @@ _CODE_EXTENSIONS = (
 )
 
 
+# Language per file extension, the way an editor picks one when a file opens.
+# Values are `list_of_modes` names (CodeMirror's) plus `json` and `html`,
+# which only the offline highlighter knows.
+_LANGUAGE_BY_EXTENSION = {
+    ".py": "python",
+    ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript",
+    ".jsx": "javascript", ".ts": "javascript", ".tsx": "javascript",
+    ".css": "css",
+    ".yaml": "yaml", ".yml": "yaml",
+    ".md": "markdown", ".markdown": "markdown",
+    ".sh": "shell", ".bash": "shell", ".zsh": "shell",
+    ".c": "clike", ".cc": "clike", ".cpp": "clike", ".h": "clike",
+    ".hpp": "clike", ".java": "clike", ".rs": "clike",
+    ".go": "go",
+    ".json": "json",
+    ".html": "html", ".htm": "html",
+}
+
+HIGHLIGHT_SCRIPT_URL = "/assets/js/code_highlight.js"
+
+
+def language_for(path: str) -> str:
+    """The language a file opens in: by extension, else the configured mode.
+
+    Per file rather than global, so a `.yaml` opened after a `.py` is not
+    coloured as Python. The Language picker still switches it live; for an
+    extension not listed here the picker's choice is what persists (it is
+    written back to `code_editor.mode`).
+    """
+    ext = os.path.splitext(path)[1].lower()
+    return _LANGUAGE_BY_EXTENSION.get(ext, app.config.code_editor.mode)
+
+
+def syntax_overlay_enabled() -> bool:
+    """Whether the offline highlight layer renders under the textarea.
+
+    Never alongside CodeMirror (`highlight`): CodeMirror replaces the textarea
+    and colours the code itself, and two highlighters would fight over it.
+    """
+    cfg = app.config.code_editor
+    return bool(cfg.get("syntax_highlight", False)) and not cfg.get("highlight", False)
+
+
+def code_area(textarea, language: str):
+    """The editable textarea, wrapped with its highlight layer when enabled.
+
+    The textarea is untouched -- same id, aria attributes and value -- so
+    Save, `fill()` and the accessibility tree see exactly what they did
+    before. The layer is `aria-hidden`: it duplicates the text for the eye
+    only. The script tag sits here, before `editor_script`, so the
+    highlighter exists by the time the page binds `editor`.
+    """
+    if not syntax_overlay_enabled():
+        return textarea
+    return Div(
+        Pre(Code(), cls="ce-hl", id="editor-highlight", aria_hidden="true"),
+        textarea,
+        Script(src=HIGHLIGHT_SCRIPT_URL),
+        cls="ce-code-wrap",
+        data_language=language,
+    )
+
+
 def _file_icon(name: str) -> I:
     if name.lower().endswith(_CODE_EXTENSIONS):
         return _icon("far fa-file-code ce-icon-code")
@@ -1402,14 +1539,24 @@ def _selects_in_status_bar() -> bool:
     return current_layout() != "default"
 
 
-def editor_selects():
+def editor_selects(language: str | None = None):
     """The Language and Theme pickers -- ids, names, labels and options as
-    they always were; only their placement and styling vary."""
+    they always were; only their placement and styling vary.
+
+    ``language`` is the open file's (see :func:`language_for`), so the picker
+    names what the code is coloured as. One the configured list lacks
+    (``json``, ``html``) is offered too, rather than the picker claiming a
+    language the file is not shown in.
+    """
+    selected = language or app.config.code_editor.mode
+    modes = list(list_of_modes)
+    if selected not in modes:
+        modes.append(selected)
     return Div(cls="ce-selects")(
         Div(cls="ce-field")(
             Label("Language: "),
             Select(id="mode-selector", cls="ce-select", onchange=_MODE_ONCHANGE)(
-                *[Option(mode, value=mode, selected=(mode == app.config.code_editor.mode)) for mode in list_of_modes]
+                *[Option(mode, value=mode, selected=(mode == selected)) for mode in modes]
             ),
         ),
         Div(cls="ce-field")(
@@ -1421,24 +1568,24 @@ def editor_selects():
     )
 
 
-def editor_header(title, *actions):
+def editor_header(title, *actions, language: str | None = None):
     """The row above the code: what is open on the left, actions and (in
     `default`) the pickers on the right."""
-    selects = [] if _selects_in_status_bar() else [editor_selects()]
+    selects = [] if _selects_in_status_bar() else [editor_selects(language)]
     return Div(cls="ce-editor-header")(
         title,
         Div(cls="ce-editor-actions")(*actions, *selects),
     )
 
 
-def status_bar(*meta):
+def status_bar(*meta, language: str | None = None):
     """The strip along the bottom of the window.
 
     Outside `default`, navigation out of the editor sits bottom-left, where
     VS Code keeps its remote indicator, and the pickers join the file facts
     bottom-right.
     """
-    selects = [editor_selects()] if _selects_in_status_bar() else []
+    selects = [editor_selects(language)] if _selects_in_status_bar() else []
     nav = [return_to_home(), return_to_index()] if _nav_in_status_bar() else []
     return Div(cls="ce-statusbar")(
         Div(cls="ce-status-group")(*nav),
@@ -1472,16 +1619,32 @@ def editor_binding(options_js: str) -> str:
         )
     return """
         var editorTextarea = document.getElementById('editor');
+        // The offline highlight layer, when `code_area` rendered one (an open
+        // file with `syntax_highlight` on). Null otherwise, and every use
+        // below tolerates that.
+        var editorLayer = document.querySelector('#editor-highlight code');
+        var editorHighlight = (editorLayer && window.OpenAppsHighlight)
+            ? window.OpenAppsHighlight.attach(
+                editorTextarea, editorLayer,
+                editorLayer.closest('.ce-code-wrap').getAttribute('data-language'))
+            : null;
         var editor = {
             getValue: function() { return editorTextarea.value; },
-            setValue: function(value) { editorTextarea.value = value; },
+            setValue: function(value) {
+                editorTextarea.value = value;
+                if (editorHighlight) { editorHighlight.refresh(); }
+            },
             getOption: function() { return null; },
             setOption: function(name, value) {
                 // Themes are design tokens, applied to :root by
                 // window.applyTheme, so this works with no CodeMirror on the
-                // page and nothing fetched from a CDN.
+                // page and nothing fetched from a CDN. The syntax colours are
+                // tokens too, so they follow along.
                 if (name === 'theme' && window.applyTheme) {
                     window.applyTheme(value);
+                }
+                if (name === 'mode' && editorHighlight) {
+                    editorHighlight.setLanguage(value);
                 }
             },
             setSize: function() {},
@@ -1829,11 +1992,15 @@ def get_file(file: str):
             ),
         ),
     )
+    language = language_for(file)
+    # CodeMirror only has the modes in `list_of_modes` loaded; anything else
+    # (json, html) would ask it for a mode script that is not on the page.
+    codemirror_mode = language if language in list_of_modes else app.config.code_editor.mode
     main_screen = Div(cls="ce-editor")(
         tab_bar,
-        editor_header(title),
+        editor_header(title, language=language),
         Div(cls="ce-editor-body")(
-            Textarea(
+            code_area(Textarea(
                 content,  # or "" for index() function
                 id="editor",
                 cls="ce-code",
@@ -1847,13 +2014,13 @@ def get_file(file: str):
                     "aria-atomic": "true",
                     "aria-live": "off"
                 }
-            ),
+            ), language),
             Div(
                 id="editor-description",
                 cls="sr-only"
             )(f"Code editor for editing {file}"),
             editor_script(f"""{{
-                        mode: '{app.config.code_editor.mode}',
+                        mode: '{codemirror_mode}',
                         theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         indentUnit: 4,
@@ -1875,7 +2042,7 @@ def get_file(file: str):
     # Facts, not decoration: CodeMirror is configured with `indentUnit: 4`,
     # and files are read and written in the platform default text encoding,
     # UTF-8 on the hosts this runs on.
-    page = editor_page(side_bar, main_screen, status_bar("Spaces: 4", "UTF-8"))
+    page = editor_page(side_bar, main_screen, status_bar("Spaces: 4", "UTF-8", language=language))
     return Div(codeeditor_theme(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")
