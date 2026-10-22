@@ -1247,7 +1247,7 @@ def map_app_title(state, config, rng, **_):
 
 def map_tile_provider_options(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, CartoDB Dark, CartoDB Voyager, OpenStreetMap Transport",
+        "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, ESRI Dark Gray, ESRI Light Gray, OpenStreetMap Transport",
         [
             "Google Maps, Apple Maps, Bing Maps",
             "Mapbox Streets, Mapbox Satellite, Mapbox Outdoors",
