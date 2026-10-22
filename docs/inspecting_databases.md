@@ -97,6 +97,10 @@ into it on a clean shutdown.
   pending.
 - A card's `card_cvv` is stored in the clear. The card's page masks it until
   revealed, so an agent has to open the card to read it.
+- The Copy buttons beside the account, routing and card numbers copy the full
+  number without revealing it. The digits are not in the page markup: a click
+  fetches them from `/openbanking/accounts/<id>/copy/<account|routing|card>`,
+  a read with no effect on `/openbanking_all`. The CVV has no copy button.
 - The bank is read-only from its own UI, with one exception: a purchase in the
   online shop authorizes against a card here and posts to its ledger. Those
   rows are pending (`date` and `balance` are `NULL`) and carry a negative
