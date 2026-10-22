@@ -400,6 +400,19 @@ def _prerender_wallpaper(start_page_cfg) -> None:
         pass
 
 
+def _is_fasthtml_static_catchall(route) -> bool:
+    """Whether ``route`` is the static-file route ``fast_app()`` adds to every
+    app it builds: ``/{fname:path}.{ext:static}``, GET *and* POST, served from
+    the working directory.
+
+    Mounted onto this server it sat ahead of the apps' own routes and claimed
+    any URL ending in a static extension -- so ``/codeeditor/notes.yaml``
+    opened as nothing and saving it answered 404. The server's one static
+    route, scoped to /assets/, is in ``helper.get_app``.
+    """
+    return getattr(route, "path", None) == "/{fname:path}.{ext:static}"
+
+
 def get_start_page_routes():
     return app.routes
 
@@ -435,7 +448,7 @@ def initialize_routes_and_configure_task(config: DictConfig = None):
 
             # Get fresh routes with new config
             route_getter = getattr(module, getter_func)
-            routes = route_getter()
+            routes = [r for r in route_getter() if not _is_fasthtml_static_catchall(r)]
             app.routes.extend(routes)
 
         except ImportError as e:

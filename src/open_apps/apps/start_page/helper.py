@@ -700,11 +700,21 @@ def get_app(hdrs=None, *args, **kwargs):
     kwargs.setdefault("title", "OpenApps")
     app = FastHTML(hdrs=hdrs, *args, default_hdrs=False, **kwargs)
 
-    @app.get("/{fname:path}.{ext:static}")
+    # Scoped to /assets/. Unscoped, `/{fname:path}.{ext:static}` claimed every
+    # URL ending in a static extension on the whole server -- including
+    # `/codeeditor/demo.yaml`, `/codeeditor/app.js` and `/codeeditor/site.css`
+    # -- and answered the ones it had no file for with an empty 200, so those
+    # files opened in the code editor as a blank page. Every static URL the
+    # apps emit is under /assets/, so nothing else needs this route.
+    assets_root = os.path.realpath(os.path.join(BASE_DIR, "assets"))
+
+    @app.get("/assets/{fname:path}.{ext:static}")
     def static(fname: str, ext: str):
-        full_path = os.path.join(BASE_DIR, f"{fname}.{ext}")
-        if os.path.exists(full_path):
+        full_path = os.path.realpath(os.path.join(assets_root, f"{fname}.{ext}"))
+        # realpath + prefix test: `..` segments must not climb out of assets/.
+        if full_path.startswith(assets_root + os.sep) and os.path.isfile(full_path):
             return FileResponse(full_path)
+        return Response(status_code=404)
 
     return app, app.route
 
