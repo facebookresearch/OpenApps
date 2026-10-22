@@ -128,7 +128,6 @@ def Gallery(
     fade_in=False,
     random_tile_reoder: bool = False,
     has_descriptions: bool = False,
-    light_glyphs: bool = False,
     config=None,
 ):
     """
@@ -143,8 +142,6 @@ def Gallery(
             grid from icon-and-label tiles to wider cards, the way a store or
             settings listing lays out apps it describes -- a paragraph squeezed
             under a launcher icon is unreadable.
-        light_glyphs: The icons are black line art on a dark single fill (the
-            `bw` icon set under a non-light tone), so draw them inverted.
         config: Configuration dictionary with styling options
     """
     # Override defaults with config if provided
@@ -162,8 +159,6 @@ def Gallery(
         classes.append(size)
     if has_descriptions:
         classes.append("has-descriptions")
-    if light_glyphs:
-        classes.append("glyphs-light")
     if fade_in:
         classes.append("onscroll-fade-in")
     if config and config.get('item_hover_effect') is False:
@@ -428,9 +423,8 @@ LAUNCHER_CSS = """
         object-fit: contain;
         border-radius: 0;
     }
-    #wrapper .launcher.glyphs-light .tile-icon img {
-        filter: invert(1);
-    }
+    /* No dark-tone inversion: every icon carries its own tile with a white
+       glyph (scripts/build_app_icons.py), so it reads on any fill as is. */
 
     /* Label and description */
     #wrapper .launcher > .item h3 {

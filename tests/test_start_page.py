@@ -111,7 +111,7 @@ OWN_ICON = {"/todo": "todo", "/calendar": "calendar", "/messages": "messages",
 
 def test_default_icons_match_their_tiles(monkeypatch):
     for tile in tiles(render(monkeypatch)):
-        assert tile["icon"].endswith(f"/{OWN_ICON[tile['href']]}.png"), tile
+        assert tile["icon"].endswith(f"/{OWN_ICON[tile['href']]}.svg"), tile
 
 
 def test_broken_logos_detaches_icons_from_their_tiles(monkeypatch):
@@ -152,15 +152,46 @@ def test_light_themes_keep_one_fill_per_tile(monkeypatch):
     for theme in ("default", "solarized", "challenging_font"):
         markup = render(monkeypatch, f"apps/theme={theme}")
         assert len(set(fills(markup))) == len(EXPECTED_TILES), theme
-        assert "glyphs-light" not in markup
 
 
 @pytest.mark.parametrize("theme", ["dark", "mono"])
-def test_non_light_tones_collapse_the_fill_and_lighten_the_glyphs(monkeypatch, theme):
+def test_non_light_tones_collapse_the_fill(monkeypatch, theme):
     markup = render(monkeypatch, f"apps/theme={theme}")
     assert len(fills(markup)) == len(EXPECTED_TILES)
     assert len(set(fills(markup))) == 1
-    assert 'class="items launcher small glyphs-light"' in markup
+    # The icons carry their own tile and white glyph, so nothing inverts them.
+    assert 'class="items launcher small"' in markup
+
+
+ASSETS_DIR = Path(start_page.__file__).resolve().parents[1]
+ICON_KEYS = ("icon", "bw_icon", "user_icon", "group_icon")
+
+
+def test_every_configured_icon_is_a_real_svg():
+    """Each icon path in the app inventory resolves to a parseable SVG on disk.
+
+    The dock, title bar, app headers and gallery all take these paths straight
+    from config into an ``<img>``, so a missing or malformed file surfaces only
+    as a broken-image box in a screenshot -- exactly what an agent cannot tell
+    from a missing affordance.
+    """
+    import xml.etree.ElementTree as ET
+
+    apps = compose_apps().start_page.apps
+    paths = {app[key] for app in apps.values() for key in ICON_KEYS if app.get(key)}
+    assert paths, "no icons configured"
+    for url in sorted(paths):
+        assert url.endswith(".svg"), url
+        file = ASSETS_DIR / url.lstrip("/")
+        assert file.is_file(), f"{url} -> {file} missing"
+        root = ET.parse(file).getroot()
+        assert root.tag == "{http://www.w3.org/2000/svg}svg", url
+        # Intrinsic size, so an <img> sized on one axis only (the app header
+        # sets just `height`) keeps the square aspect.
+        assert root.get("viewBox") == "0 0 64 64", url
+        assert root.get("width") == root.get("height") == "64", url
+        # No external references: the eval nodes have no outbound network.
+        assert "http" not in file.read_text().replace("http://www.w3.org/2000/svg", ""), url
 
 
 def test_label_only_content_renders_no_empty_paragraphs(monkeypatch):
