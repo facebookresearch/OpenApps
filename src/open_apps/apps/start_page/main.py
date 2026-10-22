@@ -44,6 +44,9 @@ from open_apps.apps.availability import (  # noqa: F401
 )
 from starlette.responses import RedirectResponse
 
+from pathlib import PurePosixPath
+
+from open_apps.app_icons import app_glyph
 from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts
 from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from open_apps.ui.chrome import ChromeApp, chrome_parts
@@ -779,6 +782,11 @@ def render_desktop_shell(config):
             href=f"/{key}",
             app_key=key,
             pinned=key in pinned,
+            # The bare glyph behind the app's tile icon, found by the icon
+            # file's stem -- the same path the dock uses, so a content pack
+            # that repoints an icon repoints both. A custom icon with no glyph
+            # falls back to LauncherItem's generic one.
+            glyph=app_glyph(PurePosixPath(icon_for(cfg, key)).stem),
         )
         for key, cfg in apps
     ]

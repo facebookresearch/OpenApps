@@ -308,6 +308,26 @@ class TestDesktopShellIsUnchanged:
         )
 
 
+class TestLauncherGlyphs:
+    """Launcher rows show each app's own glyph, bare and in the text colour."""
+
+    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    def test_rows_carry_the_app_glyph_not_the_generic_grid(self, device):
+        markup = body(render(device, launcher_open=True))
+        glyphs = re.findall(r'<div class="ui-launcher-glyph">(.*?)</div>', markup, re.S)
+        assert glyphs, "launcher rendered no rows"
+        for glyph in glyphs:
+            assert 'viewBox="11 11 42 42"' in glyph
+            assert 'stroke="currentColor"' in glyph
+            assert "<img" not in glyph
+
+    def test_glyph_box_has_no_fill_and_follows_the_text_colour(self):
+        css = render("desktop", launcher_open=True)
+        rule = re.search(r"\.ui-launcher-glyph \{([^}]*)\}", css).group(1)
+        assert "background" not in rule
+        assert "color: var(--color-fg)" in rule
+
+
 class TestControlsDoNotDriftBetweenDevices:
     """Whatever the composition, the same things have to be actionable."""
 
