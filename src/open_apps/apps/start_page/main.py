@@ -710,11 +710,19 @@ def _phone_home(*, status_bar, widget, grid, dock):
     )
 
 
-def _desktop_composition(*, toolbar, widget, dock_row):
-    """The desktop composition: toolbar, centred headline, bottom-right dock."""
+def _desktop_composition(*, toolbar, widget):
+    """The desktop composition: toolbar over a wallpaper with a centred headline.
+
+    No app icons on the surface. A real desktop is not a launcher grid, and
+    the window chrome's dock (``open_apps.ui.chrome``) already draws every
+    pinned app along the bottom edge -- two rows of the same icons a few
+    hundred pixels apart was the least realistic thing on the page. Pinning
+    therefore means "keep in the dock", as it does on macOS, and an unpinned
+    app is reached through the launcher menu or the dock's all-apps panel.
+    """
     return (
         toolbar,
-        Div(widget, dock_row, cls="ui-desktop-surface"),
+        Div(widget, cls="ui-desktop-surface"),
     )
 
 
@@ -839,7 +847,6 @@ def render_desktop_shell(config):
         )
         body = (*body, LauncherSheet(*launcher_items, open=_desktop_state["launcher_open"]))
     else:
-        tiles = [tile(k, c, "shortcut") for k, c in apps if k in pinned]
         body = _desktop_composition(
             toolbar=Toolbar(
                 left=[launcher, Div(Wordmark(height=34), cls="ui-brand")],
@@ -849,12 +856,6 @@ def render_desktop_shell(config):
                 Text(headline, variant="title"),
                 cls="ui-desktop-headline",
                 data_testid="desktop-headline",
-            ),
-            dock_row=Div(
-                Div(*tiles, cls="ui-tile-dock", data_testid="desktop-tiles")
-                if tiles
-                else Text("Nothing pinned yet. Open the launcher to pin an app.", variant="caption"),
-                cls="ui-dock-row",
             ),
         )
 

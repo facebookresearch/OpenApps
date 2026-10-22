@@ -1885,7 +1885,13 @@ def start_page_shell_toolbar_contents(state, config, rng, **_):
 
 
 def start_page_shell_pinned_apps(state, config, rng, **_):
-    """What is on the desktop, and what is only behind the launcher.
+    """What is in the dock, and what is only behind the launcher.
+
+    The desktop draws no app icons of its own; pins are what the window
+    chrome's dock shows (``apps.chrome.dock.show: pinned``). A run that sets
+    ``dock.show=all`` or ``dock.exclude`` changes the dock without changing
+    the pins, and these questions do not model that -- regenerate with the
+    defaults.
 
     Which question is fair depends on the config. Everything is pinned by
     default, so "which app is pinned?" has no wrong answer to offer and is
@@ -1899,8 +1905,8 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
     desktop = config.get("desktop") or {}
     # Both sets come off the inventory, not the raw `apps:` block. The online
     # shop is listed there with a title but gated off globally, so building
-    # titles from the block would have made it the answer to "which app has no
-    # desktop shortcut" -- an app that is not on the page at all.
+    # titles from the block would have made it the answer to "which app is not
+    # in the dock" -- an app that is not on the page at all.
     inventory = _inventory_keys(config)
     # Not `desktop["pinned"]` -- that is `all` by default, and list("all") is
     # three letters. Resolution also subtracts `unpinned`.
@@ -1922,7 +1928,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
     )
     questions = [
         MCQuestion(
-            question="How many app shortcuts are on the desktop?",
+            question="How many apps are pinned to the dock?",
             choices=choices,
             correct=correct_letter,
             category="element_counting",
@@ -1939,7 +1945,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
         choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
         questions.append(
             MCQuestion(
-                question="Which of these apps has a shortcut pinned to the desktop?",
+                question="Which of these apps is pinned to the dock?",
                 choices=choices,
                 correct=correct_letter,
                 category="element_content",
@@ -1948,7 +1954,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
             )
         )
     # The inverse is the one that matters for a launcher task: naming the app
-    # with no shortcut is naming the app you have to open the menu to reach.
+    # with no dock icon is naming the app you have to open the menu to reach.
     if len(pinned) >= 3 and unpinned:
         for app_name in unpinned:
             distractors = rng.sample(pinned, 3)
@@ -1956,7 +1962,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
             questions.append(
                 MCQuestion(
                     question=(
-                        "Which of these apps has no desktop shortcut, so it can "
+                        "Which of these apps is not in the dock, so it can "
                         "only be opened from the launcher?"
                     ),
                     choices=choices,

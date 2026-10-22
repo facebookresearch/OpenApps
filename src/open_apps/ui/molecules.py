@@ -7,7 +7,7 @@ LICENSE file in the root directory of this source tree.
 Molecules -- atoms composed into recognisable UI pieces.
 
 These are the parts of the desktop shell: the toolbar and its chips, the
-launcher menu, a pinnable app row, a desktop shortcut.
+launcher menu, a pinnable app row, a home-screen icon.
 
 Two conventions matter here, both for the same reason -- this UI is scored by
 agents, not only looked at by people:
@@ -131,7 +131,9 @@ def AppTile(
     slot: str = "shortcut",
     cls: str = "",
 ):
-    """A shortcut on the desktop surface, or an icon on a phone home screen.
+    """An icon on a phone home screen: its grid (``shortcut``) or dock
+    (``favorite``). The desktop composition draws none -- see
+    ``_desktop_composition`` in the start page.
 
     ``accent`` is a token *name* (e.g. ``color-accent-pink``), not a colour.
     Passing a hex here would survive a theme swap unchanged and stand out as

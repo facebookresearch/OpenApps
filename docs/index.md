@@ -158,7 +158,7 @@ layout in play. Every app has `default`, plus:
 
 | App | Layouts | What changes |
 | --- | --- | --- |
-| `start_page` | `desktop` (default) | Toolbar, wallpaper and pinnable shortcuts; a home screen on a phone |
+| `start_page` | `desktop` (default) | Toolbar and wallpaper, pinned apps in the dock; a home screen on a phone |
 | | `gallery` | The original tile grid the paper's figures show |
 | | `broken_logos` | Gallery with icons detached from their tiles |
 | | `clickable_logos` | Gallery with tile logos as their own click targets |
@@ -179,8 +179,9 @@ The start page is the landing surface an agent sees first, so it carries the
 most:
 
 * **`desktop`** — the default. A toolbar (launcher, clock, weather, light/dark
-  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
-  it renders as a home screen instead; see [Devices](#devices).
+  toggle) over a generated wallpaper. No icons on the desktop itself: pinned
+  apps sit in the window chrome's dock along the bottom edge. On a phone it
+  renders as a home screen instead; see [Devices](#devices).
 * **`gallery`** — the original html5up tile grid: five coloured tiles under a
   "Welcome to OpenApps!" headline. Still a single override away, and it is what
   the paper's figures show.
@@ -194,13 +195,13 @@ left a popover showing.
 
 ##### Pinning, and making the agent use the launcher
 
-Every app is pinned by default (`pinned: all`), so each one has a shortcut on
-the desktop and the launcher is a convenience. The launcher only *tests*
+Every app is pinned by default (`pinned: all`), so each one has an icon in the
+dock and the launcher is a convenience. The launcher only *tests*
 anything once something the agent needs is behind it, and that is one
 override — name the few to hide rather than re-listing the many to keep:
 
 ```bash
-# OpenMessages has no shortcut; the only route to it is the launcher menu
+# OpenMessages is not in the dock; the route to it is the launcher menu
 uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
     apps.start_page.desktop.unpinned=[messages]
 

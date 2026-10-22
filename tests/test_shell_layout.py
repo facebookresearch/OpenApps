@@ -9,7 +9,7 @@ LICENSE file in the root directory of this source tree.
 Unit tests for the desktop shell's per-device compositions.
 
 The shell renders two different documents from one config: a desktop (toolbar,
-centred headline, shortcuts docked bottom-right) and a phone home screen
+centred headline, no app icons -- those are the chrome dock's job) and a phone home screen
 (status bar, wordmark widget, a grid of the apps that are *not* pinned, a dock
 holding the ones that are). Which one is chosen comes from the device's form
 factor via the layout's ``variants:`` map.
@@ -292,14 +292,14 @@ class TestTheAppsMenuOpens:
 
 class TestDesktopShellIsUnchanged:
 
-    def test_surface_holds_the_pinned_shortcuts(self):
-        ids = ids_in(render("desktop", pinned=("todo", "calendar")))
-        assert {"shortcut-opentodos", "shortcut-opencalendar"} <= ids
-        assert not any(i.startswith("favorite-") for i in ids)
-        assert "phone-dock" not in ids
-
-    def test_empty_state_survives(self):
-        assert "Nothing pinned yet" in render("desktop", pinned=())
+    def test_surface_draws_no_app_icons(self):
+        # Pinned apps live in the window chrome's dock; the desktop itself is
+        # wallpaper and headline only, whatever is pinned.
+        for pinned in (("todo", "calendar"), ()):
+            ids = ids_in(render("desktop", pinned=pinned))
+            assert not any(i.startswith(("shortcut-", "favorite-")) for i in ids)
+            assert "desktop-tiles" not in ids
+            assert "phone-dock" not in ids
 
     def test_the_launcher_stays_in_the_toolbar(self):
         markup = body(render("desktop"))
@@ -320,7 +320,6 @@ class TestControlsDoNotDriftBetweenDevices:
             "toolbar-clock",
             "toolbar-weather",
             "desktop-headline",
-            "desktop-tiles",
         } <= ids
 
     @pytest.mark.parametrize("device", ["desktop", "phone"])
