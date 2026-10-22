@@ -41,9 +41,9 @@ from open_apps.ui.chrome import AgentCursor, ChromeApp, Dock, TitleBar, chrome_p
 CONFIG_DIR = str((Path(__file__).resolve().parent.parent / "config").resolve())
 
 APPS = [
-    ChromeApp("todo", "OpenTodos", "/todo", "/assets/icons/real_icons/todo.png"),
-    ChromeApp("calendar", "OpenCalendar", "/calendar", "/assets/icons/real_icons/calendar.png"),
-    ChromeApp("maps", "OpenMaps", "/maps", "/assets/icons/real_icons/maps.png"),
+    ChromeApp("todo", "OpenTodos", "/todo", "/assets/icons/real_icons/todo.svg"),
+    ChromeApp("calendar", "OpenCalendar", "/calendar", "/assets/icons/real_icons/calendar.svg"),
+    ChromeApp("maps", "OpenMaps", "/maps", "/assets/icons/real_icons/maps.svg"),
 ]
 
 

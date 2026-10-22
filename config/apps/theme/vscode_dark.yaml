@@ -42,7 +42,7 @@ tokens:
 
 # App-agnostic hints each app maps onto its own concrete asset. Without these
 # the theme inherited the light/color defaults, which put a light CodeMirror
-# stylesheet (eclipse) on a #1e1e1e pane and colour PNG icons on dark chrome.
+# stylesheet (eclipse) on a #1e1e1e pane and colour icons on dark chrome.
 assets:
   tone: dark
   icon_set: bw

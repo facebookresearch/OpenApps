@@ -71,7 +71,7 @@ tokens:
 
 # App-agnostic hints each app maps onto its own concrete asset. Without these
 # the dark theme inherited the light/color defaults, leaving the code pane on a
-# light CodeMirror stylesheet and colour PNG icons on dark chrome.
+# light CodeMirror stylesheet and colour icons on dark chrome.
 assets:
   tone: dark
   icon_set: bw
