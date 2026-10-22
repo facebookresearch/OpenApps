@@ -26,6 +26,17 @@ tokens:
   font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. Okabe-Ito / IBM hues, darkened for AA on white; no red-green pair carries a distinction.
+  color-syntax-keyword: "#0072b2"
+  color-syntax-control: "#6447d6"
+  color-syntax-string: "#a84800"
+  color-syntax-number: "#b01d6b"
+  color-syntax-comment: "#5a5a5a"
+  color-syntax-function: "#7a5200"
+  color-syntax-type: "#007a5e"
+  color-syntax-property: "#004d80"
+  color-syntax-constant: "#b01d6b"
+  color-syntax-tag: "#6447d6"
 assets:
   tone: light
   icon_set: color

@@ -23,6 +23,17 @@ tokens:
   font-size-heading: "1.5rem"
   radius: "4px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. Material Lighter hues, darkened until each clears AA on white (the stock greens and ambers sit near 2:1).
+  color-syntax-keyword: "#7c4dff"
+  color-syntax-control: "#7c4dff"
+  color-syntax-string: "#5c7e1e"
+  color-syntax-number: "#c44a1f"
+  color-syntax-comment: "#78909c"
+  color-syntax-function: "#4a6ba8"
+  color-syntax-type: "#946000"
+  color-syntax-property: "#d32f2f"
+  color-syntax-constant: "#c44a1f"
+  color-syntax-tag: "#d32f2f"
 assets:
   tone: light
   icon_set: color
