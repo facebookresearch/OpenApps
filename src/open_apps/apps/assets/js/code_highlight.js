@@ -441,7 +441,7 @@
             m = /^&[#\w]+;/.exec(rest);
             if (m) { out.push('constant', m[0]); i += m[0].length; continue; }
             var next = rest.search(/[<&]/);
-            var text = next <= 0 ? rest.charAt(0) : rest.slice(0, next);
+            var text = next < 0 ? rest : (next === 0 ? rest.charAt(0) : rest.slice(0, next));
             out.push(null, text);
             i += text.length;
         }
