@@ -1,6 +1,7 @@
 # @package apps.start_page
-# Desktop-shell landing page: a toolbar, a launcher menu and pinnable
-# shortcuts, in place of the tile gallery.
+# Desktop-shell landing page: a toolbar, a launcher menu and a wallpaper, in
+# place of the tile gallery. No icons on the desktop itself -- pinned apps live
+# in the window chrome's dock (config/apps/chrome/).
 #
 # Select with `apps/start_page/layout=desktop`. Pair with `apps/theme=meta`
 # (or meta_dark) for the Meta-branded palette.
@@ -20,7 +21,7 @@ layout: desktop
 
 desktop:
   # Composition per device form factor (see config/device/). `shell` is the
-  # desktop: toolbar, centred headline, shortcuts docked bottom-right.
+  # desktop: toolbar, centred headline, and the chrome's dock along the bottom.
   # `home_screen` is the phone: status bar, wordmark widget, a grid of the apps
   # that are NOT pinned, and a dock holding the ones that are.
   #
@@ -58,15 +59,16 @@ desktop:
   # Initial temperature units: celsius | fahrenheit. Also mutable at runtime by
   # clicking the toolbar temperature, and also scoreable.
   units: "celsius"
-  # App keys pinned to the desktop on first load. Also mutable at runtime, and
-  # scoreable -- /desktop_all reports the list.
+  # App keys pinned to the dock on first load (the chrome's `dock.show: pinned`
+  # reads this list). Also mutable at runtime from the launcher, and scoreable
+  # -- /desktop_all reports the list.
   #
   # `all` expands to every enabled app in `apps:` above, so adding an app does
-  # not silently leave it off the desktop. A list of keys works too.
+  # not silently leave it out of the dock. A list of keys works too.
   pinned: all
   # Subtracted from `pinned`. This is the knob for launcher experiments: an
-  # unpinned app has no shortcut on the desktop, so the only way to it is
-  # through the launcher menu. Naming the few you want hidden beats re-listing
+  # unpinned app has no dock icon, so the only ways to it are the launcher
+  # menu and the dock's all-apps panel. Naming the few you want hidden beats re-listing
   # every one you still want shown.
   #
   #   uv run launch.py apps.start_page.desktop.unpinned=[messages,maps]

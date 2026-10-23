@@ -598,6 +598,103 @@ class TestAccountNumbers:
         assert client.get("/openbanking_all").json() == before
 
 
+class TestCopyButtons:
+    """Icon-and-text Copy controls beside the account, routing and card numbers.
+
+    The number itself never ships in the markup -- the click fetches it -- so
+    the click-to-reveal contract above survives for agents reading the HTML.
+    """
+
+    def test_deposit_account_offers_both_copies(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert 'data-testid="copy-account-number"' in html
+        assert 'data-testid="copy-routing-number"' in html
+        assert 'data-copy-url="/openbanking/accounts/0/copy/account"' in html
+        assert 'data-copy-url="/openbanking/accounts/0/copy/routing"' in html
+
+    def test_buttons_carry_a_visible_caption_and_an_accessible_name(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert '<span aria-live="polite" class="ob-copy-text">Copy</span>' in html
+        assert 'aria-label="Copy: Account number"' in html
+        assert 'aria-label="Copy: Routing number"' in html
+
+    def test_the_numbers_stay_out_of_the_markup(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert "447109255555" not in html
+        assert "123456789" not in html
+
+    def test_copy_survives_the_reveal_swap(self, client):
+        html = client.get("/openbanking/accounts/0/numbers?account=1&routing=0").text
+        assert html.count('class="ob-copy"') == 2
+
+    def test_card_face_offers_a_card_number_copy(self, client):
+        card_id = next(
+            a["id"] for a in client.get("/openbanking_all").json()["accounts"]
+            if a["kind"] == "credit_card"
+        )
+        html = client.get(f"/openbanking/accounts/{card_id}").text
+        face = html[html.index('id="ob-cardface"'):]
+        assert 'data-testid="copy-card-number"' in face
+        assert 'data-testid="copy-routing-number"' not in html
+
+    def test_copy_route_returns_the_bare_digits(self, client):
+        accounts = client.get("/openbanking_all").json()["accounts"]
+        deposit = next(a for a in accounts if a["kind"] == "deposit")
+        card = next(a for a in accounts if a["kind"] == "credit_card")
+        for path, expected in [
+            (f"/openbanking/accounts/{deposit['id']}/copy/account", deposit["account_number"]),
+            (f"/openbanking/accounts/{deposit['id']}/copy/routing", deposit["routing_number"]),
+            (f"/openbanking/accounts/{card['id']}/copy/card", card["account_number"]),
+        ]:
+            response = client.get(path)
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("text/plain")
+            assert response.text == expected
+
+    @pytest.mark.parametrize("path", [
+        "/openbanking/accounts/999/copy/account",
+        "/openbanking/accounts/0/copy/card",
+        "/openbanking/accounts/0/copy/cvv",
+    ])
+    def test_copy_route_refuses_what_does_not_exist(self, client, path):
+        assert client.get(path).status_code == 404
+
+    def test_copying_does_not_mutate_state(self, client):
+        before = client.get("/openbanking_all").json()
+        client.get("/openbanking/accounts/0/copy/account")
+        client.get("/openbanking/accounts/0/copy/routing")
+        assert client.get("/openbanking_all").json() == before
+
+    @pytest.mark.parametrize("variant,caption", [("german", "Kopieren"), ("mandarin", "复制")])
+    def test_captions_are_translated(self, tmp_path, variant, caption):
+        cfg = _compose(tmp_path, [f"apps/openbanking/content={variant}"])
+        assert cfg.apps.openbanking.copy_label == caption
+
+
+class TestAccountRowsAreLinks:
+    """Opening an account is a full page load, so the window chrome comes too.
+
+    The rows used to `hx-get` the account page into `body`; the chrome
+    middleware passes htmx requests through undecorated, so the title bar and
+    dock vanished as soon as an account was opened.
+    """
+
+    def test_rows_are_anchors_to_the_account_page(self, client):
+        html = client.get("/openbanking").text
+        for account in client.get("/openbanking_all").json()["accounts"]:
+            assert re.search(
+                rf'<a href="/openbanking/accounts/{account["id"]}"[^>]*class="ob-account-row"'
+                rf'|<a [^>]*class="ob-account-row"[^>]*href="/openbanking/accounts/{account["id"]}"',
+                html,
+            )
+        assert 'hx-target="body"' not in html
+
+    def test_account_page_carries_the_window_chrome(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert 'id="oa-titlebar"' in html
+        assert 'id="oa-dock"' in html
+
+
 class TestMasthead:
     """The bar carries no control that swallows a click.
 

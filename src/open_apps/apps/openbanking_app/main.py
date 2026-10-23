@@ -34,6 +34,7 @@ from typing import List, Optional
 from urllib.parse import urlencode
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.icons import Icon, icon
 from open_apps.theme import theme_asset, theme_style
 
 
@@ -255,6 +256,40 @@ styles = Style("""
         cursor: pointer;
     }
     .ob-number-toggle:hover { text-decoration: none; opacity: 0.8; }
+    .ob-number-line { display: flex; align-items: center; gap: 0.6rem; }
+
+    /* Copy: a quiet secondary control beside the figure it copies. Outlined
+       in the border token so it reads as a button without competing with the
+       link-coloured figure; the check and "Copied" replace the glyph and
+       caption in place rather than adding a toast somewhere else. */
+    .ob-copy {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        width: auto;
+        margin: 0;
+        padding: 0.15rem 0.55rem 0.15rem 0.45rem;
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--color-muted);
+        font-family: inherit;
+        font-size: 0.8rem;
+        font-weight: 500;
+        line-height: 1.4;
+        cursor: pointer;
+    }
+    .ob-copy:hover { color: var(--color-fg); border-color: var(--color-muted); }
+    /* Pico's focus glow is sized for full-width form buttons; on a pill this
+       small it reads as a second border. Keyboard focus keeps a ring. */
+    .ob-copy:focus { box-shadow: none; }
+    .ob-copy:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .ob-copy-icon { display: inline-flex; }
+    .ob-copy-done { display: none; }
+    .ob-copy[data-state="copied"] { color: var(--color-accent); border-color: currentColor; }
+    .ob-copy[data-state="copied"] .ob-copy-idle { display: none; }
+    .ob-copy[data-state="copied"] .ob-copy-done { display: inline-flex; }
+    .ob-copy[data-state="failed"] { color: var(--color-danger); border-color: currentColor; }
     .ob-figures { display: flex; gap: 4rem; flex-wrap: wrap; }
     .ob-figure-value { font-weight: 600; }
     .ob-figure-label { color: var(--color-muted); }
@@ -364,10 +399,28 @@ styles = Style("""
     }
     .ob-cardface-toggle:hover { opacity: 0.75; }
     .ob-cardface-spacer { flex: 1 1 auto; }
+    .ob-cardface-number-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+    /* On the card the copy control takes the card's own ink, like the
+       disclosure toggle in the corner, rather than the page's muted grey. */
+    .ob-copy.ob-copy-on-card,
+    .ob-copy.ob-copy-on-card:hover,
+    .ob-copy.ob-copy-on-card[data-state] {
+        color: var(--color-on-primary);
+        border-color: color-mix(in srgb, var(--color-on-primary) 55%, transparent);
+    }
+    .ob-copy.ob-copy-on-card:hover { border-color: var(--color-on-primary); }
+    .ob-copy.ob-copy-on-card { flex: none; font-size: 0.75rem; padding: 0.1rem 0.5rem 0.1rem 0.4rem; }
+    /* Sized so the sixteen digits and the Copy pill share one line inside
+       the 21rem card, masked or revealed. */
     .ob-cardface-number {
         font-family: var(--font-mono);
-        font-size: 1.15rem;
-        letter-spacing: 0.12em;
+        font-size: 1.05rem;
+        letter-spacing: 0.1em;
         white-space: nowrap;
     }
     .ob-cardface-foot {
@@ -406,6 +459,9 @@ styles = Style("""
         padding: 1rem 0;
     }
     .ob-account-row:last-child { border-bottom: none; }
+    /* The rows are links; keep them reading as rows, not as blue text. */
+    a.ob-account-row, a.ob-account-row:hover { color: inherit; text-decoration: none; }
+    a.ob-account-row:hover .ob-account-name-cell { text-decoration: underline; }
     .ob-empty { color: var(--color-muted); padding: 1rem 0; }
 """)
 
@@ -982,18 +1038,55 @@ def number_row(account: Account, kind: str, revealed: bool, other_revealed: bool
     query = f"account={int(flags['account'])}&routing={int(flags['routing'])}"
     return Div(
         Div(label, cls="ob-figure-label"),
-        Button(
-            value if revealed else mask_number(value),
-            type="button",
-            cls="ob-number-toggle",
-            title=c.hide_number_label if revealed else c.show_number_label,
-            aria_expanded="true" if revealed else "false",
-            hx_get=f"/openbanking/accounts/{account.id}/numbers?{query}",
-            hx_target="#ob-numbers",
-            hx_swap="outerHTML",
+        Div(
+            Button(
+                value if revealed else mask_number(value),
+                type="button",
+                cls="ob-number-toggle",
+                title=c.hide_number_label if revealed else c.show_number_label,
+                aria_expanded="true" if revealed else "false",
+                hx_get=f"/openbanking/accounts/{account.id}/numbers?{query}",
+                hx_target="#ob-numbers",
+                hx_swap="outerHTML",
+            ),
+            copy_button(account, kind, label),
+            cls="ob-number-line",
         ),
         id=f"ob-number-{kind}",
         cls="ob-number-row",
+    )
+
+
+def copy_button(account: Account, kind: str, label: str, cls: str = ""):
+    """An icon-and-text "Copy" control for one of the account's numbers.
+
+    It copies the *full* number whether or not the figure beside it is
+    revealed -- that is what a bank's copy button does, and it is the useful
+    half of the pair: reading a masked number back is a two-step disclosure,
+    pasting it into the shop's checkout is one click.
+
+    The number is not in the markup. Putting it in a ``data-`` attribute would
+    hand it to any agent observing the HTML and quietly void the click-to-
+    reveal contract above, so the click fetches it from
+    ``/openbanking/accounts/{id}/copy/{kind}`` instead -- a read, like the
+    reveal, and just as invisible to ``/openbanking_all``.
+    """
+    c = cfg()
+    return Button(
+        Span(icon(Icon.COPY, size=14), cls="ob-copy-icon ob-copy-idle"),
+        Span(icon(Icon.CHECK, size=14), cls="ob-copy-icon ob-copy-done"),
+        # Polite live region, so the swap to "Copied" is announced -- the
+        # only feedback a screen-reader user (or an a11y-tree agent) gets.
+        Span(c.copy_label, cls="ob-copy-text", aria_live="polite"),
+        type="button",
+        cls=f"ob-copy {cls}".strip(),
+        title=f"{c.copy_label}: {label}",
+        aria_label=f"{c.copy_label}: {label}",
+        data_copy_url=f"/openbanking/accounts/{account.id}/copy/{kind}",
+        data_copy_label=c.copy_label,
+        data_copied_label=c.copied_label,
+        data_copy_failed_label=c.copy_failed_label,
+        data_testid=f"copy-{kind}-number",
     )
 
 
@@ -1035,8 +1128,12 @@ def card_face(account: Account, revealed: bool = False):
         _CHIP_SVG,
         Span(cls="ob-cardface-spacer"),
         Div(
-            group_card_number(account.account_number, revealed),
-            cls="ob-cardface-number",
+            Div(
+                group_card_number(account.account_number, revealed),
+                cls="ob-cardface-number",
+            ),
+            copy_button(account, "card", c.card_number_label, cls="ob-copy-on-card"),
+            cls="ob-cardface-number-line",
         ),
         Div(
             Div(
@@ -1301,6 +1398,75 @@ def transactions_panel(
     )
 
 
+# One delegated listener for every Copy button, so buttons that arrive in an
+# htmx swap (the number panel, the card face) work without re-binding.
+#
+# The clipboard write is attempted three ways because each fails somewhere:
+# `ClipboardItem` with a promise keeps the user activation alive across the
+# fetch (Safari requires that shape); plain `writeText` after the fetch covers
+# Chromium builds without promise-valued ClipboardItems; and the textarea +
+# `execCommand('copy')` fallback is what still works in a headless browser
+# with no clipboard permission granted -- the case an eval run is in.
+_COPY_SCRIPT = Script("""
+(function () {
+    if (window.obCopyBound) { return; }
+    window.obCopyBound = true;
+
+    function legacyCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        ta.remove();
+        return ok;
+    }
+
+    function settle(btn, ok) {
+        var text = btn.querySelector('.ob-copy-text');
+        btn.dataset.state = ok ? 'copied' : 'failed';
+        text.textContent = ok ? btn.dataset.copiedLabel : btn.dataset.copyFailedLabel;
+        clearTimeout(btn.obCopyTimer);
+        btn.obCopyTimer = setTimeout(function () {
+            delete btn.dataset.state;
+            text.textContent = btn.dataset.copyLabel;
+        }, 1800);
+    }
+
+    document.addEventListener('click', function (event) {
+        var btn = event.target.closest('.ob-copy');
+        if (!btn) { return; }
+        event.preventDefault();
+        var text = fetch(btn.dataset.copyUrl).then(function (r) {
+            if (!r.ok) { throw new Error('copy source ' + r.status); }
+            return r.text();
+        });
+        var write;
+        if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+            write = navigator.clipboard.write([new ClipboardItem({
+                'text/plain': text.then(function (t) { return new Blob([t], {type: 'text/plain'}); })
+            })]);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            write = text.then(function (t) { return navigator.clipboard.writeText(t); });
+        } else {
+            write = Promise.reject(new Error('no async clipboard'));
+        }
+        write.then(function () { settle(btn, true); }, function () {
+            text.then(function (t) {
+                var ok = legacyCopy(t);
+                btn.focus();
+                settle(btn, ok);
+            }, function () { settle(btn, false); });
+        });
+    });
+})();
+""")
+
+
 def page(*content):
     return Div(
         openbanking_theme(),
@@ -1310,6 +1476,7 @@ def page(*content):
         # Empty until the masthead CTA is clicked; the swap target has to exist
         # on every page because the CTA sits in the bar on every page.
         open_account_dialog(),
+        _COPY_SCRIPT,
         cls="ob-root",
         data_theme=pico_theme(),
     )
@@ -1325,10 +1492,16 @@ def openbanking_index():
     # A card's `available_balance` is 0.00, so listing it under "Available
     # balance" would tell the agent nothing and imply the card is empty. Cards
     # show what is owed instead.
+    # Each row is a plain link, not an htmx swap. It used to `hx-get` the
+    # account page into `body`, and the window chrome is spliced in only on
+    # full-page loads (open_apps.chrome_middleware passes htmx requests
+    # through), so opening an account silently dropped the title bar and the
+    # dock for the rest of the visit. A link is also what a bank's account
+    # list is: middle-clickable, and announced as one in the a11y tree.
     rows = [
-        Div(
+        A(
             Div(
-                Div(account.name, style="font-weight: 600;"),
+                Div(account.name, cls="ob-account-name-cell", style="font-weight: 600;"),
                 Div(account.holder, cls="ob-figure-label"),
             ),
             Div(
@@ -1349,10 +1522,7 @@ def openbanking_index():
             ),
             cls="ob-account-row",
             id=f"account-{account.id}",
-            hx_get=f"/openbanking/accounts/{account.id}",
-            hx_push_url="true",
-            hx_target="body",
-            style="cursor: pointer;",
+            href=f"/openbanking/accounts/{account.id}",
         )
         for account in account_rows()
     ]
@@ -1442,6 +1612,28 @@ def openbanking_account_numbers(account_id: int, account: int = 0, routing: int 
         # swap replaces the card face and the `routing` flag is meaningless.
         return card_face(acct, bool(account))
     return number_panel(acct, bool(account), bool(routing))
+
+
+@rt("/openbanking/accounts/{account_id}/copy/{kind}")
+def openbanking_copy_number(account_id: int, kind: str):
+    """The full number a Copy button puts on the clipboard, as plain text.
+
+    Digits only, no grouping, so it pastes cleanly into a form field. A read
+    with no side effect, like the reveal partial: ``/openbanking_all`` stays
+    byte-identical however often it is hit. Unknown accounts and kinds 404
+    rather than return an empty string that would paste as nothing.
+    """
+    acct = get_account(account_id)
+    if acct is None:
+        return Response("", status_code=404)
+    value = {
+        "account": acct.account_number,
+        "card": acct.account_number if acct.is_card else None,
+        "routing": None if acct.is_card else acct.routing_number,
+    }.get(kind)
+    if not value:
+        return Response("", status_code=404)
+    return Response(str(value), media_type="text/plain")
 
 
 @rt("/openbanking/open-account")

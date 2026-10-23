@@ -9,7 +9,7 @@ LICENSE file in the root directory of this source tree.
 Unit tests for the desktop shell's per-device compositions.
 
 The shell renders two different documents from one config: a desktop (toolbar,
-centred headline, shortcuts docked bottom-right) and a phone home screen
+centred headline, no app icons -- those are the chrome dock's job) and a phone home screen
 (status bar, wordmark widget, a grid of the apps that are *not* pinned, a dock
 holding the ones that are). Which one is chosen comes from the device's form
 factor via the layout's ``variants:`` map.
@@ -292,20 +292,40 @@ class TestTheAppsMenuOpens:
 
 class TestDesktopShellIsUnchanged:
 
-    def test_surface_holds_the_pinned_shortcuts(self):
-        ids = ids_in(render("desktop", pinned=("todo", "calendar")))
-        assert {"shortcut-opentodos", "shortcut-opencalendar"} <= ids
-        assert not any(i.startswith("favorite-") for i in ids)
-        assert "phone-dock" not in ids
-
-    def test_empty_state_survives(self):
-        assert "Nothing pinned yet" in render("desktop", pinned=())
+    def test_surface_draws_no_app_icons(self):
+        # Pinned apps live in the window chrome's dock; the desktop itself is
+        # wallpaper and headline only, whatever is pinned.
+        for pinned in (("todo", "calendar"), ()):
+            ids = ids_in(render("desktop", pinned=pinned))
+            assert not any(i.startswith(("shortcut-", "favorite-")) for i in ids)
+            assert "desktop-tiles" not in ids
+            assert "phone-dock" not in ids
 
     def test_the_launcher_stays_in_the_toolbar(self):
         markup = body(render("desktop"))
         assert markup.index('data-testid="launcher-button"') < markup.index(
             'class="ui-desktop-surface"'
         )
+
+
+class TestLauncherGlyphs:
+    """Launcher rows show each app's own glyph, bare and in the text colour."""
+
+    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    def test_rows_carry_the_app_glyph_not_the_generic_grid(self, device):
+        markup = body(render(device, launcher_open=True))
+        glyphs = re.findall(r'<div class="ui-launcher-glyph">(.*?)</div>', markup, re.S)
+        assert glyphs, "launcher rendered no rows"
+        for glyph in glyphs:
+            assert 'viewBox="11 11 42 42"' in glyph
+            assert 'stroke="currentColor"' in glyph
+            assert "<img" not in glyph
+
+    def test_glyph_box_has_no_fill_and_follows_the_text_colour(self):
+        css = render("desktop", launcher_open=True)
+        rule = re.search(r"\.ui-launcher-glyph \{([^}]*)\}", css).group(1)
+        assert "background" not in rule
+        assert "color: var(--color-fg)" in rule
 
 
 class TestControlsDoNotDriftBetweenDevices:
@@ -320,7 +340,6 @@ class TestControlsDoNotDriftBetweenDevices:
             "toolbar-clock",
             "toolbar-weather",
             "desktop-headline",
-            "desktop-tiles",
         } <= ids
 
     @pytest.mark.parametrize("device", ["desktop", "phone"])
