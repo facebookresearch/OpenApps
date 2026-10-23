@@ -241,3 +241,21 @@ def test_tile_layout_also_covers_the_wrapper_main_js_injects():
         "#wrapper .launcher.has-descriptions > .item, "
         "#wrapper .launcher.has-descriptions > .item > .inner {"
     ) in css
+
+
+@pytest.mark.parametrize(
+    "pack",
+    sorted(p.stem for p in (Path(__file__).parent.parent / "config/apps/start_page/content").glob("*.yaml")),
+)
+def test_every_content_pack_titles_every_app(pack):
+    """A start-page content pack that omits an app leaves its `title` unset,
+    and the app then fails to register its routes at all -- the UI Library
+    404'd under `long_descriptions`, `misleading_descriptions` and
+    `adversarial_descriptions` this way, silently."""
+    from hydra import compose, initialize
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=[f"apps/start_page/content={pack}"])
+    apps = config.apps.start_page.apps
+    missing = [key for key in apps if not apps[key].get("title")]
+    assert not missing, f"{pack} has no title for {missing}"
