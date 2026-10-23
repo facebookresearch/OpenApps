@@ -49,7 +49,7 @@ from pathlib import PurePosixPath
 from open_apps.app_icons import app_glyph
 from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts
 from open_apps.theme import render_theme_css, resolve_theme, theme_asset
-from open_apps.ui.chrome import ChromeApp, chrome_parts
+from open_apps.ui.chrome import ChromeApp, chrome_parts, configured_dock, dock_shown
 
 
 def icon_for(app_config, app_name):
@@ -906,7 +906,9 @@ def toggle_pin(app_key: str):
             pinned.remove(app_key)
         else:
             pinned.append(app_key)
-    return render_desktop_shell(app.config.start_page)
+    shell = render_desktop_shell(app.config.start_page)
+    dock = _desktop_dock_oob()
+    return (shell, dock) if dock is not None else shell
 
 
 @rt("/desktop/units", methods=["POST"])
@@ -977,17 +979,51 @@ def _docked_keys(dock_cfg: dict, apps: list[ChromeApp]) -> list[str]:
     return [k for k in keys if k not in excluded]
 
 
+def _chrome_config() -> dict | None:
+    """``apps.chrome`` as a plain dict, or ``None`` when the chrome is off."""
+    chrome_cfg = getattr(getattr(app, "config", None), "chrome", None)
+    if chrome_cfg is None:
+        return None
+    cfg = OmegaConf.to_container(chrome_cfg, resolve=True) if OmegaConf.is_config(chrome_cfg) else dict(chrome_cfg)
+    return cfg if cfg.get("enabled", True) else None
+
+
+def _desktop_dock_oob():
+    """A fresh dock for the desktop, marked for an htmx out-of-band swap.
+
+    The dock is the desktop's pinned-app list -- the surface draws no icons of
+    its own -- but it lives in the chrome layer, outside ``#desktop-shell``,
+    and ChromeMiddleware decorates full-page GETs only. So a control that
+    changes the pins has to send the dock back alongside the shell, or
+    unpinning would leave the icon showing until the next navigation.
+    ``None`` when the desktop draws no dock (chrome off, ``on_start_page``
+    off, or the phone home screen, which has its own).
+    """
+    cfg = _chrome_config()
+    if cfg is None or _configured_variant(app.config) == "home_screen":
+        return None
+    if not dock_shown(cfg, current=None, form_factor=device.form_factor(app.config)):
+        return None
+    apps = _chrome_apps()
+    dock = configured_dock(
+        cfg,
+        apps=apps,
+        current=None,
+        docked=_docked_keys(cfg.get("dock") or {}, apps),
+        running=list(_chrome_state["running"]),
+    )
+    dock.attrs["hx-swap-oob"] = "true"
+    return dock
+
+
 def render_chrome(path: str) -> ChromeParts | None:
     """The chrome for one page. Called by ChromeMiddleware on every full-page GET.
 
     Opening an app page marks it running -- the only side effect, and the
     reason this is not a pure function of config.
     """
-    chrome_cfg = getattr(getattr(app, "config", None), "chrome", None)
-    if chrome_cfg is None:
-        return None
-    cfg = OmegaConf.to_container(chrome_cfg, resolve=True) if OmegaConf.is_config(chrome_cfg) else dict(chrome_cfg)
-    if not cfg.get("enabled", True):
+    cfg = _chrome_config()
+    if cfg is None:
         return None
 
     apps = _chrome_apps()

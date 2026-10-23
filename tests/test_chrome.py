@@ -375,6 +375,57 @@ def test_dock_follows_desktop_pins_and_exclusions(client, chrome_state):
         start_page._desktop_state["pinned"] = saved
 
 
+def _oob_dock(markup: str) -> str:
+    """The out-of-band dock in a pin response, up to its all-apps panel."""
+    start = markup.index('id="oa-dock"')
+    nav_open = markup.rindex("<nav", 0, start)
+    assert 'hx-swap-oob="true"' in markup[nav_open:start + 200]
+    return markup[nav_open:markup.index('id="oa-dock-panel"', start)]
+
+
+def test_pin_toggle_swaps_a_fresh_dock_in_alongside_the_shell(client, chrome_state):
+    """The dock is the desktop's pinned list, and it sits outside
+    #desktop-shell, so a pin change has to send it back out of band --
+    otherwise unpinning leaves the icon in the dock until a reload."""
+    from open_apps.apps.start_page import main as start_page
+
+    saved = list(start_page._desktop_state["pinned"])
+    try:
+        start_page._desktop_state["pinned"] = ["todo", "calendar"]
+        unpinned = client.post("/desktop/pin/todo", headers={"HX-Request": "true"}).text
+        assert 'id="desktop-shell"' in unpinned
+        dock = _oob_dock(unpinned)
+        assert "dock-calendar" in dock and "dock-todo" not in dock
+
+        pinned = client.post("/desktop/pin/maps", headers={"HX-Request": "true"}).text
+        dock = _oob_dock(pinned)
+        assert "dock-calendar" in dock and "dock-maps" in dock
+        # Renumbered with the pins: the shortcut follows the item, not the slot.
+        assert re.search(r'aria-keyshortcuts="Alt\+2"[^>]*data-testid="dock-maps"', dock)
+    finally:
+        start_page._desktop_state["pinned"] = saved
+
+
+def test_pin_toggle_sends_no_dock_when_the_desktop_draws_none(client, chrome_state, monkeypatch):
+    from open_apps.apps.start_page import main as start_page
+
+    monkeypatch.setattr(start_page, "_chrome_config", lambda: None)
+    response = client.post("/desktop/pin/todo", headers={"HX-Request": "true"}).text
+    client.post("/desktop/pin/todo", headers={"HX-Request": "true"})  # restore the pin
+    assert 'id="desktop-shell"' in response and 'id="oa-dock"' not in response
+
+
+def test_dock_script_binds_by_delegation_not_to_load_time_elements():
+    """A swapped-in dock must work without re-binding: the all-apps button
+    and the Alt+N shortcuts are resolved per event, never captured at load."""
+    from open_apps.ui.chrome import chrome_js
+
+    js = chrome_js()
+    assert "initLauncher();" in js and "initShortcuts();" in js
+    assert "new Map()" not in js  # the old load-time shortcut table
+    assert 'document.getElementById("oa-dock")' in js[js.index("function initShortcuts"):]
+
+
 @pytest.mark.parametrize("route", ["/", *APP_PAGES, "/codeeditor/script.py"])
 def test_no_page_falls_back_to_fastHTML_page_title(client, route):
     # Not chrome, but checked here because this module already stands up the
