@@ -1016,8 +1016,12 @@ def _files_ready() -> bool:
     return True
 
 
-def write_receipt(order) -> str | None:
+def write_receipt(order, *, dated_by_order: bool = False) -> str | None:
     """Save the order's receipt into Files; returns its path.
+
+    A seeded order's receipt is dated by the order (``dated_by_order``); one
+    written at checkout gets the store's pinned today, like any new file --
+    the order row itself carries the wall-clock checkout time.
 
     Idempotent: a receipt already there with these bytes is left alone, so
     re-seeding the shop over a store the Files app didn't reset doesn't grow
@@ -1029,7 +1033,10 @@ def write_receipt(order) -> str | None:
     path = receipt_path(order.order_id)
     if files_store.exists(path) and files_store.read(path) == data:
         return path
-    return files_store.save(RECEIPTS_FOLDER, receipt_name(order.order_id), data)
+    return files_store.save(
+        RECEIPTS_FOLDER, receipt_name(order.order_id), data,
+        modified=order.date if dated_by_order else None,
+    )
 
 
 def seed_receipts():
@@ -1037,7 +1044,7 @@ def seed_receipts():
     re-seed empties the store: a full reset re-runs the shop after Files,
     and anything resetting Files alone calls this to put receipts back."""
     for order in orders():
-        write_receipt(order)
+        write_receipt(order, dated_by_order=True)
 
 
 def set_environment(config):

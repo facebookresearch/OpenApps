@@ -208,6 +208,13 @@ class TestDownload:
         assert f'href="/files/view/{quote(self.PATH)}"' in response.text
         assert client.get("/openbanking_all").text == before
 
+    def test_a_download_is_dated_by_the_worlds_today(self, client):
+        import datetime
+
+        client.post(f"/openbanking/accounts/{SAVINGS}/statements/2026-07/download")
+        stamp = files_store.resolve(self.PATH).stat().st_mtime
+        assert datetime.date.fromtimestamp(stamp).isoformat() == str(app.config.files.today)
+
     def test_downloading_again_keeps_one_copy(self, client):
         for _ in range(2):
             client.post(f"/openbanking/accounts/{SAVINGS}/statements/2026-07/download")

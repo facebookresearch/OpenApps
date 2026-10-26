@@ -168,6 +168,32 @@ class TestRaw:
         response = client.get(url("/files/raw", REPORT) + "?download=1")
         assert response.headers["content-disposition"].startswith("attachment")
 
+    @pytest.mark.parametrize(
+        "name,body", [("evil.html", b"<script>alert(1)</script>"), ("x.js", b"alert(1)"), ("x.css", b"*{}")]
+    )
+    def test_active_content_is_served_as_text(self, fresh, name, body):
+        """Every app shares one origin, so an HTML file opened from Files
+        could script the bank or the messenger and corrupt scored state."""
+        fresh.post("/files/upload", data={"folder": "Downloads"}, files={"file": (name, body, "text/html")})
+        response = fresh.get(url("/files/raw", f"Downloads/{name}"))
+        assert response.headers["content-type"].startswith("text/plain")
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert "sandbox" in response.headers["content-security-policy"]
+
+    def test_svg_stays_an_image_but_cannot_script(self, fresh):
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        fresh.post("/files/upload", data={"folder": "Downloads"}, files={"file": ("x.svg", svg, "image/svg+xml")})
+        response = fresh.get(url("/files/raw", "Downloads/x.svg"))
+        assert response.headers["content-type"].startswith("image/svg+xml")
+        assert "sandbox" in response.headers["content-security-policy"]
+
+    def test_pdf_is_not_sandboxed(self, client):
+        """Chrome refuses to show a PDF in a sandboxed document, which would
+        break Open in new tab."""
+        response = client.get(url("/files/raw", REPORT))
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert "content-security-policy" not in response.headers
+
     @pytest.mark.parametrize("path", ["../config.yaml", ".trash/x", "Documents/../../etc/passwd"])
     def test_escapes_are_refused(self, client, path):
         assert client.get(f"/files/raw/{path}").status_code == 404

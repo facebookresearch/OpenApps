@@ -346,13 +346,25 @@ def _chat(*replies):
 class TestAnswer:
     @pytest.mark.parametrize(
         "reply",
-        ["You paid $99.90 for it.", "99.90", "It was 99.9 dollars", "USD 99.90, on the card ending 2043"],
+        [
+            "You paid $99.90 for it.", "99.90", "It was 99.9 dollars",
+            "USD 99.90, on the card ending 2043", "Sie haben 99,90 € bezahlt.",
+            "It was $99.90, ordered on 2026-06-12.",
+        ],
     )
     def test_right_answer_passes(self, client, fresh, reply):
         task, initial = _task("label_printer_price"), fresh()
         assert task.check_reply(task.reply(_chat(reply)), initial, fresh())
 
-    @pytest.mark.parametrize("reply", ["$877.80", "about a hundred dollars", "$199.90", "9.90"])
+    @pytest.mark.parametrize(
+        "reply",
+        [
+            "$877.80", "about a hundred dollars", "$199.90", "9.90",
+            # Hedging: listing every amount on the receipt is not an answer.
+            "The receipt shows 19.99, 99.90, 45.00 and 12.00.",
+            "Either $99.90 or $1,099.90.",
+        ],
+    )
     def test_wrong_answer_fails(self, client, fresh, reply):
         task, initial = _task("label_printer_price"), fresh()
         assert not task.check_reply(task.reply(_chat(reply)), initial, fresh())

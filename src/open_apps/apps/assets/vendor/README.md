@@ -54,6 +54,10 @@ The files are pdf.js's **legacy** build (`legacy/build/` in `pdfjs-dist`), not
 `Uint8Array.fromBase64` with no fallback. The Chromium that Playwright
 installs here (125) has none of them, so the viewer failed before drawing a
 page. The legacy build carries its own polyfills and runs on that Chromium.
+Those polyfills are [core-js](https://github.com/zloirock/core-js) 3.50.0
+(MIT, © 2014–2025 Denis Pushkarev, 2025–2026 CoreJS Company), bundled by
+pdf.js; its copyright notice and a link to its license stay inside both
+bundles.
 Agents drive whatever browser their harness pins, so the older target is the
 safe one.
 

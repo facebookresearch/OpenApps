@@ -40,9 +40,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path, PurePosixPath
 from typing import Optional, Union
 
@@ -174,15 +175,34 @@ def kind_of(name: str) -> str:
 # Live files.
 
 
-def save(folder: str, name: str, data: Union[bytes, str]) -> str:
+def save(
+    folder: str, name: str, data: Union[bytes, str], *, modified: Union[str, date, None] = None
+) -> str:
     """Write ``data`` as ``folder/name`` (the folder is created if missing)
-    and return the store path, with a " (n)" suffix if the name was taken."""
+    and return the store path, with a " (n)" suffix if the name was taken.
+
+    The file's modified time is ``modified`` (a date, or an ISO string whose
+    first ten characters are one), else the pinned ``today``. Never the wall
+    clock: Files shows the date, so it is part of what an agent observes, and
+    the world's calendar is pinned.
+    """
     _check_name(name)
     target_dir = resolve(folder)
     target_dir.mkdir(parents=True, exist_ok=True)
     target = _free_name(target_dir, name)
     target.write_bytes(data.encode() if isinstance(data, str) else data)
-    return _join(folder, target.name)
+    path = _join(folder, target.name)
+    pin_modified(path, modified if modified is not None else _today)
+    return path
+
+
+def pin_modified(path: str, day: Union[str, date, None]) -> None:
+    """Set ``path``'s modified time to noon on ``day`` (no-op for ``None``)."""
+    if not day:
+        return
+    day = day if isinstance(day, date) else date.fromisoformat(str(day)[:10])
+    stamp = datetime.combine(day, datetime.min.time()).replace(hour=12).timestamp()
+    os.utime(resolve(path), (stamp, stamp))
 
 
 def read(path: str) -> bytes:

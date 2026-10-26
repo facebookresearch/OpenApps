@@ -1728,15 +1728,27 @@ class AnswerTask(Task):
     ``must_include`` and the app state is unchanged.
 
     Matching is forgiving where people are: an entry that is a number matches
-    any number in the reply with the same value ("99.90" matches "$99.90"
-    and "99.9 dollars", not "199.90"); anything else is a case-insensitive
-    substring. ``check_if_task_is_complete`` sees no chat, so on its own it
-    never passes -- BrowserGym scores this through :meth:`check_reply`.
+    any number in the reply with the same value ("99.90" matches "$99.90",
+    "99.9 dollars" and "99,90 €", not "199.90"); anything else is a
+    case-insensitive substring. But the reply has to commit: if an expected
+    amount has cents, any *other* amount with cents in the reply fails it, so
+    reciting every figure on the receipt is not an answer. Dates and card
+    digits are not amounts and don't count. ``check_if_task_is_complete``
+    sees no chat, so on its own it never passes -- BrowserGym scores this
+    through :meth:`check_reply`.
     """
 
     must_include: list[str] = field(default_factory=list)
 
     _NUMBER = re.compile(r"(?<![\d.])\d[\d,]*(?:\.\d+)?")
+    # An amount with cents, either decimal mark, optional thousands
+    # separators: 99.90, 1,099.90, 99,90, 1.099,90.
+    _AMOUNT = re.compile(r"(?<![\d.,])\d{1,3}(?:[.,\u00a0 ]?\d{3})*[.,]\d{2}(?![\d.,]?\d)")
+
+    @staticmethod
+    def _amount_value(text: str) -> float:
+        whole, cents = text[:-3], text[-2:]
+        return float(re.sub(r"[^\d]", "", whole) + "." + cents)
 
     @staticmethod
     def reply(chat_messages: list[dict]) -> str | None:
@@ -1758,7 +1770,10 @@ class AnswerTask(Task):
             value = float(wanted.replace(",", ""))
         except ValueError:
             return " ".join(wanted.split()).casefold() in " ".join(reply.split()).casefold()
-        return any(
+        amounts = [self._amount_value(a) for a in self._AMOUNT.findall(reply)]
+        if "." in wanted and any(not math.isclose(a, value, abs_tol=1e-9) for a in amounts):
+            return False
+        return any(math.isclose(a, value, abs_tol=1e-9) for a in amounts) or any(
             math.isclose(float(n.replace(",", "")), value, abs_tol=1e-9)
             for n in self._NUMBER.findall(reply)
         )

@@ -65,7 +65,19 @@ def receipts(client) -> list[str]:
     )
 
 
+def modified_day(path: str) -> str:
+    """The date Files shows in its "Date modified" column."""
+    import datetime
+
+    return datetime.date.fromtimestamp(files_store.resolve(path).stat().st_mtime).isoformat()
+
+
 class TestSeededReceipts:
+    def test_a_seeded_receipt_is_dated_by_its_order(self, client):
+        """Not by the day the run happens: the column is part of what an agent
+        sees, and the world's clock is pinned."""
+        assert modified_day("Receipts/OpenShop order a41f07c2.pdf") == "2026-06-12"
+
     def test_each_seeded_order_has_its_receipt(self, client):
         assert set(SEEDED.values()) <= set(receipts(client))
 

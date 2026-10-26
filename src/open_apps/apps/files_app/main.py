@@ -34,9 +34,8 @@ a PDF navigation into a download. "Open in new tab" still serves the raw file
 for people and headed runs.
 """
 import json
-import os
 import re
-from datetime import date, datetime
+from datetime import date
 from pathlib import PurePosixPath
 from typing import Optional
 from urllib.parse import quote
@@ -115,10 +114,7 @@ def seed(specs: dict, owner: dict, today: Optional[str] = None) -> None:
 
 
 def _pin_mtime(path: str, day) -> None:
-    if not day:
-        return
-    stamp = datetime.combine(date.fromisoformat(str(day)), datetime.min.time()).replace(hour=12).timestamp()
-    os.utime(files_store.resolve(path), (stamp, stamp))
+    files_store.pin_modified(path, day)
 
 
 def cfg():
@@ -1415,19 +1411,38 @@ def files_view(path: str):
     return page(details_viewer(entry))
 
 
+# Types a browser would run as a page or script. Every app shares one origin,
+# so an uploaded or agent-written HTML file opened from Files could script the
+# bank or the messenger and corrupt the state an episode is scored on. They are
+# served as plain text instead.
+_ACTIVE_KINDS = {
+    "text/html", "application/xhtml+xml", "text/javascript", "application/javascript",
+    "text/css", "application/xml", "text/xml",
+}
+
+
 @rt("/files/raw/{path:path}")
 def files_raw(path: str, download: int = 0):
-    """The file's bytes with its own MIME type: inline, so a browser with a
-    PDF viewer shows it (Open in new tab); or as an attachment (Download)."""
+    """The file's bytes: inline, so a browser with a PDF viewer shows it (Open
+    in new tab); or as an attachment (Download).
+
+    Active types go out as ``text/plain``; everything gets ``nosniff``; and
+    everything but PDFs is sandboxed, so an SVG opened on its own can't run
+    its scripts. PDFs are exempt because Chrome won't show one in a
+    sandboxed document.
+    """
     entry = get_entry(path)
     if entry is None or entry.is_folder:
         return Response("Not found", status_code=404)
     disposition = "attachment" if download else "inline"
-    return Response(
-        files_store.read(entry.path),
-        media_type=entry.kind,
-        headers={"Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(entry.name)}"},
-    )
+    kind = "text/plain; charset=utf-8" if entry.kind in _ACTIVE_KINDS else entry.kind
+    headers = {
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(entry.name)}",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if not is_pdf(entry.kind):
+        headers["Content-Security-Policy"] = "sandbox"
+    return Response(files_store.read(entry.path), media_type=kind, headers=headers)
 
 
 @app.get("/files/rename")
