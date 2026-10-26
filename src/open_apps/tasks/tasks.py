@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
 import hashlib
@@ -17,6 +18,108 @@ from omegaconf import OmegaConf
 # Deliberately the same literal the shop's `card_descriptor` uses as its format
 # field, so a target descriptor is just the template left unformatted.
 ORDER_ID_TOKEN = "{order_id}"
+
+# Where a checkout's receipt lands, mirroring ``onlineshop_app.receipt_path``.
+# Inlined rather than imported to keep the tasks package import light; a test
+# pins the two together.
+RECEIPT_PATH = "Receipts/OpenShop order {order_id}.pdf"
+
+# The Files app's pinned "today" (``apps.files.today``, which follows
+# ``apps.openbanking.as_of_date``): the ``deleted_on`` a delete stamps. Pinned
+# here for the same reason ``BuyWithCardTask.descriptor`` mirrors the shop's.
+FILES_TODAY = "2026-08-26"
+
+
+def _files_row_key(row: dict):
+    """``files_store.snapshot``'s order."""
+    return (row["path"], bool(row["deleted"]), row["deleted_on"] or "", row["sha256"] or "")
+
+
+def _ancestors(path: str) -> list[str]:
+    parts = path.split("/")
+    return ["/".join(parts[:i]) for i in range(1, len(parts))]
+
+
+class _FileTree:
+    """The ``/files_all`` slice as the store would leave it after an action.
+
+    Targets are built by replaying the store's own rules on the snapshot rows
+    rather than by hand-editing them, because a single action can move more
+    than one row: deleting the last file in a folder makes the store report
+    the folder itself (an empty folder is a row of its own), and filling an
+    empty folder removes that row again.
+    """
+
+    def __init__(self, files_slice: dict | None):
+        rows = (files_slice or {}).get("files") or []
+        self.live: dict[str, dict] = {}
+        self.trash: list[dict] = []
+        self.dirs: set[str] = set()
+        for row in rows:
+            row = dict(row)
+            if row.get("deleted"):
+                self.trash.append(row)
+            elif row.get("kind") == "folder":
+                self.dirs.add(row["path"])
+                self.dirs.update(_ancestors(row["path"]))
+            else:
+                self.live[row["path"]] = row
+                self.dirs.update(_ancestors(row["path"]))
+
+    def file(self, path: str) -> dict:
+        if path not in self.live:
+            raise ValueError(f"no file {path!r} in the files slice")
+        return self.live[path]
+
+    def taken(self, path: str) -> bool:
+        return path in self.live or path in self.dirs
+
+    def free_path(self, folder: str, name: str) -> str:
+        """``files_store._free_name``: ``name``, else ``stem (n)suffix``."""
+        join = (lambda n: f"{folder}/{n}") if folder else (lambda n: n)
+        if not self.taken(join(name)):
+            return join(name)
+        pure = PurePosixPath(name)
+        stem, suffix = (pure.stem, pure.suffix) if pure.suffix and pure.stem else (name, "")
+        n = 2
+        while self.taken(join(f"{stem} ({n}){suffix}")):
+            n += 1
+        return join(f"{stem} ({n}){suffix}")
+
+    def put(self, path: str, row: dict) -> None:
+        self.live[path] = {**row, "path": path, "deleted": False, "deleted_on": None}
+        self.dirs.update(_ancestors(path))
+
+    def trashed(self, path: str, deleted_on: str | None = None) -> dict:
+        matches = [
+            r for r in self.trash
+            if r["path"] == path and r.get("kind") != "folder"
+            and (deleted_on is None or r["deleted_on"] == deleted_on)
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"{len(matches)} items in Recently Deleted were at {path!r}; "
+                "a task needs exactly one (pass deleted_on to choose)"
+            )
+        return matches[0]
+
+    def rows(self) -> list[dict]:
+        out = list(self.live.values())
+        for d in self.dirs:
+            prefix = d + "/"
+            if not any(p.startswith(prefix) for p in self.live) and not any(
+                o.startswith(prefix) for o in self.dirs
+            ):
+                out.append(
+                    {"path": d, "kind": "folder", "size": 0, "sha256": None,
+                     "deleted": False, "deleted_on": None}
+                )
+        out.extend(self.trash)
+        return sorted(out, key=_files_row_key)
+
+    def into(self, state: dict) -> dict:
+        state["files"] = {"files": self.rows()}
+        return state
 
 
 def _fmt_money(value: float) -> str:
@@ -182,6 +285,14 @@ class AppStateComparison:
         if self.normalize_purchases:
             state = self._normalize_purchases(state)
         state = self.sort_lists(state)
+        state = self._sort_files(state)
+        return state
+
+    @staticmethod
+    def _sort_files(state: dict) -> dict:
+        files = state.get("files")
+        if isinstance(files, dict) and isinstance(files.get("files"), list):
+            files["files"] = sorted(files["files"], key=_files_row_key)
         return state
 
     def _normalize_todo_done_field(self, state: dict) -> dict:
@@ -306,6 +417,19 @@ class AppStateComparison:
             for key in ("id", "position"):
                 txn.pop(key, None)
 
+        # A checkout also writes a receipt named after the order id, and its
+        # bytes carry the checkout time. Same substitution as the ledger, and
+        # only for ids of orders that exist -- a receipt naming no order still
+        # fails -- with the bytes left out of the diff.
+        files = state.get("files")
+        rows = files.get("files") or [] if isinstance(files, dict) else []
+        receipts = {RECEIPT_PATH.format(order_id=i) for i in order_ids}
+        receipts.add(RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN))
+        for row in rows:
+            if row.get("path") in receipts:
+                row["path"] = RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN)
+                row["size"] = row["sha256"] = None
+
         for order in orders:
             for key in ("order_id", "date"):
                 order.pop(key, None)
@@ -404,6 +528,35 @@ class AppStateComparison:
             if 0 <= extra <= allowed:
                 contact["messages"] = contact["messages"][:n_target]
 
+    def _files_match(self) -> bool:
+        """Compare the files slices exactly.
+
+        The diff below compares strings through ``StringSimilarityOperator``,
+        which forgives case and punctuation -- right for a todo title, wrong
+        for a file name, which is an address: "Lease-2026.pdf" is not the file
+        the task asked for. Every field of a row is machine-made except the
+        names an agent types, so the slice compares by equality.
+
+        A target row with neither ``size`` nor ``sha256`` accepts any bytes at
+        its path: a downloaded statement is pinned by name (the bank renders
+        it), and a receipt carries the checkout time.
+        """
+        target = (self.state1.get("files") or {}).get("files")
+        observed = (self.state2.get("files") or {}).get("files")
+        if target is None or observed is None:
+            return target is None and observed is None
+        by_key = {
+            (r["path"], r["deleted"], r["deleted_on"], r["kind"]): r for r in observed
+        }
+        resolved = []
+        for row in target:
+            if row.get("size") is None and row.get("sha256") is None and row.get("kind") != "folder":
+                seen = by_key.get((row["path"], row["deleted"], row["deleted_on"], row["kind"]))
+                if seen is not None:
+                    row = {**row, "size": seen["size"], "sha256": seen["sha256"]}
+            resolved.append(row)
+        return sorted(resolved, key=_files_row_key) == sorted(observed, key=_files_row_key)
+
     def compare(self) -> bool:
         # check that both states have the same apps
         if set(self.state1.keys()) != set(self.state2.keys()):
@@ -413,9 +566,14 @@ class AppStateComparison:
         if self.reply_contacts:
             self._truncate_message_replies()
 
-        return self.are_dicts_similar(
-            self.state1, self.state2, self.coords_tolerance_km
-        )
+        if not self._files_match():
+            print("===Files differ")
+            return False
+        # Matched exactly above; kept out of the fuzzy diff, which would trip
+        # on the content-agnostic rows it already accepted.
+        state1 = {k: v for k, v in self.state1.items() if k != "files"}
+        state2 = {k: v for k, v in self.state2.items() if k != "files"}
+        return self.are_dicts_similar(state1, state2, self.coords_tolerance_km)
 
 
 @dataclass
@@ -873,6 +1031,15 @@ class BuyWithCardTask(Task):
                 "balance": None,
             }
         )
+        if isinstance(target_state.get("files"), dict):
+            # The receipt checkout writes into Files. Content-agnostic (no
+            # size, no checksum): its bytes carry the checkout time.
+            tree = _FileTree(target_state["files"])
+            tree.put(
+                RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN),
+                {"kind": "application/pdf", "size": None, "sha256": None},
+            )
+            tree.into(target_state)
         if over_by > 0:
             # The charge first, then the notice -- `authorize_card_purchase`
             # inserts them in that order and `/openbanking_all` sorts by id,
@@ -1072,6 +1239,171 @@ class DeclinedCardPurchaseTask(Task):
             target_state, current_state, normalize_purchases=True
         )
         return app_state_comparison.compare()
+
+
+# ---------------------------------------------------------------------------
+# Files. Every target replays the store's own rules on the ``/files_all`` rows
+# (see ``_FileTree``), and every path is compared exactly (see
+# ``AppStateComparison._files_match``).
+
+
+class _FileTask(Task):
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        if not isinstance(target_state.get("files"), dict):
+            raise ValueError(f"{type(self).__name__} needs the files slice")
+        tree = _FileTree(target_state["files"])
+        self.apply(tree)
+        return tree.into(target_state)
+
+    def apply(self, tree: _FileTree) -> None:  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
+@dataclass
+class DeleteFileTask(_FileTask):
+    """Move ``path`` to Recently Deleted -- not purge it: delete is the
+    reversible action, and a file emptied out of the bin too fails."""
+
+    path: str
+    # Mirrors ``apps.files.today``; see ``FILES_TODAY``.
+    deleted_on: str = FILES_TODAY
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.file(self.path)
+        del tree.live[self.path]
+        tree.trash.append({**row, "deleted": True, "deleted_on": self.deleted_on})
+
+
+@dataclass
+class RestoreFileTask(_FileTask):
+    """Put ``path`` back from Recently Deleted. It returns to where it was
+    deleted from, or beside a file now holding that name with the store's
+    " (2)" -- either way the target says exactly where."""
+
+    path: str
+    # Only needed when several deleted items shared ``path``.
+    deleted_on: Optional[str] = None
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.trashed(self.path, self.deleted_on)
+        tree.trash.remove(row)
+        parent, _, name = self.path.rpartition("/")
+        tree.put(tree.free_path(parent, name), row)
+
+
+@dataclass
+class PermanentlyDeleteTask(_FileTask):
+    """Delete ``path`` from Recently Deleted for good."""
+
+    path: str
+    deleted_on: Optional[str] = None
+
+    def apply(self, tree: _FileTree) -> None:
+        tree.trash.remove(tree.trashed(self.path, self.deleted_on))
+
+
+@dataclass
+class RenameFileTask(_FileTask):
+    """Rename ``path`` to ``new_name`` in place. The store refuses a taken
+    name rather than suffixing it, so a target for one is a config error."""
+
+    path: str
+    new_name: str
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.file(self.path)
+        parent = self.path.rpartition("/")[0]
+        dest = f"{parent}/{self.new_name}" if parent else self.new_name
+        if dest != self.path and tree.taken(dest):
+            raise ValueError(f"{dest!r} is taken; the store refuses the rename")
+        del tree.live[self.path]
+        tree.put(dest, row)
+
+
+@dataclass
+class MoveFileTask(_FileTask):
+    """Move ``path`` into the existing ``folder``, suffixing on a clash."""
+
+    path: str
+    folder: str
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.file(self.path)
+        if self.folder not in tree.dirs:
+            raise ValueError(f"no folder {self.folder!r} in the files slice")
+        del tree.live[self.path]
+        tree.put(tree.free_path(self.folder, self.path.rpartition("/")[2]), row)
+
+
+@dataclass
+class DownloadStatementTask(_FileTask):
+    """Save ``account``'s statement for ``month`` (``"YYYY-MM"``) into Files.
+
+    The file is pinned by its path -- account name and month -- not its
+    bytes: the bank's renderer is the one source of those and is
+    deterministic, so the name already says which statement it is. The name
+    comes from ``statements.statement_path`` and the month's rows from
+    ``statements.statement_rows``, the functions the bank's Statements page
+    uses, so the task and the page cannot disagree about which months exist.
+
+    ``account`` is the account's name or the last digits of its number.
+    """
+
+    account: str
+    month: str
+
+    def _account(self, initial_state: dict) -> dict:
+        bank = initial_state.get("openbanking")
+        accounts = bank.get("accounts") or [] if isinstance(bank, dict) else []
+        wanted = str(self.account).strip()
+        matches = [
+            a for a in accounts
+            if a.get("name") == wanted
+            or (wanted.isdigit() and str(a.get("account_number") or "").endswith(wanted))
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"{self.account!r} matches {len(matches)} bank accounts")
+        return matches[0]
+
+    def expected_path(self, initial_state: dict) -> str:
+        # Imported here: the bank package pulls in its app; scoring a task of
+        # any other kind should not.
+        from open_apps.apps.openbanking_app import statements
+
+        month = statements.parse_month(self.month)
+        if month is None:
+            raise ValueError(f"month must be YYYY-MM, not {self.month!r}")
+        account = self._account(initial_state)
+        txns = [
+            t for t in initial_state["openbanking"].get("transactions") or []
+            if t.get("account_id") == account.get("id")
+        ]
+        if not statements.statement_rows(txns, month):
+            raise ValueError(
+                f"{account.get('name')} has no posted rows in {self.month}: the bank offers no statement"
+            )
+        return statements.statement_path(account["name"], month)
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        self._path = self.expected_path(initial_state)
+        return super().get_target_state(initial_state)
+
+    def apply(self, tree: _FileTree) -> None:
+        if tree.taken(self._path):
+            raise ValueError(f"{self._path!r} is already in Files; downloading it changes nothing")
+        tree.put(self._path, {"kind": "application/pdf", "size": None, "sha256": None})
 
 
 # Maps a target-app key to URL-path prefixes that count as "in that app".
@@ -1383,6 +1715,65 @@ class AbstentionTask(Task):
             elif message.get("role") == "infeasible":
                 outcome = "stop"
         return outcome
+
+
+@dataclass
+class AnswerTask(Task):
+    """The agent has to *tell* the user something, and change nothing.
+
+    "What did I pay for the label printer?" leaves no trace in any app, so
+    this is scored on the agent's reply: the ``send_msg_to_user`` text, the
+    channel :class:`AbstentionTask` reads for a clarifying question. It
+    passes when the latest reply after the goal contains every entry of
+    ``must_include`` and the app state is unchanged.
+
+    Matching is forgiving where people are: an entry that is a number matches
+    any number in the reply with the same value ("99.90" matches "$99.90"
+    and "99.9 dollars", not "199.90"); anything else is a case-insensitive
+    substring. ``check_if_task_is_complete`` sees no chat, so on its own it
+    never passes -- BrowserGym scores this through :meth:`check_reply`.
+    """
+
+    must_include: list[str] = field(default_factory=list)
+
+    _NUMBER = re.compile(r"(?<![\d.])\d[\d,]*(?:\.\d+)?")
+
+    @staticmethod
+    def reply(chat_messages: list[dict]) -> str | None:
+        """The agent's latest ``send_msg_to_user`` text after the goal."""
+        last_user = max(
+            (i for i, m in enumerate(chat_messages) if m.get("role") in ("user", "user_image")),
+            default=-1,
+        )
+        replies = [
+            str(m.get("message", "")).strip()
+            for m in chat_messages[last_user + 1:]
+            if m.get("role") == "assistant" and str(m.get("message", "")).strip()
+        ]
+        return replies[-1] if replies else None
+
+    def _contains(self, reply: str, wanted: str) -> bool:
+        wanted = str(wanted).strip()
+        try:
+            value = float(wanted.replace(",", ""))
+        except ValueError:
+            return " ".join(wanted.split()).casefold() in " ".join(reply.split()).casefold()
+        return any(
+            math.isclose(float(n.replace(",", "")), value, abs_tol=1e-9)
+            for n in self._NUMBER.findall(reply)
+        )
+
+    def check_reply(self, reply: str | None, initial_state: dict, current_state: dict) -> bool:
+        if not reply or not all(self._contains(reply, w) for w in self.must_include):
+            return False
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        return AppStateComparison(initial_state, current_state).compare()
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return False
 
 
 if __name__ == "__main__":

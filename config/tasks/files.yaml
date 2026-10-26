@@ -1,0 +1,277 @@
+# Tasks anchored on the Files app.
+#
+# Standalone file: run with `tasks=files` (Hydra) or load directly.
+# Deliberately NOT folded into `all_tasks`, which is the paper's canonical
+# task inventory -- the same call as `openbanking.yaml`.
+#
+# Scoring notes:
+#   * the files slice (`/files_all`) compares exactly: paths are addresses, so
+#     "Lease-2026.pdf" is not "Lease 2026.pdf" (see
+#     AppStateComparison._files_match);
+#   * delete means Recently Deleted -- deleting and then emptying the bin
+#     fails a delete task. Deletes are stamped with the pinned date
+#     (`apps.files.today`); `deleted_on` below mirrors it;
+#   * a downloaded statement is pinned by its path, not its bytes, and only
+#     months with posted rows exist -- checking has no July, savings does;
+#   * `AnswerTask` is scored on the agent's reply (send_msg_to_user), with
+#     every app left unchanged;
+#   * every base task has three rephrasings (`<key>__<style>_1`), with all
+#     non-goal fields copied verbatim, like `user_goal_variations.yaml`.
+
+delete_packing_list:
+  _target_: open_apps.tasks.tasks.DeleteFileTask
+  goal: In the Files app, delete 'Packing List.txt' from the Documents folder.
+  path: Documents/Packing List.txt
+delete_packing_list__casual_1:
+  _target_: open_apps.tasks.tasks.DeleteFileTask
+  goal: can you delete my Packing List.txt from Documents in Files? don't need it anymore
+  path: Documents/Packing List.txt
+  goal_style: casual
+delete_packing_list__formal_1:
+  _target_: open_apps.tasks.tasks.DeleteFileTask
+  goal: Please delete the file 'Packing List.txt' in the Documents folder of the Files app.
+  path: Documents/Packing List.txt
+  goal_style: formal
+delete_packing_list__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.DeleteFileTask
+  goal: We got back from the coast yesterday and everything's unpacked, finally. Go into Files
+    and delete 'Packing List.txt' from Documents.
+  path: Documents/Packing List.txt
+  goal_style: unrelated_context
+restore_w2_draft:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: I deleted my W-2 draft by mistake and it's about to be removed for good. In the Files
+    app, restore 'W-2 2025 (draft).pdf' from Recently Deleted.
+  path: Documents/W-2 2025 (draft).pdf
+restore_w2_draft__casual_1:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: oops, I deleted my W-2 draft and it's almost gone from Recently Deleted. can you restore
+    'W-2 2025 (draft).pdf' in Files?
+  path: Documents/W-2 2025 (draft).pdf
+  goal_style: casual
+restore_w2_draft__formal_1:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: Please restore the file 'W-2 2025 (draft).pdf' from Recently Deleted in the Files
+    app before it is permanently removed.
+  path: Documents/W-2 2025 (draft).pdf
+  goal_style: formal
+restore_w2_draft__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: My accountant just asked for the draft W-2 and of course I trashed it last month.
+    In Files, restore 'W-2 2025 (draft).pdf' from Recently Deleted before it's gone.
+  path: Documents/W-2 2025 (draft).pdf
+  goal_style: unrelated_context
+restore_lab_results_scan:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: In the Files app, restore 'Lab Results 2026-08-12 (scan).pdf' from Recently Deleted.
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+restore_lab_results_scan__casual_1:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: can you bring back the lab results scan I deleted? it's 'Lab Results 2026-08-12 (scan).pdf'
+    in Recently Deleted
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+  goal_style: casual
+restore_lab_results_scan__formal_1:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: Please restore 'Lab Results 2026-08-12 (scan).pdf' from Recently Deleted in the Files
+    app.
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+  goal_style: formal
+restore_lab_results_scan__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RestoreFileTask
+  goal: The clinic says their copy of my August labs is unreadable, so I'll need my own scan
+    after all. Restore 'Lab Results 2026-08-12 (scan).pdf' from Recently Deleted in Files.
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+  goal_style: unrelated_context
+purge_duplicate_lab_scan:
+  _target_: open_apps.tasks.tasks.PermanentlyDeleteTask
+  goal: In the Files app, permanently delete 'Lab Results 2026-08-12 (scan).pdf' from Recently
+    Deleted. Leave everything else in Recently Deleted as it is.
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+purge_duplicate_lab_scan__casual_1:
+  _target_: open_apps.tasks.tasks.PermanentlyDeleteTask
+  goal: the lab results scan in Recently Deleted is a duplicate, just get rid of 'Lab Results
+    2026-08-12 (scan).pdf' for good. leave the rest
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+  goal_style: casual
+purge_duplicate_lab_scan__formal_1:
+  _target_: open_apps.tasks.tasks.PermanentlyDeleteTask
+  goal: Please permanently delete 'Lab Results 2026-08-12 (scan).pdf' from Recently Deleted
+    in the Files app, leaving all other items there untouched.
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+  goal_style: formal
+purge_duplicate_lab_scan__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.PermanentlyDeleteTask
+  goal: I'm trying to keep my medical stuff tidy now that I have the clean copy. In Files,
+    permanently delete 'Lab Results 2026-08-12 (scan).pdf' from Recently Deleted, and don't
+    touch anything else in there.
+  path: Documents/Lab Results 2026-08-12 (scan).pdf
+  goal_style: unrelated_context
+rename_lease:
+  _target_: open_apps.tasks.tasks.RenameFileTask
+  goal: In the Files app, rename 'Residential Lease - 44 Wharf Street.pdf' in Documents to
+    exactly 'Lease 2026.pdf'.
+  path: Documents/Residential Lease - 44 Wharf Street.pdf
+  new_name: Lease 2026.pdf
+rename_lease__casual_1:
+  _target_: open_apps.tasks.tasks.RenameFileTask
+  goal: rename my lease PDF in Documents ('Residential Lease - 44 Wharf Street.pdf') to 'Lease
+    2026.pdf' pls
+  path: Documents/Residential Lease - 44 Wharf Street.pdf
+  new_name: Lease 2026.pdf
+  goal_style: casual
+rename_lease__formal_1:
+  _target_: open_apps.tasks.tasks.RenameFileTask
+  goal: Please rename the file 'Residential Lease - 44 Wharf Street.pdf' in the Documents
+    folder to exactly 'Lease 2026.pdf'.
+  path: Documents/Residential Lease - 44 Wharf Street.pdf
+  new_name: Lease 2026.pdf
+  goal_style: formal
+rename_lease__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.RenameFileTask
+  goal: The landlord keeps asking me to send the lease and I can never find it by that long
+    name. In Files, rename 'Residential Lease - 44 Wharf Street.pdf' in Documents to exactly
+    'Lease 2026.pdf'.
+  path: Documents/Residential Lease - 44 Wharf Street.pdf
+  new_name: Lease 2026.pdf
+  goal_style: unrelated_context
+move_insurance_card_to_downloads:
+  _target_: open_apps.tasks.tasks.MoveFileTask
+  goal: In the Files app, move 'Insurance Card - Harborline Health.pdf' from Documents into
+    the Downloads folder.
+  path: Documents/Insurance Card - Harborline Health.pdf
+  folder: Downloads
+move_insurance_card_to_downloads__casual_1:
+  _target_: open_apps.tasks.tasks.MoveFileTask
+  goal: move my insurance card PDF out of Documents and into Downloads in Files
+  path: Documents/Insurance Card - Harborline Health.pdf
+  folder: Downloads
+  goal_style: casual
+move_insurance_card_to_downloads__formal_1:
+  _target_: open_apps.tasks.tasks.MoveFileTask
+  goal: Please move 'Insurance Card - Harborline Health.pdf' from the Documents folder to
+    the Downloads folder in the Files app.
+  path: Documents/Insurance Card - Harborline Health.pdf
+  folder: Downloads
+  goal_style: formal
+move_insurance_card_to_downloads__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.MoveFileTask
+  goal: I'm about to upload a bunch of forms for the new dentist and they all go from Downloads.
+    Move 'Insurance Card - Harborline Health.pdf' from Documents into Downloads in Files.
+  path: Documents/Insurance Card - Harborline Health.pdf
+  folder: Downloads
+  goal_style: unrelated_context
+download_july_savings_statement:
+  _target_: open_apps.tasks.tasks.DownloadStatementTask
+  goal: In the OpenBanking app, download the July 2026 statement for the 'BUS SELECT SAVINGS
+    (...8891)' account so it's saved to Files.
+  account: BUS SELECT SAVINGS (...8891)
+  month: 2026-07
+download_july_savings_statement__casual_1:
+  _target_: open_apps.tasks.tasks.DownloadStatementTask
+  goal: grab the July 2026 statement for my savings account ('BUS SELECT SAVINGS (...8891)')
+    from the bank and save it to Files
+  account: BUS SELECT SAVINGS (...8891)
+  month: 2026-07
+  goal_style: casual
+download_july_savings_statement__formal_1:
+  _target_: open_apps.tasks.tasks.DownloadStatementTask
+  goal: Please download the July 2026 statement for the 'BUS SELECT SAVINGS (...8891)' account
+    in the OpenBanking app, saving it to Files.
+  account: BUS SELECT SAVINGS (...8891)
+  month: 2026-07
+  goal_style: formal
+download_july_savings_statement__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.DownloadStatementTask
+  goal: I'm doing the quarterly books this weekend and July is missing. In OpenBanking, download
+    the July 2026 statement for 'BUS SELECT SAVINGS (...8891)' so it lands in Files.
+  account: BUS SELECT SAVINGS (...8891)
+  month: 2026-07
+  goal_style: unrelated_context
+file_july_savings_statement_in_documents:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Download the July 2026 statement for the 'BUS SELECT SAVINGS (...8891)' account from
+    the OpenBanking app, then in the Files app move it from Statements into the Documents
+    folder.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DownloadStatementTask
+    goal: Download the July savings statement.
+    account: BUS SELECT SAVINGS (...8891)
+    month: 2026-07
+  - _target_: open_apps.tasks.tasks.MoveFileTask
+    goal: Move it into Documents.
+    path: Statements/BUS SELECT SAVINGS (...8891) — July 2026.pdf
+    folder: Documents
+file_july_savings_statement_in_documents__casual_1:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: download July 2026's statement for 'BUS SELECT SAVINGS (...8891)' from the bank, then
+    move it into Documents in Files
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DownloadStatementTask
+    goal: Download the July savings statement.
+    account: BUS SELECT SAVINGS (...8891)
+    month: 2026-07
+  - _target_: open_apps.tasks.tasks.MoveFileTask
+    goal: Move it into Documents.
+    path: Statements/BUS SELECT SAVINGS (...8891) — July 2026.pdf
+    folder: Documents
+  goal_style: casual
+file_july_savings_statement_in_documents__formal_1:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Please download the July 2026 statement for 'BUS SELECT SAVINGS (...8891)' in the
+    OpenBanking app, and then move that file from Statements to Documents in the Files app.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DownloadStatementTask
+    goal: Download the July savings statement.
+    account: BUS SELECT SAVINGS (...8891)
+    month: 2026-07
+  - _target_: open_apps.tasks.tasks.MoveFileTask
+    goal: Move it into Documents.
+    path: Statements/BUS SELECT SAVINGS (...8891) — July 2026.pdf
+    folder: Documents
+  goal_style: formal
+file_july_savings_statement_in_documents__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: My tax folder lives in Documents and I want everything in one place. Download the
+    July 2026 statement for 'BUS SELECT SAVINGS (...8891)' from OpenBanking, then move it
+    from Statements into Documents in Files.
+  subtasks:
+  - _target_: open_apps.tasks.tasks.DownloadStatementTask
+    goal: Download the July savings statement.
+    account: BUS SELECT SAVINGS (...8891)
+    month: 2026-07
+  - _target_: open_apps.tasks.tasks.MoveFileTask
+    goal: Move it into Documents.
+    path: Statements/BUS SELECT SAVINGS (...8891) — July 2026.pdf
+    folder: Documents
+  goal_style: unrelated_context
+label_printer_price:
+  _target_: open_apps.tasks.tasks.AnswerTask
+  goal: How much did I pay for the shipping label printer I ordered from the online shop?
+    Reply with the amount.
+  must_include:
+  - '99.90'
+label_printer_price__casual_1:
+  _target_: open_apps.tasks.tasks.AnswerTask
+  goal: how much was that label printer I bought from the shop? just tell me the amount
+  must_include:
+  - '99.90'
+  goal_style: casual
+label_printer_price__formal_1:
+  _target_: open_apps.tasks.tasks.AnswerTask
+  goal: Please tell me the amount I paid for the shipping label printer I ordered from the
+    online shop.
+  must_include:
+  - '99.90'
+  goal_style: formal
+label_printer_price__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AnswerTask
+  goal: I'm reselling some gear and want to price the label printer fairly. What did I pay
+    for the shipping label printer I ordered from the online shop? Just reply with the amount.
+  must_include:
+  - '99.90'
+  goal_style: unrelated_context
