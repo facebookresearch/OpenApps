@@ -445,7 +445,9 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
-![Live Agent](images/gif.gif)
+<video src="images/agent-demo.webm" poster="images/landing.png" autoplay muted loop playsinline width="100%">
+  <a href="images/agent-demo.webm">Watch the agent solve a task</a>
+</video>
 
 To record the full episode as a video instead:
 ```
