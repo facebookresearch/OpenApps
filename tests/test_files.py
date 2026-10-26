@@ -157,10 +157,12 @@ class TestScoringSurface:
 
 class TestPage:
     def test_files_page_renders(self, client):
+        # The root lists folders; documents are one level down.
         response = client.get("/files")
         assert response.status_code == 200
         assert "OpenFiles" in response.text
-        assert "Visit Summary 2026-08-12.pdf" in response.text
+        assert 'href="/files/Documents"' in response.text
+        assert "Visit Summary 2026-08-12.pdf" in client.get("/files/Documents").text
 
 
 PACKS = ["german", "mandarin", "long_descriptions", "misleading_descriptions",
