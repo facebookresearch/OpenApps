@@ -20,9 +20,14 @@ from hydra import compose, initialize
 from fasthtml.common import to_xml
 from starlette.testclient import TestClient
 
+from open_apps.apps.contacts_app import main as contacts_app
 from open_apps.apps.messenger_app import main as messenger
 
 LAYOUTS = ["default", "split_inbox", "compact_list"]
+
+ALICE, BOB, CHARLIE = "+15550100001", "+15550100002", "+15550100003"
+GROUP = "group:fantastic4"
+UNKNOWN = "+15550142290"
 
 
 def build_client(tmp_path: Path, layout: str = "default", theme: str = "default", content: str = "default"):
@@ -35,6 +40,8 @@ def build_client(tmp_path: Path, layout: str = "default", theme: str = "default"
     with initialize(version_base=None, config_path="../config/"):
         config = compose(config_name="config", overrides=overrides)
     Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+    # Names are drawn from Contacts, so its tables are seeded alongside.
+    contacts_app.set_environment(config.apps)
     messenger.set_environment(config.apps)
     return TestClient(messenger.app)
 
@@ -118,9 +125,9 @@ class TestListPage:
         layout, client = layout_client
         html = strip_assets(client.get("/messages").text)
         main = html[html.index("<main"):]
-        for user in ["Alice", "Bob", "Charlie", "Fantastic4GroupChat"]:
-            assert f'href="/messages/{user}"' in main
-        assert len(re.findall(r'class="msg-row(?: is-selected)?"', html)) == 4
+        for key in [ALICE, BOB, CHARLIE, GROUP, UNKNOWN]:
+            assert f'href="/messages/{key}"' in main
+        assert len(re.findall(r'class="msg-row(?: is-selected)?"', html)) == 5
         assert f"layout-{layout}" in re.search(r"<body[^>]*>", html).group(0)
 
     def test_initials_avatars_replace_icon_images(self, layout_client):
@@ -170,14 +177,14 @@ class TestListPage:
 
     def test_compact_rows_read_name_preview_time(self, tmp_path):
         html = strip_assets(build_client(tmp_path, layout="compact_list").get("/messages").text)
-        row = re.search(r'<a href="/messages/Alice".*?</a>', html, flags=re.S).group(0)
+        row = re.search(r'<a href="/messages/\+15550100001".*?</a>', html, flags=re.S).group(0)
         assert row.index("msg-row-name") < row.index("msg-row-preview") < row.index("msg-row-time")
 
 
 class TestThread:
     def test_selector_and_form_fields_unchanged(self, layout_client):
         _, client = layout_client
-        html = strip_assets(client.get("/messages/Alice/").text)
+        html = strip_assets(client.get(f"/messages/{ALICE}/").text)
         assert 'id="chatlist"' in html
         assert 'id="chat-container"' in html
         assert 'id="search-toggle"' in html
@@ -187,23 +194,23 @@ class TestThread:
 
     def test_every_message_keeps_sender_and_time_in_dom(self, layout_client):
         _, client = layout_client
-        html = strip_assets(client.get("/messages/Fantastic4GroupChat/").text)
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
         assert html.count('<div class="chat-header">') == 5
         assert html.count('<div class="chat-footer">') == 5
         assert "Mar 1, 1:00 PM" in html
 
     def test_group_run_classes(self, tmp_path):
-        # Fantastic4GroupChat: Alice, you, Bob, Charlie, Alice -> all single
+        # The group chat: Alice, you, Bob, Charlie, Alice -> all single
         # runs; append two more from "you" to get a run of three.
         client = build_client(tmp_path)
-        html = strip_assets(client.get("/messages/Fantastic4GroupChat/").text)
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
         classes = re.findall(r'<div class="(chat chat-(?:start|end)[^"]*)"', html)
         assert classes[0] == "chat chat-start msg-first msg-last"
         assert classes[1] == "chat chat-end msg-first msg-last"
 
-        messenger.add_new_message_to_history("Bob", "one", "Bob", "Jan 05, 9:50PM")
-        messenger.add_new_message_to_history("Bob", "two", "Bob", "Jan 05, 9:51PM")
-        html = strip_assets(client.get("/messages/Bob/").text)
+        messenger.add_new_message_to_history(BOB, "one", BOB, "Jan 05, 9:50PM")
+        messenger.add_new_message_to_history(BOB, "two", BOB, "Jan 05, 9:51PM")
+        html = strip_assets(client.get(f"/messages/{BOB}/").text)
         classes = re.findall(r'<div class="(chat chat-(?:start|end)[^"]*)"', html)
         assert classes[-3:] == [
             "chat chat-start msg-first",
@@ -213,42 +220,42 @@ class TestThread:
 
     def test_thread_header_has_avatar_name_and_group_members(self, tmp_path):
         client = build_client(tmp_path)
-        html = strip_assets(client.get("/messages/Fantastic4GroupChat/").text)
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
         assert "msg-avatar-header is-group" in html
         assert "<h1>Fantastic4GroupChat</h1>" in html
         assert '<p class="msg-thread-sub">Alice, Bob, Charlie</p>' in html
         assert 'class="msg-thread is-group"' in html
-        html = strip_assets(client.get("/messages/Alice/").text)
+        html = strip_assets(client.get(f"/messages/{ALICE}/").text)
         assert 'class="msg-thread is-direct"' in html
 
     def test_incoming_messages_carry_an_avatar_outgoing_do_not(self, tmp_path):
-        html = strip_assets(build_client(tmp_path).get("/messages/Alice/").text)
+        html = strip_assets(build_client(tmp_path).get(f"/messages/{ALICE}/").text)
         chats = re.findall(r'<div class="chat chat-(start|end)[^"]*">(.*?)<input', html, flags=re.S)
         assert chats
         for side, body in chats:
             assert ("chat-image" in body) == (side == "start")
 
     def test_composer_send_button_is_themed_and_labelled(self, tmp_path):
-        html = strip_assets(build_client(tmp_path).get("/messages/Alice/").text)
+        html = strip_assets(build_client(tmp_path).get(f"/messages/{ALICE}/").text)
         assert find_tag(html, "button", type="submit", aria_label="Send", class_="msg-send")
         assert "btn-primary" not in html
 
     def test_compact_puts_time_on_the_sender_line(self, tmp_path):
-        html = strip_assets(build_client(tmp_path, layout="compact_list").get("/messages/Alice/").text)
+        html = strip_assets(build_client(tmp_path, layout="compact_list").get(f"/messages/{ALICE}/").text)
         first = re.search(r'<div class="chat chat-start.*?<input', html, flags=re.S).group(0)
         assert first.index("chat-header") < first.index("chat-footer") < first.index("chat-bubble")
 
     def test_split_inbox_marks_only_the_open_chat(self, tmp_path):
-        html = strip_assets(build_client(tmp_path, layout="split_inbox").get("/messages/Bob/").text)
+        html = strip_assets(build_client(tmp_path, layout="split_inbox").get(f"/messages/{BOB}/").text)
         assert html.count('aria-current="page"') == 1
         current = re.search(r'<a [^>]*aria-current="page"[^>]*>', html).group(0)
-        assert 'href="/messages/Bob"' in current
+        assert f'href="/messages/{BOB}"' in current
         assert find_tag(html, "nav", class_="msg-list-pane", aria_label="Conversations")
 
     def test_send_continues_a_run_of_your_own(self, tmp_path):
         client = build_client(tmp_path)
-        messenger.add_new_message_to_history("Charlie", "earlier", "you", "Feb 25, 4:50PM")
-        raw = client.post("/messages/send", data={"msg": "hi", "interlocutor": "Charlie"}).text
+        messenger.add_new_message_to_history(CHARLIE, "earlier", "you", "Feb 25, 4:50PM")
+        raw = client.post("/messages/send", data={"msg": "hi", "interlocutor": CHARLIE}).text
         html = strip_assets(raw)
         classes = re.findall(r'<div class="(chat chat-(?:start|end)[^"]*)"', html)
         assert classes == ["chat chat-end msg-last", "chat chat-start msg-first msg-last"]
@@ -257,13 +264,13 @@ class TestThread:
         script = re.search(r'<script class="msg-close-run">(.*?)</script>', raw, flags=re.S)
         assert script and "classList.remove('msg-last')" in script.group(1)
         state = client.get("/messages_all").json()
-        charlie = next(c for c in state if c["user"] == "Charlie")
-        assert [m[1] for m in charlie["messages"][-2:]] == ["you", "Charlie"]
+        charlie = next(c for c in state if c["handle"] == CHARLIE)
+        assert [m[1] for m in charlie["messages"][-2:]] == ["you", CHARLIE]
 
 
     def test_send_after_a_reply_needs_no_run_fix(self, tmp_path):
         client = build_client(tmp_path)
-        html = client.post("/messages/send", data={"msg": "hi", "interlocutor": "Alice"}).text
+        html = client.post("/messages/send", data={"msg": "hi", "interlocutor": ALICE}).text
         assert "msg-close-run" not in html
         classes = re.findall(r'<div class="(chat chat-(?:start|end)[^"]*)"', html)
         assert classes[0] == "chat chat-end msg-first msg-last"
@@ -279,10 +286,10 @@ class TestStyles:
     def test_renders_in_every_theme(self, tmp_path, theme):
         for layout in LAYOUTS:
             client = build_client(tmp_path / layout, layout=layout, theme=theme)
-            for route in ("/messages", "/messages/Alice/"):
+            for route in ("/messages", f"/messages/{ALICE}/"):
                 response = client.get(route)
                 assert response.status_code == 200
                 assert "--color-primary" in response.text
-            thread = strip_assets(client.get("/messages/Alice/").text)
-            assert "#570df8" not in client.get("/messages/Alice/").text
+            thread = strip_assets(client.get(f"/messages/{ALICE}/").text)
+            assert "#570df8" not in client.get(f"/messages/{ALICE}/").text
             assert 'id="chatlist"' in thread

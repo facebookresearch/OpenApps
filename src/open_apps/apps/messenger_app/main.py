@@ -12,17 +12,45 @@ import ast
 import json
 import re
 import zlib
+from urllib.parse import quote
+
+from fastlite import NotFoundError
+from starlette.responses import RedirectResponse
+
+from open_apps.apps.contacts_app import main as contacts_app
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.handles import format_handle, handle_kind, normalize_handle
 from open_apps.theme import theme_style
 
 
 @dataclass
-class Messages:
-    user: str
+class Thread:
+    """One conversation, keyed by who it is with.
+
+    ``handle`` is the other party's phone number or email (normalised, see
+    ``open_apps.handles``), or ``group:<slug>`` for a group chat. Each sender is
+    ``"you"`` or a handle. No names are stored anywhere in the messenger: what a
+    thread or sender is called comes from the Contacts app at draw time, so
+    saving an unknown number names its thread, and renaming a contact renames
+    it everywhere, without the messenger's state -- the scoring surface --
+    changing at all.
+    """
+    handle: str
     messages: list[str]
     senders: list[str]
     timestamps: list[str]
+
+
+# Group chats: key -> {"title", "members"}. Seeded from config beside the
+# threads (see scripts/migrate_messenger_handles.py for why it is separate).
+_groups: dict[str, dict] = {}
+
+# Fixed replies, keyed by handle. Everyone else answers at random, as before.
+FIXED_REPLIES = {
+    "+15550100002": "Yes, let's play on Saturday!",  # Bob
+    "+15550100001": "Yes, I want to play badminton!",  # Alice
+}
 
 logo_title_container = None
 
@@ -386,7 +414,10 @@ def set_environment(config):
     app.config = config
     # create database
     db = database(app.config.messenger.database_path)
-    message_history_db = db.create(Messages, pk="user")
+    message_history_db = db.create(Thread, name="threads", pk="handle")
+    # set_environment runs again on reset; clear before re-seeding rather
+    # than colliding on the seeded keys.
+    message_history_db.delete_where()
     populate_database(config, message_history_db)
     logo_title_container = create_logo_header(
         app_config=config.start_page.apps.messages,
@@ -404,21 +435,27 @@ def messenger_theme():
 
 
 def populate_database(config, db):
-    """Adds chat history to database"""
-    chat_history = config.messenger.chat_history
-    for user in chat_history:
-        print("adding ", user, " to db")
-        user_chat = chat_history[user]
-        messages = [m[0] for m in user_chat]
-        senders = [m[2] for m in user_chat]
-        timestamps = [m[3] for m in user_chat]
-        messages = Messages(user=user, messages=messages, senders=senders, timestamps=timestamps)
-        db.insert(messages)
+    """Seed the threads (and group metadata) from the content pack."""
+    _groups.clear()
+    for key, group in (getattr(config.messenger, "groups", None) or {}).items():
+        _groups[str(key)] = {
+            "title": str(group.get("title") or key),
+            "members": [str(m) for m in (group.get("members") or [])],
+        }
+    for key, rows in (getattr(config.messenger, "threads", None) or {}).items():
+        db.insert(
+            Thread(
+                handle=str(key),
+                messages=[str(r[0]) for r in rows],
+                senders=[str(r[1]) for r in rows],
+                timestamps=[str(r[2]) for r in rows],
+            )
+        )
 
 
-def add_new_message_to_history(user, message, sender, timestamp):
-    """Adds a new message to the database"""
-    chat_history = message_history_db[user]
+def add_new_message_to_history(key, message, sender, timestamp):
+    """Append one message to the thread at ``key`` (a handle or group key)."""
+    chat_history = message_history_db[key]
     messages = ast.literal_eval(chat_history.messages)
     messages.append(message)
     senders = ast.literal_eval(chat_history.senders)
@@ -474,9 +511,47 @@ def short_date(timestamp):
     return f"{month} {day}"
 
 
-def is_group_chat(name):
-    # The same heuristic the list preview and the UI-question generator use.
-    return "group" in name.lower()
+def is_group_chat(key):
+    return str(key).startswith("group:")
+
+
+def person_name(handle):
+    """What to call a sender or the other end of a thread: "you", the contact
+    name if the handle is saved, else the formatted number -- the way a phone
+    labels a stranger. Falls back to formatting alone when the Contacts app
+    has not been set up (the messenger served on its own)."""
+    if handle == "you":
+        return "you"
+    if contacts_app.contacts is not None:
+        return contacts_app.contact_name(handle)
+    value = normalize_handle(handle)
+    return format_handle(value) if value else str(handle)
+
+
+def thread_title(key):
+    """A group's configured title, or the person the thread is with."""
+    if is_group_chat(key):
+        return _groups.get(key, {}).get("title", key)
+    return person_name(key)
+
+
+def saved_contact(key):
+    """The contact a direct thread is with, or None (unknown, or a group)."""
+    if is_group_chat(key) or contacts_app.contacts is None:
+        return None
+    return contacts_app.contact_for_handle(key)
+
+
+def thread_url(key):
+    # `+`, `@` and `:` are legal in a path segment, so keys stay readable.
+    return f"/messages/{quote(key, safe='+@:')}"
+
+
+def _get_thread(key):
+    try:
+        return message_history_db[key]
+    except NotFoundError:
+        return None
 
 
 def group_members(senders):
@@ -508,9 +583,15 @@ def avatar_tone(name):
     return zlib.crc32(name.encode("utf-8")) % AVATAR_TONES
 
 
+def _looks_like_handle(name):
+    return bool(name) and (name[0] in "+0123456789" or "@" in name)
+
+
 def _avatar_disc(name, extra_cls=""):
+    # An unsaved number gets a person glyph: "+(" is not a monogram.
+    content = I(cls="fas fa-user msg-avatar-glyph") if _looks_like_handle(name) else initials(name)
     return Span(
-        initials(name),
+        content,
         cls=f"msg-avatar-disc avatar-tone-{avatar_tone(name)} {extra_cls}".strip(),
     )
 
@@ -564,7 +645,8 @@ def ChatMessage(message, sender, timestamp=None, first_in_run=True, last_in_run=
     if timestamp is None:
         timestamp = datetime.now().strftime("%b %d, %I:%M %p")  # Format: Apr 16, 10:30 AM
     run_cls = (" msg-first" if first_in_run else "") + (" msg-last" if last_in_run else "")
-    header = Div(sender, cls="chat-header")
+    label = person_name(sender)
+    header = Div(label, cls="chat-header")
     bubble = Div(message, cls=f"chat-bubble {bubble_class}")
     footer = Div(display_time(timestamp), cls="chat-footer")
     # compact_list sets the time on the sender's line, above the text, so
@@ -576,7 +658,7 @@ def ChatMessage(message, sender, timestamp=None, first_in_run=True, last_in_run=
     return Div(cls=f"chat {chat_class}{run_cls}")(
         # Incoming messages carry the sender's avatar beside the run's last
         # bubble, the way Messenger and iMessage do.
-        None if outgoing else Div(Avatar(sender, size="inline"), cls="chat-image"),
+        None if outgoing else Div(Avatar(label, size="inline"), cls="chat-image"),
         *parts,
         Hidden(message, name="messages"),
     )
@@ -623,7 +705,7 @@ def SearchBar():
 def current_layout():
     """The active structure variant from `config/apps/messenger/layout/`.
 
-    Both variants keep `/messages` and `/messages/{user_id}/` resolving and
+    Both variants keep `/messages` and `/messages/{handle}/` resolving and
     leave `#chatlist` in place, so tasks and rewards (which read
     `/messages_all`) are unaffected.
     """
@@ -843,6 +925,46 @@ _LAYOUT_STYLES = Style("""
         line-height: 1.3;
         color: var(--color-muted) !important;
     }
+    /* A saved contact's name opens their card, the way tapping the name in a
+       phone's thread header does. Reads as the title until hovered. */
+    .msg-thread-name h1 a.msg-thread-contact {
+        color: inherit !important;
+        text-decoration: none;
+        border-radius: calc(var(--radius) * 0.5);
+    }
+    .msg-thread-name h1 a.msg-thread-contact:hover { text-decoration: underline; }
+    .msg-thread-name h1 a.msg-thread-contact:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+    .msg-avatar-glyph { font-size: 0.9em; opacity: 0.85; }
+
+    /* Unknown sender: one slim line under the header, the prompt a phone
+       shows above a text from a number you have not saved. */
+    .msg-unknown-banner {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space);
+        padding: calc(var(--space) * 0.5) calc(var(--space) * 1.5);
+        border-bottom: 1px solid var(--color-border);
+        background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+        font-size: var(--font-size-sm);
+    }
+    .msg-unknown-banner p { margin: 0; color: var(--color-muted) !important; }
+    .msg-unknown-banner a {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--space) * 0.4);
+        padding: calc(var(--space) * 0.25) calc(var(--space) * 0.75);
+        border-radius: calc(var(--radius) * 999);
+        color: var(--color-primary) !important;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .msg-unknown-banner a:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+    .msg-unknown-banner a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+    .layout-compact_list .msg-unknown-banner { padding: calc(var(--space) * 0.35) var(--space); }
+
     .msg-icon-btn {
         flex: none;
         display: inline-flex;
@@ -1204,18 +1326,20 @@ def conversation_list(selected: str = None):
             # Add prefix to the last message
             if last_sender == "you":
                 message_preview = f"You: {last_message}"
+            elif is_group_chat(history.handle):
+                message_preview = f"{person_name(last_sender)}: {last_message}"
             else:
-                message_preview = f"{last_message}" if "group" not in history.user.lower() else f"{last_sender}: {last_message}"
+                message_preview = f"{last_message}"
 
             chats.append({
-                "user": history.user,
+                "key": history.handle,
                 "last_message": message_preview,
                 "last_timestamp": timestamps[-1] if timestamps else "",
                 "members": group_members(senders),
             })
         else:
             chats.append({
-                "user": history.user,
+                "key": history.handle,
                 "last_message": "No messages yet",
                 "last_timestamp": "",
                 "members": [],
@@ -1224,7 +1348,8 @@ def conversation_list(selected: str = None):
     compact = current_layout() == "compact_list"
 
     def row(chat):
-        user = chat["user"]
+        key = chat["key"]
+        user = thread_title(key)
         # The server-side cut stays at 35 characters so the text an agent
         # reads is as long as it always was -- adversarial content variants
         # plant their payload in the last message, and a full-length preview
@@ -1235,7 +1360,7 @@ def conversation_list(selected: str = None):
         name = H3(user, cls="msg-row-name")
         when = Span(short_date(chat["last_timestamp"]), cls="msg-row-time")
         snippet = P(preview, cls="msg-row-preview")
-        avatar = Avatar(user, chat["members"] if is_group_chat(user) else None)
+        avatar = Avatar(user, [person_name(m) for m in chat["members"]] if is_group_chat(key) else None)
         if compact:
             # One line per chat, read left to right: who, what, when.
             body = Div(name, snippet, when, cls="msg-row-body")
@@ -1245,13 +1370,13 @@ def conversation_list(selected: str = None):
             Div(
                 avatar,
                 body,
-                cls="msg-row" + (" is-selected" if user == selected else ""),
+                cls="msg-row" + (" is-selected" if key == selected else ""),
             ),
-            href=f"/messages/{user}",
+            href=thread_url(key),
             cls="msg-link",
             # Exposes the open chat to the accessibility tree, not just as a
             # background tint an agent reading the axtree would never see.
-            aria_current="page" if user == selected else None,
+            aria_current="page" if key == selected else None,
         )
 
     return Div(*[row(chat) for chat in chats], cls="msg-list")
@@ -1336,15 +1461,88 @@ def index():
         page,
     )
 
-@app.get("/messages/{user_id}/")
-def index(user_id: str):
-    chat_history: Messages = message_history_db[user_id]
+def _legacy_thread_key(name):
+    """The thread an old name-keyed URL (``/messages/Alice/``) meant, or None.
+
+    Only an unambiguous name redirects: a group's title, or a name exactly one
+    contact answers to whose handles include one with a thread. Two contacts
+    called "Priya" is a 404, not a guess."""
+    for key, group in _groups.items():
+        if group["title"] == name and _get_thread(key) is not None:
+            return key
+    if contacts_app.contacts is None:
+        return None
+    matches = contacts_app.find_by_name(name)
+    if len(matches) != 1:
+        return None
+    for handle in contacts_app.handles_for(matches[0].id):
+        if _get_thread(handle.value) is not None:
+            return handle.value
+    return None
+
+
+def _not_found():
+    return Response("No such conversation", status_code=404, headers={"Content-Type": "text/plain"})
+
+
+def thread_header_name(key, title):
+    """The header title: a link to the contact's card when the thread is with
+    a saved contact, plain text for groups and unknown numbers."""
+    contact = saved_contact(key)
+    if contact is not None:
+        return H1(
+            A(
+                title,
+                href=f"/contacts/{contact.id}",
+                cls="msg-thread-contact",
+                data_testid="thread-contact-link",
+            )
+        )
+    return H1(title)
+
+
+def unknown_sender_banner(key):
+    """"Add to contacts" for a direct thread with a number nobody has saved;
+    None otherwise. The link pre-fills the new-contact form with the handle."""
+    if is_group_chat(key) or saved_contact(key) is not None:
+        return None
+    if contacts_app.contacts is None:
+        return None
+    field = "email" if handle_kind(key) == "email" else "phone"
+    return Div(
+        P("Not in your contacts"),
+        A(
+            I(cls="fas fa-user-plus", aria_hidden="true"),
+            "Add to contacts",
+            href=f"/contacts/new?{field}={quote(key, safe='')}",
+            data_testid="add-to-contacts",
+        ),
+        cls="msg-unknown-banner",
+        role="note",
+        id="unknown-sender-banner",
+    )
+
+
+@app.get("/messages/{key}/")
+def index(key: str):
+    chat_history = _get_thread(key)
+    if chat_history is None:
+        # Any other spelling of a handle, or an old name-keyed URL: send the
+        # browser to the canonical thread URL rather than serve a second copy.
+        canonical = normalize_handle(key)
+        if canonical is None or _get_thread(canonical) is None:
+            canonical = _legacy_thread_key(key)
+        if canonical is None:
+            return _not_found()
+        return RedirectResponse(thread_url(canonical) + "/", status_code=307)
     messages = ast.literal_eval(chat_history.messages)
     senders = ast.literal_eval(chat_history.senders)
     timestamps = ast.literal_eval(chat_history.timestamps)
 
-    group = is_group_chat(user_id)
-    members = group_members(senders)
+    group = is_group_chat(key)
+    member_keys = _groups.get(key, {}).get("members") or group_members(senders)
+    members = [person_name(m) for m in member_keys]
+    title = thread_title(key)
     runs = message_runs(senders)
 
     page = Main(cls="msg-thread " + ("is-group" if group else "is-direct"))(
@@ -1357,9 +1555,9 @@ def index(user_id: str):
                     cls="thread-back msg-icon-btn",
                     aria_label="Back",
                 ),
-                Avatar(user_id, members if group else None, size="header"),
+                Avatar(title, members if group else None, size="header"),
                 Div(cls="msg-thread-name")(
-                    H1(user_id),
+                    thread_header_name(key, title),
                     # Group headers name the members, as every client does.
                     P(", ".join(members), cls="msg-thread-sub") if group and members else None,
                 ),
@@ -1372,6 +1570,7 @@ def index(user_id: str):
                 aria_label="Search",
             ),
         ),
+        unknown_sender_banner(key),
         # Search Bar
         SearchBar(),
         # Chat container with background
@@ -1403,7 +1602,7 @@ def index(user_id: str):
                     type="submit",
                     aria_label="Send",
                 ),
-                Hidden(user_id, name="interlocutor"),
+                Hidden(key, name="interlocutor"),
                 cls="msg-composer-row",
             )
         ),
@@ -1426,7 +1625,7 @@ def index(user_id: str):
         # open thread instead of being a separate page. The thread is still at
         # its own URL, so every existing link and task navigation still works.
         body = Div(
-            list_pane(selected=user_id),
+            list_pane(selected=key),
             Div(page, cls="msg-thread-pane"),
             cls="messenger-split",
         )
@@ -1472,21 +1671,27 @@ def send(msg: str, interlocutor: str, messages: list[str] = None):
     current_time = datetime.now().strftime("%b %d, %I:%M %p")
     # Whether the new message continues a run of your own messages, read
     # before it is stored. The reply always starts (and ends) its own run.
-    previous = ast.literal_eval(message_history_db[interlocutor].senders)
+    thread = _get_thread(interlocutor)
+    if thread is None:
+        return _not_found()
+    previous = ast.literal_eval(thread.senders)
     continues_run = bool(previous) and previous[-1] == "you"
     add_new_message_to_history(interlocutor, msg.rstrip(), "you", current_time)
 
-    if interlocutor == 'Bob':
-        r = "Yes, let's play on Saturday!"
-    elif interlocutor == 'Alice':
-        r = "Yes, I want to play badminton!"
+    r = FIXED_REPLIES.get(interlocutor) or random.choice(
+        ["I'm a bot!", "I'm a human!", "What's up?", "The stock market is crazy today!"]
+    )
+    # A group answers from one of its members (senders are always handles).
+    if is_group_chat(interlocutor):
+        members = _groups.get(interlocutor, {}).get("members") or group_members(previous)
+        replier = members[0] if members else interlocutor
     else:
-        r = random.choice(["I'm a bot!", "I'm a human!", "What's up?", "The stock market is crazy today!"])
-    add_new_message_to_history(interlocutor, r, interlocutor, current_time)
+        replier = interlocutor
+    add_new_message_to_history(interlocutor, r, replier, current_time)
     return (
         Div(
             ChatMessage(msg, "you", current_time, first_in_run=not continues_run),
-            ChatMessage(r.rstrip(), interlocutor, current_time),
+            ChatMessage(r.rstrip(), replier, current_time),
             _CLOSE_PREVIOUS_RUN_END if continues_run else None,
             _="on load call scrollToBottom()",
         ),
@@ -1500,19 +1705,20 @@ def get_message_routes():
 
 @app.get("/messages_all")
 def get_all():
-    """Used for rewards"""
+    """Used for rewards. Handles only, never names: renaming or deleting a
+    contact must not change what a task is scored against."""
     entries = []
 
     for history in message_history_db():
-        history_dict = history.__dict__
-        new_dict = {"user": history_dict["user"]}
-        
-        history_dict["messages"] = ast.literal_eval(history_dict["messages"])
-        history_dict["senders"] = ast.literal_eval(history_dict["senders"])
-        history_dict["timestamps"] = ast.literal_eval(history_dict["timestamps"])
-
-        new_dict["messages"] = list(zip(history_dict["messages"], history_dict["senders"], history_dict["timestamps"]))
-        entries.append(new_dict)
+        messages = ast.literal_eval(history.messages)
+        senders = ast.literal_eval(history.senders)
+        timestamps = ast.literal_eval(history.timestamps)
+        entries.append(
+            {
+                "handle": history.handle,
+                "messages": [list(m) for m in zip(messages, senders, timestamps)],
+            }
+        )
     try:
         json_entries = json.dumps(entries)
     except Exception as e:
