@@ -1,0 +1,34 @@
+# @package apps.contacts
+#
+# Seed entries. Handles may be written in any human spelling -- they are
+# normalised on the way in (open_apps.handles) -- but each may belong to only
+# one contact; a duplicate fails the launch rather than silently merging two
+# people.
+#
+# Alice, Bob and Charlie have no last name on purpose: the messenger draws
+# names from here, and the chats, tasks and UI questions all call them by first
+# name alone. Northgate Properties is the landlord the payment tasks pay rent
+# to. The unknown sender who texts from +1 (555) 014-2290 is deliberately NOT
+# here -- saving them is a task.
+contacts:
+  - first_name: Alice
+    phones: [{label: mobile, value: "+1 (555) 010-0001"}]
+    emails: [{label: home, value: alice@example.com}]
+  - first_name: Bob
+    phones: [{label: mobile, value: "+1 (555) 010-0002"}]
+    emails: [{label: home, value: bob@example.com}]
+  - first_name: Charlie
+    phones: [{label: mobile, value: "+1 (555) 010-0003"}]
+    emails: [{label: home, value: charlie@example.com}]
+  - first_name: Priya
+    last_name: Shah
+    phones: [{label: mobile, value: "+1 (555) 010-0004"}]
+    emails: [{label: work, value: priya.shah@example.com}]
+  - first_name: Marcus
+    last_name: Webb
+    favorite: true
+    phones: [{label: mobile, value: "+1 (555) 010-0005"}]
+  - company: Northgate Properties LLC
+    note: "Landlord. Rent is due on the 1st."
+    phones: [{label: work, value: "+1 (555) 010-0040"}]
+    emails: [{label: work, value: rent@northgateprop.example}]

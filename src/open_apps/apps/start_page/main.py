@@ -268,6 +268,10 @@ AVAILABLE_APPS = {
         "open_apps.apps.openbanking_app",
         "get_openbanking_routes",
     ),
+    "contacts": (
+        "open_apps.apps.contacts_app",
+        "get_contacts_routes",
+    ),
 }
 
 APP_MODULE_TO_NAME = {
@@ -279,6 +283,7 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.onlineshop_app": "onlineshop",
     "open_apps.apps.openbanking_app": "openbanking",
     "open_apps.apps.uilibrary_app": "ui_library",
+    "open_apps.apps.contacts_app": "contacts",
 }
 
 
