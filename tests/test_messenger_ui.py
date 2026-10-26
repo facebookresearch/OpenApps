@@ -276,6 +276,211 @@ class TestThread:
         assert classes[0] == "chat chat-end msg-first msg-last"
 
 
+def add_contact(first_name, *handles, last_name=""):
+    """Save a contact straight into the Contacts tables (this branch has no
+    create route yet) and return it."""
+    person = contacts_app.contacts.insert(
+        contacts_app.Contact(
+            id=None, first_name=first_name, last_name=last_name, company="", note="", favorite=False
+        )
+    )
+    for value in handles:
+        kind = "email" if "@" in value else "phone"
+        contacts_app.handles.insert(
+            contacts_app.ContactHandle(id=None, contact_id=person.id, kind=kind, label="mobile", value=value)
+        )
+    return person
+
+
+def rename_contact(handle, first_name):
+    contact = contacts_app.contact_for_handle(handle)
+    contact.first_name = first_name
+    contacts_app.contacts.update(contact)
+
+
+def row_names(html):
+    return [n.strip() for n in re.findall(r'class="msg-row-name">(.*?)</', html, flags=re.S)]
+
+
+def header_title(html):
+    return re.sub(r"<[^>]+>", "", re.search(r"<h1>.*?</h1>", html, flags=re.S).group(0)).strip()
+
+
+class TestNamesFromContacts:
+    """The messenger stores handles; every name on screen is Contacts'."""
+
+    def test_list_rows_are_named_by_contacts(self, layout_client):
+        _, client = layout_client
+        html = strip_assets(client.get("/messages").text)
+        names = row_names(html)
+        assert {"Alice", "Bob", "Charlie", "Fantastic4GroupChat", "+1 (555) 014-2290"} <= set(names)
+        # No raw handle leaks into a row label for a saved contact.
+        assert ALICE not in names
+
+    def test_thread_header_links_a_saved_contact_to_their_card(self, tmp_path):
+        client = build_client(tmp_path)
+        alice = contacts_app.contact_for_handle(ALICE)
+        html = strip_assets(client.get(f"/messages/{ALICE}/").text)
+        link = find_tag(html, "a", href=f"/contacts/{alice.id}", data_testid="thread-contact-link")
+        assert link and "msg-thread-contact" in link
+        assert header_title(html) == "Alice"
+        assert "unknown-sender-banner" not in html
+
+    def test_renaming_a_contact_renames_their_thread(self, tmp_path):
+        client = build_client(tmp_path)
+        rename_contact(BOB, "Robert")
+        html = strip_assets(client.get(f"/messages/{BOB}/").text)
+        assert header_title(html) == "Robert"
+        assert "Robert" in row_names(strip_assets(client.get("/messages").text))
+
+    def test_group_names_its_members_and_senders(self, tmp_path):
+        client = build_client(tmp_path)
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
+        assert "<h1>Fantastic4GroupChat</h1>" in html
+        assert '<p class="msg-thread-sub">Alice, Bob, Charlie</p>' in html
+        labels = re.findall(r'<div class="chat-header">\s*(.*?)\s*<', html)
+        assert {"Alice", "you", "Bob", "Charlie"} == set(labels)
+        rename_contact(BOB, "Robert")
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
+        assert '<p class="msg-thread-sub">Alice, Robert, Charlie</p>' in html
+        assert "Robert" in re.findall(r'<div class="chat-header">\s*(.*?)\s*<', html)
+
+    def test_group_reply_comes_from_a_member_handle(self, tmp_path):
+        client = build_client(tmp_path)
+        client.post("/messages/send", data={"msg": "hi all", "interlocutor": GROUP})
+        group = next(c for c in client.get("/messages_all").json() if c["handle"] == GROUP)
+        assert [m[1] for m in group["messages"][-2:]] == ["you", ALICE]
+
+    def test_fixed_replies_are_keyed_by_handle(self, tmp_path):
+        client = build_client(tmp_path)
+        html = client.post("/messages/send", data={"msg": "Saturday?", "interlocutor": BOB}).text
+        assert "Yes, let&#x27;s play on Saturday!" in html or "Yes, let's play on Saturday!" in html
+
+
+class TestUnknownSender:
+    def test_unknown_number_shows_formatted_with_add_banner(self, layout_client):
+        _, client = layout_client
+        html = strip_assets(client.get(f"/messages/{UNKNOWN}/").text)
+        assert header_title(html) == "+1 (555) 014-2290"
+        assert find_tag(html, "div", class_="msg-unknown-banner", role="note")
+        assert "Not in your contacts" in html
+        link = find_tag(html, "a", data_testid="add-to-contacts")
+        # `+` must be escaped, or the query string would read it as a space.
+        assert 'href="/contacts/new?phone=%2B15550142290"' in link
+        # A stranger gets a person glyph, not "+(" initials.
+        assert "msg-avatar-glyph" in html
+
+    def test_email_handle_prefills_the_email_field(self, tmp_path):
+        client = build_client(tmp_path)
+        messenger.message_history_db.insert(
+            messenger.Thread(handle="sam@example.com", messages=["hey"], senders=["sam@example.com"], timestamps=["Apr 19, 9:00AM"])
+        )
+        html = strip_assets(client.get("/messages/sam@example.com/").text)
+        assert 'href="/contacts/new?email=sam%40example.com"' in html
+
+    def test_saving_the_number_names_the_thread(self, tmp_path):
+        client = build_client(tmp_path)
+        before = client.get("/messages_all").text
+        jordan = add_contact("Jordan", UNKNOWN)
+        html = strip_assets(client.get(f"/messages/{UNKNOWN}/").text)
+        assert header_title(html) == "Jordan"
+        assert find_tag(html, "a", href=f"/contacts/{jordan.id}")
+        assert "unknown-sender-banner" not in html
+        assert "Jordan" in row_names(strip_assets(client.get("/messages").text))
+        # ...and the scoring surface did not move.
+        assert client.get("/messages_all").text == before
+
+    def test_groups_never_get_the_banner(self, tmp_path):
+        html = strip_assets(build_client(tmp_path).get(f"/messages/{GROUP}/").text)
+        assert "unknown-sender-banner" not in html
+
+
+class TestScoringSurface:
+    def test_payload_is_handles_only(self, tmp_path):
+        state = build_client(tmp_path).get("/messages_all").json()
+        assert [set(c) for c in state] == [{"handle", "messages"}] * len(state)
+        assert {c["handle"] for c in state} == {ALICE, BOB, CHARLIE, GROUP, UNKNOWN}
+        senders = {m[1] for c in state for m in c["messages"]}
+        assert senders == {"you", ALICE, BOB, CHARLIE, UNKNOWN}
+        assert all(len(m) == 3 for c in state for m in c["messages"])
+
+    def test_renaming_or_deleting_a_contact_leaves_it_byte_identical(self, tmp_path):
+        client = build_client(tmp_path)
+        before = client.get("/messages_all").text
+        rename_contact(ALICE, "Alicia")
+        assert client.get("/messages_all").text == before
+        charlie = contacts_app.contact_for_handle(CHARLIE)
+        contacts_app.handles.delete_where("contact_id = ?", [charlie.id])
+        contacts_app.contacts.delete(charlie.id)
+        assert client.get("/messages_all").text == before
+        # The deleted contact's thread falls back to the number.
+        assert header_title(strip_assets(client.get(f"/messages/{CHARLIE}/").text)) == "+1 (555) 010-0003"
+
+
+class TestLegacyUrls:
+    @pytest.mark.parametrize(
+        "old, new",
+        [
+            ("Alice", ALICE),
+            ("alice", ALICE),
+            ("Fantastic4GroupChat", GROUP),
+            ("(555) 010-0002", BOB),
+            ("5550100003", CHARLIE),
+        ],
+    )
+    def test_unambiguous_names_and_spellings_redirect(self, tmp_path, old, new):
+        client = build_client(tmp_path)
+        response = client.get(f"/messages/{old}/", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == f"/messages/{new}/"
+        assert client.get(f"/messages/{old}/").status_code == 200
+
+    def test_ambiguous_or_unknown_names_are_404(self, tmp_path):
+        client = build_client(tmp_path)
+        assert client.get("/messages/Nobody/", follow_redirects=False).status_code == 404
+        # A contact with no thread is not a conversation to redirect to.
+        assert client.get("/messages/Priya Shah/", follow_redirects=False).status_code == 404
+        add_contact("Alice", "+15550109999", last_name="Other")
+        assert client.get("/messages/Alice/", follow_redirects=False).status_code == 404
+
+    def test_encoded_handle_resolves(self, tmp_path):
+        client = build_client(tmp_path)
+        assert client.get("/messages/%2B15550100001/").status_code == 200
+        assert client.get("/messages/group%3Afantastic4/").status_code == 200
+
+    def test_send_to_an_unknown_thread_is_404(self, tmp_path):
+        client = build_client(tmp_path)
+        assert client.post("/messages/send", data={"msg": "x", "interlocutor": "Alice"}).status_code == 404
+
+
+class TestLongDescriptions:
+    def test_long_pack_threads_keep_their_names(self, tmp_path):
+        from omegaconf import OmegaConf
+
+        from open_apps.utils import merge_plus_keys
+
+        overrides = [
+            f"logs_dir={tmp_path}",
+            "apps/messenger/content=long_descriptions",
+            "apps/contacts/content=long_descriptions",
+        ]
+        with initialize(version_base=None, config_path="../config/"):
+            config = compose(config_name="config", overrides=overrides)
+        # The launcher's merge of `+threads` into `threads`.
+        OmegaConf.resolve(config)
+        config = merge_plus_keys(config)
+        Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+        contacts_app.set_environment(config.apps)
+        messenger.set_environment(config.apps)
+        client = TestClient(messenger.app)
+
+        html = strip_assets(client.get("/messages").text)
+        names = set(row_names(html))
+        assert {"Alice", "Sieglinde", "Mom", "Dad", "Priya", "Self", "Fantastic4GroupChat"} <= names
+        assert not any(n.startswith("+1 (555) 010-01") for n in names)
+        assert header_title(strip_assets(client.get("/messages/+15550100114/").text)) == "Priya"
+
+
 class TestStyles:
     def test_no_hex_colours_in_messenger_styles(self):
         css = to_xml(messenger._LAYOUT_STYLES) + to_xml(messenger._COMPONENT_STYLES)
