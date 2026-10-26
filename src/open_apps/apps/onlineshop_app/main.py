@@ -2222,7 +2222,7 @@ def order_card(order):
             Div(H3(f"Order {order.order_id}", cls="card-title"),
                 Span(order.status, cls="status-pill"),
                 A("Receipt", href=f"/onlineshop/orders/{order.order_id}/receipt",
-                  target="_blank", rel="noopener", cls="order-receipt",
+                  target="_blank", rel="noopener", cls="order-receipt text-link",
                   aria_label=f"Receipt for order {order.order_id}"),
                 cls="order-id"),
             cls="order-head",
