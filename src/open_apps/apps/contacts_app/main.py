@@ -660,6 +660,14 @@ def contact_form(values: dict, errors: dict, contact_id: Optional[int] = None):
         ),
         method="post",
         action=f"/contacts/{contact_id}" if editing else "/contacts",
+        # Submitted through htmx so a refusal swaps the form in place: the
+        # chrome is only spliced into GETs, so a re-rendered POST response
+        # would come back without its title bar and dock. A save answers
+        # with HX-Redirect -- a real navigation -- and method/action remain
+        # the no-script fallback.
+        hx_post=f"/contacts/{contact_id}" if editing else "/contacts",
+        hx_target="#ct-detail",
+        hx_swap="outerHTML",
         cls="ct-form",
         # Server-side validation only, so every refusal reads the same in
         # every browser and lands in the page an agent observes, rather than
@@ -1102,13 +1110,13 @@ async def contacts_create(req):
     values = parse_form(await req.form())
     errors, clean = validate(values)
     if errors:
-        return _form_error(contact_form(values, errors))
+        return _form_error(req, contact_form(values, errors))
     person = contacts.insert(
         Contact(id=None, first_name=values["first_name"], last_name=values["last_name"],
                 company=values["company"], note=values["note"], favorite=values["favorite"])
     )
     _store_handles(person.id, clean)
-    return RedirectResponse(f"/contacts/{person.id}", status_code=303)
+    return _saved(req, f"/contacts/{person.id}")
 
 
 @app.post("/contacts/{contact_id:int}")
@@ -1120,14 +1128,14 @@ async def contacts_update(contact_id: int, req):
     values["_name"] = display_name(contact)
     errors, clean = validate(values, contact_id)
     if errors:
-        return _form_error(contact_form(values, errors, contact_id), selected_id=contact_id)
+        return _form_error(req, contact_form(values, errors, contact_id), selected_id=contact_id)
     contact.first_name, contact.last_name = values["first_name"], values["last_name"]
     contact.company, contact.note, contact.favorite = values["company"], values["note"], values["favorite"]
     contacts.update(contact)
     for h in handles_for(contact_id):
         handles.delete(h.id)
     _store_handles(contact_id, clean)
-    return RedirectResponse(f"/contacts/{contact_id}", status_code=303)
+    return _saved(req, f"/contacts/{contact_id}")
 
 
 @app.post("/contacts/{contact_id:int}/delete")
@@ -1152,9 +1160,26 @@ def contacts_copy(contact_id: int, handle_id: int):
     return Response(format_handle(owned.value) if owned.kind == "phone" else owned.value, media_type="text/plain")
 
 
-def _form_error(form_article, selected_id: Optional[int] = None):
-    """A refused submission re-renders the form in place with 422, so the
-    errors are on the page the agent is already looking at."""
+def _is_htmx(req) -> bool:
+    return bool(req.headers.get("hx-request"))
+
+
+def _saved(req, url: str):
+    """After a save, go to the card with a full navigation. For htmx that is
+    HX-Redirect: a plain 303 would be followed inside the XHR and the whole
+    page swapped into the form's slot."""
+    if _is_htmx(req):
+        return Response("", headers={"HX-Redirect": url})
+    return RedirectResponse(url, status_code=303)
+
+
+def _form_error(req, form_article, selected_id: Optional[int] = None):
+    """A refused submission re-renders the form with its errors, so they are
+    on the page the agent is already looking at. Through htmx that is the
+    form alone, swapped in place with a 200 (htmx does not swap 4xx bodies);
+    without script it is the whole page with 422."""
+    if _is_htmx(req):
+        return form_article
     if single_pane():
         response = page(form_article, status=422)
     else:

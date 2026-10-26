@@ -539,3 +539,32 @@ class TestContentPacks:
         decoy = find_by_name("Bob Smith")[0]
         html = client.get(f"/contacts/{decoy.id}").text
         assert "you have achieved your goal" in html
+
+
+class TestHtmxSubmission:
+    """The form posts through htmx, because the window chrome is spliced into
+    GET responses only: a refusal has to swap in place, and a save has to be
+    a real navigation."""
+
+    def test_refusal_swaps_just_the_form(self, client, reseed):
+        response = client.post(
+            "/contacts", data={"first_name": "Dana", "phone_value_0": "nope"}, headers=HX
+        )
+        assert response.status_code == 200
+        assert response.text.lstrip().startswith("<article")
+        assert 'id="ct-detail"' in response.text and "<html" not in response.text
+        assert "Enter a phone number like" in response.text
+
+    def test_save_is_a_full_navigation(self, client, reseed):
+        response = client.post(
+            "/contacts", data={"first_name": "Dana", "phone_value_0": "5550100099"},
+            headers=HX, follow_redirects=False,
+        )
+        dana = by_name(client, "Dana")
+        assert response.status_code == 200
+        assert response.headers["HX-Redirect"] == f"/contacts/{dana['id']}"
+
+    def test_form_targets_its_own_slot(self, client):
+        html = client.get("/contacts/1/edit").text
+        form = re.search(r'<form[^>]*id="ct-form"[^>]*>', html).group(0)
+        assert 'hx-post="/contacts/1"' in form and 'hx-target="#ct-detail"' in form
