@@ -29,8 +29,8 @@ are already vendored the same way.
 |------|---------|----------|---------|
 | `htmx-2.0.4.min.js` | 2.0.4 | https://github.com/bigskysoftware/htmx | 0BSD |
 | `pico-2.1.1.min.css` | 2.1.1 | https://github.com/picocss/pico | MIT |
-| `pdf-6.4.299.min.js` | 6.4.299 | https://github.com/mozilla/pdf.js | Apache-2.0 |
-| `pdf.worker-6.4.299.min.js` | 6.4.299 | https://github.com/mozilla/pdf.js | Apache-2.0 |
+| `pdf-6.4.299.min.js` | 6.4.299 (legacy build) | https://github.com/mozilla/pdf.js | Apache-2.0 |
+| `pdf.worker-6.4.299.min.js` | 6.4.299 (legacy build) | https://github.com/mozilla/pdf.js | Apache-2.0 |
 
 htmx and Pico are permissive and require no notice retention beyond the copyright
 headers already inside the files. Pico's header is intact at the top of the
@@ -49,6 +49,14 @@ module script and a module worker both require; `.mjs` isn't on the route's
 extension list. Headless Chromium downloads PDFs rather than showing its
 built-in viewer, which is why the viewer is vendored at all.
 
+The files are pdf.js's **legacy** build (`legacy/build/` in `pdfjs-dist`), not
+`build/`. The modern build calls `URL.parse`, `Math.sumPrecise` and
+`Uint8Array.fromBase64` with no fallback. The Chromium that Playwright
+installs here (125) has none of them, so the viewer failed before drawing a
+page. The legacy build carries its own polyfills and runs on that Chromium.
+Agents drive whatever browser their harness pins, so the older target is the
+safe one.
+
 ## Updating
 
 ```sh
@@ -61,8 +69,8 @@ curl -fsSL "https://cdn.jsdelivr.net/npm/htmx.org@${V}/dist/htmx.min.js" \
 V=6.4.299
 B="https://cdn.jsdelivr.net/npm/pdfjs-dist@${V}"
 D=src/open_apps/apps/assets/vendor
-curl -fsSL "$B/build/pdf.min.mjs" -o "$D/pdf-${V}.min.js"
-curl -fsSL "$B/build/pdf.worker.min.mjs" -o "$D/pdf.worker-${V}.min.js"
+curl -fsSL "$B/legacy/build/pdf.min.mjs" -o "$D/pdf-${V}.min.js"
+curl -fsSL "$B/legacy/build/pdf.worker.min.mjs" -o "$D/pdf.worker-${V}.min.js"
 curl -fsSL "$B/LICENSE" -o "$D/pdfjs-LICENSE"
 ```
 
