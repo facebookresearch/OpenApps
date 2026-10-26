@@ -138,6 +138,18 @@ class TestAddContact:
         ))
         assert _passes(task, initial, fresh())
 
+    @pytest.mark.parametrize(
+        "email", ["danareyes@example.com", "dana-reyes@example.com", "dana.reyes@examp.lecom"]
+    )
+    def test_a_different_email_fails(self, client, fresh, email):
+        """Handles are addresses, not prose: the fuzzy string compare that
+        forgives punctuation everywhere else must not reach them."""
+        task, initial = _task("add_contact_dana_reyes"), fresh()
+        client.post("/contacts", data=_form(
+            "Dana", "Reyes", phones=[("mobile", "5550100077")], emails=[("home", email)],
+        ))
+        assert not _passes(task, initial, fresh())
+
     def test_missing_email_fails(self, client, fresh):
         task, initial = _task("add_contact_dana_reyes"), fresh()
         client.post("/contacts", data=_form("Dana", "Reyes", phones=[("mobile", "5550100077")]))

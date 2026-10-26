@@ -150,6 +150,15 @@ class TestQuestionGeneration:
         json_str = json.dumps(json_output)
         assert len(json_str) > 0
 
+    def test_add_button_question_names_the_input_row(self):
+        """The todo page's Add button sits in the new-todo input row (fixed by
+        hand in ui_questions.json once; a regeneration must not undo it)."""
+        state_path = Path(__file__).parent / "states" / "initial_state.json"
+        with open(state_path) as f:
+            questions = generate_questions_from_state(json.load(f))
+        question = next(q for q in questions if "'Add button'" in q.question)
+        assert question.choices[question.correct] == "Inside the new-todo input row"
+
     def test_from_saved_state_file(self):
         state_path = Path(__file__).parent / "states" / "initial_state.json"
         if not state_path.exists():

@@ -400,11 +400,13 @@ def todo_input_location(state, config, rng, **_):
 
 
 def todo_return_button_location(state, config, rng, **_):
+    # Asks about the Add button, which sits at the end of the new-todo input
+    # row (the answer once hand-corrected in ui_questions.json, f728f65).
     choices, correct_letter = _shuffle_choices(
-        "Top right next to the search bar",
+        "Inside the new-todo input row",
         [
             "Above the app title",
-            "Inside the new-todo input row",
+            "Top right next to the search bar",
             "In the right edge of each todo item",
         ],
         rng,

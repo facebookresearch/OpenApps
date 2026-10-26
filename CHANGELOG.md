@@ -13,8 +13,9 @@ Every release is a git tag. To reproduce a result, check out its tag and run
 
 **Contacts.** Names now live in one place. The messenger stores phone numbers
 and emails, never names, and asks Contacts what to draw, so saving an unknown
-number renames its thread everywhere. Messenger state changes shape, so
-messenger scores are not comparable with 2.0.0.
+number renames its thread everywhere. Messenger state changes shape, and
+Contacts is an eighth app pinned to every task's desktop, so scores are not
+comparable with 2.0.0.
 
 ### Added
 
@@ -42,10 +43,17 @@ messenger scores are not comparable with 2.0.0.
   contact matches.
 - **`SendMessageTask.to` resolves through Contacts**: a handle or group key
   first, then an exact display name, then a unique first name. A name that
-  matches several contacts, or none, fails when the target is built rather
-  than at scoring time.
+  matches several contacts, or none, raises a `ValueError` naming the
+  candidates instead of scoring against a guessed thread.
 - Messenger content packs moved to the handle-keyed `threads:` / `groups:`
   format (`scripts/migrate_messenger_handles.py` converts old packs).
+
+### Fixed
+
+- Parallel sweeps launch every app: `config_parallel_tasks*.yaml` now include
+  Contacts, and the goal-variation sweep includes `apps/theme` like
+  `config.yaml` does, so its runs may differ from earlier ones.
+- The todo "Add button" UI question's answer is the new-todo input row.
 
 ## [2.0.0] - 2026-10-23
 

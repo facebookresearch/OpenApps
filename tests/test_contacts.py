@@ -253,6 +253,25 @@ class TestPages:
         html = client.get(f"/contacts/{alice['id']}").text
         assert 'href="/messages/%2B15550100001/"' in html
 
+    def test_message_is_disabled_for_a_contact_without_a_conversation(self, client):
+        """Priya has a number but no thread. A link would land on the
+        messenger's bare 404, so Message is disabled with a reason instead."""
+        priya = by_name(client, "Priya Shah")
+        html = client.get(f"/contacts/{priya['id']}").text
+        button = re.search(r'<button[^>]*data-testid="action-message"[^>]*>', html)
+        assert button and "disabled" in button.group(0)
+        assert 'title="No conversation yet"' in html
+
+    def test_message_uses_the_first_handle_with_a_thread(self, client, reseed):
+        """The scorer's rule (resolve_thread): phones, then emails, first one
+        that has a conversation -- not simply the first handle."""
+        _reconfigure(**{"contacts.contacts": [
+            {"first_name": "Bob", "phones": [{"value": "+15550100099"}, {"value": "+15550100002"}]},
+        ]})
+        bob = by_name(client, "Bob")
+        html = client.get(f"/contacts/{bob['id']}").text
+        assert 'href="/messages/%2B15550100002/"' in html
+
     def test_email_and_send_money_are_disabled_with_a_reason(self, client):
         html = client.get("/contacts/1").text
         for testid in ("action-email", "action-send-money"):

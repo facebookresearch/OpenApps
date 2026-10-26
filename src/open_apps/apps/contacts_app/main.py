@@ -296,12 +296,17 @@ def initials(contact: Contact) -> str:
 
 
 def primary_message_handle(contact: Contact) -> Optional[str]:
-    """Where "Message" goes: the first phone, else the first email -- the order
-    a phone's Messages app tries them in."""
+    """Where "Message" goes: the first phone, else the first email, that has a
+    conversation -- the rule ``tasks.resolve_thread`` scores by. The messenger
+    only opens existing threads, so a handle without one would land on its 404;
+    ``None`` disables the button instead."""
+    # Imported here: the messenger imports this module for names.
+    from open_apps.apps.messenger_app.main import _get_thread
+
     own = handles_for(contact.id)
     for kind in ("phone", "email"):
         for h in own:
-            if h.kind == kind:
+            if h.kind == kind and _get_thread(h.value) is not None:
                 return h.value
     return None
 
@@ -519,7 +524,7 @@ def detail_card(contact: Contact):
         action_button(
             app_glyph("messages", size=22), c.message_label,
             href=f"/messages/{quote(target, safe='')}/" if target else None,
-            hint=None if target else c.error_empty, testid="action-message",
+            hint=None if target else c.no_conversation_hint, testid="action-message",
         ),
         action_button(_ENVELOPE_SVG, c.email_action_label, hint=c.coming_soon, testid="action-email"),
         action_button(app_glyph("wallet", size=22), c.send_money_label, hint=c.coming_soon, testid="action-send-money"),

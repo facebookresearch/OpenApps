@@ -722,8 +722,8 @@
   {
     "question": "Where is the 'Add button' control located on the todo page?",
     "choices": {
-      "A": "Inside the new-todo input row",
-      "B": "Top right next to the search bar",
+      "A": "Top right next to the search bar",
+      "B": "Inside the new-todo input row",
       "C": "In the right edge of each todo item",
       "D": "Above the app title"
     },
@@ -731,7 +731,7 @@
     "category": "element_location",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "Where is the 'Add button' control located on the todo page?\n  A) Inside the new-todo input row\n  B) Top right next to the search bar\n  C) In the right edge of each todo item\n  D) Above the app title",
+    "formatted": "Where is the 'Add button' control located on the todo page?\n  A) Top right next to the search bar\n  B) Inside the new-todo input row\n  C) In the right edge of each todo item\n  D) Above the app title",
     "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {

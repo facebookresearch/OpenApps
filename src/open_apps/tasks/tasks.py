@@ -513,6 +513,26 @@ class AppStateComparison:
             if 0 <= extra <= allowed:
                 contact["messages"] = contact["messages"][:n_target]
 
+    def _contact_handles_match(self) -> bool:
+        """Compare every contact's handles exactly.
+
+        The diff below compares strings through ``StringSimilarityOperator``,
+        which strips punctuation -- right for a todo title, wrong for an
+        address: "danareyes@example.com" is someone else. Handles are already
+        normalised and sorted by ``_normalize_contacts``, so equality is exact.
+        """
+
+        def handle_sets(state: dict):
+            book = state.get("contacts")
+            if not isinstance(book, dict):
+                return None
+            return sorted(
+                (tuple(c.get("phones", [])), tuple(c.get("emails", [])))
+                for c in book.get("contacts", [])
+            )
+
+        return handle_sets(self.state1) == handle_sets(self.state2)
+
     def compare(self) -> bool:
         # check that both states have the same apps
         if set(self.state1.keys()) != set(self.state2.keys()):
@@ -521,6 +541,10 @@ class AppStateComparison:
 
         if self.reply_contacts:
             self._truncate_message_replies()
+
+        if not self._contact_handles_match():
+            print("===Contact handles differ")
+            return False
 
         return self.are_dicts_similar(
             self.state1, self.state2, self.coords_tolerance_km
