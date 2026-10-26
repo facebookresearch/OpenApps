@@ -302,6 +302,14 @@ def row_names(html):
     return [n.strip() for n in re.findall(r'class="msg-row-name">(.*?)</', html, flags=re.S)]
 
 
+def sender_labels(html):
+    """Each message's sender label as text, links unwrapped."""
+    return [
+        re.sub(r"<[^>]+>", "", m).strip()
+        for m in re.findall(r'<div class="chat-header">(.*?)</div>', html, flags=re.S)
+    ]
+
+
 def header_title(html):
     return re.sub(r"<[^>]+>", "", re.search(r"<h1>.*?</h1>", html, flags=re.S).group(0)).strip()
 
@@ -338,12 +346,11 @@ class TestNamesFromContacts:
         html = strip_assets(client.get(f"/messages/{GROUP}/").text)
         assert "<h1>Fantastic4GroupChat</h1>" in html
         assert '<p class="msg-thread-sub">Alice, Bob, Charlie</p>' in html
-        labels = re.findall(r'<div class="chat-header">\s*(.*?)\s*<', html)
-        assert {"Alice", "you", "Bob", "Charlie"} == set(labels)
+        assert {"Alice", "you", "Bob", "Charlie"} == set(sender_labels(html))
         rename_contact(BOB, "Robert")
         html = strip_assets(client.get(f"/messages/{GROUP}/").text)
         assert '<p class="msg-thread-sub">Alice, Robert, Charlie</p>' in html
-        assert "Robert" in re.findall(r'<div class="chat-header">\s*(.*?)\s*<', html)
+        assert "Robert" in sender_labels(html)
 
     def test_group_reply_comes_from_a_member_handle(self, tmp_path):
         client = build_client(tmp_path)
@@ -355,6 +362,49 @@ class TestNamesFromContacts:
         client = build_client(tmp_path)
         html = client.post("/messages/send", data={"msg": "Saturday?", "interlocutor": BOB}).text
         assert "Yes, let&#x27;s play on Saturday!" in html or "Yes, let's play on Saturday!" in html
+
+
+class TestContactLinks:
+    """Every saved person's name on a thread leads to their contact card."""
+
+    def test_group_sender_labels_link_to_contacts(self, tmp_path):
+        client = build_client(tmp_path)
+        bob = contacts_app.contact_for_handle(BOB)
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
+        link = find_tag(html, "a", href=f"/contacts/{bob.id}", data_testid="sender-contact-link")
+        assert link and 'aria-label="View contact: Bob"' in link
+        assert "msg-sender-link" in link
+        # Your own messages are not links.
+        assert not re.search(r'<div class="chat-header">\s*<a[^>]*>\s*you', html)
+
+    def test_unknown_group_sender_stays_plain_text(self, tmp_path):
+        client = build_client(tmp_path)
+        messenger.add_new_message_to_history(GROUP, "hi, new here", UNKNOWN, "Mar 1, 1:30PM")
+        html = strip_assets(client.get(f"/messages/{GROUP}/").text)
+        assert '<div class="chat-header">+1 (555) 014-2290</div>' in html
+
+    def test_hidden_labels_are_not_links(self, tmp_path):
+        # Direct threads hide the sender line; a hidden link would still be a
+        # Tab stop, so none is rendered there.
+        html = strip_assets(build_client(tmp_path).get(f"/messages/{ALICE}/").text)
+        assert "sender-contact-link" not in html
+
+    def test_header_link_only_for_a_known_contact(self, tmp_path):
+        client = build_client(tmp_path)
+        alice = contacts_app.contact_for_handle(ALICE)
+        html = strip_assets(client.get(f"/messages/{ALICE}/").text)
+        link = find_tag(html, "a", href=f"/contacts/{alice.id}", data_testid="thread-contact-link")
+        assert link and 'aria-label="View contact: Alice"' in link
+        html = strip_assets(client.get(f"/messages/{UNKNOWN}/").text)
+        assert "thread-contact-link" not in html
+        assert "<h1>+1 (555) 014-2290</h1>" in html
+
+    def test_list_rows_hold_no_nested_links(self, layout_client):
+        _, client = layout_client
+        html = strip_assets(client.get("/messages").text)
+        for row in re.findall(r'<a href="/messages/[^"]*".*?</a>', html, flags=re.S):
+            assert "<a " not in row[3:]
+            assert "/contacts/" not in row
 
 
 class TestUnknownSender:

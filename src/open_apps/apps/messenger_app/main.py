@@ -542,6 +542,19 @@ def saved_contact(key):
     return contacts_app.contact_for_handle(key)
 
 
+def contact_link(label, contact, cls, testid):
+    """A known person's name as a plain link to their card. Full-page
+    navigation, so the window chrome comes along; the accessible name says
+    where it goes."""
+    return A(
+        label,
+        href=f"/contacts/{contact.id}",
+        cls=cls,
+        aria_label=f"View contact: {label}",
+        data_testid=testid,
+    )
+
+
 def thread_url(key):
     # `+`, `@` and `:` are legal in a path segment, so keys stay readable.
     return f"/messages/{quote(key, safe='+@:')}"
@@ -630,11 +643,15 @@ def message_runs(senders):
 
 
 # Chat message component (renders a chat bubble)
-def ChatMessage(message, sender, timestamp=None, first_in_run=True, last_in_run=True):
+def ChatMessage(message, sender, timestamp=None, first_in_run=True, last_in_run=True, link_sender=False):
     """One message. Every message keeps its sender label and time in the DOM
     -- the search script reads both, and an agent reading the accessibility
     tree should not lose who said what -- while `_LAYOUT_STYLES` decides which
-    of them a sighted user sees (`msg-first` / `msg-last`)."""
+    of them a sighted user sees (`msg-first` / `msg-last`).
+
+    ``link_sender`` (group chats) makes a saved sender's label a link to their
+    contact card -- but only where the label is shown: a visually hidden link
+    would still take a Tab stop."""
     outgoing = sender == "you"
     if outgoing:
         bubble_class = "chat-bubble-primary"
@@ -646,7 +663,12 @@ def ChatMessage(message, sender, timestamp=None, first_in_run=True, last_in_run=
         timestamp = datetime.now().strftime("%b %d, %I:%M %p")  # Format: Apr 16, 10:30 AM
     run_cls = (" msg-first" if first_in_run else "") + (" msg-last" if last_in_run else "")
     label = person_name(sender)
-    header = Div(label, cls="chat-header")
+    contact = saved_contact(sender) if link_sender and not outgoing else None
+    label_shown = first_in_run or current_layout() == "compact_list"
+    if contact is not None and label_shown:
+        header = Div(contact_link(label, contact, "msg-sender-link", "sender-contact-link"), cls="chat-header")
+    else:
+        header = Div(label, cls="chat-header")
     bubble = Div(message, cls=f"chat-bubble {bubble_class}")
     footer = Div(display_time(timestamp), cls="chat-footer")
     # compact_list sets the time on the sender's line, above the text, so
@@ -927,13 +949,19 @@ _LAYOUT_STYLES = Style("""
     }
     /* A saved contact's name opens their card, the way tapping the name in a
        phone's thread header does. Reads as the title until hovered. */
-    .msg-thread-name h1 a.msg-thread-contact {
+    /* Group chats link each saved sender's label the same way. */
+    .msg-thread-name h1 a.msg-thread-contact,
+    .chat .chat-header a.msg-sender-link {
         color: inherit !important;
         text-decoration: none;
         border-radius: calc(var(--radius) * 0.5);
     }
-    .msg-thread-name h1 a.msg-thread-contact:hover { text-decoration: underline; }
-    .msg-thread-name h1 a.msg-thread-contact:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+    .msg-thread-name h1 a.msg-thread-contact:hover,
+    .msg-thread-name h1 a.msg-thread-contact:focus-visible,
+    .chat .chat-header a.msg-sender-link:hover,
+    .chat .chat-header a.msg-sender-link:focus-visible { text-decoration: underline; }
+    .msg-thread-name h1 a.msg-thread-contact:focus-visible,
+    .chat .chat-header a.msg-sender-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
     .msg-avatar-glyph { font-size: 0.9em; opacity: 0.85; }
 
     /* Unknown sender: one slim line under the header, the prompt a phone
@@ -1490,14 +1518,7 @@ def thread_header_name(key, title):
     a saved contact, plain text for groups and unknown numbers."""
     contact = saved_contact(key)
     if contact is not None:
-        return H1(
-            A(
-                title,
-                href=f"/contacts/{contact.id}",
-                cls="msg-thread-contact",
-                data_testid="thread-contact-link",
-            )
-        )
+        return H1(contact_link(title, contact, "msg-thread-contact", "thread-contact-link"))
     return H1(title)
 
 
@@ -1578,7 +1599,7 @@ def index(key: str):
             # Messages container
             Div(id="chatlist")(
                 *[
-                    ChatMessage(message, sender, timestamp, first, last)
+                    ChatMessage(message, sender, timestamp, first, last, link_sender=group)
                     for (message, sender, timestamp), (first, last) in zip(
                         zip(messages, senders, timestamps), runs
                     )
@@ -1691,7 +1712,7 @@ def send(msg: str, interlocutor: str, messages: list[str] = None):
     return (
         Div(
             ChatMessage(msg, "you", current_time, first_in_run=not continues_run),
-            ChatMessage(r.rstrip(), replier, current_time),
+            ChatMessage(r.rstrip(), replier, current_time, link_sender=is_group_chat(interlocutor)),
             _CLOSE_PREVIOUS_RUN_END if continues_run else None,
             _="on load call scrollToBottom()",
         ),
