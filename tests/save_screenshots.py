@@ -54,8 +54,9 @@ ROUTES = (
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     # An open conversation, not just the chat list. `split_inbox` and
     # `compact_list` both change the thread view, which the list route never
-    # renders. Alice is present in every content variation.
-    RouteSpec("messages_thread", "/messages/Alice/", "#chatlist"),
+    # renders. Alice's thread is present in every content variation; threads
+    # are keyed by handle, so this is her number, not her name.
+    RouteSpec("messages_thread", "/messages/%2B15550100001/", "#chatlist"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
     RouteSpec("uilibrary", "/uilibrary", "#uilibrary"),
@@ -73,6 +74,11 @@ ROUTES = (
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
     RouteSpec("onlineshop_search", "/onlineshop/search/coffee/1", ".card"),
+    RouteSpec("contacts", "/contacts", "#ct-list"),
+    # Alice (id 1) has a phone and an email, so the card shows both kinds of
+    # handle row and their Copy pills.
+    RouteSpec("contacts_detail", "/contacts/1", "#ct-detail"),
+    RouteSpec("contacts_new", "/contacts/new", "#ct-form"),
 )
 
 
@@ -80,7 +86,7 @@ THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
-    "onlineshop", "ui_library",
+    "onlineshop", "ui_library", "contacts",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -102,6 +108,7 @@ LAYOUT_VARIATIONS = {
     "layout_code_editor_top_tree": ["apps/code_editor/layout=top_tree"],
     "layout_uilibrary_single_column": ["apps/ui_library/layout=single_column"],
     "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
+    "layout_contacts_list_detail": ["apps/contacts/layout=list_detail"],
 }
 
 

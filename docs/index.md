@@ -172,6 +172,7 @@ layout in play. Every app has `default`, plus:
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| `contacts` | `list_detail` | One pane at a time: the list, then a contact on its own page |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
 
@@ -599,6 +600,36 @@ All logs are stored `log_outputs` will contain information about each run
 You can also enable logging to weights and biases by logging into your account and setting the flag: `use_wandb=True`.
 
 
+
+##### Contacts, handles and names
+
+Names live in the Contacts app and nowhere else. Every other app reaches a
+person by a *handle* -- a phone number in E.164 (`+15550100001`) or a
+lowercased email -- and asks Contacts what to call them. The messenger stores
+handles only, so `/messages_all` looks like this:
+
+```json
+[{"handle": "+15550100001",
+  "messages": [["Hello Yann, ...", "+15550100001", "Sep 16, 10:00PM"],
+               ["Absolutely, Alice! ...", "you", "Sep 17, 09:32AM"]]}]
+```
+
+Renaming, adding or deleting a contact changes what a thread is *called*,
+never messenger state. A number with no contact renders as the formatted
+number with a "Not in your contacts" banner; the default seed has one, from
+`+1 (555) 014-2290`.
+
+Message tasks still name people (`to: Bob`). The name is resolved against the
+contacts slice of the initial state: a handle or `group:` key first, then an
+exact display name, then a unique first name -- so the decoy "Bob Smith" in the
+misleading packs does not make `to: Bob` ambiguous. A name matching several
+contacts, or none, raises when the target is built.
+
+Contact tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=contacts task_name=save_unknown_sender_as_jordan_lee
+```
 
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel

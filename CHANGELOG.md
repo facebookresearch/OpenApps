@@ -11,6 +11,42 @@ Every release is a git tag. To reproduce a result, check out its tag and run
 
 ## [Unreleased]
 
+**Contacts.** Names now live in one place. The messenger stores phone numbers
+and emails, never names, and asks Contacts what to draw, so saving an unknown
+number renames its thread everywhere. Messenger state changes shape, so
+messenger scores are not comparable with 2.0.0.
+
+### Added
+
+- **Contacts** (`/contacts`): people with any number of phones and emails, a
+  note and a favourite flag. List, card, edit and new forms, delete with a
+  confirm step, search, and Copy pills on every number. Layouts `default`
+  (list beside card) and `list_detail` (one pane at a time); content packs
+  for every language and description variation, the misleading ones with
+  decoys such as a second "Bob". Scored at `/contacts_all`.
+- **Unknown senders**: a thread from a number not in Contacts shows the
+  formatted number and a "Not in your contacts" banner whose Add link opens a
+  prefilled contact form. The default seed has one, from +1 (555) 014-2290.
+- **Contact tasks** (`tasks=contacts`): add, edit and delete a contact, save
+  the unknown sender, reply to them by number, and save-then-message them by
+  name, each with casual, formal and unrelated-context phrasings. Kept out of
+  `all_tasks`, like the OpenBanking set.
+- Known sender names in the messenger link to their contact card.
+
+### Changed
+
+- **Messenger threads are keyed by handle.** `/messages_all` is now
+  `[{"handle", "messages": [[text, sender, timestamp], ...]}]`, where
+  `sender` is `"you"` or a handle; it held `user` names before. Thread URLs
+  are `/messages/<handle>/`; the old name URLs redirect when exactly one
+  contact matches.
+- **`SendMessageTask.to` resolves through Contacts**: a handle or group key
+  first, then an exact display name, then a unique first name. A name that
+  matches several contacts, or none, fails when the target is built rather
+  than at scoring time.
+- Messenger content packs moved to the handle-keyed `threads:` / `groups:`
+  format (`scripts/migrate_messenger_handles.py` converts old packs).
+
 ## [2.0.0] - 2026-10-23
 
 **Realism.** Every app now looks and behaves like the product it imitates,
