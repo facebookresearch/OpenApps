@@ -796,11 +796,38 @@ def messenger_count_conversations(state, config, rng, **_):
     ]
 
 
+def _thread_names(state, config) -> list[str]:
+    """The names the conversation list draws, one per thread.
+
+    ``/messages_all`` holds handles only; the list labels a thread with its
+    contact's name, the group's title, or the formatted number of an unknown
+    sender -- the same lookups the messenger makes at render time.
+    """
+    from open_apps.handles import format_handle
+    from open_apps.tasks.tasks import _contact_display_name
+
+    people = (state.get("contacts") or {}).get("contacts") or []
+    by_handle = {
+        h["value"]: _contact_display_name(c)
+        for c in people
+        for h in [*c.get("phones", []), *c.get("emails", [])]
+    }
+    groups = (config or {}).get("groups") or {}
+    names = []
+    for thread in state.get("messenger", []):
+        handle = thread["handle"]
+        if handle in groups:
+            names.append(groups[handle].get("title", handle))
+        else:
+            names.append(by_handle.get(handle, format_handle(handle)))
+    return names
+
+
 def messenger_contact_exists(state, config, rng, **_):
     conversations = state.get("messenger", [])
     if len(conversations) < 1:
         return []
-    contact_names = [c["user"] for c in conversations]
+    contact_names = _thread_names(state, config)
     fake_contacts = ["Diana", "Eve", "Frank", "Grace", "Henry", "Ivan", "Julia"]
     fake_contacts = [f for f in fake_contacts if f not in contact_names]
     if len(fake_contacts) < 3:
@@ -823,7 +850,7 @@ def messenger_contact_exists(state, config, rng, **_):
 
 def messenger_contact_not_exists(state, config, rng, **_):
     conversations = state.get("messenger", [])
-    contact_names = [c["user"] for c in conversations]
+    contact_names = _thread_names(state, config)
     fake_contacts = ["Diana", "Eve", "Frank", "Grace", "Henry"]
     fake_contacts = [f for f in fake_contacts if f not in contact_names]
     if len(fake_contacts) < 3 or len(contact_names) < 3:
@@ -846,11 +873,15 @@ def messenger_contact_not_exists(state, config, rng, **_):
 
 
 def messenger_group_chat_exists(state, config, rng, **_):
-    conversations = state.get("messenger", [])
-    group_chats = [c for c in conversations if "group" in c["user"].lower()]
-    has_group = len(group_chats) > 0
+    groups = (config or {}).get("groups") or {}
+    group_titles = [
+        groups[t["handle"]].get("title", t["handle"])
+        for t in state.get("messenger", [])
+        if t["handle"] in groups
+    ]
+    has_group = len(group_titles) > 0
     if has_group:
-        correct = f"Yes — '{group_chats[0]['user']}'"
+        correct = f"Yes — '{group_titles[0]}'"
         distractors = [
             "No, only individual conversations",
             "Yes — 'Team Chat'",
