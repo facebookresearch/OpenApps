@@ -11,6 +11,42 @@ Every release is a git tag. To reproduce a result, check out its tag and run
 
 ## [Unreleased]
 
+**Files.** A Files app shared by every other app: the bank writes statements
+into it, the shop writes receipts, and its Code folder is the code editor's
+workspace. Documents are real PDFs, read in the browser with pdf.js. Purchase
+targets now expect a receipt, so purchase scores are not comparable with
+2.0.0.
+
+### Added
+
+- **Files** (`/files`): folders, list and grid views, search, sort, upload,
+  rename, move, duplicate and delete, and a Recently Deleted bin that keeps
+  items for 30 days (counted from the pinned date, never purged on its own).
+  A PDF viewer with page thumbnails, zoom and a text layer, plus image and
+  highlighted text viewers. Layouts `default` and `icons`; a single pane on
+  phones. Seeded with medical reports, lab results, a lease, an insurance
+  card, a W-2, a bank statement and a parking permit. Scored at `/files_all`.
+- **PDF documents**: a small deterministic PDF writer (`open_apps.pdf_writer`)
+  and vendored pdf.js 6.4.299 (legacy build, Apache-2.0). No new Python
+  dependency and no build step.
+- **Bank statements**: a Statements page per account; View opens the PDF and
+  Download saves it to Files.
+- **Shop receipts**: every order, seeded or checked out, has a PDF receipt in
+  Files, linked from Orders.
+- **Reveal in Files** in the code editor.
+- **File tasks** (`tasks=files`): delete, restore, permanently delete, rename
+  and move a file, download a statement, file it away, and answer a question
+  from a receipt (`AnswerTask`, scored from the agent's reply). Kept out of
+  `all_tasks`, like the OpenBanking set.
+
+### Changed
+
+- `AppStateComparison` compares the files slice exactly (no fuzzy matching on
+  file names).
+- Purchase targets expect one new receipt in Files; a declined card expects
+  none.
+- Parallel sweeps launch Files (`config_parallel_tasks*.yaml`).
+
 ## [2.0.0] - 2026-10-23
 
 **Realism.** Every app now looks and behaves like the product it imitates,
