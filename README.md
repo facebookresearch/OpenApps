@@ -43,7 +43,7 @@ Simply run:
 ```bash
 uv run launch.py
 ```
-<img width="1440" height="822" alt="image" src="https://github.com/user-attachments/assets/46024c36-9f6d-462b-acb7-b6c148ed1754" />
+<img width="1440" height="1100" alt="The OpenApps desktop start page" src="docs/images/landing.png" />
 
 
 A browser opens on the apps once they are up, sized to the configured device.

@@ -60,21 +60,21 @@ Appearance is split along two axes:
     ::bash
     uv run launch.py apps/theme=challenging_font
 
-![landing](images/landing-challenging-font.png)
+![Challenging font theme](images/theme-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
     uv run launch.py apps/theme=dark
 
-![landing](images/landing-dark.png)
+![Dark theme](images/theme-dark.png)
 ///
 /// tab | default
 
     ::bash
     uv run launch.py apps/theme=default
 
-![landing](images/landing.png)
+![Default theme](images/theme-default.png)
 
 ///
 
@@ -333,23 +333,23 @@ other appearance axis.
 /// tab | german
 
     ::bash
-    uv run launch.py apps/start_page/content=german
+    uv run launch.py apps/todo/content=german
 
-![landing](images/landing-german.png)
+![German todo list](images/content-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    uv run launch.py apps/start_page/content=long_descriptions
+    uv run launch.py apps/onlineshop/content=long_descriptions
 
-![landing](images/landing-long-descriptions.png)
+![Online shop with long descriptions](images/content-long-descriptions.png)
 ///
 /// tab | pop-up
 
     ::bash
     uv run launch.py apps/pop_ups=adversarial_descriptions
 
-![landing](images/landing-popup.png)
+![Adversarial pop-up](images/landing-popup.png)
 
 ///
 
