@@ -1572,7 +1572,7 @@ def editor_selects(language: str | None = None):
 def reveal_in_files(path: str, is_file: bool):
     """"Reveal in Files": the workspace *is* Files' Code folder, so this opens
     the folder the item lives in there -- with a file, its folder and
-    ``select=<name>``, the way Finder's Reveal selects what it reveals.
+    ``selected=<name>``, the way Finder's Reveal selects what it reveals.
 
     ``None`` for a file that has not been saved yet: there is nothing on disk
     to reveal.
@@ -1583,7 +1583,7 @@ def reveal_in_files(path: str, is_file: bool):
     folder = parts[:-1] if is_file else parts
     href = "/files/Code" + "".join(f"/{quote(p)}" for p in folder)
     if is_file:
-        href += f"?select={quote(parts[-1])}"
+        href += f"?selected={quote(parts[-1])}"
     return A(
         icon(Icon.FOLDER, size=14),
         "Reveal in Files",

@@ -43,11 +43,17 @@ def reveal_href(body: str) -> str | None:
 class TestRevealInFiles:
     def test_a_file_reveals_its_folder_with_the_file_selected(self, client):
         body = client.get("/codeeditor/developing/simple_python.py").text
-        assert reveal_href(body) == "/files/Code/developing?select=simple_python.py"
+        assert reveal_href(body) == "/files/Code/developing?selected=simple_python.py"
         assert "Reveal in Files" in body
 
+    def test_following_reveal_lands_with_the_file_selected(self, client):
+        href = reveal_href(client.get("/codeeditor/developing/simple_python.py").text)
+        page = client.get(href).text
+        row = re.search(r'<[^>]*aria-selected="true"[^>]*>(?:(?!</tr>).)*', page, re.S)
+        assert row and "simple_python.py" in row.group(0)
+
     def test_a_top_level_file_reveals_the_code_folder(self, client):
-        assert reveal_href(client.get("/codeeditor/script.py").text) == "/files/Code?select=script.py"
+        assert reveal_href(client.get("/codeeditor/script.py").text) == "/files/Code?selected=script.py"
 
     def test_a_folder_reveals_itself(self, client):
         body = client.get("/codeeditor/developing/folder_in_folder").text
@@ -62,7 +68,7 @@ class TestRevealInFiles:
     def test_names_are_url_encoded(self, client):
         client.post("/codeeditor/save/my notes/a b.py", json={"content": "x = 1\n"})
         body = client.get("/codeeditor/my notes/a b.py").text
-        assert reveal_href(body) == "/files/Code/my%20notes?select=a%20b.py"
+        assert reveal_href(body) == "/files/Code/my%20notes?selected=a%20b.py"
 
 
 class TestSharedWorkspace:
