@@ -514,12 +514,12 @@ styles = Style("""
         box-shadow: 0 1px 2px color-mix(in srgb, var(--color-fg) 22%, transparent),
                     0 4px 14px color-mix(in srgb, var(--color-fg) 10%, transparent);
     }
-    .fs-thumb.is-large { width: 100%; height: 12.5rem; }
+    .fs-thumb.is-large { width: 100%; height: 10rem; }
 
     /* Preview pane. */
     .fs-preview {
         grid-area: preview; overflow-y: auto;
-        display: flex; flex-direction: column; gap: calc(var(--space) * 1.5);
+        display: flex; flex-direction: column; gap: calc(var(--space) * 1.2);
         padding: calc(var(--space) * 2);
         background: var(--color-surface);
         border-left: 1px solid var(--color-border);
