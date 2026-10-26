@@ -9,6 +9,7 @@ import os
 import shutil
 from typing import Dict
 import json
+from urllib.parse import quote
 from starlette.responses import Response
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
@@ -1568,6 +1569,30 @@ def editor_selects(language: str | None = None):
     )
 
 
+def reveal_in_files(path: str, is_file: bool):
+    """"Reveal in Files": the workspace *is* Files' Code folder, so this opens
+    the folder the item lives in there -- with a file, its folder and
+    ``select=<name>``, the way Finder's Reveal selects what it reveals.
+
+    ``None`` for a file that has not been saved yet: there is nothing on disk
+    to reveal.
+    """
+    parts = [p for p in str(path).split("/") if p]
+    if is_file and not os.path.isfile(os.path.join(current_dir, *parts)):
+        return None
+    folder = parts[:-1] if is_file else parts
+    href = "/files/Code" + "".join(f"/{quote(p)}" for p in folder)
+    if is_file:
+        href += f"?select={quote(parts[-1])}"
+    return A(
+        icon(Icon.FOLDER, size=14),
+        "Reveal in Files",
+        href=href,
+        cls="ce-btn",
+        id="ce-reveal-in-files",
+    )
+
+
 def editor_header(title, *actions, language: str | None = None):
     """The row above the code: what is open on the left, actions and (in
     `default`) the pickers on the right."""
@@ -1746,7 +1771,11 @@ def get_folder(folder: str):
         """
     )
     main_screen = Div(cls="ce-editor")(
-        editor_header(H2(f"Folder: {folder}", cls="ce-editor-title"), delete_folder),
+        editor_header(
+            H2(f"Folder: {folder}", cls="ce-editor-title"),
+            reveal_in_files(folder, is_file=False),
+            delete_folder,
+        ),
         Div(cls="ce-editor-body")(
             Textarea(
                 "Select a file to edit or create a new one.",
@@ -1998,7 +2027,7 @@ def get_file(file: str):
     codemirror_mode = language if language in list_of_modes else app.config.code_editor.mode
     main_screen = Div(cls="ce-editor")(
         tab_bar,
-        editor_header(title, language=language),
+        editor_header(title, reveal_in_files(file, is_file=True), language=language),
         Div(cls="ce-editor-body")(
             code_area(Textarea(
                 content,  # or "" for index() function

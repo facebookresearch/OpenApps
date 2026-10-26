@@ -30,6 +30,12 @@ What replaced it:
 
 The scoring surface is ``/onlineshop_all``, which returns the cart and the
 order history as plain JSON for ``open_apps.state.get_current_state``.
+
+Every order also has a PDF receipt in the shared file store
+(``Receipts/OpenShop order <order_id>.pdf``): written at checkout, and at seed
+time for the seeded history. The receipt is rendered from the order row alone
+-- no clock -- so a seeded receipt is byte-identical on every launch, and the
+Orders page serves the same bytes from the same row.
 """
 import json
 import re
@@ -43,6 +49,7 @@ from fasthtml.common import *
 # Svg/Rect/Text are not re-exported by fasthtml.common.
 from fasthtml.svg import Circle, G, Path, Rect, Svg
 
+from open_apps import files_store
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
@@ -682,6 +689,7 @@ styles = Style("""
         font-weight: 600;
     }
     .order-id .status-pill { align-self: flex-end; }
+    .order-id .order-receipt { align-self: flex-end; font-weight: 600; }
 
     /* default layout keeps "Return to List of Apps" a full-size outlined
        button, as the other apps do: the cross-app navigation tasks need a
@@ -936,6 +944,102 @@ def _seed_orders(config):
             )
 
 
+# --------------------------------------------------------------------------
+# Receipts
+# --------------------------------------------------------------------------
+
+RECEIPTS_FOLDER = "Receipts"
+SHOP_NAME = "OpenShop"
+
+
+def receipt_name(order_id: str) -> str:
+    """``OpenShop order <order_id>.pdf`` -- the id exactly as the order stores
+    it, so a scorer can swap it for its token by plain substitution."""
+    return f"{SHOP_NAME} order {order_id}.pdf"
+
+
+def receipt_path(order_id: str) -> str:
+    return f"{RECEIPTS_FOLDER}/{receipt_name(order_id)}"
+
+
+def _option_text(options_key: str) -> str:
+    chosen = json.loads(options_key or "{}")
+    return ", ".join(f"{k}: {v}" for k, v in sorted(chosen.items()))
+
+
+def receipt_pdf(order) -> bytes:
+    """The order's receipt, rendered from the order and its lines only."""
+    from open_apps.apps.files_app import documents
+
+    lines = []
+    for row in _lines_for(order.order_id):
+        product = _row(products, row.sku)
+        title = product.title if product else row.sku
+        options = _option_text(row.options)
+        lines.append([
+            f"{title} ({options})" if options else title,
+            str(row.quantity),
+            money(row.unit_price),
+            money(row.unit_price * row.quantity),
+        ])
+    return documents.render(
+        {
+            "kind": "receipt",
+            "shop": SHOP_NAME,
+            "order_id": order.order_id,
+            "placed": order.date,
+            "status": order.status,
+            "name": order.name,
+            "address": order.address,
+            "card_last4": order.card_last4,
+            "lines": lines,
+            "total": money(order.total),
+        },
+        {},
+    )
+
+
+def _files_ready() -> bool:
+    """Point the shared store at this run's Files root.
+
+    The Files app configures it at launch, and this is a no-op then. Doing it
+    here too keeps a shop stood up on its own (its tests, a standalone run)
+    writing into its own run's store rather than whichever one was configured
+    last in the process. ``False`` when the config has no Files app at all.
+    """
+    config = getattr(app, "config", None)
+    files_cfg = getattr(config, "files", None) if config is not None else None
+    if files_cfg is None:
+        return False
+    code = getattr(getattr(config, "code_editor", None), "database_path", None)
+    files_store.configure(files_cfg.root, code, files_cfg.today)
+    return True
+
+
+def write_receipt(order) -> str | None:
+    """Save the order's receipt into Files; returns its path.
+
+    Idempotent: a receipt already there with these bytes is left alone, so
+    re-seeding the shop over a store the Files app didn't reset doesn't grow
+    " (2)" copies.
+    """
+    if not _files_ready():
+        return None
+    data = receipt_pdf(order)
+    path = receipt_path(order.order_id)
+    if files_store.exists(path) and files_store.read(path) == data:
+        return path
+    return files_store.save(RECEIPTS_FOLDER, receipt_name(order.order_id), data)
+
+
+def seed_receipts():
+    """A receipt for every order in the shop. Public because a Files-only
+    re-seed empties the store: a full reset re-runs the shop after Files,
+    and anything resetting Files alone calls this to put receipts back."""
+    for order in orders():
+        write_receipt(order)
+
+
 def set_environment(config):
     """Create the tables and re-seed them from the Hydra config."""
     global app, logo_title_container
@@ -963,6 +1067,7 @@ def set_environment(config):
     _build_fts()
     _seed_cart(config)
     _seed_orders(config)
+    seed_receipts()
 
     logo_title_container = create_logo_header(
         app_config=config.start_page.apps.onlineshop,
@@ -2079,6 +2184,7 @@ def post(
             )
         )
         cart_items.delete(row.id)
+    write_receipt(_row(orders, order_id))
     return RedirectResponse(url="/onlineshop/orders", status_code=303)
 
 
@@ -2114,7 +2220,11 @@ def order_card(order):
                 Span(f"Card ending {order.card_last4}"))
             if order.card_last4 else "",
             Div(H3(f"Order {order.order_id}", cls="card-title"),
-                Span(order.status, cls="status-pill"), cls="order-id"),
+                Span(order.status, cls="status-pill"),
+                A("Receipt", href=f"/onlineshop/orders/{order.order_id}/receipt",
+                  target="_blank", rel="noopener", cls="order-receipt text-link",
+                  aria_label=f"Receipt for order {order.order_id}"),
+                cls="order-id"),
             cls="order-head",
         ),
         Div(*lines, cls="order-lines"),
@@ -2137,6 +2247,20 @@ def get():
         search_bar(),
         H1("Your orders", cls="page-title"),
         *[order_card(order) for order in reversed(all_orders)],
+    )
+
+
+@rt("/onlineshop/orders/{order_id}/receipt")
+def get(order_id: str):
+    """The receipt PDF, inline, for a new tab -- rendered from the order, so
+    it opens even if the copy in Files was moved or deleted."""
+    order = _row(orders, order_id)
+    if order is None:
+        return Response("", status_code=404)
+    return Response(
+        receipt_pdf(order),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{receipt_name(order.order_id)}"'},
     )
 
 

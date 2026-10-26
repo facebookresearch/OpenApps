@@ -23,6 +23,11 @@ checkout actually added: the charge, or the declined authorization when the
 card could not cover it. A task that involves a shop purchase therefore has to
 expect a delta in the ``openbanking`` slice as well as ``online_shop``; a task
 that does not involve one still sees a byte-identical bank.
+
+Statements (:mod:`.statements`) are read-only too: viewing one renders it
+from the ledger, and downloading one writes the PDF into the shared file
+store (``Statements/<account> — <Month YYYY>.pdf``) -- Files' state, not the
+bank's, so ``/openbanking_all`` still does not move.
 """
 
 from fasthtml.common import *
@@ -31,7 +36,9 @@ from datetime import date
 import json
 import re
 from typing import List, Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
+from open_apps import files_store
+from open_apps.apps.openbanking_app import statements
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.icons import Icon, icon
@@ -463,6 +470,58 @@ styles = Style("""
     a.ob-account-row, a.ob-account-row:hover { color: inherit; text-decoration: none; }
     a.ob-account-row:hover .ob-account-name-cell { text-decoration: underline; }
     .ob-empty { color: var(--color-muted); padding: 1rem 0; }
+
+    /* Statements: the band heading carries a link to them, and each month is
+       a row with its two actions as outlined pills -- the Copy pill's shape,
+       so the bank keeps one secondary-control look. */
+    .ob-band-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+    .ob-band-head .ob-band-heading { margin-bottom: 1rem; }
+    .ob-statements-link { font-weight: 600; }
+    .ob-statement-row {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+    .ob-statement-row:last-child { border-bottom: none; }
+    .ob-statement-icon { display: inline-flex; color: var(--color-muted); }
+    .ob-statement-month { font-weight: 600; }
+    .ob-statement-period { color: var(--color-muted); font-size: var(--font-size-sm); }
+    .ob-statement-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+    .ob-action {
+        display: inline-flex;
+        align-items: center;
+        width: auto;
+        margin: 0;
+        padding: 0.2rem 0.8rem;
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--color-fg);
+        font-family: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
+        line-height: 1.4;
+        cursor: pointer;
+    }
+    .ob-action:hover { border-color: var(--color-muted); text-decoration: none; }
+    .ob-action:focus { box-shadow: none; }
+    .ob-action:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .ob-toast:empty { display: none; }
+    .ob-toast {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--color-border);
+        border-left: 4px solid var(--color-accent);
+        border-radius: var(--radius);
+        background-color: var(--color-bg);
+    }
+    .ob-toast-icon { display: inline-flex; color: var(--color-accent); }
+    .ob-toast a { margin-left: auto; font-weight: 600; }
 """)
 
 
@@ -1388,7 +1447,16 @@ def transactions_panel(
         cls="ob-controls",
     )
     return Div(
-        H2(c.transactions_heading, cls="ob-band-heading"),
+        Div(
+            H2(c.transactions_heading, cls="ob-band-heading"),
+            A(
+                _label("statements_label", "Statements"),
+                href=f"/openbanking/accounts/{account.id}/statements",
+                cls="ob-statements-link",
+                id="ob-statements-link",
+            ),
+            cls="ob-band-head",
+        ),
         Div(
             controls,
             ledger(account, showing_index, query, expanded),
@@ -1644,6 +1712,224 @@ def openbanking_open_account(show: int = 1):
     the empty placeholder rather than a second endpoint.
     """
     return open_account_dialog(bool(show))
+
+
+# ---------------------------------------------------------------------------
+# Statements -- views over the ledger; downloading writes to Files, not here.
+
+
+def _label(key: str, default: str) -> str:
+    """A content-pack label that older packs may not define yet."""
+    value = getattr(cfg(), key, None)
+    return default if value is None else str(value)
+
+
+def statement_months(account: Account) -> list:
+    """Months with posted activity, newest first -- the only ones offered."""
+    return statements.statement_months(txns_for(account.id))
+
+
+def statement_rows(account: Account, month: tuple) -> list:
+    """The account's rows posted in ``month``, oldest first. The one source
+    for the PDF and for any task that needs a statement's expected figures."""
+    return statements.statement_rows(txns_for(account.id), month)
+
+
+def _card_summary(account: Account, month: tuple):
+    """The card's cycle figures, on the statement for the month its cycle
+    closed in -- they belong to that cycle, not to every month."""
+    if not account.is_card:
+        return None
+    closed = statements.parse_posting_date(account.statement_close_date)
+    if closed is None or (closed.year, closed.month) != tuple(month):
+        return None
+    return [
+        ("Statement balance", fmt_money(account.statement_balance)),
+        ("Minimum payment due", fmt_money(account.minimum_payment)),
+        ("Payment due date", account.payment_due_date or "-"),
+    ]
+
+
+def statement_pdf(account: Account, month: tuple) -> bytes:
+    """The statement as PDF bytes: the same ledger in, the same bytes out."""
+    from open_apps.apps.files_app import documents
+
+    statement = statements.build_statement(txns_for(account.id), month)
+    spec = statements.document_spec(
+        account,
+        statement,
+        bank=str(getattr(cfg(), "title", None) or "OpenBanking"),
+        today=as_of_date(),
+        card_summary=_card_summary(account, month),
+    )
+    return documents.render(spec, {})
+
+
+def _files_ready() -> bool:
+    """Point the shared store at this run's Files root.
+
+    The Files app configures it at launch; doing it again here is a no-op
+    then, and keeps a bank stood up on its own (a test, a standalone run)
+    writing into its own run's store rather than whichever one was last
+    configured in the process.
+    """
+    config = getattr(app, "config", None)
+    files_cfg = getattr(config, "files", None) if config is not None else None
+    if files_cfg is None:
+        return False
+    code = getattr(getattr(config, "code_editor", None), "database_path", None)
+    files_store.configure(files_cfg.root, code, files_cfg.today)
+    return True
+
+
+def save_statement(account: Account, month: tuple) -> tuple:
+    """Save the statement into Files; returns ``(path, created)``.
+
+    Downloading the same statement twice keeps one copy: the file at the
+    expected path already holds these exact bytes, so nothing is written.
+    Anything else at that path is someone's file and is never overwritten --
+    the download lands beside it with the store's " (2)".
+    """
+    data = statement_pdf(account, month)
+    path = statements.statement_path(account.name, month)
+    if files_store.exists(path) and files_store.read(path) == data:
+        return path, False
+    name = statements.statement_name(account.name, month)
+    return files_store.save(statements.STATEMENTS_FOLDER, name, data), True
+
+
+def _statement_target(account_id: int, month: str):
+    """The account and parsed month a statement URL names, or ``None`` for an
+    unknown account, a malformed month, or a month with no posted rows."""
+    account = get_account(account_id)
+    parsed = statements.parse_month(month)
+    if account is None or parsed is None or parsed not in statement_months(account):
+        return None
+    return account, parsed
+
+
+def _content_disposition(filename: str) -> str:
+    """``inline`` with the name, in a header that stays latin-1: the em dash
+    in a statement's name goes in the RFC 5987 ``filename*`` form."""
+    fallback = filename.encode("ascii", "replace").decode("ascii").replace("?", "-").replace('"', "")
+    return f"inline; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+
+
+def statement_toast(path: str = "", created: bool = True):
+    """The "Saved to Files" notice, or its empty placeholder."""
+    if not path:
+        return Div(id="ob-statement-toast", cls="ob-toast", role="status", aria_live="polite")
+    message = _label("saved_to_files_label", "Saved to Files") if created else _label(
+        "already_in_files_label", "Already in Files"
+    )
+    return Div(
+        Span(icon(Icon.CHECK, size=16), cls="ob-toast-icon"),
+        Span(message, ": ", Strong(path.split("/", 1)[1])),
+        A(
+            _label("open_in_files_label", "Open in Files"),
+            href=f"/files/view/{quote(path)}",
+            id="ob-open-in-files",
+        ),
+        id="ob-statement-toast",
+        cls="ob-toast",
+        role="status",
+        aria_live="polite",
+    )
+
+
+def statement_row(account: Account, month: tuple):
+    key = statements.month_key(month)
+    base = f"/openbanking/accounts/{account.id}/statements/{key}"
+    label = statements.month_label(month)
+    return Div(
+        Span(icon(Icon.FILE, size=18), cls="ob-statement-icon"),
+        Div(
+            Div(label, cls="ob-statement-month"),
+            Div(statements.period_label(month, as_of_date()), cls="ob-statement-period"),
+        ),
+        Div(
+            A(
+                _label("view_label", "View"),
+                href=f"{base}/view",
+                target="_blank",
+                rel="noopener",
+                cls="ob-action",
+                aria_label=f"{_label('view_label', 'View')} {label}",
+            ),
+            Button(
+                _label("download_label", "Download"),
+                type="button",
+                cls="ob-action",
+                hx_post=f"{base}/download",
+                hx_target="#ob-statement-toast",
+                hx_swap="outerHTML",
+                aria_label=f"{_label('download_label', 'Download')} {label}",
+            ),
+            cls="ob-statement-actions",
+        ),
+        cls="ob-statement-row",
+        id=f"statement-{key}",
+    )
+
+
+@rt("/openbanking/accounts/{account_id}/statements")
+def openbanking_statements(account_id: int, saved: str = "", created: int = 1):
+    acct = get_account(account_id)
+    if acct is None:
+        return page(Div(cfg().no_results_label, cls="ob-page"))
+    months = statement_months(acct)
+    return page(
+        Div(
+            H2(acct.name, cls="ob-account-name"),
+            P(acct.holder, cls="ob-account-holder"),
+            cls="ob-summary",
+        ),
+        Div(
+            H2(_label("statements_heading", "Statements"), cls="ob-band-heading"),
+            Div(*[statement_row(acct, m) for m in months], cls="ob-card")
+            if months
+            else Div(_label("no_statements_label", "No statements yet."), cls="ob-empty"),
+            statement_toast(saved, bool(created)),
+            cls="ob-band",
+        ),
+        Div(
+            A(acct.name, href=f"/openbanking/accounts/{acct.id}"),
+            " · ",
+            A(cfg().back_to_accounts_label, href="/openbanking"),
+            " · ",
+            A("Return to List of Apps", href="/"),
+            cls="ob-page",
+        ),
+    )
+
+
+@rt("/openbanking/accounts/{account_id}/statements/{month}/view")
+def openbanking_statement_view(account_id: int, month: str):
+    """The statement PDF, inline, for a new tab. Rendered, never stored: a
+    view is a read, and only Download puts a file in Files."""
+    target = _statement_target(account_id, month)
+    if target is None:
+        return Response("", status_code=404)
+    account, parsed = target
+    return Response(
+        statement_pdf(account, parsed),
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition(
+            statements.statement_name(account.name, parsed))},
+    )
+
+
+@app.post("/openbanking/accounts/{account_id}/statements/{month}/download")
+def openbanking_statement_download(htmx: HtmxHeaders, account_id: int, month: str):
+    target = _statement_target(account_id, month)
+    if target is None or not _files_ready():
+        return Response("", status_code=404)
+    account, parsed = target
+    path, created = save_statement(account, parsed)
+    if htmx.request:
+        return statement_toast(path, created)
+    # A plain form post (no htmx) lands back on the page, toast included.
+    return openbanking_statements(account_id, saved=path, created=int(created))
 
 
 @app.get("/openbanking_all")
