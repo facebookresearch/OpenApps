@@ -185,22 +185,15 @@ class TestContactsInComparison:
 
 
 def _send_message_configs():
-    """Every SendMessageTask in config/tasks, top-level or inside a composite."""
+    """Every task in config/tasks that sends a message, top-level or inside a
+    composite. Built whole, so a composite's send resolves against the state
+    its earlier sub-tasks leave (e.g. a contact saved first, then messaged)."""
     found = []
     for path in sorted((config_dir() / "tasks").glob("*.yaml")):
-        cfg = OmegaConf.to_container(OmegaConf.load(path), resolve=False)
-
-        def walk(node):
-            if isinstance(node, dict):
-                if str(node.get("_target_", "")).endswith("SendMessageTask"):
-                    found.append(pytest.param(node, id=f"{path.stem}-{len(found)}"))
-                for v in node.values():
-                    walk(v)
-            elif isinstance(node, list):
-                for v in node:
-                    walk(v)
-
-        walk(cfg)
+        cfg = OmegaConf.to_container(OmegaConf.load(path), resolve=False) or {}
+        for key, node in cfg.items():
+            if isinstance(node, dict) and "SendMessageTask" in json.dumps(node):
+                found.append(pytest.param(node, id=f"{path.stem}:{key}"))
     return found
 
 
@@ -208,7 +201,7 @@ _CONFIGS = _send_message_configs()
 
 
 def test_found_every_send_message_task():
-    assert len(_CONFIGS) >= 90
+    assert len(_CONFIGS) >= 98
 
 
 @pytest.mark.parametrize("node", _CONFIGS)

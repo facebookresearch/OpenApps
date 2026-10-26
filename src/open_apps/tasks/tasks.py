@@ -125,6 +125,41 @@ def _contact_display_name(contact: dict) -> str:
     return handles[0]["value"] if handles else ""
 
 
+def _match_contact(name: str, state: dict) -> dict:
+    """The one contact in ``state`` that ``name`` means: an exact display-name
+    match wins, and only when none matches do first names count. Zero or
+    several matches is a ``ValueError`` naming the candidates."""
+    people = (state.get("contacts") or {}).get("contacts") or []
+    wanted = " ".join(str(name).split()).casefold()
+    matches = [c for c in people if _contact_display_name(c).casefold() == wanted] or [
+        c for c in people if str(c.get("first_name", "")).casefold() == wanted
+    ]
+    if len(matches) != 1:
+        names = ", ".join(repr(_contact_display_name(c)) for c in matches)
+        raise ValueError(
+            f"{name!r} matches {len(matches)} contacts{': ' + names if names else ''}; "
+            "a task needs exactly one"
+        )
+    return matches[0]
+
+
+def _contact_handles(values, kind: str) -> list[dict]:
+    """Task-config handles (strings, or ``{label, value}``) as stored ones.
+
+    Normalised the way the app stores them, so a target never differs from
+    the observed state on punctuation alone. Labels are kept for the record
+    but not compared (see ``AppStateComparison._normalize_contacts``).
+    """
+    out = []
+    for entry in values or []:
+        raw, label = (entry.get("value"), entry.get("label")) if isinstance(entry, dict) else (entry, None)
+        value = normalize_handle(raw)
+        if value is None or ("@" in value) != (kind == "email"):
+            raise ValueError(f"{raw!r} is not a valid {kind}")
+        out.append({"label": label or ("mobile" if kind == "phone" else "home"), "value": value})
+    return out
+
+
 def resolve_thread(to: str, state: dict) -> str:
     """The messenger thread a task means by ``to``.
 
@@ -145,18 +180,7 @@ def resolve_thread(to: str, state: dict) -> str:
     if key in threads:
         return key
 
-    people = (state.get("contacts") or {}).get("contacts") or []
-    wanted = " ".join(text.split()).casefold()
-    matches = [c for c in people if _contact_display_name(c).casefold() == wanted] or [
-        c for c in people if str(c.get("first_name", "")).casefold() == wanted
-    ]
-    if len(matches) != 1:
-        names = ", ".join(repr(_contact_display_name(c)) for c in matches)
-        raise ValueError(
-            f"{to!r} matches {len(matches)} contacts{': ' + names if names else ''}; "
-            "a message task needs exactly one"
-        )
-    contact = matches[0]
+    contact = _match_contact(text, state)
     for handle in [*contact.get("phones", []), *contact.get("emails", [])]:
         if handle["value"] in threads:
             return handle["value"]
@@ -296,22 +320,28 @@ class AppStateComparison:
 
     @staticmethod
     def _normalize_contacts(state: dict) -> dict:
-        """Drop contact ids and sort contacts by their first handle.
+        """Drop contact ids and handle labels; sort handles and contacts.
 
         Ids are database row ids: deleting and re-adding a person mints a new
-        one, and that is the same address book. The first handle (or the
-        display name for a contact with none) is what identifies a person to
-        the other apps.
+        one, and that is the same address book. Labels ("mobile", "work") are
+        the form's default as often as a choice, and no task asks for one, so
+        an agent that saves Dana's number as "work" saved Dana's number. What
+        identifies a person to the other apps is their handles.
         """
         book = state.get("contacts")
         if not isinstance(book, dict) or "contacts" not in book:
             return state
-        people = [{k: v for k, v in c.items() if k != "id"} for c in book["contacts"]]
+        people = []
+        for c in book["contacts"]:
+            person = {k: v for k, v in c.items() if k != "id"}
+            for kind in ("phones", "emails"):
+                person[kind] = sorted(h["value"] for h in c.get(kind) or [])
+            people.append(person)
 
         def key(c):
-            handles = [*c.get("phones", []), *c.get("emails", [])]
-            first = normalize_handle(handles[0]["value"]) if handles else None
-            return (first or "", StringSimilarityOperator.normalize_string(_contact_display_name(c)))
+            handles = [*c["phones"], *c["emails"]]
+            name = " ".join(p for p in (c.get("first_name"), c.get("last_name")) if p) or c.get("company", "")
+            return (handles[0] if handles else "", StringSimilarityOperator.normalize_string(name))
 
         book["contacts"] = sorted(people, key=key)
         return state
@@ -700,6 +730,100 @@ class SendMessageTask(Task):
             target_state, current_state, reply_contacts={self.thread(initial_state): 1}
         )
         return app_state_comparison.compare()
+
+
+@dataclass
+class AddContactTask(Task):
+    """Add one person to Contacts.
+
+    The target is the initial address book plus this contact. Handles may be
+    written in any spelling; they are normalised here the way the app stores
+    them. Saving the unknown sender is this task with their number.
+    """
+
+    first_name: str = ""
+    last_name: str = ""
+    company: str = ""
+    phones: list = field(default_factory=list)
+    emails: list = field(default_factory=list)
+    note: str = ""
+    favorite: bool = False
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        book = target_state.setdefault("contacts", {}).setdefault("contacts", [])
+        book.append(
+            {
+                "id": None,
+                "first_name": self.first_name or "",
+                "last_name": self.last_name or "",
+                "company": self.company or "",
+                "note": self.note or "",
+                "favorite": bool(self.favorite),
+                "phones": _contact_handles(self.phones, "phone"),
+                "emails": _contact_handles(self.emails, "email"),
+            }
+        )
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class EditContactTask(Task):
+    """Change fields on one existing contact.
+
+    ``match`` names the contact (the same rules as message recipients);
+    ``set`` maps fields to their new values. ``phones``/``emails`` replace the
+    contact's whole list, so "change Bob's number" is ``phones: [new]``.
+    Anything else on the contact must stay as it was.
+    """
+
+    match: str
+    set: dict = field(default_factory=dict)
+
+    _SCALARS = ("first_name", "last_name", "company", "note", "favorite")
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        contact = _match_contact(self.match, target_state)
+        changes = OmegaConf.to_container(self.set) if OmegaConf.is_config(self.set) else dict(self.set)
+        for key, value in changes.items():
+            if key in ("phones", "emails"):
+                contact[key] = _contact_handles(value, key[:-1])
+            elif key in self._SCALARS:
+                contact[key] = bool(value) if key == "favorite" else str(value)
+            else:
+                raise ValueError(f"EditContactTask can't set {key!r}")
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class DeleteContactTask(Task):
+    """Remove one contact. Their messenger thread stays: threads are keyed by
+    handle, so it simply goes back to showing the number."""
+
+    match: str
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        contact = _match_contact(self.match, target_state)
+        book = target_state["contacts"]["contacts"]
+        book[:] = [c for c in book if c is not contact]
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
 
 
 @dataclass
