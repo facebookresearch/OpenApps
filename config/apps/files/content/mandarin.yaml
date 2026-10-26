@@ -1,0 +1,18 @@
+# @package apps.files
+defaults:
+  - default
+
+# The app's own labels are translated. The seeded files are not: their
+# folders, names and bytes are what tasks address and score. (Their bodies
+# couldn't be translated anyway -- the PDF fonts only cover WinAnsi.)
+folder_labels:
+  Documents: "文稿"
+  Downloads: "下载"
+  Receipts: "收据"
+  Statements: "对账单"
+  Code: "代码"
+trash_label: "最近删除"
+retention_note: "项目将在 30 天后永久删除。"
+days_left_label: "剩余 {n} 天"
+empty_folder_label: "此文件夹为空。"
+columns: {name: "名称", kind: "种类", size: "大小"}

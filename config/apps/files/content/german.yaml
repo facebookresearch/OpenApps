@@ -1,0 +1,18 @@
+# @package apps.files
+defaults:
+  - default
+
+# The app's own labels are translated. The seeded files are not: like the
+# bank's account names and figures, their folders, names and bytes are what
+# tasks address and score, so they stay identical in every pack.
+folder_labels:
+  Documents: "Dokumente"
+  Downloads: "Downloads"
+  Receipts: "Belege"
+  Statements: "Kontoauszüge"
+  Code: "Code"
+trash_label: "Zuletzt gelöscht"
+retention_note: "Objekte werden nach 30 Tagen endgültig gelöscht."
+days_left_label: "Noch {n} Tage"
+empty_folder_label: "Dieser Ordner ist leer."
+columns: {name: "Name", kind: "Art", size: "Größe"}
