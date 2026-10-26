@@ -17,7 +17,95 @@ trash_label: "Recently Deleted"
 retention_note: "Items are deleted permanently after 30 days."
 days_left_label: "{n} days left"
 empty_folder_label: "This folder is empty."
-columns: {name: "Name", kind: "Kind", size: "Size"}
+columns: {name: "Name", kind: "Kind", size: "Size", date: "Date modified"}
+
+# Everything else the browser and viewer say. Sentence case; an action keeps
+# one name from its button to its dialog.
+ui:
+  root_label: "Files"
+  folders_label: "Folders"
+  breadcrumb_label: "Location"
+  preview_label: "Details"
+  items_label: "{n} items"
+  search_label: "Search"
+  search_placeholder: "Search files"
+  search_results: "Results for “{q}”"
+  search_prompt: "Type a file name to search every folder."
+  no_results: "No files match “{q}”."
+  view_label: "View"
+  view_list: "List"
+  view_grid: "Grid"
+  sort_label: "Sort by {by}"
+  sort: {name: "Name", date: "Date modified", size: "Size"}
+  upload: "Upload"
+  open: "Open"
+  rename: "Rename…"
+  move: "Move to…"
+  duplicate: "Duplicate"
+  delete: "Delete"
+  download: "Download"
+  restore: "Restore"
+  delete_forever: "Delete permanently"
+  empty_trash: "Empty"
+  more_actions: "More actions for {name}"
+  actions_label: "Actions"
+  where_label: "Where"
+  deleted_label: "Deleted"
+  remaining_label: "Remaining"
+  pages_label: "Pages"
+  page_one: "1 page"
+  pages: "{n} pages"
+  select_prompt: "Select a file to see its details."
+  trash_empty: "Recently Deleted is empty."
+  cancel: "Cancel"
+  rename_title: "Rename “{name}”"
+  new_name_label: "New name"
+  rename_submit: "Rename"
+  move_title: "Move “{name}” to"
+  move_to_label: "Folder"
+  move_submit: "Move"
+  purge_title: "Delete “{name}” permanently?"
+  cannot_undo: "You can’t undo this."
+  empty_title: "Empty Recently Deleted?"
+  empty_body: "All {n} items will be deleted permanently. You can’t undo this."
+  exists_error: "There’s already a file named “{name}” in {folder}. Choose a different name."
+  invalid_name_error: "Names can’t be empty, start with a dot, or contain a slash."
+  move_error: "That file can’t be moved there. Choose another folder."
+  not_found: "That file or folder isn’t here. It may have been moved, renamed or deleted."
+  back_to_files: "Go to Files"
+  back_to: "Back to {folder}"
+  open_new_tab: "Open in new tab"
+  open_in_editor: "Open in Code Editor"
+  move_to_code: "Move to Code"
+  previous_page: "Previous page"
+  next_page: "Next page"
+  page_of: "Page {n} of {total}"
+  zoom_in: "Zoom in"
+  zoom_out: "Zoom out"
+  loading: "Opening document…"
+  load_error: "This PDF couldn’t be displayed. Use Open in new tab or Download instead."
+  needs_script: "Showing PDFs here needs JavaScript."
+  no_preview: "There’s no preview for this kind of file."
+  # strftime pattern; a leading zero after a space is dropped ("Aug 2").
+  date_format: "%b %d, %Y"
+  kinds:
+    application/pdf: "PDF document"
+    image/png: "PNG image"
+    image/jpeg: "JPEG image"
+    image/gif: "GIF image"
+    image/svg+xml: "SVG image"
+    image/webp: "WebP image"
+    text/plain: "Plain text"
+    text/markdown: "Markdown"
+    text/csv: "CSV spreadsheet"
+    application/json: "JSON"
+    text/yaml: "YAML"
+    text/html: "HTML"
+    text/css: "CSS"
+    text/javascript: "JavaScript"
+    text/x-python: "Python script"
+    folder: "Folder"
+    other: "Document"
 
 # --- Seeded documents ----------------------------------------------------------
 # Rendered to real files at launch by open_apps.apps.files_app.documents, the
@@ -41,6 +129,7 @@ documents:
   visit_aug:
     folder: Documents
     name: "Visit Summary 2026-08-12.pdf"
+    modified: "2026-08-12"
     kind: medical_report
     clinic: "Harbor Family Medicine"
     clinic_address: "210 Fore Street, Portland, ME 04101 · (207) 555-0148"
@@ -65,6 +154,7 @@ documents:
   visit_mar:
     folder: Documents
     name: "Visit Summary 2026-03-09.pdf"
+    modified: "2026-03-09"
     kind: medical_report
     clinic: "Harbor Family Medicine"
     clinic_address: "210 Fore Street, Portland, ME 04101 · (207) 555-0148"
@@ -87,6 +177,7 @@ documents:
   labs_aug:
     folder: Documents
     name: "Lab Results 2026-08-12.pdf"
+    modified: "2026-08-13"
     kind: lab_results
     lab: "Casco Bay Diagnostics"
     ordered_by: "Elena Marsh, MD"
@@ -106,6 +197,7 @@ documents:
   lease:
     folder: Documents
     name: "Residential Lease - 44 Wharf Street.pdf"
+    modified: "2025-09-28"
     kind: lease
     landlord: "Northgate Properties LLC"
     landlord_contact: "rent@northgateprop.example · +1 (555) 010-0040"
@@ -128,6 +220,7 @@ documents:
   insurance_card:
     folder: Documents
     name: "Insurance Card - Harborline Health.pdf"
+    modified: "2026-01-05"
     kind: insurance_card
     insurer: "Harborline Health"
     plan: "Harborline Silver PPO"
@@ -139,6 +232,7 @@ documents:
   w2:
     folder: Documents
     name: "W-2 2025 - Northwind Analytics.pdf"
+    modified: "2026-01-30"
     kind: w2
     tax_year: "2025"
     employer: "Northwind Analytics, Inc."
@@ -161,6 +255,7 @@ documents:
     # older than the bank's seeded ledger, so the rows are written out here;
     # the holder and the two savings transfers agree with the bank's seed.
     name: "BUS COMPLETE CHK (...5555) — June 2026.pdf"
+    modified: "2026-07-01"
     kind: bank_statement
     bank: "OpenBanking"
     account: "BUS COMPLETE CHK (...5555)"
@@ -181,6 +276,7 @@ documents:
   permit:
     folder: Documents
     name: "Parking Permit 2026.png"
+    modified: "2026-01-02"
     kind: permit_image
     issuer: "City of Portland"
     title: "RESIDENTIAL PARKING"
@@ -191,6 +287,7 @@ documents:
   packing_list:
     folder: Documents
     name: "Packing List.txt"
+    modified: "2026-08-24"
     kind: text
     body: |
       Acadia weekend - Sep 18-20
