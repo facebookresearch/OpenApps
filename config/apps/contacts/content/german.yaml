@@ -1,0 +1,55 @@
+# @package apps.contacts
+defaults:
+  - default
+
+# Interface strings translate; the people do not. Names are how tasks and the
+# messenger address a contact, and handles are figures that the scoring
+# surface compares, so both stay identical across every content variant or the
+# same task would need a different answer per language. Field labels stay
+# lowercase, as in the default pack.
+search_placeholder: "Suchen"
+search_label: "Kontakte durchsuchen"
+favorites_heading: "Favoriten"
+list_label: "Kontakte"
+index_label: "Zu Buchstabe springen"
+new_contact_label: "Neuer Kontakt"
+edit_label: "Bearbeiten"
+done_label: "Fertig"
+cancel_label: "Abbrechen"
+save_label: "Sichern"
+create_label: "Kontakt anlegen"
+delete_label: "Kontakt löschen"
+delete_confirm: "{name} löschen? Das kann nicht rückgängig gemacht werden."
+delete_confirm_button: "Löschen"
+message_label: "Nachricht"
+email_action_label: "E-Mail"
+send_money_label: "Geld senden"
+coming_soon: "Demnächst verfügbar"
+back_label: "Kontakte"
+first_name_label: "Vorname"
+last_name_label: "Nachname"
+company_label: "Firma"
+phone_label: "telefon"
+email_label: "e-mail"
+note_label: "notiz"
+favorite_label: "Zu Favoriten hinzufügen"
+add_phone_label: "Telefon hinzufügen"
+add_email_label: "E-Mail hinzufügen"
+handle_labels:
+  mobile: "mobil"
+  work: "arbeit"
+  home: "privat"
+  other: "andere"
+copy_label: "Kopieren"
+copied_label: "Kopiert"
+copy_failed_label: "Kopieren fehlgeschlagen"
+new_contact_heading: "Neuer Kontakt"
+edit_contact_heading: "Kontakt bearbeiten"
+no_results: "Keine Kontakte für „{query}“."
+no_contacts: "Noch keine Kontakte. Legen Sie einen an, um zu beginnen."
+not_found: "Diesen Kontakt gibt es nicht. Vielleicht wurde er gelöscht."
+error_invalid_phone: "Geben Sie eine Telefonnummer wie (555) 010-0001 ein."
+error_invalid_email: "Geben Sie eine E-Mail-Adresse wie name@example.com ein."
+error_duplicate: "{handle} ist bereits für {name} gespeichert."
+error_repeated: "{handle} ist doppelt aufgeführt."
+error_empty: "Geben Sie einen Namen, eine Firma, eine Telefonnummer oder eine E-Mail-Adresse ein."

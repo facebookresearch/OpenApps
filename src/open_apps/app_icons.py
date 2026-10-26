@@ -105,6 +105,13 @@ ICONS = [
       <rect x="14" y="22" width="36" height="26" rx="5"/>
       <path d="M50 30h-9a5 5 0 0 0 0 10h9"/>
       <circle cx="41.5" cy="35" r="2.2" fill="#fff" stroke="none"/>"""),
+    # Address book: a card with tab marks on its spine and a person on the
+    # page. Steel blue -- index-card stock -- a step lighter than the bank.
+    AppIcon("contacts", "#58708a", "#43586f", """
+      <rect x="19" y="14" width="30" height="36" rx="5"/>
+      <path d="M14.5 23h4.5M14.5 32h4.5M14.5 41h4.5"/>
+      <circle cx="34" cy="27.5" r="5.5"/>
+      <path d="M24.5 42.5c1.2-5.2 5-8 9.5-8s8.3 2.8 9.5 8"/>"""),
 ]
 
 # Messenger avatars. Round rather than a tile: an avatar is a person, not an

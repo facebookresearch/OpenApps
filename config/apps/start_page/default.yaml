@@ -34,11 +34,11 @@ item_hover_effect: true # Highlight the tile under the pointer
 # Dealt by position, and in the default inventory each one is a deeper shade
 # of the icon that lands on it (scripts/build_app_icons.py), so the icon reads
 # as a raised plate on its own colour: todo ink, calendar carmine, messages
-# teal, maps green, code aubergine, shop kraft, bank navy, and the UI
-# Library's rose for when its tile is switched on. `broken_logos` deals the
+# teal, maps green, code aubergine, shop kraft, bank navy, contacts steel,
+# and the UI Library's rose for when its tile is switched on. `broken_logos` deals the
 # icons onto the wrong fills, as it should.
 app_background_colors:
-  ["#22397a", "#93212c", "#0d6b72", "#326a2e", "#432d77", "#7c582d", "#131d33", "#983163"]
+  ["#22397a", "#93212c", "#0d6b72", "#326a2e", "#432d77", "#7c582d", "#131d33", "#34465a", "#983163"]
 use_random_colors: false # Generate random colors for items instead of using app_background_colors
 tile_fill_by_tone:      # Single fill replacing the palette, by theme tone
   dark: "#636262"
@@ -109,4 +109,10 @@ apps:
     bw_icon: ${apps.start_page.bw_icon_path}/wallet.svg
     enabled: true
     position: 8
+    clickable_logo: false
+  contacts:
+    icon: ${apps.start_page.icon_path}/contacts.svg
+    bw_icon: ${apps.start_page.bw_icon_path}/contacts.svg
+    enabled: true
+    position: 9
     clickable_logo: false
