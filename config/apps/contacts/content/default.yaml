@@ -10,6 +10,56 @@
 # name alone. Northgate Properties is the landlord the payment tasks pay rent
 # to. The unknown sender who texts from +1 (555) 014-2290 is deliberately NOT
 # here -- saving them is a task.
+title: ${apps.start_page.apps.contacts.title}
+description: ${apps.start_page.apps.contacts.description}
+
+# --- Interface strings ------------------------------------------------------
+# Field labels are lowercase on purpose, as in the address books this
+# imitates ("mobile", "home"): they sit in a muted column beside the value and
+# read as annotations, not headings.
+search_placeholder: "Search"
+search_label: "Search contacts"
+favorites_heading: "Favorites"
+list_label: "Contacts"
+index_label: "Jump to letter"
+new_contact_label: "New contact"
+edit_label: "Edit"
+done_label: "Done"
+cancel_label: "Cancel"
+save_label: "Save"
+create_label: "Create contact"
+delete_label: "Delete contact"
+delete_confirm: "Delete {name}? This can't be undone."
+delete_confirm_button: "Delete"
+message_label: "Message"
+email_action_label: "Email"
+send_money_label: "Send money"
+coming_soon: "Coming soon"
+back_label: "Contacts"
+first_name_label: "First name"
+last_name_label: "Last name"
+company_label: "Company"
+phone_label: "phone"
+email_label: "email"
+note_label: "note"
+favorite_label: "Add to favorites"
+add_phone_label: "Add phone"
+add_email_label: "Add email"
+handle_labels: {mobile: "mobile", work: "work", home: "home", other: "other"}
+copy_label: "Copy"
+copied_label: "Copied"
+copy_failed_label: "Couldn't copy"
+new_contact_heading: "New contact"
+edit_contact_heading: "Edit contact"
+no_results: "No contacts match \"{query}\"."
+no_contacts: "No contacts yet. Add one to get started."
+not_found: "That contact doesn't exist. It may have been deleted."
+error_invalid_phone: "Enter a phone number like (555) 010-0001."
+error_invalid_email: "Enter an email address like name@example.com."
+error_duplicate: "{handle} is already saved for {name}."
+error_repeated: "{handle} is listed twice."
+error_empty: "Add a name, a company, a phone number or an email address."
+
 contacts:
   - first_name: Alice
     phones: [{label: mobile, value: "+1 (555) 010-0001"}]
