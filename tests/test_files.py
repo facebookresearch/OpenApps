@@ -22,6 +22,7 @@ from hydra import compose, initialize
 from starlette.testclient import TestClient
 
 from open_apps import files_store
+from open_apps.apps.onlineshop_app import main as onlineshop
 from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
 
 LATEST_REPORT = "Documents/Visit Summary 2026-08-12.pdf"
@@ -63,6 +64,11 @@ def rows(client) -> list[dict]:
     return client.get("/files_all").json()["files"]
 
 
+def _without_receipts(payload: dict) -> list[dict]:
+    return [r for r in payload["files"]
+            if r["path"] != "Receipts" and not r["path"].startswith("Receipts/")]
+
+
 def live_files(client) -> dict[str, dict]:
     return {r["path"]: r for r in rows(client) if not r["deleted"] and r["kind"] != "folder"}
 
@@ -79,7 +85,9 @@ class TestSeeding:
 
     def test_seeded_folders_exist_even_when_empty(self, client):
         folders = {r["path"] for r in rows(client) if r["kind"] == "folder"}
-        assert {"Downloads", "Receipts"} <= folders
+        assert "Downloads" in folders
+        # Receipts is listed through the shop's seeded receipts, not as empty.
+        assert any(r["path"].startswith("Receipts/") for r in rows(client))
 
     def test_recently_deleted_entries(self, client):
         trashed = {r["path"]: r["deleted_on"] for r in rows(client) if r["deleted"]}
@@ -127,7 +135,10 @@ class TestScoringSurface:
         from open_apps.apps.files_app import main as files_app
 
         before = client.get("/files_all").text
+        # In reset order: Files empties and re-seeds the store, then the shop
+        # writes its receipts back (`reset_all_apps` runs the shop last).
         files_app.set_environment(app.config)
+        onlineshop.seed_receipts()
         assert client.get("/files_all").text == before
 
     def test_a_fresh_launch_gives_the_same_checksums(self, client, tmp_path_factory):
@@ -138,9 +149,12 @@ class TestScoringSurface:
         first = client.get("/files_all").json()
         try:
             files_app.set_environment(_compose(tmp_path_factory).apps)
-            assert files_store.snapshot() == first
+            # The shop's receipts are the shop's to seed (and are checked in
+            # tests/test_shop_receipts.py); this launch stood up Files alone.
+            assert _without_receipts(files_store.snapshot()) == _without_receipts(first)
         finally:
             files_app.set_environment(app.config)
+            onlineshop.seed_receipts()
 
     def test_cross_app_state_carries_files(self, client, monkeypatch):
         from open_apps import state as state_module
@@ -174,7 +188,7 @@ def test_packs_keep_every_scored_file_identical(pack, client, tmp_path_factory):
     translate the app's own labels but never move or change a default one."""
     from open_apps.apps.files_app import main as files_app
 
-    default = live_files(client)
+    default = {p: r for p, r in live_files(client).items() if not p.startswith("Receipts/")}
     try:
         files_app.set_environment(_compose(tmp_path_factory, f"apps/files/content={pack}").apps)
         seeded = {
@@ -190,6 +204,7 @@ def test_packs_keep_every_scored_file_identical(pack, client, tmp_path_factory):
                 assert "Blood pressure" not in text, f"{pack} adds a competing report {path}"
     finally:
         files_app.set_environment(app.config)
+        onlineshop.seed_receipts()
 
 
 def test_adversarial_pack_plants_the_message_in_a_document(tmp_path_factory, client):
@@ -207,6 +222,7 @@ def test_adversarial_pack_plants_the_message_in_a_document(tmp_path_factory, cli
         assert any(planted[:40] in t for t in texts)
     finally:
         files_app.set_environment(app.config)
+        onlineshop.seed_receipts()
 
 
 def test_files_is_registered_with_mcp():
