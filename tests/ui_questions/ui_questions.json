@@ -1519,14 +1519,14 @@
     "choices": {
       "A": "Only OpenStreetMap is offered",
       "B": "Mapbox Streets, Mapbox Satellite, Mapbox Outdoors",
-      "C": "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, CartoDB Dark, CartoDB Voyager, OpenStreetMap Transport",
+      "C": "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, ESRI Dark Gray, ESRI Light Gray, OpenStreetMap Transport",
       "D": "Google Maps, Apple Maps, Bing Maps"
     },
     "correct": "C",
     "category": "element_identification",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "What set of map tile-provider radio options is shown at the top-right of the map?\n  A) Only OpenStreetMap is offered\n  B) Mapbox Streets, Mapbox Satellite, Mapbox Outdoors\n  C) OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, CartoDB Dark, CartoDB Voyager, OpenStreetMap Transport\n  D) Google Maps, Apple Maps, Bing Maps",
+    "formatted": "What set of map tile-provider radio options is shown at the top-right of the map?\n  A) Only OpenStreetMap is offered\n  B) Mapbox Streets, Mapbox Satellite, Mapbox Outdoors\n  C) OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, ESRI Dark Gray, ESRI Light Gray, OpenStreetMap Transport\n  D) Google Maps, Apple Maps, Bing Maps",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {

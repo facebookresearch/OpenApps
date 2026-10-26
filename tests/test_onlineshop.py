@@ -428,6 +428,40 @@ class TestRewardState:
         assert state(client) == first
 
 
+class TestDefaultOrderHistory:
+    """The shipped catalog opens with two delivered orders, not an empty history."""
+
+    @pytest.fixture
+    def webshop(self, tmp_path):
+        return build_client(tmp_path, ["apps/onlineshop/content=webshop"])
+
+    def test_two_past_orders_are_seeded(self, webshop):
+        orders = state(webshop)["orders"]
+        assert [o["order_id"] for o in orders] == ["a41f07c2", "7d93e5b0"]
+        assert {o["status"] for o in orders} == {"Delivered"}
+        assert {o["card_last4"] for o in orders} == {"2043"}
+        # Every line resolved against the catalog; an unknown sku is skipped
+        # with a warning, which would leave an order with a silently wrong total.
+        assert [len(o["items"]) for o in orders] == [1, 2]
+        assert orders[1]["total"] == pytest.approx(2 * 12.99 + 19.99)
+
+    def test_orders_predate_the_card_ledger(self, webshop):
+        """No bank charge is expected for an order older than the statement
+        history, so seeding these cannot add a Card row to the ledger."""
+        earliest_card_row = "2026-07-31"
+        assert all(o["date"][:10] < earliest_card_row for o in state(webshop)["orders"])
+
+    def test_orders_page_lists_them_newest_first(self, webshop):
+        page = webshop.get("/onlineshop/orders").text
+        assert "You have no orders yet." not in page
+        assert page.index("Order 7d93e5b0") < page.index("Order a41f07c2")
+
+    @pytest.mark.parametrize("variant", ["german", "long_descriptions"])
+    def test_content_variants_inherit_the_history(self, tmp_path, variant):
+        client = build_client(tmp_path, [f"apps/onlineshop/content={variant}"])
+        assert len(state(client)["orders"]) == 2
+
+
 class TestVariations:
     @pytest.mark.parametrize("layout", ["default", "grid", "compact_table"])
     def test_every_layout_renders(self, tmp_path, layout):

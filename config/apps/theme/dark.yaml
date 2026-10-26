@@ -31,6 +31,17 @@ tokens:
   font-size-heading: "1.75rem"
   radius: "4px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. VS Code Dark+: every hue clears AA on #121212.
+  color-syntax-keyword: "#569cd6"
+  color-syntax-control: "#c586c0"
+  color-syntax-string: "#ce9178"
+  color-syntax-number: "#b5cea8"
+  color-syntax-comment: "#6a9955"
+  color-syntax-function: "#dcdcaa"
+  color-syntax-type: "#4ec9b0"
+  color-syntax-property: "#9cdcfe"
+  color-syntax-constant: "#569cd6"
+  color-syntax-tag: "#569cd6"
 assets:
   tone: dark
   icon_set: bw
