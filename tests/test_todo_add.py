@@ -99,3 +99,20 @@ def test_added_row_is_not_done(client):
     rows = client.get("/todo_all").json()
     added = next(t for t in rows if t["title"] == "Rotate the tyres")
     assert not added["done"]
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\n"])
+def test_blank_title_adds_nothing(client, blank):
+    """Enter submits the field, so a follow-up click on Add posts it empty;
+    that must not store a blank todo (the kanban add already ignores it)."""
+    before = client.get("/todo_all").json()
+    response = client.post("/todo", data={"title": blank})
+    assert response.status_code == 200
+    assert "hx-swap-oob" in response.text
+    assert client.get("/todo_all").json() == before
+
+
+def test_title_is_stored_trimmed(client):
+    client.post("/todo", data={"title": "  Water the ferns \n"})
+    rows = client.get("/todo_all").json()
+    assert any(t["title"] == "Water the ferns" for t in rows)

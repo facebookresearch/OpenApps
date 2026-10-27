@@ -312,6 +312,11 @@ parallel_tasks:
   app_variations:
     - ["apps/start_page/content=default", "apps/calendar/content=default"]
 
+# on_success | on_agent_stop -- see config/config.yaml.
+task_termination: on_success
+# Write episode.json and log align/* per episode -- see config/config.yaml.
+record_alignment: true
+
 # auto-populated by launch_parallel_agents.py
 task_name: null
 job_id: 0
@@ -353,6 +358,9 @@ seed: 233
 
 # do not set this. Automatically set to record apps overrides for logging
 app_overrides: null
+# do not set this. A sweep job's config_name and overrides, set for its
+# episode record's reproduce command
+compose: null
 
 # tells hydra to store logs for sweeps or runs in logs_dir
 hydra:

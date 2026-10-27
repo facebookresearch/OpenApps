@@ -202,6 +202,35 @@ def test_qwen_raises_on_unsupported_action(qwen):
         qwen.parse(_qwen_response("teleport", coordinate=[1, 2]), viewport=VIEWPORT)
 
 
+def test_qwen_answer_becomes_a_message_to_the_user(qwen):
+    out = qwen.parse(_qwen_response("answer", text="Which Dennis?"), viewport=VIEWPORT)
+    assert out["action"] == "send_msg_to_user(text='Which Dennis?')"
+
+
+def test_qwen_terminate_success_claims_and_failure_refuses(qwen):
+    done = qwen.parse(
+        _qwen_response("terminate", status="success", text="Added it."), viewport=VIEWPORT
+    )
+    assert done["action"] == "send_msg_to_user(text='Added it.')"
+    bare = qwen.parse(_qwen_response("terminate", status="success"), viewport=VIEWPORT)
+    assert bare["action"] == "send_msg_to_user(text='Done.')"
+    refused = qwen.parse(
+        _qwen_response("terminate", status="failure", text="No such contact."),
+        viewport=VIEWPORT,
+    )
+    assert refused["action"] == "report_infeasible(reason='No such contact.')"
+
+
+def test_qwen_raises_on_terminate_without_a_valid_status(qwen):
+    with pytest.raises(ParseError, match="terminate 'status'"):
+        qwen.parse(_qwen_response("terminate", status="maybe"), viewport=VIEWPORT)
+
+
+def test_qwen_raises_on_empty_answer(qwen):
+    with pytest.raises(ParseError, match="missing 'text'"):
+        qwen.parse(_qwen_response("answer"), viewport=VIEWPORT)
+
+
 def test_qwen_raises_when_mouse_click_missing_coordinate(qwen):
     response = (
         '<tool_call>{"name": "computer_use", '

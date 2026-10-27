@@ -11,6 +11,7 @@ from agentlab.agents.agent_args import AgentArgs as AgentLabAgentArgs
 from agentlab.llm.chat_api import BaseModelArgs, ChatModel, AnthropicChatModel
 from agentlab.llm.base_api import AbstractChatModel
 import agentlab.agents.dynamic_prompting as dp
+from agentlab.llm import tracking
 from agentlab.llm.llm_utils import (
     Discussion,
     ParseError,
@@ -374,25 +375,32 @@ class VLLMAgent(Agent):
             else dp.SystemPrompt().prompt
         )
         logging.info(f"The  prompt is: {str(main_prompt.prompt)}")
-        try:
-            chat_messages = Discussion([system_prompt, main_prompt.prompt])
-            ans_dict = retry(
-                self.chat_llm,
-                chat_messages,
-                n_retry=self.max_retry,
-                parser=main_prompt._parse_answer,
-            )
-            print("the ans_dict is", ans_dict)
-            ans_dict["busted_retry"] = 0
-            # inferring the number of retries, TODO: make this less hacky
-            ans_dict["n_retry"] = (len(chat_messages) - 3) / 2
-        except ParseError:
-            ans_dict = dict(
-                action=None,
-                n_retry=self.max_retry + 1,
-                busted_retry=1,
-            )
+        # Count tokens across every retry of this step. AgentLab's chat models
+        # report usage to the thread-local tracker; the totals land in
+        # step stats (input_tokens / output_tokens / cost) and from there in
+        # the alignment EpisodeRecord. A client that reports nothing leaves 0/0,
+        # which the record reads as unknown.
+        with tracking.set_tracker() as tracker:
+            try:
+                chat_messages = Discussion([system_prompt, main_prompt.prompt])
+                ans_dict = retry(
+                    self.chat_llm,
+                    chat_messages,
+                    n_retry=self.max_retry,
+                    parser=main_prompt._parse_answer,
+                )
+                print("the ans_dict is", ans_dict)
+                ans_dict["busted_retry"] = 0
+                # inferring the number of retries, TODO: make this less hacky
+                ans_dict["n_retry"] = (len(chat_messages) - 3) / 2
+            except ParseError:
+                ans_dict = dict(
+                    action=None,
+                    n_retry=self.max_retry + 1,
+                    busted_retry=1,
+                )
         stats = self.chat_llm.get_stats()
+        stats.update(tracker.stats)
         stats["n_retry"] = ans_dict["n_retry"]
         stats["busted_retry"] = ans_dict["busted_retry"]
 

@@ -41,6 +41,9 @@ custom_actions:
     "keyboard_press",
     "keyboard_type",
     "keyboard_insert_text",
+    # How an episode ends by the agent's word: done, a question, or a refusal.
+    "send_msg_to_user",
+    "report_infeasible",
   ]
 
 # --- observation flags ---

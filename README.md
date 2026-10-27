@@ -188,6 +188,8 @@ Everything after that tag is free to diverge. The first such change is the appea
 
 The tag is the config surface the paper used, not a byte-exact snapshot of the runs: it carries the app, task and harness fixes landed since publication, some of which move rewards (map tasks now match coordinates by ground distance, for example). Expect small differences from the published tables.
 
+Comparing paper-protocol numbers on `main` instead: the defaults keep that protocol (`task_termination=on_success`), so rewards, episode ends and `cum_reward` are unchanged. Each episode is additionally recorded for alignment scoring (`episode.json`, `align/*` W&B keys); that is pure observation, but it adds a state diff per step. Pass `record_alignment=false` to switch it off and run exactly the pre-alignment loop.
+
 ## Contributing
 
 We welcome pull requests with new features or issues via GitHub.

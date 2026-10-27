@@ -70,6 +70,9 @@ class TestGemmaSomConfig:
             "select_option",
             "scroll",
             "noop",
+            # How every agent ends an episode (tests/test_report_actions.py).
+            "send_msg_to_user",
+            "report_infeasible",
         }
 
     def test_no_coordinate_actions_are_reachable(self, args):

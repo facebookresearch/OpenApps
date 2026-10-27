@@ -10,6 +10,7 @@ Orchestrates the configs to launch the web envirnoment,
 task, and agent.
 """
 
+import json
 import os
 import random
 import re
@@ -472,6 +473,8 @@ class AgentLauncher(OpenAppsLauncher):
         task_name = self.config.task_name
         task_configs = self.config.tasks[task_name]
         task: Task = hydra.utils.instantiate(task_configs)
+        # Kept for alignment scoring after the episode (see _record_alignment).
+        self.task = task
         register_tasks_with_browsergym(tasks=[task])
 
         self.config.browsergym_env_args.task_name = task.task_id
@@ -572,6 +575,13 @@ class AgentLauncher(OpenAppsLauncher):
         # running and logging results
         exp_args.prepare(self.config.logs_dir)
         self.agent_args.save_dir = str(exp_args.exp_dir)
+        record_alignment = self._record_alignment_enabled()
+        if record_alignment:
+            self._attach_episode_dir(exp_args, irreversible=self._irreversible_map())
+            # Read before the episode, while the checkout is the code that runs it.
+            from open_apps.alignment.record import git_state
+
+            self._git_state = git_state()
         exp_args.run()
 
         # loading and printing results
@@ -583,12 +593,157 @@ class AgentLauncher(OpenAppsLauncher):
             print(f"{key}: {val}")
 
         recording = self._save_recording(exp_args.exp_dir, exp_record)
+        # exp_result is handed over so its step pickles are read once, not
+        # once for the record and again for the W&B action table.
+        alignment = (
+            self._record_alignment(exp_args, exp_result=exp_result)
+            if record_alignment
+            else (None, None)
+        )
 
         if self.config.use_wandb:
+            if record_alignment:
+                # Before the results logger: it ends with a sleep that lets
+                # uploads (now including the episode artifact) finish.
+                self._log_alignment_to_wandb(*alignment)
             self._log_agent_results_to_wandb(exp_record, exp_result)
             if recording is not None:
                 wandb.log({"episode_video": wandb.Video(str(recording), format="webm")})
                 wandb.run.summary["video_path"] = str(recording)
+
+    @staticmethod
+    def _attach_episode_dir(exp_args: ExpArgs, irreversible: Optional[dict] = None) -> None:
+        """Have ``OpenAppsTask`` persist the initial and final app state (and
+        its per-step snapshots) into the experiment directory
+        (``openapps_states.json``).
+
+        Set after ``prepare()`` because that is when ``exp_dir`` exists.
+        ``task_kwargs`` is a plain dict (the env args config converts), so a
+        copy with more keys is all it takes. ``irreversible`` is the map the
+        snapshots classify changes with -- the run's own, so a variation that
+        overrides it is honoured mid-episode as well as at scoring time.
+        """
+        task_kwargs = dict(exp_args.env_args.task_kwargs or {})
+        task_kwargs["episode_dir"] = str(exp_args.exp_dir)
+        if irreversible is not None:
+            task_kwargs["irreversible"] = irreversible
+        exp_args.env_args.task_kwargs = task_kwargs
+
+    def _irreversible_map(self) -> Optional[dict]:
+        """The run's ``irreversible:`` maps, or None (the task and the scorer
+        then fall back to config/apps/*/default.yaml). Never raises.
+
+        Resolved once per launcher and reused: the task's per-step snapshots
+        and the episode record must classify changes with the same map.
+        """
+        if not hasattr(self, "_irreversible_cache"):
+            try:
+                from open_apps.alignment.irreversible import map_from_apps_config
+
+                self._irreversible_cache = map_from_apps_config(self.config.get("apps"))
+            except Exception as exc:  # noqa: BLE001 -- alignment never fails a run
+                print(f"Alignment: could not read irreversible maps ({type(exc).__name__}: {exc})")
+                self._irreversible_cache = None
+        return self._irreversible_cache
+
+    def _record_alignment_enabled(self) -> bool:
+        """Top-level ``record_alignment`` (config/config.yaml), default on.
+
+        Off, a run is what it was before alignment scoring existed: the task
+        is given no ``episode_dir`` (no state file, no per-step state
+        hashes), and no ``episode.json``, ``align/*`` W&B keys or episode
+        artifact are produced.
+        """
+        return bool(self.config.get("record_alignment", True))
+
+    def _record_alignment(
+        self, exp_args: ExpArgs, exp_result=None
+    ) -> tuple[Optional[Path], Optional[object]]:
+        """Write ``<exp_dir>/episode.json`` and score it.
+
+        Best-effort by design: alignment scoring is an observer of the run,
+        so any failure is printed and the run carries on exactly as before.
+        Returns ``(record_path, scores)``, either of which may be None.
+        """
+        try:
+            from open_apps.alignment.record import (
+                build_episode_record,
+                identity_from_config,
+                save_record,
+            )
+            identity = identity_from_config(
+                self.config,
+                self.task,
+                task_seed=exp_args.env_args.task_seed,
+                git=getattr(self, "_git_state", None),
+            )
+            record = build_episode_record(
+                exp_args.exp_dir,
+                identity=identity,
+                irreversible=self._irreversible_map(),
+                # The apps are still up (cleanup runs after this), so a
+                # teardown that missed the final state can be backfilled --
+                # reporting failed app probes, like teardown does.
+                fallback_final_state=self._probe_final_state,
+                exp_result=exp_result,
+            )
+            path = save_record(record, exp_args.exp_dir)
+            print(f"Episode record saved to {path}")
+        except Exception as exc:  # noqa: BLE001 -- see docstring
+            print(f"Alignment: could not build episode record ({type(exc).__name__}: {exc})")
+            return None, None
+        try:
+            from open_apps.alignment.score import score
+
+            scores = score(record, self.task)
+            print("Alignment scores:", scores.summary())
+            return path, scores
+        except Exception as exc:  # noqa: BLE001
+            print(f"Alignment: could not score episode ({type(exc).__name__}: {exc})")
+            return path, None
+
+    def _probe_final_state(self) -> tuple[dict, list[str]]:
+        """``(state, failed_apps)`` from the still-running apps."""
+        from open_apps.state import get_current_state
+
+        failed: list[str] = []
+        return get_current_state(self.web_app_url, failed_apps=failed), failed
+
+    @staticmethod
+    def _log_alignment_to_wandb(record_path: Optional[Path], scores) -> None:
+        """Scores to ``wandb.summary`` as ``align/<metric>``; the record as an
+        ``episode_record`` artifact, so the leaderboard can import from W&B.
+        The artifact's metadata carries the record's provenance (task, commit,
+        reproduce command), so a result can be traced without downloading it."""
+        try:
+            if scores is not None:
+                for key, value in scores.summary().items():
+                    if value is None:
+                        continue
+                    # ints, not bools: matches the existing `success` summary
+                    # and averages cleanly in W&B reports.
+                    wandb.run.summary[f"align/{key}"] = (
+                        int(value) if isinstance(value, bool) else value
+                    )
+            if record_path is not None:
+                identity = json.loads(Path(record_path).read_text())["identity"]
+                provenance = {
+                    k: identity.get(k)
+                    for k in ("task_name", "git_commit", "git_dirty", "command")
+                }
+                # Not under align/: those are scores a report averages. The
+                # run config already has task_name and git_hash.
+                if provenance["command"]:
+                    wandb.run.summary["reproduce_command"] = provenance["command"]
+                artifact = wandb.Artifact(
+                    name=f"episode-{wandb.run.id}",
+                    type="episode_record",
+                    metadata={"record_version": 1, **provenance},
+                )
+                artifact.add_file(str(record_path))
+                wandb.run.log_artifact(artifact)
+        except Exception as exc:  # noqa: BLE001 -- never fail a run over logging
+            print(f"Alignment: could not log to W&B ({type(exc).__name__}: {exc})")
 
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:

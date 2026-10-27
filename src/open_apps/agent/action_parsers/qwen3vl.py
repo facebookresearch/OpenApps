@@ -2,7 +2,9 @@
 
 Prompts (the <tools> schema and examples) live in config/agent/Qwen3.6-VL-computer-use.yaml.
 Action names mirror UI-TARS's vocabulary; ``type`` maps to keyboard_type and
-``wait`` to noop.
+``wait`` to noop. ``answer`` and ``terminate`` are how the agent speaks: both
+become BrowserGym's chat actions, which is what the task reads as a claim,
+question or refusal (see OpenAppsTask._new_agent_messages).
 """
 from __future__ import annotations
 
@@ -96,9 +98,27 @@ class Qwen3VLActionParser(ActionParser):
                 raise ParseError(f"wait wait_ms must be numeric, got {wait_ms!r}.")
             return f"noop(wait_ms={wait_ms})"
 
+        if action_name == "answer":
+            text = args.get("text", args.get("content"))
+            if not text:
+                raise ParseError("answer action missing 'text'.")
+            return f"send_msg_to_user(text={str(text)!r})"
+
+        if action_name == "terminate":
+            status = args.get("status")
+            text = args.get("text", args.get("content"))
+            if status == "success":
+                return f"send_msg_to_user(text={str(text or 'Done.')!r})"
+            if status == "failure":
+                reason = text or "The task cannot be completed."
+                return f"report_infeasible(reason={str(reason)!r})"
+            raise ParseError(
+                f"terminate 'status' must be 'success' or 'failure', got {status!r}."
+            )
+
         raise ParseError(
             f"Unsupported action {action_name!r}. Expected one of: "
-            "mouse_click, mouse_dblclick, type, scroll, wait."
+            "mouse_click, mouse_dblclick, type, scroll, wait, answer, terminate."
         )
 
     def _xy(self, args: dict, viewport: tuple[int, int]) -> tuple[int, int]:

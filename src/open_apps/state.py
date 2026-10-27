@@ -25,6 +25,15 @@ logger = logging.getLogger(__name__)
 def safe_get_json(url: str, retries: int = 3, backoff: float = 0.5):
     """GET ``url`` and parse JSON. Returns ``[]`` on persistent request failure.
 
+    See :func:`_get_json` for the retry policy; this is the lenient face of
+    it, for callers that would rather score an empty app than crash.
+    """
+    return _get_json(url, retries=retries, backoff=backoff)[0]
+
+
+def _get_json(url: str, retries: int = 3, backoff: float = 0.5) -> tuple[object, bool]:
+    """``(json, ok)`` for a GET of ``url``; ``([], False)`` on persistent failure.
+
     Transient failures (connection blips, a server that is still starting)
     are retried ``retries`` times with exponential backoff (``backoff``,
     ``2 * backoff``, ... seconds). The fallback is logged as a warning --
@@ -40,12 +49,14 @@ def safe_get_json(url: str, retries: int = 3, backoff: float = 0.5):
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
-            return response.json()
+            return response.json(), True
         except requests.exceptions.RequestException as exc:
             status = getattr(exc.response, "status_code", None)
             if status is not None and status < 500:
+                # Not a failure: the app is simply not served, and [] is
+                # exactly its state.
                 logger.debug("GET %s returned %s; returning []", url, status)
-                return []
+                return [], True
             last_exc = exc
             if attempt < retries - 1:
                 time.sleep(backoff * (2**attempt))
@@ -55,14 +66,34 @@ def safe_get_json(url: str, retries: int = 3, backoff: float = 0.5):
         retries,
         last_exc,
     )
-    return []
+    return [], False
 
 
-def get_current_state(url: str) -> dict:
+# State key -> the endpoint that serves it, in probe order.
+STATE_ENDPOINTS: tuple[tuple[str, str], ...] = (
+    ("todo", "/todo_all"),
+    ("calendar", "/calendar_all"),
+    ("map", "/maps/landmarks"),
+    ("messenger", "/messages_all"),
+    ("codeeditor", "/codeeditor_all"),
+    ("ui_library", "/uilibrary_all"),
+    ("openbanking", "/openbanking_all"),
+    ("online_shop", "/onlineshop_all"),
+)
+
+
+def get_current_state(url: str, failed_apps: list[str] | None = None) -> dict:
     """Fetch the current cross-app state from a running OpenApps server.
 
     Args:
         url: The base URL of the OpenApps server (no trailing slash).
+        failed_apps: When given, the state key of every app whose probe
+            failed (a connection error or 5xx that outlived the retries) is
+            appended to it. Such an app reads as empty in the returned state,
+            which is indistinguishable from an app the agent emptied -- so
+            anything that *scores* the state (rather than just rewarding it,
+            as the live task does) should ask. A 4xx is not a failure: it is
+            an app that is not served, and empty is its true state.
 
     Returns:
         Dict keyed by app name (todo, calendar, map, messenger,
@@ -70,15 +101,17 @@ def get_current_state(url: str) -> dict:
         JSON the corresponding ``/<app>_all`` endpoints return.
     """
     state: dict = {}
-    state["todo"] = safe_get_json(url + "/todo_all")
-    state["calendar"] = safe_get_json(url + "/calendar_all")
-    state["map"] = safe_get_json(url + "/maps/landmarks")
-    state["messenger"] = safe_get_json(url + "/messages_all")
-    state["codeeditor"] = safe_get_json(url + "/codeeditor_all")
-    state["ui_library"] = safe_get_json(url + "/uilibrary_all")
-    state["openbanking"] = safe_get_json(url + "/openbanking_all") or {}
-    try:
-        state["online_shop"] = safe_get_json(url + "/onlineshop_all")
-    except Exception:
-        state["online_shop"] = []
+    for key, endpoint in STATE_ENDPOINTS:
+        try:
+            value, ok = _get_json(url + endpoint)
+        except Exception:  # noqa: BLE001 -- e.g. a body that is not JSON
+            if key != "online_shop":
+                raise
+            # The shop's probe has always been allowed to fail open.
+            value, ok = [], False
+        if key == "openbanking":
+            value = value or {}
+        state[key] = value
+        if not ok and failed_apps is not None:
+            failed_apps.append(key)
     return state

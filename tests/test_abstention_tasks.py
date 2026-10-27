@@ -60,6 +60,14 @@ def _browser_task(task, monkeypatch, current_state: dict) -> OpenAppsTask:
     browser_task.url = "http://localhost"
     browser_task.page = SimpleNamespace(url="http://localhost/")
     browser_task.initial_state = _initial()
+    # What __init__ would set: the paper's on_success protocol, no episode record.
+    browser_task.task_termination = "on_success"
+    browser_task.episode_dir = None
+    browser_task.snapshots = []
+    browser_task.termination_reason = None
+    browser_task._agent_messages_seen = 0
+    browser_task._irreversible_seen = False
+    browser_task._last_reward = 0.0
     return browser_task
 
 
