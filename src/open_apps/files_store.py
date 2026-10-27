@@ -46,6 +46,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path, PurePosixPath
 from typing import Optional, Union
+from urllib.parse import urlencode
 
 CODE = "Code"
 DEFAULT_FOLDERS = ("Documents", "Downloads", "Receipts", "Statements")
@@ -107,6 +108,14 @@ class Entry:
 _root: Optional[Path] = None
 _code_dir: Optional[Path] = None
 _today: Optional[date] = None
+
+
+def pdf_view_url(src: str, name: str) -> str:
+    """Where another app links to show the PDF it serves at ``src`` in the
+    Files reader (``/files/pdf``) instead of as a raw PDF, which Playwright's
+    Chromium can't display. Here rather than in the Files app so linking to it
+    doesn't build that app as an import side effect."""
+    return f"/files/pdf?{urlencode({'src': src, 'name': name})}"
 
 
 def configure(root: Union[str, Path], code_dir: Union[str, Path, None], today: Union[str, date]) -> None:

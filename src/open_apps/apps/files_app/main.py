@@ -387,8 +387,11 @@ styles = Style("""
     /* Pico stretches [role=search] and [role=group] into full-width input
        groups; in a toolbar they size to their content. */
     .fs-root .fs-search { display: flex; width: auto; margin: 0; box-shadow: none; }
+    /* Pico rounds search inputs into a pill; in the toolbar it matches the
+       segment and buttons beside it. */
     .fs-root .fs-search input[type="search"] {
         width: 13rem; height: auto; margin: 0;
+        border-radius: var(--radius);
         padding-block: calc(var(--space) * 0.45);
         font-size: var(--font-size-sm);
     }
@@ -924,13 +927,17 @@ def menu(entry):
     )
 
 
-def item_href(entry, folder: str) -> str:
+def item_href(entry, folder: str, *, opens: bool = False) -> str:
     """Where clicking an item goes: into a folder; on a phone straight into
     the file (as iOS Files does); elsewhere it selects, and the preview pane
-    offers Open, as Finder does. Double-click opens either way."""
+    offers Open, as Finder does. Double-click opens either way.
+
+    ``opens`` is for views with no preview pane to select into -- search
+    results, whose files live in other folders: selecting one there pointed
+    at a name the current folder doesn't have, so the click went nowhere."""
     if entry.is_folder:
         return folder_url(entry.path)
-    if is_phone():
+    if opens or is_phone():
         return href("/files/view", entry.path)
     return folder_url(folder, selected=entry.name)
 
@@ -952,7 +959,7 @@ def list_view(entries, folder: str, selected: str, *, show_where: bool = False):
         is_sel = (not e.is_folder) and e.name == selected
         rows.append(
             Tr(
-                Td(A(entry_glyph(e), Span(e.name), href=item_href(e, folder), cls="fs-name",
+                Td(A(entry_glyph(e), Span(e.name), href=item_href(e, folder, opens=show_where), cls="fs-name",
                      aria_current="true" if is_sel else None)),
                 Td(folder_label(parent_of(e.path)) or u.root_label, cls="is-muted") if show_where else None,
                 Td(format_date(modified_on(e.path)) if not e.is_folder else "", cls="is-muted is-date"),
@@ -1239,10 +1246,37 @@ def viewer_bar(entry, *controls):
     )
 
 
-def pdf_viewer(entry):
+def pdf_document(src: str, name: str, bar):
+    """The pdf.js reader for the PDF at ``src``, under ``bar``.
+
+    Separate from the Files entry because other apps show PDFs they never store
+    -- a shop receipt, a bank statement -- and Chromium as Playwright ships it
+    has no built-in PDF viewer: a raw PDF in a tab is a blank page and a silent
+    download, for an agent and for anyone using the preview window.
+    """
     u = ui()
-    raw = href("/files/raw", entry.path)
-    pager = Div(
+    return Div(
+        bar,
+        Ol(cls="fs-thumbs", id="files-thumbs", aria_label=u.pages_label),
+        Div(
+            P(u.loading, cls="fs-viewer-status", id="files-viewer-status"),
+            Noscript(P(u.needs_script, " ", A(u.open_new_tab, href=src))),
+            cls="fs-pages",
+            id="files-pages",
+            tabindex="0",
+            aria_label=name,
+        ),
+        Script(src=VIEWER_SCRIPT_URL, type="module"),
+        cls="fs-viewer",
+        id="files-viewer",
+        data_src=src,
+        data_error=u.load_error,
+    )
+
+
+def pdf_pager():
+    u = ui()
+    return Div(
         Button(icon(Icon.CHEVRON, size=14), type="button", cls="fs-icon-btn is-up", id="files-prev-page", aria_label=u.previous_page),
         Output(u.page_of.format(n=1, total="…"), id="files-page-indicator", aria_live="polite",
                data_template=u.page_of),
@@ -1253,28 +1287,17 @@ def pdf_viewer(entry):
         Button("+", type="button", cls="fs-icon-btn", id="files-zoom-in", aria_label=u.zoom_in),
         cls="fs-pager",
     )
-    return Div(
-        viewer_bar(
-            entry,
-            pager,
-            A(u.open_new_tab, href=raw, target="_blank", rel="noopener", cls="fs-btn"),
-            A(u.download, href=raw + "?download=1", cls="fs-btn"),
-        ),
-        Ol(cls="fs-thumbs", id="files-thumbs", aria_label=u.pages_label),
-        Div(
-            P(u.loading, cls="fs-viewer-status", id="files-viewer-status"),
-            Noscript(P(u.needs_script, " ", A(u.open_new_tab, href=raw))),
-            cls="fs-pages",
-            id="files-pages",
-            tabindex="0",
-            aria_label=entry.name,
-        ),
-        Script(src=VIEWER_SCRIPT_URL, type="module"),
-        cls="fs-viewer",
-        id="files-viewer",
-        data_src=raw,
-        data_error=u.load_error,
-    )
+
+
+def pdf_viewer(entry):
+    u = ui()
+    raw = href("/files/raw", entry.path)
+    return pdf_document(raw, entry.name, viewer_bar(
+        entry,
+        pdf_pager(),
+        A(u.open_new_tab, href=raw, target="_blank", rel="noopener", cls="fs-btn"),
+        A(u.download, href=raw + "?download=1", cls="fs-btn"),
+    ))
 
 
 def image_viewer(entry):
@@ -1395,6 +1418,23 @@ def files_search(q: str = ""):
         body = P(u.no_results.format(q=q.strip()) if query else u.search_prompt, cls="fs-empty")
     content = Section(body, cls="fs-content", id="files-content", aria_label=label)
     return page(window("", toolbar("", view="list", sort="name", q=q, label=label, upload=False), content, show_preview=False))
+
+
+@rt("/files/pdf")
+def files_pdf(src: str = "", name: str = ""):
+    """A PDF another app serves, in the Files reader (see ``pdf_document``).
+    Same-origin paths only: this page fetches ``src`` with pdf.js, and an
+    absolute or protocol-relative URL would turn it into a reader for anything."""
+    if not src.startswith("/") or src.startswith("//"):
+        return not_found()
+    name = name or PurePosixPath(src).name
+    bar = Div(
+        H2(name, cls="fs-viewer-title"),
+        pdf_pager(),
+        A(ui().download, href=src, download=name, cls="fs-btn"),
+        cls="fs-viewer-bar",
+    )
+    return page(pdf_document(src, name, bar))
 
 
 @rt("/files/view/{path:path}")

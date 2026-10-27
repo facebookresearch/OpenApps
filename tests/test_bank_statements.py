@@ -150,13 +150,15 @@ class TestPages:
         body = client.get(f"/openbanking/accounts/{SAVINGS}/statements").text
         for label in ("August 2026", "July 2026", "June 2026"):
             assert label in body
-        assert f"/openbanking/accounts/{SAVINGS}/statements/2026-07/view" in body
+        assert f"%2Fopenbanking%2Faccounts%2F{SAVINGS}%2Fstatements%2F2026-07%2Fview" in body
         assert f"/openbanking/accounts/{SAVINGS}/statements/2026-07/download" in body
 
     def test_view_opens_in_a_new_tab(self, client):
         body = client.get(f"/openbanking/accounts/{SAVINGS}/statements").text
-        view = re.search(r'<a[^>]*statements/2026-07/view[^>]*>', body).group(0)
+        view = re.search(r'<a[^>]*statements%2F2026-07%2Fview[^>]*>', body).group(0)
         assert 'target="_blank"' in view
+        # In the Files reader: a raw PDF is a blank tab in Playwright's Chromium.
+        assert 'href="/files/pdf?src=' in view
 
     def test_unknown_account_or_month_404s(self, client):
         assert client.get("/openbanking/accounts/99/statements/2026-07/view").status_code == 404

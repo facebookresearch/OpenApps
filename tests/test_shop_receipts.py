@@ -13,6 +13,7 @@ a checkout receipt carries the checkout time and a random order id, which
 scoring normalises.
 """
 
+import html
 import re
 from pathlib import Path
 
@@ -105,7 +106,8 @@ class TestOrdersPage:
     def test_every_order_links_its_receipt(self, client):
         body = client.get("/onlineshop/orders").text
         for order_id in SEEDED:
-            link = re.search(rf'<a[^>]*href="/onlineshop/orders/{order_id}/receipt"[^>]*>', body)
+            reader = files_store.pdf_view_url(f"/onlineshop/orders/{order_id}/receipt", shop.receipt_name(order_id))
+            link = re.search(rf'<a[^>]*href="{re.escape(html.escape(reader))}"[^>]*>', body)
             assert link, f"no receipt link for {order_id}"
             assert 'target="_blank"' in link.group(0)
 

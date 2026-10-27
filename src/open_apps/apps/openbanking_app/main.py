@@ -1850,7 +1850,8 @@ def statement_row(account: Account, month: tuple):
         Div(
             A(
                 _label("view_label", "View"),
-                href=f"{base}/view",
+                href=files_store.pdf_view_url(
+                    f"{base}/view", statements.statement_name(account.name, month)),
                 target="_blank",
                 rel="noopener",
                 cls="ob-action",

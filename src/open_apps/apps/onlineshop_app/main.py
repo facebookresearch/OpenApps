@@ -2228,7 +2228,8 @@ def order_card(order):
             if order.card_last4 else "",
             Div(H3(f"Order {order.order_id}", cls="card-title"),
                 Span(order.status, cls="status-pill"),
-                A("Receipt", href=f"/onlineshop/orders/{order.order_id}/receipt",
+                A("Receipt", href=files_store.pdf_view_url(
+                      f"/onlineshop/orders/{order.order_id}/receipt", receipt_name(order.order_id)),
                   target="_blank", rel="noopener", cls="order-receipt text-link",
                   aria_label=f"Receipt for order {order.order_id}"),
                 cls="order-id"),

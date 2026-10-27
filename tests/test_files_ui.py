@@ -114,6 +114,14 @@ class TestBrowser:
         assert "Residential Lease - 44 Wharf Street.pdf" in html
         assert "Visit Summary" not in html
 
+    def test_search_results_open_the_file(self, client):
+        """The search window has no preview pane to select into, and its files
+        live in other folders: a select link pointed at a name the root doesn't
+        have, so a single click went nowhere."""
+        html = client.get("/files/search?q=lease").text
+        link = re.search(r'<a href="([^"]*)" class="fs-name"', html).group(1)
+        assert link == url("/files/view", LEASE)
+
     def test_grid_view_toggle(self, client):
         html = client.get("/files/Documents?view=grid").text
         assert 'class="fs-grid"' in html
@@ -136,6 +144,21 @@ class TestViewers:
         html = client.get(url("/files/view", REPORT)).text
         link = re.search(r'<a[^>]*target="_blank"[^>]*>', html).group(0)
         assert f'href="{url("/files/raw", REPORT)}"' in link
+
+    def test_reader_shows_another_apps_pdf(self, client):
+        """Other apps link their PDFs here rather than to the raw PDF, which
+        Playwright's Chromium can't display."""
+        src = url("/files/raw", REPORT)
+        html = client.get("/files/pdf", params={"src": src, "name": "Visit.pdf"}).text
+        assert f'data-src="{src}"' in html
+        assert 'src="/assets/js/files_viewer.js"' in html
+        assert "Visit.pdf" in html
+
+    @pytest.mark.parametrize("src", ["https://example.com/x.pdf", "//example.com/x.pdf", "javascript:alert(1)", ""])
+    def test_reader_refuses_other_origins(self, client, src):
+        response = client.get("/files/pdf", params={"src": src})
+        assert response.status_code == 404
+        assert "data-src" not in response.text
 
     def test_pdf_viewer_controls(self, client):
         html = client.get(url("/files/view", REPORT)).text
