@@ -22,6 +22,7 @@ from hydra import compose, initialize
 from starlette.testclient import TestClient
 
 from open_apps import files_store
+from open_apps.apps.files_app import main as files_app
 from open_apps.apps.onlineshop_app import main as shop
 from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
 
@@ -134,6 +135,18 @@ class TestCheckout:
         assert path in receipts(client)
         text = pdf_text(files_store.read(path))
         assert f"Order {new['order_id']}" in text and shop.money(new["total"]) in text
+
+    def test_new_order_is_shipping_and_dated_like_its_receipt(self, client):
+        """The order used the wall clock while its receipt, like every new
+        file, used the run's pinned day -- so a receipt predated its order."""
+        before = {o["order_id"] for o in client.get("/onlineshop_all").json()["orders"]}
+        client.post("/onlineshop/cart/add/B097PCJMP5", data={})
+        client.post("/onlineshop/checkout", data=GOOD_CARD)
+        (new,) = [o for o in client.get("/onlineshop_all").json()["orders"] if o["order_id"] not in before]
+        assert new["status"] == "Shipping"
+        assert new["date"][:10] == str(app.config.files.today)
+        receipt = f"Receipts/OpenShop order {new['order_id']}.pdf"
+        assert str(files_app.modified_on(receipt)) == new["date"][:10]
 
     def test_a_declined_checkout_writes_nothing(self, client):
         before = receipts(client)

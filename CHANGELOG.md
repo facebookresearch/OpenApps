@@ -29,10 +29,10 @@ targets now expect a receipt, so purchase scores are not comparable with
 - **PDF documents**: a small deterministic PDF writer (`open_apps.pdf_writer`)
   and vendored pdf.js 6.4.299 (legacy build, Apache-2.0). No new Python
   dependency and no build step.
-- **Bank statements**: a Statements page per account; View opens the PDF and
-  Download saves it to Files.
+- **Bank statements**: a Statements page per account; View opens the PDF in
+  the Files reader and Download saves it to Files.
 - **Shop receipts**: every order, seeded or checked out, has a PDF receipt in
-  Files, linked from Orders.
+  Files, linked from Orders and opened in the Files reader.
 - **Reveal in Files** in the code editor.
 - **File tasks** (`tasks=files`): delete, restore, permanently delete, rename
   and move a file, download a statement, file it away, and answer a question
@@ -46,6 +46,9 @@ targets now expect a receipt, so purchase scores are not comparable with
 - Purchase targets expect one new receipt in Files; a declined card expects
   none.
 - Parallel sweeps launch Files (`config_parallel_tasks*.yaml`).
+- A new order is `Shipping` (was `Processing`) and stays so for the episode,
+  dated on the run's pinned calendar like its receipt and card charge. Purchase
+  targets expect `Shipping`.
 
 ## [2.0.0] - 2026-10-23
 

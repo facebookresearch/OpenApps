@@ -280,7 +280,7 @@ orders:
     name: 'Test Customer'
     address: '1 Test Street'
     date: '2026-08-29 19:55:08'
-    status: 'Processing'
+    status: 'Shipping'
     items:
       - sku: 'appa-swtr-301'
         options: {size: 'medium', color: 'navy'}

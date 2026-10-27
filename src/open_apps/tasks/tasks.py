@@ -989,10 +989,11 @@ class BuyWithCardTask(Task):
                 "order_id": ORDER_ID_TOKEN,
                 "name": self.ship_to_name,
                 "address": self.ship_to_address,
-                # Both dropped by AppStateComparison._normalize_purchases; kept
-                # here so the target has the same shape as the observed order.
+                # The date is dropped by _normalize_purchases; the status is
+                # compared, and a new order keeps the shop's NEW_ORDER_STATUS
+                # for the whole episode.
                 "date": None,
-                "status": "Processing",
+                "status": "Shipping",
                 "total": total,
                 "card_last4": self.card_last4,
                 "items": [

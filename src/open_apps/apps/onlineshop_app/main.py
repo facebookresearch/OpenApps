@@ -924,7 +924,7 @@ def _seed_orders(config):
                 name=str(raw.get("name", "")),
                 address=str(raw.get("address", "")),
                 date=str(raw.get("date", "")),
-                status=str(raw.get("status", "Processing")),
+                status=str(raw.get("status", NEW_ORDER_STATUS)),
                 # Prefer the configured total when given, so a fixture can pin
                 # a historical price that no longer matches the catalog.
                 total=float(raw["total"]) if raw.get("total") is not None else round(total, 2),
@@ -2172,8 +2172,8 @@ def post(
             order_id=order_id,
             name=name,
             address=address,
-            date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            status="Processing",
+            date=_order_timestamp(),
+            status=NEW_ORDER_STATUS,
             total=total,
             card_last4=card_last4,
         )
@@ -2193,6 +2193,30 @@ def post(
         cart_items.delete(row.id)
     write_receipt(_row(orders, order_id))
     return RedirectResponse(url="/onlineshop/orders", status_code=303)
+
+
+# A new order ships for the rest of the episode. Nothing advances it: a status
+# that moved with the wall clock would make /onlineshop_all -- and every
+# purchase reward -- depend on how long the episode ran.
+NEW_ORDER_STATUS = "Shipping"
+
+
+def _order_timestamp() -> str:
+    """When a new order was placed, on the run's pinned calendar.
+
+    The day is the one Files dates new files by (``apps.files.today``, which
+    follows the bank's ``as_of_date``), so an order, its receipt and the card
+    charge all agree; the time of day is the real one, so orders placed in one
+    episode still sort. Plain wall-clock time when neither app is configured.
+    """
+    now = datetime.now()
+    config = getattr(app, "config", None)
+    for section, key in (("files", "today"), ("openbanking", "as_of_date")):
+        node = getattr(config, section, None) if config is not None else None
+        day = node.get(key) if node is not None else None
+        if day:
+            return f"{day} {now:%H:%M:%S}"
+    return now.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _lines_for(order_id: str) -> list:
