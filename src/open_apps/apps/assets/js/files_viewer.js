@@ -102,8 +102,8 @@ async function initViewer(root) {
     const pages = [];
     for (let n = 1; n <= total; n++) { pages.push(await pdf.getPage(n)); }
 
-    // Fit the first page's width to the well, capped at 100%: a letter page
-    // at 100% is already as wide as a laptop window wants.
+    // Fit the first page's width to the well, capped at 125%: past that a
+    // letter page is larger than anyone reads it on a laptop.
     const base = pages[0].getViewport({ scale: 1 });
     const room = Math.max(240, pagesEl.clientWidth - 48);
     let scale = Math.min(1.25, room / base.width);
@@ -178,7 +178,13 @@ async function initViewer(root) {
 
     function goTo(n) {
         const target = Math.min(total, Math.max(1, n));
-        holders[target - 1].scrollIntoView({ block: 'start', behavior: 'auto' });
+        // Scroll the well itself. scrollIntoView would also scroll the page
+        // around the viewer, which is overflow: hidden on desktop and taller
+        // than the window under the dock's reserved space -- the whole app
+        // would jump up and never come back.
+        const pad = parseFloat(getComputedStyle(pagesEl).paddingTop) || 0;
+        const offset = holders[target - 1].getBoundingClientRect().top - pagesEl.getBoundingClientRect().top;
+        pagesEl.scrollTo({ top: pagesEl.scrollTop + offset - pad, behavior: 'auto' });
         show(target);
     }
 

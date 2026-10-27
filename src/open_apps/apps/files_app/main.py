@@ -568,10 +568,19 @@ styles = Style("""
         border: 1px solid var(--color-border);
         border-radius: calc(var(--radius) * 1.5);
         overflow: hidden;
-        height: calc(100vh - 7.5rem - var(--oa-titlebar-h, 0px) - var(--oa-dock-space, 0px));
+        /* Down to the bottom of the browser, behind the dock, the way Preview
+           fills the screen: stopping above the dock cut a letter page off at
+           about two thirds on a landscape laptop. --fs-viewer-top is measured
+           by BROWSER_SCRIPT; .fs-pages pads its end by the dock's height so
+           the last page still scrolls clear of it. */
+        height: calc(100vh - var(--fs-viewer-top, 7.5rem));
+        border-bottom-left-radius: 0; border-bottom-right-radius: 0;
         min-height: 28rem;
         background: var(--color-surface);
     }
+    /* The viewer fills the window, so the page around it must not scroll too:
+       one scrollbar, inside the document, like Preview. */
+    html:has(.fs-root:not(.is-phone) .fs-viewer) { overflow: hidden; }
     .fs-viewer.is-plain { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "pages"; }
     .fs-viewer-bar {
         grid-area: bar;
@@ -613,6 +622,7 @@ styles = Style("""
         grid-area: pages; overflow: auto;
         display: flex; flex-direction: column; align-items: center; gap: calc(var(--space) * 3);
         padding: calc(var(--space) * 3);
+        padding-bottom: calc(var(--space) * 3 + var(--oa-dock-space, 0px));
     }
     .fs-page {
         position: relative; flex: none;
@@ -688,6 +698,18 @@ styles = Style("""
 # rows swapped in later need no rebinding.
 BROWSER_SCRIPT = Script("""
 (function () {
+    // A desktop viewer runs from wherever the header leaves it down to the
+    // bottom of the window, behind the dock. Where that is depends on the
+    // theme's type, so it is measured rather than guessed in rem.
+    function fitViewer() {
+        var viewer = document.querySelector('.fs-root:not(.is-phone) .fs-viewer');
+        if (!viewer) { return; }
+        var top = viewer.getBoundingClientRect().top + window.scrollY;
+        viewer.style.setProperty('--fs-viewer-top', Math.round(top) + 'px');
+    }
+    fitViewer();
+    window.addEventListener('resize', fitViewer);
+    document.addEventListener('htmx:afterSettle', fitViewer);
     function closeAll(except) {
         document.querySelectorAll('.fs-menu[open]').forEach(function (m) {
             if (m !== except) { m.open = false; m.classList.remove('at-pointer'); }
