@@ -286,6 +286,63 @@ class TestActions:
         assert "<dialog" in r.text and 'id="files-sidebar"' in r.text
 
 
+class TestFolderMenus:
+    """Built-in folders are fixed places tasks address by path: Open, Get Info
+    and (except Code) Duplicate, never rename, move or delete."""
+
+    @staticmethod
+    def menu_for(html: str, path: str) -> str:
+        one_row = r"(?:(?!</tr>).)*?"
+        row = re.search(rf'<tr[^>]*is-folder[^>]*>{one_row}href="/files/{re.escape(path)}"{one_row}</tr>', html, re.S).group(0)
+        return re.search(r'<ul class="fs-menu-list">.*?</ul>', row, re.S).group(0)
+
+    @pytest.mark.parametrize("folder", ["Documents", "Downloads", "Receipts", "Statements"])
+    def test_default_folders_offer_info_and_duplicate(self, client, folder):
+        menu = self.menu_for(client.get("/files?view=list").text, folder)
+        assert f"/files/info?path={folder}" in menu
+        assert 'action="/files/duplicate"' in menu
+        for blocked in ("/files/rename", "/files/move", 'action="/files/delete"'):
+            assert blocked not in menu
+
+    def test_code_offers_info_but_no_copy(self, client):
+        """Code is the editor's workspace outside the store; a copy would land
+        outside it too."""
+        menu = self.menu_for(client.get("/files?view=list").text, "Code")
+        assert "/files/info?path=Code" in menu
+        assert "/files/duplicate" not in menu
+
+    def test_duplicating_a_default_folder_makes_an_ordinary_copy(self, fresh):
+        before = {p for p in paths() if p.startswith("Receipts/")}
+        fresh.post("/files/duplicate", data={"path": "Receipts"})
+        copies = {p.replace("Receipts (2)/", "Receipts/", 1) for p in paths() if p.startswith("Receipts (2)/")}
+        assert copies == before
+        menu = self.menu_for(fresh.get("/files?view=list").text, quote("Receipts (2)"))
+        assert "/files/rename" in menu and 'action="/files/delete"' in menu
+
+    def test_sidebar_folders_carry_the_same_menu(self, client):
+        """Right-clicking a folder in the sidebar opens its menu, as in Finder."""
+        sidebar = re.search(r'<nav[^>]*id="files-sidebar".*?</nav>', client.get("/files").text, re.S).group(0)
+        hosts = sidebar.split('<li data-menu-host="1">')[1:]
+        item = next((h for h in hosts if 'href="/files/Receipts" class="fs-side-link"' in h), None)
+        assert item, "Receipts in the sidebar should be a menu host"
+        assert "/files/info?path=Receipts" in item
+        assert 'action="/files/duplicate"' in item
+
+    def test_get_info_for_a_folder_and_a_pdf(self, client):
+        folder = client.get("/files/info?path=Receipts", headers={"HX-Request": "true"}).text
+        assert "Receipts Info" in folder and "Folder" in folder and "items" in folder
+        # A folder is dated by its newest file on the pinned calendar, not by
+        # the directory's real-clock mtime. Documents is seeded by Files itself.
+        docs = client.get("/files/info?path=Documents", headers={"HX-Request": "true"}).text
+        newest = max(files_app.modified_on(p) for p in paths() if p.startswith("Documents/"))
+        assert files_app.format_date(newest) in docs
+        pdf = client.get(f"/files/info?path={quote(LEASE)}", headers={"HX-Request": "true"}).text
+        assert "PDF document" in pdf and "Documents" in pdf and "1 page" in pdf
+
+    def test_get_info_for_a_missing_path_is_a_404(self, client):
+        assert client.get("/files/info?path=Nope").status_code == 404
+
+
 class TestRecentlyDeleted:
     def test_page(self, client):
         html = client.get("/files/recently-deleted").text

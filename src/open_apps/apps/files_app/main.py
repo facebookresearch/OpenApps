@@ -436,6 +436,10 @@ styles = Style("""
         box-shadow: 0 8px 24px color-mix(in srgb, var(--color-fg) 18%, transparent);
     }
     .fs-menu.at-pointer .fs-menu-list { position: fixed; right: auto; top: var(--menu-y); left: var(--menu-x); }
+    .fs-sidebar .fs-menu > summary { display: none; }
+    /* Pico lays every list inside a <nav> out as a row; a menu is a column. */
+    .fs-root .fs-sidebar .fs-menu-list { display: block; }
+    .fs-root .fs-sidebar .fs-menu-list li { display: block; padding: 0; }
     .fs-menu-list li { list-style: none; margin: 0; padding: 0; }
     .fs-menu-list :is(a, button) {
         display: block; width: 100%; margin: 0; text-align: left;
@@ -552,6 +556,9 @@ styles = Style("""
     .fs-root .fs-dialog footer .fs-btn { width: auto; margin: 0; }
     .fs-root .fs-dialog h3 { font-size: 1.15rem; line-height: 1.35; overflow-wrap: anywhere; }
     .fs-dialog label { font-size: var(--font-size-sm); color: var(--color-muted); }
+    .fs-info { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: calc(var(--space) * 0.5) calc(var(--space) * 1.5); margin: 0 0 calc(var(--space) * 1.5); font-size: var(--font-size-sm); }
+    .fs-info dt { color: var(--color-muted); font-weight: 400; }
+    .fs-info dd { margin: 0; overflow-wrap: anywhere; }
     .fs-dialog input[type="text"] { margin-top: 0.25rem; }
     .fs-dialog ul { list-style: none; margin: 0; padding: 0; }
     .fs-dialog li { list-style: none; }
@@ -791,6 +798,7 @@ def sidebar(current: str):
     items = []
     for folder in folders + extra:
         count = sum(1 for e in files_store.list_folder(folder)) if folder_exists(folder) else 0
+        entry = get_entry(folder)
         items.append(
             Li(
                 A(
@@ -800,7 +808,11 @@ def sidebar(current: str):
                     href=folder_url(folder),
                     cls="fs-side-link",
                     aria_current="page" if current == folder else None,
-                )
+                ),
+                # Right-click opens the folder's menu, as in Finder's sidebar.
+                # No visible trigger here; the same menu is on the folder's row.
+                menu(entry) if entry is not None else None,
+                data_menu_host="1" if entry is not None else None,
             )
         )
     trash_count = len(files_store.list_trash())
@@ -909,8 +921,8 @@ def default_view() -> str:
 
 
 def item_actions(entry, *, for_menu: bool = True):
-    """Open, Rename..., Move to..., Duplicate, Delete -- one list, drawn as the
-    row's menu and as the preview's buttons, so both always agree."""
+    """Open, Get Info, Rename..., Move to..., Duplicate, Delete -- one list,
+    drawn as the row's menu and as the preview's buttons, so both always agree."""
     u = ui()
     path = entry.path
     back = folder_url(parent_of(path))
@@ -927,7 +939,16 @@ def item_actions(entry, *, for_menu: bool = True):
     ]
     if not for_menu and not entry.is_folder:
         pieces.append(A(u.download, href=href("/files/raw", path) + "?download=1", cls=cls))
-    # The built-in folders are fixed places, like Finder's sidebar: open only.
+    if for_menu:
+        # The preview pane already is the details; the menu needs a way to them.
+        pieces.append(A(u.get_info, **dialog("/files/info")))
+    # The built-in folders are fixed places, like Finder's sidebar: tasks
+    # address them by path, so they can't be renamed, moved or deleted. A
+    # copy is an ordinary folder -- except of Code, the code editor's
+    # workspace, which lives outside the store and would be copied out of it.
+    if path in files_store.DEFAULT_FOLDERS:
+        pieces.append(Form(Input(type="hidden", name="path", value=path), Button(u.duplicate, type="submit", cls=cls),
+                           action="/files/duplicate", method="post"))
     if path not in (files_store.CODE, *files_store.DEFAULT_FOLDERS):
         pieces += [
             A(u.rename, cls=cls, **dialog("/files/rename")),
@@ -1139,6 +1160,45 @@ def rename_dialog(entry, value: str = "", error: str = ""):
         P(error, cls="fs-error", role="alert") if error else None,
         footer=[cancel_button(folder_url(parent_of(entry.path))), Button(u.rename_submit, type="submit", cls="fs-btn is-primary")],
         action="/files/rename",
+    )
+
+
+def info_dialog(entry):
+    """Finder's Get Info, as a read-only sheet: what the item is, where it is,
+    how big, and when it last changed."""
+    u = ui()
+    cols = cfg().columns
+    if entry.is_folder:
+        children = files_store.list_folder(entry.path)
+        count = u.info_item if len(children) == 1 else u.info_items.format(n=len(children))
+        size = f"{format_size(sum(e.size for e in walk(entry.path)))} ({count})"
+        kind = kind_label("folder")
+        # A directory's own mtime is the real clock, not the run's pinned
+        # calendar; its newest file says when it last changed in this world.
+        modified = max((modified_on(e.path) for e in walk(entry.path)), default=None, key=lambda d: d or date.min)
+    else:
+        size, kind = format_size(entry.size), kind_label(entry.kind)
+        modified = modified_on(entry.path)
+    facts = [
+        (cols.kind, kind),
+        (u.where_label, folder_label(parent_of(entry.path)) or u.root_label),
+        (cols.size, size),
+    ]
+    if modified is not None:
+        facts.append((cols.date, format_date(modified)))
+    if is_pdf(entry.kind):
+        n = page_count(files_store.read(entry.path))
+        facts.append((u.pages_label, u.page_one if n == 1 else u.pages.format(n=n)))
+    back = folder_url(parent_of(entry.path))
+    return Dialog(
+        Article(
+            Header(H3(u.info_title.format(name=entry.name), style="margin:0")),
+            Dl(*[part for label, value in facts for part in (Dt(label), Dd(value))], cls="fs-info"),
+            Footer(A(u.done, href=back, cls="fs-btn is-primary",
+                     onclick="event.preventDefault(); this.closest('dialog').remove();")),
+        ),
+        open=True,
+        cls="fs-dialog",
     )
 
 
@@ -1505,6 +1565,14 @@ def files_raw(path: str, download: int = 0):
     if not is_pdf(entry.kind):
         headers["Content-Security-Policy"] = "sandbox"
     return Response(files_store.read(entry.path), media_type=kind, headers=headers)
+
+
+@app.get("/files/info")
+def files_info_dialog(req, path: str = ""):
+    entry = get_entry(path)
+    if entry is None:
+        return not_found()
+    return show_dialog(req, info_dialog(entry), folder=parent_of(path))
 
 
 @app.get("/files/rename")
