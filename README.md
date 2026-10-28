@@ -119,6 +119,49 @@ You can specify the agent of your choice with the `agent=` argument. For example
 
 Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars in our [docs](https://facebookresearch.github.io/OpenApps/).
 
+### Sweep tasks and agents
+
+```bash
+uv run launch_parallel_agents.py tasks=original_tasks.yaml,longer_horizon.yaml \
+    agents=dummy,GPT-5.5-computer-use-abstention
+```
+
+This runs every task from each file with every agent and each configured app
+variation. Config names may omit `.yaml`; overlapping task names in different
+files remain separate runs. Local jobs run sequentially; `mode=slurm_cluster`
+submits them concurrently using the existing SLURM settings.
+
+Use `parallel_tasks.task_names=[task_a,task_b]` to select a subset across the
+files. Existing `agent=...`, `tasks=...` and Hydra `--multirun` commands retain
+their behavior. `agents=...` selects one parallel sweep and cannot be combined
+with `agent=...` or `--multirun`.
+An explicit single `tasks=...` file also runs in full with `agents=...`, unless
+`parallel_tasks.task_names` selects a subset.
+
+`logs_dir` is a parent directory. Every launcher invocation creates a fresh
+`run-<id>/` underneath it and prints `Run directory: <path>`. Job configs, logs
+and databases live under `<logs_dir>/run-<id>/<job_id>/`; SLURM output lives in
+`<logs_dir>/run-<id>/slurm/`. Reusing the same logs root, including with native
+Hydra `--multirun`, therefore keeps job storage separate across runs.
+**Compatibility:** analysis expecting `<logs_dir>/<job_id>/` must include the
+new run-directory level. Saved configs identify `task_config_name` and
+`agent_config_name` for matrix runs.
+
+Downstream packages can import `launch_parallel` and `normalize_cli_args` from
+`open_apps.parallel_launcher`, keep their own Hydra entry point, and pass an
+importable `launcher_class` to `launch_parallel`.
+Custom app-subprocess launchers should forward `++web_app_port=<selected port>`
+to the server so large sweeps reuse the exact port chosen by their parent.
+Python callers of helpers in the repository script should import them from
+`open_apps.parallel_launcher` instead.
+
+Stagger independent launches on the same host to avoid the existing app-port
+race. Wait for the previous sweep's jobs to finish before starting another;
+a SLURM submission command returning does not mean its servers have started
+or stopped. A single comma-selector sweep already gives its jobs distinct
+preferred port ranges. Separate run directories protect storage but do not
+reserve ports. Hydra's own parent-level logs can still append in the logs root.
+
 ## Environment variables
 
 Copy [`.env.example`](.env.example) and fill in what you need — `launch_agent.py` and

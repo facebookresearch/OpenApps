@@ -1,6 +1,7 @@
 """Defines logic for running multiple tasks in parallel."""
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import List, Sequence, Union
 from omegaconf import DictConfig, OmegaConf, open_dict
 from itertools import product
@@ -42,9 +43,15 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
         self,
         app_variations: list[list[str]],
         task_names: Union[str, list[str]],
+        task_configs: Sequence[str] | None = None,
+        agent_configs: Sequence[str] | None = None,
     ) -> None:
         self.app_variations = app_variations
         self.task_names = task_names
+        self.task_configs = list(task_configs) if task_configs is not None else None
+        self.agent_configs = list(agent_configs) if agent_configs is not None else None
+        if self.task_configs == [] or self.agent_configs == []:
+            raise ValueError("Task and agent config selections must not be empty")
 
     def _resolve_task_names(self, default_config: DictConfig) -> list[str]:
         """Resolves task_names to a concrete list of task names.
@@ -82,6 +89,8 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
                 (`HydraConfig.get().overrides.task`).
             config_name: The root config to compose each run from.
         """
+        if self.task_configs is not None or self.agent_configs is not None:
+            return self._create_matrix_configs(default_config, cli_overrides, config_name)
         task_names = self._resolve_task_names(default_config)
         raw = OmegaConf.to_container(default_config, resolve=False)
         inherited = {key: raw[key] for key in INHERITED_KEYS if key in raw}
@@ -96,4 +105,43 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
                 # for logging, track app overrides
                 config.app_overrides = app_variation
             configs.append(config)
+        return configs
+
+    def _create_matrix_configs(
+        self,
+        default_config: DictConfig,
+        cli_overrides: Sequence[str],
+        config_name: str,
+    ) -> list[DictConfig]:
+        raw = OmegaConf.to_container(default_config, resolve=False)
+        inherited = {key: raw[key] for key in INHERITED_KEYS if key in raw}
+        configs = []
+        found_tasks = set()
+        for task_config, agent_config, app_variation in product(
+            self.task_configs or [None], self.agent_configs or [None], self.app_variations
+        ):
+            overrides = [*cli_overrides, *app_variation]
+            if task_config is not None:
+                overrides.append(f"tasks={task_config}")
+            if agent_config is not None:
+                overrides.append(f"agent={agent_config}")
+            parent = hydra.compose(config_name=config_name, overrides=overrides)
+            task_names = self._resolve_task_names(parent)
+            for task_name in task_names:
+                if task_name not in parent.tasks:
+                    continue
+                found_tasks.add(task_name)
+                config = deepcopy(parent)
+                with open_dict(config):
+                    for key, value in inherited.items():
+                        config[key] = value
+                    config.task_name = task_name
+                    config.app_overrides = app_variation
+                    config.task_config_name = task_config
+                    config.agent_config_name = agent_config
+                configs.append(config)
+        if self.task_names != ALL_TASKS:
+            missing_tasks = set(self.task_names) - found_tasks
+            if missing_tasks:
+                raise ValueError(f"Unknown task names: {sorted(missing_tasks)}")
         return configs
