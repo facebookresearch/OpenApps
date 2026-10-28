@@ -38,7 +38,7 @@ import re
 from datetime import date
 from pathlib import PurePosixPath
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from fasthtml.common import *
 
@@ -1663,12 +1663,24 @@ def files_search(q: str = ""):
     return page(window("", toolbar("", view="list", sort="name", q=q, label=label, upload=False), content, show_preview=False))
 
 
+def is_same_origin_path(src: str) -> bool:
+    """Whether a browser resolves ``src`` to a path on this origin.
+
+    Read the way a browser reads it, not as written: the URL parser drops
+    tabs and newlines and treats ``\\`` as ``/``, so ``/\\evil.com/x.pdf`` and
+    ``/<tab>/evil.com`` are both ``//evil.com`` -- another host.
+    """
+    seen = src.replace("\\", "/").translate({ord(c): None for c in "\t\n\r"})
+    parts = urlsplit(seen)
+    return seen.startswith("/") and not seen.startswith("//") and not (parts.scheme or parts.netloc)
+
+
 @rt("/files/pdf")
 def files_pdf(src: str = "", name: str = ""):
     """A PDF another app serves, in the Files reader (see ``pdf_document``).
     Same-origin paths only: this page fetches ``src`` with pdf.js, and an
     absolute or protocol-relative URL would turn it into a reader for anything."""
-    if not src.startswith("/") or src.startswith("//"):
+    if not is_same_origin_path(src):
         return not_found()
     name = name or PurePosixPath(src).name
     bar = Div(

@@ -154,7 +154,12 @@ class TestViewers:
         assert 'src="/assets/js/files_viewer.js"' in html
         assert "Visit.pdf" in html
 
-    @pytest.mark.parametrize("src", ["https://example.com/x.pdf", "//example.com/x.pdf", "javascript:alert(1)", ""])
+    @pytest.mark.parametrize("src", [
+        "https://example.com/x.pdf", "//example.com/x.pdf", "javascript:alert(1)", "",
+        # A browser reads these as //example.com: a backslash is a slash, and
+        # tabs and newlines are dropped before the URL is parsed.
+        "/\\example.com/x.pdf", "\\\\example.com/x.pdf", "/\t/example.com/x.pdf", "/\n/example.com/x.pdf",
+    ])
     def test_reader_refuses_other_origins(self, client, src):
         response = client.get("/files/pdf", params={"src": src})
         assert response.status_code == 404
