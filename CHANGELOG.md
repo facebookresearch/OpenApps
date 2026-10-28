@@ -11,6 +11,13 @@ Every release is a git tag. To reproduce a result, check out its tag and run
 
 ## [Unreleased]
 
+### Changed
+
+- **The agent's `goto` refuses the `/<app>_all` state endpoints.** These
+  serve the raw state rewards are scored from, so an agent could read the
+  answer instead of using the apps. `goto` now raises an error for any URL
+  whose path ends in `_all`; the agent sees it as the action's error.
+
 ## [2.0.0] - 2026-10-23
 
 **Realism.** Every app now looks and behaves like the product it imitates,

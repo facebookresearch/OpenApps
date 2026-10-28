@@ -70,6 +70,15 @@ Here are some key flags you can configure in your agent's YAML file:
 
 For the complete set of configuration options, see `config/agent/default.yaml`.
 
+**Protected state endpoints:**
+
+Each app serves its raw state at `/<app>_all` (`/todo_all`, `/calendar_all`,
+`/onlineshop_all`, ...), and rewards are computed from it. The agent's
+`goto` action, defined in `src/open_apps/agent/utils.py`, refuses any URL
+whose path ends in `_all` and returns an error instead of navigating, so an
+agent can't read the state it is scored on. The reward code is unaffected:
+it reads these endpoints over HTTP, not through the agent's browser.
+
 
 ## Creating Your Own Agent
 

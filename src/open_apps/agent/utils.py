@@ -22,7 +22,6 @@ from browsergym.core.action.functions import (
     focus,
     go_back,
     go_forward,
-    goto,
     hover,
     keyboard_down,
     keyboard_insert_text,
@@ -51,6 +50,24 @@ from browsergym.core.action.functions import (
 
 from agentlab.llm.chat_api import ChatModel
 from agentlab.llm.llm_utils import Discussion, ParseError, extract_code_blocks
+
+
+def goto(url: str):
+    """
+    Navigate to a url.
+
+    Examples:
+        goto('http://www.example.com')
+    """
+    # Replaces BrowserGym's goto. The `/<app>_all` endpoints serve the raw
+    # state rewards are scored from, so an agent must not be able to read them.
+    # BrowserGym execs this function's source on its own, hence the local import.
+    from urllib.parse import unquote, urlsplit
+
+    if unquote(urlsplit(url).path).rstrip("/").endswith("_all"):
+        raise ValueError(f"Navigation to {url!r} is not allowed.")
+    page.goto(url)  # noqa: F821 -- `page` is injected by BrowserGym
+
 
 action_map = {
     "clear": clear,
