@@ -131,11 +131,11 @@ def _mini_client(render):
 class TestMiddleware:
     @pytest.fixture
     def client(self):
-        return _mini_client(lambda path: ChromeParts(body=f"<b>{path}</b>"))
+        return _mini_client(lambda target, status: ChromeParts(body=f"<b>{target} {status}</b>"))
 
     def test_full_page_gets_chrome_and_correct_length(self, client):
         response = client.get("/page")
-        assert "<b>/page</b></body>" in response.text
+        assert "<b>/page 200</b></body>" in response.text
         assert int(response.headers["content-length"]) == len(response.content)
 
     def test_json_passes_through(self, client):
@@ -146,13 +146,16 @@ class TestMiddleware:
 
     def test_boosted_request_is_a_navigation(self, client):
         response = client.get("/page", headers={"HX-Request": "true", "HX-Boosted": "true"})
-        assert "<b>/page</b>" in response.text
+        assert "<b>/page 200</b>" in response.text
 
     def test_post_passes_through(self, client):
         assert "<b>" not in client.post("/post").text
 
+    def test_target_keeps_the_query(self, client):
+        assert "<b>/page?week=2026-08-24 200</b>" in client.get("/page?week=2026-08-24").text
+
     def test_render_failure_serves_the_page_without_chrome(self):
-        def broken(path):
+        def broken(target, status):
             raise RuntimeError("boom")
 
         response = _mini_client(broken).get("/page")
@@ -345,6 +348,45 @@ def test_visiting_marks_running_and_controls_move_state(client, chrome_state):
     assert "todo" not in chrome_state["running"] and chrome_state["maximized"] == []
 
 
+def _dock_href(markup: str, key: str) -> str:
+    return re.search(rf'<a href="([^"]*)"[^>]*data-testid="dock-{key}"', markup).group(1)
+
+
+def test_dock_reopens_a_running_app_where_it_was_left(client, chrome_state):
+    """Switching back to an app returns to its page, query and all, as macOS
+    brings back a window rather than a fresh one."""
+    client.get("/openbanking/accounts/0?view=ledger")
+    html = client.get("/todo").text
+    assert _dock_href(html, "openbanking") == "/openbanking/accounts/0?view=ledger"
+    # The all-apps panel agrees with the dock.
+    panel = html[html.index('id="oa-dock-panel"'):]
+    assert 'href="/openbanking/accounts/0?view=ledger"' in panel
+
+
+def test_the_app_on_screen_links_to_its_start(client, chrome_state):
+    html = client.get("/openbanking/accounts/0").text
+    assert _dock_href(html, "openbanking") == "/openbanking"
+
+
+def test_closing_an_app_forgets_where_it_was(client, chrome_state):
+    client.get("/openbanking/accounts/0")
+    client.post("/chrome/minimize/openbanking", follow_redirects=False)
+    assert _dock_href(client.get("/todo").text, "openbanking") == "/openbanking/accounts/0"
+    client.post("/chrome/close/openbanking", follow_redirects=False)
+    assert _dock_href(client.get("/todo").text, "openbanking") == "/openbanking"
+
+
+def test_a_failed_page_is_not_where_an_app_reopens(client, chrome_state):
+    """The status comes from the middleware; only a 200 is recorded, so the
+    dock never reopens an app on an error page."""
+    from open_apps.apps.start_page import main as start_page
+
+    client.get("/openbanking/accounts/0")
+    start_page.render_chrome("/openbanking/accounts/nope", 404)
+    start_page.render_chrome("/openbanking/accounts/0/broken", 500)
+    assert chrome_state["last_page"]["openbanking"] == "/openbanking/accounts/0"
+
+
 @pytest.mark.parametrize("referer", ["http://testserver//todo", "http://evil.example/todo", ""])
 def test_maximize_never_redirects_off_the_app(client, chrome_state, referer):
     response = client.post("/chrome/maximize/todo", headers={"referer": referer}, follow_redirects=False)
@@ -354,7 +396,7 @@ def test_maximize_never_redirects_off_the_app(client, chrome_state, referer):
 def test_unknown_app_is_a_harmless_redirect(client, chrome_state):
     response = client.post("/chrome/close/nope", follow_redirects=False)
     assert (response.status_code, response.headers["location"]) == (303, "/")
-    assert chrome_state == {"running": [], "maximized": []}
+    assert chrome_state == {"running": [], "maximized": [], "last_page": {}}
 
 
 def test_chrome_state_is_not_scoreable(client, chrome_state):
