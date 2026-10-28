@@ -304,6 +304,24 @@ class TestCodeFolder:
             with pytest.raises(ValueError):
                 op()
 
+    def test_code_folder_itself_cannot_be_duplicated(self, store):
+        with pytest.raises(ValueError):
+            fs.duplicate("Code")
+
+    def test_nothing_else_can_take_the_name_code_at_the_root(self, store):
+        """``Code`` at the root always means the workspace, so anything else
+        put there would be unreachable and leak into the snapshot."""
+        fs.make_folder("", "Mine")
+        with pytest.raises(FileExistsError):
+            fs.rename("Mine", "Code")
+        assert fs.make_folder("", "Code") == "Code (2)"
+        assert fs.save("", "Code", b"x") == "Code (3)"
+        fs.make_folder("Documents", "Code")  # fine below the root
+        assert fs.move("Documents/Code", "") == "Code (4)"
+        assert fs.restore(fs.delete(fs.make_folder("", "Code"))) == "Code (5)"
+        assert not (store / "Code").exists()
+        assert not any(p.split("/")[0] == "Code" for p in paths(fs.snapshot()))
+
 
 class TestListing:
     def test_folders_first_then_names_case_insensitively(self, store):

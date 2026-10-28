@@ -1785,7 +1785,7 @@ def files_move(req, path: str = "", folder: str = "", then: str = ""):
 @app.post("/files/duplicate")
 def files_duplicate(req, path: str = ""):
     entry = get_entry(path)
-    if entry is None:
+    if entry is None or path == files_store.CODE:
         return not_found()
     copy = files_store.duplicate(path)
     _pin_mtime(copy, str(cfg().today))

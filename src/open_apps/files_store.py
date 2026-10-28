@@ -258,7 +258,7 @@ def rename(path: str, new_name: str) -> str:
         return _norm(path)
     target = source.with_name(new_name)
     # On a case-insensitive disk "a.txt" -> "A.txt" finds the file itself.
-    if target.exists() and not target.samefile(source):
+    if _reserved(target) or (target.exists() and not target.samefile(source)):
         raise FileExistsError(_join(_parent(path), new_name))
     source.rename(target)
     return _join(_parent(path), new_name)
@@ -280,6 +280,9 @@ def move(path: str, folder: str) -> str:
 
 
 def duplicate(path: str) -> str:
+    if _norm(path) == CODE:
+        # The workspace lives outside the store; a copy would land beside it.
+        raise ValueError(f"{path!r} cannot be duplicated")
     source = _existing(path)
     target = _free_name(source.parent, source.name)
     if source.is_dir():
@@ -476,10 +479,19 @@ def _existing(path: str) -> Path:
     return target
 
 
+def _reserved(candidate: Path) -> bool:
+    """Whether ``candidate`` is ``Code`` at the root. That path is the code
+    editor's workspace wherever it lives (see :func:`resolve`), so a file or
+    folder written there on disk could never be reached, and would show up in
+    :func:`snapshot` as ``Code/...`` rows the docs say it leaves out."""
+    return candidate.name == CODE and candidate.parent.resolve() == _require_root().resolve()
+
+
 def _free_name(directory: Path, name: str) -> Path:
-    """``directory/name``, or the first free ``stem (n)suffix`` after it."""
+    """``directory/name``, or the first free ``stem (n)suffix`` after it.
+    ``Code`` at the root is never free (see :func:`_reserved`)."""
     candidate = directory / name
-    if not candidate.exists():
+    if not candidate.exists() and not _reserved(candidate):
         return candidate
     pure = PurePosixPath(name)
     stem, suffix = (pure.stem, pure.suffix) if pure.suffix and pure.stem else (name, "")
