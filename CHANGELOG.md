@@ -25,7 +25,9 @@ targets now expect a receipt, so purchase scores are not comparable with
   A PDF viewer with page thumbnails, zoom and a text layer, plus image and
   highlighted text viewers. Layouts `default` and `icons`; a single pane on
   phones. Seeded with medical reports, lab results, a lease, an insurance
-  card, a W-2, a bank statement and a parking permit. Scored at `/files_all`.
+  card, a W-2, a bank statement and a parking permit, kept as committed files.
+  Scored at `/files_all`. Always served: other apps write into it, so a config
+  without it is refused at launch.
 - **PDF documents**: a small deterministic PDF writer (`open_apps.pdf_writer`)
   and vendored pdf.js 6.4.299 (legacy build, Apache-2.0). No new Python
   dependency and no build step.

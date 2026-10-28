@@ -603,17 +603,20 @@ You can also enable logging to weights and biases by logging into your account a
 
 ##### Files, statements and receipts
 
-Files is one store shared by every app (`open_apps.files_store`):
+Files is one store shared by every app (`open_apps.files_store`), so every
+run serves it: a config without it (`~apps/files`) is refused at launch.
 
 * the bank's Statements page saves PDFs to `Statements/<account> — <Month YYYY>.pdf`;
 * the shop writes `Receipts/OpenShop order <id>.pdf` on checkout and for seeded orders;
 * `Code/` *is* the code editor's workspace. It is left out of `/files_all`, so
   `/codeeditor_all` stays the only state for code files.
 
-Seeded documents are real PDFs built by `open_apps.pdf_writer` (deterministic:
-the same bytes on every launch) and read with the vendored pdf.js, so their
-text is in the accessibility tree once a document is open -- not in the
-thumbnails. Recently Deleted keeps items for 30 days counted from the pinned
+Seeded documents are committed files (`src/open_apps/apps/files_app/seed/`,
+named by each content pack's `source`), copied in on every launch and reset.
+Statements and receipts are drawn by `open_apps.pdf_writer` when they are
+saved (deterministic: the same ledger or order gives the same bytes). PDFs
+are read with the vendored pdf.js, so their text is in the accessibility tree
+once a document is open -- not in the thumbnails. Recently Deleted keeps items for 30 days counted from the pinned
 date (`apps.files.today`, the bank's `as_of_date`), and never empties itself.
 
 `/files_all` lists every file and trashed item by path, size and sha256, and is

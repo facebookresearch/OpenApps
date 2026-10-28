@@ -9,55 +9,18 @@ documents:
   labs_2025:
     folder: Documents
     name: "Lab Results 2025-09-02.pdf"
-    kind: lab_results
-    lab: "Casco Bay Diagnostics"
-    ordered_by: "Elena Marsh, MD"
-    collected: "Sep 2, 2025 09:15"
-    reported: "Sep 3, 2025"
-    results:
-      - ["Glucose, fasting", "95", "mg/dL", "70-99", ""]
-      - ["Cholesterol, total", "221", "mg/dL", "<200", "H"]
-      - ["HDL cholesterol", "55", "mg/dL", ">40", ""]
-      - ["LDL cholesterol", "139", "mg/dL", "<100", "H"]
-      - ["Hemoglobin A1c", "5.5", "%", "<5.7", ""]
+    source: labs_2025.pdf
   auto_renewal:
     folder: Documents
     name: "Auto Policy Renewal 2026.pdf"
-    kind: letter
-    sender: "Bayside Mutual Insurance"
-    sender_address: "PO Box 4410, Portland, ME 04112 · 1-800-555-0123"
-    date: "Jul 15, 2026"
-    subject: "Your auto policy renews on September 1, 2026"
-    paragraphs:
-      - >-
-        Thank you for insuring your 2019 Subaru Outback with Bayside Mutual. Your policy BM-AUTO-772104
-        renews automatically on September 1, 2026 for a twelve-month term. Your new premium is $1,146.00
-        for the term, or $95.50 a month on automatic payments, an increase of $38.00 over last year due to
-        higher repair costs statewide.
-      - >-
-        Coverage is unchanged: liability 100/300/100, collision and comprehensive with a $500 deductible,
-        and roadside assistance. If your mileage, garaging address or drivers have changed, call us before
-        the renewal date so we can update your rate.
+    source: auto_renewal.pdf
   gym:
     folder: Documents
     name: "Gym Membership Agreement.pdf"
-    kind: letter
-    sender: "Back Cove Fitness"
-    sender_address: "77 Baxter Boulevard, Portland, ME 04101"
-    date: "Jan 4, 2026"
-    subject: "Membership agreement - Monthly All Access"
-    paragraphs:
-      - >-
-        Welcome to Back Cove Fitness. This agreement confirms your Monthly All Access membership at $49.00
-        a month, billed on the 4th, with no annual fee. You may cancel with 30 days' written notice at the
-        front desk or by email to members@backcove.example.
-      - >-
-        Your membership includes the weight floor, lap pool and group classes. Guest passes are $10 a visit,
-        and a member may bring a guest twice a month.
+    source: gym.pdf
   recipes:
     folder: Documents
     name: "Low Sodium Recipes.txt"
-    kind: text
     body: |
       Weeknight low-sodium rotation
 
@@ -69,7 +32,6 @@ documents:
   moving_notes:
     folder: Downloads
     name: "Moving Checklist.txt"
-    kind: text
     body: |
       If we move when the lease ends:
       - give 60 days' notice (by Aug 1!)

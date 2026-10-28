@@ -4,7 +4,8 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Monthly statements, computed from the ledger and nothing else.
+Monthly statements, computed from the ledger and nothing else, and the PDF
+layout they print in (:func:`render`).
 
 Pure functions over transaction rows -- the bank's ``Transaction`` objects or
 the dicts ``/openbanking_all`` returns -- so the Statements page, the PDF, and
@@ -31,6 +32,8 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Optional
+
+from open_apps.pdf_writer import LETTER, Box, Column, Document, fields, footer, heading, letterhead
 
 STATEMENTS_FOLDER = "Statements"
 
@@ -166,10 +169,9 @@ def period_label(month: tuple[int, int], today: date) -> str:
 
 def document_spec(account: Any, statement: Statement, *, bank: str, today: date,
                   card_summary: Optional[list[tuple[str, str]]] = None) -> dict:
-    """The ``bank_statement`` spec ``files_app.documents`` renders -- the same
-    shape the seeded June statement is written in."""
+    """What :func:`render` prints for ``statement``: the figures, as plain
+    data, so a test can read them without parsing the PDF."""
     return {
-        "kind": "bank_statement",
         "bank": bank,
         "account": _get(account, "name"),
         "holder": _get(account, "holder"),
@@ -182,3 +184,56 @@ def document_spec(account: Any, statement: Statement, *, bank: str, today: date,
         ],
         **({"card_summary": [list(p) for p in card_summary]} if card_summary else {}),
     }
+
+
+def _money(value: float) -> str:
+    sign = "-" if value < 0 else ""
+    return f"{sign}${abs(value):,.2f}"
+
+
+def render(spec: dict) -> bytes:
+    """The statement ``spec`` (see :func:`document_spec`) as PDF bytes: the
+    same spec in, the same bytes out."""
+    doc = Document(LETTER, title=f"{spec['account']} statement")
+    m, width = doc.margin, doc.content_box.width
+    y = letterhead(doc, spec["bank"], [spec["account"]], right=["Account statement", spec["period"]])
+    rows, balance = [], float(spec["opening_balance"])
+    credits = debits = 0.0
+    for day, description, amount in spec["rows"]:
+        amount = float(amount)
+        balance = round(balance + amount, 2)
+        if amount >= 0:
+            credits += amount
+        else:
+            debits += amount
+        rows.append([day, description, _money(amount), _money(balance)])
+    y = fields(
+        doc,
+        y,
+        [
+            ("Account holder", spec["holder"]),
+            ("Statement period", spec["period"]),
+            ("Opening balance", _money(float(spec["opening_balance"]))),
+            ("Deposits and credits", _money(round(credits, 2))),
+            ("Withdrawals and debits", _money(round(debits, 2))),
+            ("Closing balance", _money(balance)),
+        ],
+        columns=3,
+    )
+    if spec.get("card_summary"):
+        # A card statement also prints the cycle's figures -- what is owed and
+        # by when -- under the balances. Absent on deposit accounts and on the
+        # seeded June statement, whose bytes must not change.
+        y = fields(doc, y, [(str(k), str(v)) for k, v in spec["card_summary"]], columns=3)
+    y = heading(doc, y + 6, "Transactions")
+    rest = rows
+    columns = [Column("Date", 0.8), Column("Description", 3.4), Column("Amount", 1.1, "right"),
+               Column("Balance", 1.1, "right")]
+    while rest:
+        flowed = doc.table(Box(m, y, width, doc.height - 60 - y), columns, rest, size=9)
+        rest = flowed.rest
+        if rest:
+            doc.page()
+            y = m
+    footer(doc, f"{spec['bank']} · Member FDIC · Questions about this statement? Call 1-800-555-5555.")
+    return doc.to_bytes()

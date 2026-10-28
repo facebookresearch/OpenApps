@@ -114,187 +114,68 @@ ui:
     other: "Document"
 
 # --- Seeded documents ----------------------------------------------------------
-# Rendered to real files at launch by open_apps.apps.files_app.documents, the
-# same bytes every time. Keyed by a stable id, so a pack can add documents
-# (a new key) without restating these.
+# Copied into the store at launch and on every reset. A document is either a
+# committed file -- `source`, under src/open_apps/apps/files_app/seed/ (see
+# the README there for what each one holds) -- or a text `body` written as is.
+# Keyed by a stable id, so a pack can add documents (a new key) without
+# restating these, or drop one with `key: null`.
 #
 # Like the bank's account names and figures, every file below keeps its
 # folder, name and contents in every pack: tasks address files by path and
-# score them by checksum. Bodies are in English everywhere -- the PDF fonts
-# only cover WinAnsi, so CJK text would print as "?" anyway.
+# score them by checksum. Bodies are in English everywhere.
 #
 # Dates stay before the bank's pinned today (2026-08-26). The August visit
 # summary is the latest medical report; no pack may add a later one.
-owner:
-  name: "Dana Reyes"
-  street: "44 Wharf Street, Unit 2"
-  city: "Portland, ME 04101"
-  date_of_birth: "Apr 3, 1988"
-
 documents:
   visit_aug:
     folder: Documents
     name: "Visit Summary 2026-08-12.pdf"
     modified: "2026-08-12"
-    kind: medical_report
-    clinic: "Harbor Family Medicine"
-    clinic_address: "210 Fore Street, Portland, ME 04101 · (207) 555-0148"
-    visit_date: "Aug 12, 2026"
-    provider: "Elena Marsh, MD"
-    reason: "Follow-up: blood pressure recheck"
-    vitals:
-      - ["Blood pressure", "128/82", "mmHg"]
-      - ["Pulse", "68", "bpm"]
-      - ["Temperature", "98.4", "°F"]
-      - ["Weight", "141", "lb"]
-      - ["Height", "5' 6\"", ""]
-      - ["SpO2", "99", "%"]
-    assessment: >-
-      Blood pressure improved since the March visit after reducing sodium and
-      adding three walks a week. Reading today is in the elevated range but no
-      longer stage 2. No medication changes.
-    plan: >-
-      Continue lifestyle changes. Home readings twice a week; bring the log to
-      the next visit. Recheck in six months, sooner if home readings exceed
-      135/85. Lab work from today attached separately.
+    source: visit_aug.pdf
   visit_mar:
     folder: Documents
     name: "Visit Summary 2026-03-09.pdf"
     modified: "2026-03-09"
-    kind: medical_report
-    clinic: "Harbor Family Medicine"
-    clinic_address: "210 Fore Street, Portland, ME 04101 · (207) 555-0148"
-    visit_date: "Mar 9, 2026"
-    provider: "Elena Marsh, MD"
-    reason: "Annual physical"
-    vitals:
-      - ["Blood pressure", "136/88", "mmHg"]
-      - ["Pulse", "74", "bpm"]
-      - ["Temperature", "98.2", "°F"]
-      - ["Weight", "146", "lb"]
-      - ["Height", "5' 6\"", ""]
-      - ["SpO2", "98", "%"]
-    assessment: >-
-      Healthy adult. Blood pressure elevated on two readings today. No
-      symptoms. Discussed sodium intake and regular exercise.
-    plan: >-
-      Lifestyle changes first: limit sodium, 150 minutes of activity a week.
-      Recheck blood pressure in five months. Routine labs at the next visit.
+    source: visit_mar.pdf
   labs_aug:
     folder: Documents
     name: "Lab Results 2026-08-12.pdf"
     modified: "2026-08-13"
-    kind: lab_results
-    lab: "Casco Bay Diagnostics"
-    ordered_by: "Elena Marsh, MD"
-    collected: "Aug 12, 2026 08:40"
-    reported: "Aug 13, 2026"
-    results:
-      - ["Glucose, fasting", "92", "mg/dL", "70-99", ""]
-      - ["Cholesterol, total", "212", "mg/dL", "<200", "H"]
-      - ["HDL cholesterol", "58", "mg/dL", ">40", ""]
-      - ["LDL cholesterol", "131", "mg/dL", "<100", "H"]
-      - ["Triglycerides", "115", "mg/dL", "<150", ""]
-      - ["Hemoglobin A1c", "5.4", "%", "<5.7", ""]
-      - ["TSH", "2.1", "mIU/L", "0.4-4.0", ""]
-      - ["Sodium", "139", "mmol/L", "135-145", ""]
-      - ["Potassium", "4.2", "mmol/L", "3.5-5.1", ""]
-      - ["Creatinine", "0.82", "mg/dL", "0.57-1.00", ""]
+    source: labs_aug.pdf
   lease:
     folder: Documents
     name: "Residential Lease - 44 Wharf Street.pdf"
     modified: "2025-09-28"
-    kind: lease
-    landlord: "Northgate Properties LLC"
-    landlord_contact: "rent@northgateprop.example · +1 (555) 010-0040"
-    premises: "44 Wharf Street, Unit 2, Portland, ME 04101"
-    term: "Oct 1, 2025 through Sep 30, 2026"
-    monthly_rent: "$1,850.00"
-    due_day: "the 1st of each month"
-    security_deposit: "$1,850.00"
-    late_fee: "$75.00 applies if rent is received after the 5th"
-    payment_method: >-
-      Rent may be paid by bank transfer or Zelle to rent@northgateprop.example.
-      Include the unit number in the memo.
-    clauses:
-      - ["Utilities", "Tenant pays electricity and internet. Landlord pays water, sewer and trash."]
-      - ["Pets", "One cat or one dog under 30 lb with written consent. No other animals."]
-      - ["Maintenance", "Tenant reports needed repairs in writing within 3 days. Landlord makes non-emergency repairs within 14 days."]
-      - ["Entry", "Landlord gives 24 hours' notice before entering, except in an emergency."]
-      - ["Renewal", "Either party gives 60 days' written notice before the end of the term to end or renew this lease."]
-    signed: "Sep 14, 2025"
+    source: lease.pdf
   insurance_card:
     folder: Documents
     name: "Insurance Card - Harborline Health.pdf"
     modified: "2026-01-05"
-    kind: insurance_card
-    insurer: "Harborline Health"
-    plan: "Harborline Silver PPO"
-    member_id: "HLH 4471 0938 22"
-    group: "88214"
-    rx_bin: "610014"
-    copays: [["Primary care", "$25"], ["Specialist", "$50"], ["Urgent care", "$75"], ["ER", "$250"]]
-    member_services: "1-800-555-0177"
+    source: insurance_card.pdf
   w2:
     folder: Documents
     name: "W-2 2025 - Northwind Analytics.pdf"
     modified: "2026-01-30"
-    kind: w2
-    tax_year: "2025"
-    employer: "Northwind Analytics, Inc."
-    employer_address: "1 Commercial Street, Portland, ME 04101"
-    employer_ein: "47-2210983"
-    employee_ssn: "XXX-XX-4417"
-    boxes:
-      - ["1", "Wages, tips, other compensation", "84,250.00"]
-      - ["2", "Federal income tax withheld", "11,402.17"]
-      - ["3", "Social security wages", "84,250.00"]
-      - ["4", "Social security tax withheld", "5,223.50"]
-      - ["5", "Medicare wages and tips", "84,250.00"]
-      - ["6", "Medicare tax withheld", "1,221.63"]
-      - ["16", "State wages, tips, etc. (ME)", "84,250.00"]
-      - ["17", "State income tax", "4,038.92"]
+    source: w2.pdf
   statement_june:
     folder: Statements
     # The bank's own naming (Statements/<account name> — <Month YYYY>.pdf), so
     # this one sits beside the ones the Statements page downloads. June is
-    # older than the bank's seeded ledger, so the rows are written out here;
-    # the holder and the two savings transfers agree with the bank's seed.
+    # older than the bank's seeded ledger, so it is a seeded file rather than
+    # one the bank renders; its holder and two savings transfers agree with
+    # the bank's seed.
     name: "BUS COMPLETE CHK (...5555) — June 2026.pdf"
     modified: "2026-07-01"
-    kind: bank_statement
-    bank: "OpenBanking"
-    account: "BUS COMPLETE CHK (...5555)"
-    holder: "Acme Industries, Inc"
-    period: "Jun 1, 2026 - Jun 30, 2026"
-    opening_balance: 3840.12
-    rows:
-      - ["Jun 01", "TRANSFER TO SAV ...8891", -2500.00]
-      - ["Jun 02", "ACH CREDIT HARBOR LOGISTICS INV 1041", 6200.00]
-      - ["Jun 05", "PAYROLL ADP ACME INDUSTRIES", -4380.55]
-      - ["Jun 09", "PRINT SHOP 44 PRINTSHOP44.COM TX", -128.40]
-      - ["Jun 12", "ACH CREDIT BAYVIEW MARINE INV 1046", 3150.00]
-      - ["Jun 18", "TRANSFER FROM SAV ...8891", 1200.00]
-      - ["Jun 19", "PAYROLL ADP ACME INDUSTRIES", -4380.55]
-      - ["Jun 23", "CENTRAL MAINE POWER AUTOPAY", -212.66]
-      - ["Jun 26", "CLOUD HOST LLC CLOUDHOST.IO WA", -96.00]
-      - ["Jun 30", "MONTHLY SERVICE FEE", -15.00]
+    source: statement_june.pdf
   permit:
     folder: Documents
     name: "Parking Permit 2026.png"
     modified: "2026-01-02"
-    kind: permit_image
-    issuer: "City of Portland"
-    title: "RESIDENTIAL PARKING"
-    zone: "Zone 4 - West End"
-    permit_number: "P-2026-04417"
-    plate: "ME 7HK 214"
-    valid: "Valid Jan 1 - Dec 31, 2026"
+    source: permit.png
   packing_list:
     folder: Documents
     name: "Packing List.txt"
     modified: "2026-08-24"
-    kind: text
     body: |
       Acadia weekend - Sep 18-20
 
@@ -314,27 +195,10 @@ documents:
   w2_draft:
     folder: Documents
     name: "W-2 2025 (draft).pdf"
-    kind: w2
     deleted_on: "2026-07-29"
-    tax_year: "2025"
-    employer: "Northwind Analytics, Inc."
-    employer_address: "1 Commercial Street, Portland, ME 04101"
-    employer_ein: "47-2210983"
-    employee_ssn: "XXX-XX-4417"
-    watermark: "DRAFT - NOT FOR FILING"
-    boxes:
-      - ["1", "Wages, tips, other compensation", "83,900.00"]
-      - ["2", "Federal income tax withheld", "11,340.02"]
+    source: w2_draft.pdf
   labs_scan:
     folder: Documents
     name: "Lab Results 2026-08-12 (scan).pdf"
-    kind: lab_results
     deleted_on: "2026-08-21"
-    lab: "Casco Bay Diagnostics"
-    ordered_by: "Elena Marsh, MD"
-    collected: "Aug 12, 2026 08:40"
-    reported: "Aug 13, 2026"
-    scanned_copy: true
-    results:
-      - ["Glucose, fasting", "92", "mg/dL", "70-99", ""]
-      - ["Cholesterol, total", "212", "mg/dL", "<200", "H"]
+    source: labs_scan.pdf

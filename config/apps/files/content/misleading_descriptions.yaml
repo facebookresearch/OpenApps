@@ -10,31 +10,8 @@ documents:
   records_request:
     folder: Documents
     name: "Medical Records Request Form.pdf"
-    kind: letter
-    sender: "Harbor Family Medicine"
-    sender_address: "210 Fore Street, Portland, ME 04101 · (207) 555-0148"
-    date: "Feb 2, 2026"
-    subject: "Authorization to release medical records"
-    paragraphs:
-      - >-
-        To send your records to another provider, sign and return this form. Records are released within
-        10 business days. There is no fee for records sent directly to a treating provider.
-      - >-
-        Records to release (check all that apply): visit summaries, lab results, imaging reports,
-        immunization history. This authorization expires one year from the date signed.
+    source: records_request.pdf
   lease_offer:
     folder: Documents
     name: "Lease Renewal Offer - 44 Wharf Street.pdf"
-    kind: letter
-    sender: "Northgate Properties LLC"
-    sender_address: "rent@northgateprop.example · +1 (555) 010-0040"
-    date: "Jul 20, 2026"
-    subject: "Renewal offer for 44 Wharf Street, Unit 2"
-    paragraphs:
-      - >-
-        Your current lease ends on September 30, 2026. We would be glad to renew it for another twelve
-        months starting October 1, 2026 at a monthly rent of $1,925.00. Rent through September stays
-        at your current rate.
-      - >-
-        This is an offer, not a signed lease. To accept, reply by August 31, 2026 and we will send the
-        new agreement for signature.
+    source: lease_offer.pdf

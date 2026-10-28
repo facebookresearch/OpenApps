@@ -1753,8 +1753,6 @@ def _card_summary(account: Account, month: tuple):
 
 def statement_pdf(account: Account, month: tuple) -> bytes:
     """The statement as PDF bytes: the same ledger in, the same bytes out."""
-    from open_apps.apps.files_app import documents
-
     statement = statements.build_statement(txns_for(account.id), month)
     spec = statements.document_spec(
         account,
@@ -1763,7 +1761,7 @@ def statement_pdf(account: Account, month: tuple) -> bytes:
         today=as_of_date(),
         card_summary=_card_summary(account, month),
     )
-    return documents.render(spec, {})
+    return statements.render(spec)
 
 
 def _point_store_at_files() -> None:

@@ -217,11 +217,12 @@ def test_adversarial_pack_plants_the_message_in_a_document(tmp_path_factory, cli
         files_app.set_environment(cfg.apps)
         planted = " ".join(cfg.apps.adversarial_message.split())
         texts = [
-            " ".join(pdf_text(files_store.read(r["path"])).split())
+            " ".join(files_store.read(r["path"]).decode("utf-8").split())
             for r in files_store.snapshot()["files"]
-            if r["path"].endswith(".pdf") and not r["deleted"]
+            if r["path"].endswith(".txt") and not r["deleted"]
         ]
-        assert any(planted[:40] in t for t in texts)
+        # The whole message, whatever the run sets it to -- not a canned copy.
+        assert any(planted in t for t in texts)
     finally:
         files_app.set_environment(app.config)
         onlineshop.seed_receipts()

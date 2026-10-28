@@ -7,11 +7,11 @@ LICENSE file in the root directory of this source tree.
 The Files app: a browser over the shared file store.
 
 The store (:mod:`open_apps.files_store`) is the state; this module seeds it
-and serves it. Seeding renders every document in the content pack to real
-bytes (:mod:`.documents`) on each launch and reset, so the store always
-starts from the same files with the same checksums -- ``/files_all`` carries
-those checksums, and a store that drifted between launches would hand every
-task a spurious diff.
+and serves it. Seeding copies every document in the content pack into the
+store on each launch and reset -- a committed file from ``seed/``, or a text
+body from the pack -- so the store always starts from the same files with the
+same checksums. ``/files_all`` carries those checksums, and a store that
+drifted between launches would hand every task a spurious diff.
 
 The store is configured here, before any other app needs it: the start page
 sets apps up in ``AVAILABLE_APPS`` order and registers the shop last, so the
@@ -36,14 +36,13 @@ for people and headed runs.
 import json
 import re
 from datetime import date
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Optional
 from urllib.parse import quote, urlsplit
 
 from fasthtml.common import *
 
 from open_apps import device, files_store
-from open_apps.apps.files_app import documents
 from open_apps.apps.files_app.styles import styles
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
@@ -58,6 +57,9 @@ VIEWER_SCRIPT_URL = "/assets/js/files_viewer.js"
 BROWSER_SCRIPT_URL = "/assets/js/files_browser.js"
 HIGHLIGHT_SCRIPT_URL = "/assets/js/code_highlight.js"
 TRASH_URL = "/files/recently-deleted"
+
+# The seeded documents' bytes, named by the content packs' `source` keys.
+SEED_DIR = Path(__file__).parent / "seed"
 
 
 def _plain(node):
@@ -77,11 +79,7 @@ def set_environment(config):
     app.config = config
     files_store.configure(config.files.root, config.code_editor.database_path, config.files.today)
     files_store.reset()
-    seed(
-        _plain(config.files.get("documents")) or {},
-        _plain(config.files.get("owner")) or {},
-        str(config.files.today),
-    )
+    seed(_plain(config.files.get("documents")) or {}, str(config.files.today))
     logo_title_container = create_logo_header(
         app_config=config.start_page.apps.files,
         base_url="/files",
@@ -89,9 +87,9 @@ def set_environment(config):
     )
 
 
-def seed(specs: dict, owner: dict, today: Optional[str] = None) -> None:
-    """Render and store every document, then move the pre-deleted ones to
-    Recently Deleted with their own ``deleted_on``.
+def seed(specs: dict, today: Optional[str] = None) -> None:
+    """Store every document, then move the pre-deleted ones to Recently
+    Deleted with their own ``deleted_on``.
 
     In key order, which is deterministic (the pack's order, then each pack's
     additions), though nothing depends on it: no two specs share a path, and
@@ -109,10 +107,19 @@ def seed(specs: dict, owner: dict, today: Optional[str] = None) -> None:
         if path in seen:
             raise ValueError(f"files seed: {key!r} repeats {path!r}")
         seen.add(path)
-        stored = files_store.save(spec["folder"], spec["name"], documents.render(spec, owner))
+        stored = files_store.save(spec["folder"], spec["name"], _seed_bytes(key, spec))
         _pin_mtime(stored, spec.get("modified") or today)
         if spec.get("deleted_on"):
             files_store.delete(stored, deleted_on=str(spec["deleted_on"]))
+
+
+def _seed_bytes(key: str, spec: dict) -> bytes:
+    """A document's contents: its ``source`` file, else its text ``body``."""
+    if ("source" in spec) == ("body" in spec):
+        raise ValueError(f"files seed: {key!r} needs exactly one of `source` or `body`")
+    if "body" in spec:
+        return str(spec["body"]).encode("utf-8")
+    return (SEED_DIR / spec["source"]).read_bytes()
 
 
 def _pin_mtime(path: str, day) -> None:

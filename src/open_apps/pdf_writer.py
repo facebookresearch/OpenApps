@@ -4,13 +4,14 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-A small, deterministic PDF writer for the documents OpenApps seeds and makes.
+A small, deterministic PDF writer for the documents OpenApps makes.
 
-Medical reports, a lease, bank statements and shop receipts are all text,
-rules and boxes. Writing them ourselves needs no dependency and, more to the
-point, gives **the same bytes for the same spec**: seeded files keep stable
-checksums, ``/files_all`` stays byte-stable, and a test can compare a statement
-against the ledger it came from. Libraries that stamp creation dates, random
+Bank statements and shop receipts are rendered when the apps save them (the
+seeded documents in ``files_app/seed`` were drawn with it too). They are all
+text, rules and boxes. Writing them ourselves needs no dependency and, more to
+the point, gives **the same bytes for the same spec**: a saved statement keeps
+a stable checksum, ``/files_all`` stays byte-stable, and a test can compare a
+statement against the ledger it came from. Libraries that stamp creation dates, random
 IDs or font subsets can't promise that. pypdfium2 was considered and can't
 place text without raw C calls.
 
@@ -516,3 +517,48 @@ class Document:
             out += f"{offset:010d} 00000 n \n".encode()
         out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R /Info 3 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
         return bytes(out)
+
+
+# ---------------------------------------------------------------------------
+# Business-document pieces: the letterhead, section headings, label-over-value
+# fields and footer that a bank statement and a shop receipt share.
+
+INK = (0.12, 0.13, 0.15)
+MUTED = (0.42, 0.44, 0.48)
+BAND = (0.93, 0.94, 0.96)
+ACCENT = (0.16, 0.33, 0.55)
+
+
+def letterhead(doc: Document, title: str, lines: list[str], *, right: list[str] = ()) -> float:
+    """A tinted band with the issuer on the left and reference lines on the
+    right. Returns the y just below it."""
+    m = doc.margin
+    doc.box(Box(0, 0, doc.width, 96), fill=BAND)
+    doc.text(m, 44, title, "Helvetica-Bold", 17, color=ACCENT)
+    for i, line in enumerate(lines):
+        doc.text(m, 62 + i * 13, line, size=9, color=MUTED)
+    for i, line in enumerate(right):
+        doc.text(doc.width - m, 44 + i * 13, line, size=9, align="right", color=MUTED)
+    return 120
+
+
+def heading(doc: Document, y: float, text: str) -> float:
+    doc.text(doc.margin, y + 11, text.upper(), "Helvetica-Bold", 9, color=ACCENT)
+    doc.rule(y + 16, weight=0.75, color=ACCENT)
+    return y + 26
+
+
+def fields(doc: Document, y: float, pairs: list[tuple[str, str]], *, columns: int = 2) -> float:
+    """Label-over-value pairs in a grid, the way forms print them."""
+    width = doc.content_box.width / columns
+    for i, (label, value) in enumerate(pairs):
+        x = doc.margin + (i % columns) * width
+        row_y = y + (i // columns) * 30
+        doc.text(x, row_y + 9, label, size=7.5, color=MUTED)
+        doc.text(x, row_y + 22, str(value), size=10, color=INK)
+    return y + ((len(pairs) + columns - 1) // columns) * 30 + 6
+
+
+def footer(doc: Document, text: str) -> None:
+    doc.rule(doc.height - 44, weight=0.25)
+    doc.text(doc.margin, doc.height - 30, text, size=7.5, color=MUTED)

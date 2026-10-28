@@ -51,6 +51,7 @@ from fasthtml.svg import Circle, G, Path, Rect, Svg
 
 from open_apps import files_store
 from open_apps.apps.availability import require_files
+from open_apps.apps.onlineshop_app import receipts
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
@@ -970,8 +971,6 @@ def _option_text(options_key: str) -> str:
 
 def receipt_pdf(order) -> bytes:
     """The order's receipt, rendered from the order and its lines only."""
-    from open_apps.apps.files_app import documents
-
     lines = []
     for row in _lines_for(order.order_id):
         product = _row(products, row.sku)
@@ -983,9 +982,8 @@ def receipt_pdf(order) -> bytes:
             money(row.unit_price),
             money(row.unit_price * row.quantity),
         ])
-    return documents.render(
+    return receipts.render(
         {
-            "kind": "receipt",
             "shop": SHOP_NAME,
             "order_id": order.order_id,
             "placed": order.date,
@@ -995,8 +993,7 @@ def receipt_pdf(order) -> bytes:
             "card_last4": order.card_last4,
             "lines": lines,
             "total": money(order.total),
-        },
-        {},
+        }
     )
 
 
