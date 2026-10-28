@@ -530,7 +530,7 @@ def list_view(entries, folder: str, selected: str, *, show_where: bool = False):
                 cls="fs-row" + (" is-folder" if e.is_folder else ""),
                 aria_selected="true" if is_sel else None,
                 data_menu_host="1",
-                data_open=None if e.is_folder else href("/files/view", e.path),
+                data_open_path=None if e.is_folder else e.path,
                 data_size=None if e.is_folder else str(e.size),
             )
         )
@@ -578,7 +578,7 @@ def grid_view(entries, folder: str, selected: str):
                 cls="fs-tile",
                 aria_selected="true" if is_sel else None,
                 data_menu_host="1",
-                data_open=None if e.is_folder else href("/files/view", e.path),
+                data_open_path=None if e.is_folder else e.path,
                 data_size=None if e.is_folder else str(e.size),
             )
         )

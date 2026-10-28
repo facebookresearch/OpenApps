@@ -55,9 +55,15 @@
             if (dialog) { dialog.remove(); }
         }
     });
+    // The attribute carries the file's store path, never a URL: the viewer
+    // URL is built here under a fixed prefix, one encoded segment at a time,
+    // so nothing in a file name can turn the navigation into another host or
+    // a javascript: URL.
     document.addEventListener('dblclick', function (e) {
-        var item = e.target.closest('[data-open]');
-        if (item) { window.location.href = item.getAttribute('data-open'); }
+        var item = e.target.closest('[data-open-path]');
+        if (!item) { return; }
+        var segments = item.getAttribute('data-open-path').split('/').map(encodeURIComponent);
+        window.location.assign('/files/view/' + segments.join('/'));
     });
 
     // Column dividers. Name is never sized directly: it takes what the fixed

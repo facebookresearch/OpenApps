@@ -80,6 +80,13 @@ class TestBrowser:
             assert f'href="/files/{folder}"' in html
         assert 'href="/files/recently-deleted"' in html
 
+    def test_double_click_carries_a_store_path_not_a_url(self, client):
+        """files_browser.js builds the viewer URL from this under a fixed
+        prefix, so a row can't hand the navigation a URL of its choosing."""
+        html = client.get("/files/Documents").text
+        assert f'data-open-path="{REPORT}"' in html
+        assert "data-open=" not in html
+
     def test_folder_rows_are_real_links(self, client):
         html = client.get("/files/Documents").text
         assert LANDMARKS[0] in ids(html) and "files-content" in ids(html)
