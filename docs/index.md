@@ -60,21 +60,21 @@ Appearance is split along two axes:
     ::bash
     uv run launch.py apps/theme=challenging_font
 
-![landing](images/landing-challenging-font.png)
+![Challenging font theme](images/theme-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
     uv run launch.py apps/theme=dark
 
-![landing](images/landing-dark.png)
+![Dark theme](images/theme-dark.png)
 ///
 /// tab | default
 
     ::bash
     uv run launch.py apps/theme=default
 
-![landing](images/landing.png)
+![Default theme](images/theme-default.png)
 
 ///
 
@@ -334,23 +334,23 @@ other appearance axis.
 /// tab | german
 
     ::bash
-    uv run launch.py apps/start_page/content=german
+    uv run launch.py apps/todo/content=german
 
-![landing](images/landing-german.png)
+![German todo list](images/content-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    uv run launch.py apps/start_page/content=long_descriptions
+    uv run launch.py apps/onlineshop/content=long_descriptions
 
-![landing](images/landing-long-descriptions.png)
+![Online shop with long descriptions](images/content-long-descriptions.png)
 ///
 /// tab | pop-up
 
     ::bash
     uv run launch.py apps/pop_ups=adversarial_descriptions
 
-![landing](images/landing-popup.png)
+![Adversarial pop-up](images/landing-popup.png)
 
 ///
 
@@ -446,7 +446,13 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
-![Live Agent](images/gif.gif)
+<video poster="images/agent-demo-poster.jpg" autoplay muted loop playsinline
+       style="display: block; width: 89.5%; margin: 2.5em auto 3.5em; border-radius: 7px;
+              box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 .5px 1px rgba(0,0,0,.3), 0 9px 22px rgba(0,0,0,.45);">
+  <source src="images/agent-demo.webm" type="video/webm">
+  <source src="images/agent-demo.mp4" type="video/mp4">
+  <a href="images/agent-demo.mp4">Watch the agent solve a task</a>
+</video>
 
 To record the full episode as a video instead:
 ```

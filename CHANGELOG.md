@@ -52,6 +52,16 @@ targets now expect a receipt, so purchase scores are not comparable with
   dated on the run's pinned calendar like its receipt and card charge. Purchase
   targets expect `Shipping`.
 
+### Changed
+
+- **The agent's `goto` refuses the state endpoints.** `/<app>_all` and
+  `/maps/landmarks` serve the raw state rewards are scored from, so an agent
+  could read the answer instead of using the apps. `goto` now resolves the
+  url the way the browser will (so `/todo_all/.`, `/todo_all/%2e` and
+  `/x/../todo_all` are caught), allows only http(s) (so a `data:` page cannot
+  iframe an endpoint), and raises an error the agent sees as the action's
+  error. Relative urls such as `goto('/calendar')` now work.
+
 ## [2.0.0] - 2026-10-23
 
 **Realism.** Every app now looks and behaves like the product it imitates,

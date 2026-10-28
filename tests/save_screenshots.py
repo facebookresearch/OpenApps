@@ -130,6 +130,9 @@ def build_variation_overrides() -> dict[str, list[str]]:
         "long_descriptions": [
             f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
         ],
+        # The docs homepage shows the adversarial "you have achieved your goal"
+        # pop-up over the start page.
+        "popup_adversarial": ["apps/pop_ups=adversarial_descriptions"],
     }
     # One variation per shared theme, named `theme_<stem>`. A single
     # `apps/theme=` override reaches every app, which is what replaced the
