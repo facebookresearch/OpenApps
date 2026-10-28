@@ -454,7 +454,28 @@ styles = Style("""
 
     /* Content pane. */
     .fs-content { grid-area: main; overflow: auto; min-height: 0; }
-    .fs-table { width: 100%; margin: 0; border-collapse: collapse; font-size: var(--font-size-sm); }
+    .fs-table { width: 100%; margin: 0; border-collapse: collapse; font-size: var(--font-size-sm); table-layout: fixed; }
+    /* Name takes what the fixed columns leave; the dividers move the rest. */
+    .fs-table col.is-col-where { width: var(--w-where, 7em); }
+    .fs-table col.is-col-date { width: var(--w-date, 7.5em); }
+    .fs-table col.is-col-size { width: var(--w-size, 4.5em); }
+    .fs-table col.is-col-kind { width: var(--w-kind, 7.5em); }
+    .fs-table col.is-col-menu { width: 2.75rem; }
+    /* Inside its own header: each sticky header is a stacking context, so a
+       divider hanging past the edge would sit under the next header. */
+    .fs-col-resize {
+        position: absolute; top: 0; right: 0; z-index: 2;
+        width: 9px; height: 100%; cursor: col-resize; touch-action: none;
+    }
+    .fs-col-resize::after {
+        content: ""; position: absolute; top: 25%; bottom: 25%; right: 0; width: 1px;
+        background: var(--color-border);
+    }
+    .fs-col-resize:hover::after, .fs-col-resize:focus-visible::after, .fs-col-resize.is-dragging::after {
+        top: 0; bottom: 0; width: 2px; background: var(--color-primary);
+    }
+    .fs-col-resize:focus-visible { outline: none; }
+    .fs-table.is-resizing { cursor: col-resize; user-select: none; }
     .fs-table th {
         white-space: nowrap;
         position: sticky; top: 0; z-index: 1;
@@ -469,8 +490,10 @@ styles = Style("""
         border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
         white-space: nowrap;
     }
-    /* The name column takes what's left and truncates; the facts keep their width. */
-    .fs-table td:first-child { width: 100%; max-width: 0; }
+    /* Every cell truncates at its column's width; the full value is a resize away. */
+    .fs-table td { overflow: hidden; text-overflow: ellipsis; }
+    /* The facts are short and need little air; what they don't use goes to Name. */
+    .fs-table th:not(:first-child), .fs-table td:not(:first-child) { padding-inline: calc(var(--space) * 0.75); }
     .fs-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .fs-table .is-num { text-align: right; font-variant-numeric: tabular-nums; }
     .fs-table .is-muted { color: var(--color-muted); }
@@ -691,6 +714,10 @@ styles = Style("""
     .fs-root.is-phone .fs-search input[type="search"] { width: 100%; }
     .fs-root.is-phone .fs-search { flex: 1 1 100%; order: 3; }
     .fs-root.is-phone .fs-table .is-kind, .fs-root.is-phone .fs-table .is-date { display: none; }
+    /* One pane, no dividers: the phone keeps the automatic layout. */
+    .fs-root.is-phone .fs-table { table-layout: auto; }
+    .fs-root.is-phone .fs-table col { width: auto; }
+    .fs-root.is-phone .fs-col-resize { display: none; }
     .fs-root.is-phone .fs-viewer { grid-template-columns: minmax(0, 1fr); grid-template-areas: "bar" "pages"; height: auto; min-height: 70vh; }
     .fs-root.is-phone .fs-thumbs { display: none; }
     .fs-root.is-phone .fs-pages { padding: var(--space); }
@@ -752,6 +779,119 @@ BROWSER_SCRIPT = Script("""
         var item = e.target.closest('[data-open]');
         if (item) { window.location.href = item.getAttribute('data-open'); }
     });
+
+    // Column dividers. Name is never sized directly: it takes what the fixed
+    // columns leave, so moving a boundary trades width between its two
+    // neighbours and the table never overflows. Widths are kept per view in
+    // localStorage -- a person's preference, never app state.
+    var MIN = { name: 128, where: 56, date: 64, size: 48, kind: 56 };
+    function keysOf(table) { return (table.dataset.cols || '').split(','); }
+    function head(table, key) { return table.querySelector('th[data-col-key="' + key + '"]'); }
+    function widthOf(table, key) { return head(table, key).getBoundingClientRect().width; }
+    function storeKey(table) { return 'oa-files-columns:' + table.dataset.columnsKey; }
+    function setWidth(table, key, px) {
+        if (key !== 'name') { table.style.setProperty('--w-' + key, Math.round(px) + 'px'); }
+    }
+    function save(table) {
+        var widths = {};
+        keysOf(table).forEach(function (key) {
+            if (key !== 'name') { widths[key] = Math.round(widthOf(table, key)); }
+        });
+        try { localStorage.setItem(storeKey(table), JSON.stringify(widths)); } catch (err) {}
+    }
+    // A view nobody has resized opens fitted: every column to its contents,
+    // so Name shows as much of each filename as the window allows. Not saved
+    // -- it follows the contents until someone drags a divider.
+    function restoreColumns() {
+        document.querySelectorAll('.fs-table[data-cols]').forEach(function (table) {
+            var widths = null;
+            try { widths = JSON.parse(localStorage.getItem(storeKey(table)) || 'null'); } catch (err) {}
+            if (!widths) { fitOthers(table); return; }
+            Object.keys(widths).forEach(function (key) {
+                if (head(table, key)) { setWidth(table, key, widths[key]); }
+            });
+        });
+    }
+    // Trade `delta` px from the right neighbour to the left one, within limits.
+    function move(table, left, right, startLeft, startRight, delta) {
+        delta = Math.max(MIN[left] - startLeft, Math.min(startRight - MIN[right], delta));
+        setWidth(table, left, startLeft + delta);
+        setWidth(table, right, startRight - delta);
+    }
+    // The widest content in a column, header included. text-overflow only
+    // paints the ellipsis, so a range still measures the full text.
+    function contentWidth(table, key) {
+        var index = keysOf(table).indexOf(key), widest = 0, range = document.createRange();
+        var cells = [head(table, key).querySelector('.fs-col-label')];
+        table.querySelectorAll('tbody tr').forEach(function (row) { cells.push(row.children[index]); });
+        cells.forEach(function (cell) {
+            if (!cell) { return; }
+            range.selectNodeContents(cell);
+            var box = cell.closest('td, th'), style = getComputedStyle(box);
+            var width = range.getBoundingClientRect().width + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+            widest = Math.max(widest, width);
+        });
+        return Math.ceil(widest) + 2;
+    }
+    function fitOthers(table) {
+        keysOf(table).forEach(function (k) {
+            if (k !== 'name') { setWidth(table, k, Math.max(MIN[k], contentWidth(table, k))); }
+        });
+    }
+    function fit(table, key) {
+        if (key === 'name') {
+            // "Show me the whole name": every other column down to its contents.
+            fitOthers(table);
+        } else {
+            var room = widthOf(table, key) + widthOf(table, 'name') - MIN.name;
+            setWidth(table, key, Math.max(MIN[key], Math.min(room, contentWidth(table, key))));
+        }
+        save(table);
+    }
+    function neighbours(handle) {
+        var table = handle.closest('.fs-table'), keys = keysOf(table), left = handle.dataset.col;
+        return { table: table, left: left, right: keys[keys.indexOf(left) + 1] };
+    }
+    document.addEventListener('pointerdown', function (e) {
+        var handle = e.target.closest('.fs-col-resize');
+        if (!handle || e.button !== 0) { return; }
+        e.preventDefault();
+        var n = neighbours(handle), x = e.clientX;
+        var startLeft = widthOf(n.table, n.left), startRight = widthOf(n.table, n.right);
+        handle.setPointerCapture(e.pointerId);
+        handle.classList.add('is-dragging');
+        n.table.classList.add('is-resizing');
+        function onMove(ev) { move(n.table, n.left, n.right, startLeft, startRight, ev.clientX - x); }
+        function onUp() {
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onUp);
+            handle.classList.remove('is-dragging');
+            n.table.classList.remove('is-resizing');
+            save(n.table);
+        }
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+    });
+    document.addEventListener('dblclick', function (e) {
+        var handle = e.target.closest('.fs-col-resize');
+        if (handle) { fit(handle.closest('.fs-table'), handle.dataset.col); }
+    });
+    document.addEventListener('keydown', function (e) {
+        var handle = e.target.closest && e.target.closest('.fs-col-resize');
+        if (!handle) { return; }
+        var n = neighbours(handle);
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            var step = (e.shiftKey ? 48 : 16) * (e.key === 'ArrowLeft' ? -1 : 1);
+            move(n.table, n.left, n.right, widthOf(n.table, n.left), widthOf(n.table, n.right), step);
+            save(n.table);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            fit(n.table, n.left);
+        }
+    });
+    restoreColumns();
+    document.addEventListener('htmx:afterSettle', restoreColumns);
 })();
 """)
 
@@ -1016,15 +1156,31 @@ def list_view(entries, folder: str, selected: str, *, show_where: bool = False):
                 data_size=None if e.is_folder else str(e.size),
             )
         )
+    # Columns resize like Finder's: drag the divider at a header's right
+    # edge, double-click it to fit the column to its contents (Name's divider
+    # fits every other column instead, so Name gets the most room). Widths
+    # live in the browser only -- they never reach app state or a reward.
+    columns = [("name", cols.name, "")] + ([("where", u.where_label, "")] if show_where else []) + [
+        ("date", cols.date, "is-date"), ("size", cols.size, "is-num"), ("kind", cols.kind, "is-kind"),
+    ]
     head = Tr(
-        Th(cols.name),
-        Th(u.where_label) if show_where else None,
-        Th(cols.date, cls="is-date"),
-        Th(cols.size, cls="is-num"),
-        Th(cols.kind, cls="is-kind"),
+        *[
+            Th(
+                Span(label, cls="fs-col-label"),
+                Span(cls="fs-col-resize", role="separator", aria_orientation="vertical", tabindex="0",
+                     aria_label=u.resize_column.format(column=label), data_col=key)
+                if i < len(columns) - 1 else None,
+                cls=cls or None,
+                data_col_key=key,
+            )
+            for i, (key, label, cls) in enumerate(columns)
+        ],
         Th(Span(u.actions_label, cls="sr-only"), cls="is-menu"),
     )
-    return Table(Thead(head), Tbody(*rows), cls="fs-table")
+    colgroup = Colgroup(*[Col(cls=f"is-col-{key}") for key, _, _ in columns], Col(cls="is-col-menu"))
+    return Table(colgroup, Thead(head), Tbody(*rows), cls="fs-table",
+                 data_cols=",".join(key for key, _, _ in columns),
+                 data_columns_key="search" if show_where else "folder")
 
 
 def grid_view(entries, folder: str, selected: str):

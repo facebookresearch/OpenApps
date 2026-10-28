@@ -55,6 +55,7 @@ ui:
   more_actions: "More actions for {name}"
   actions_label: "Actions"
   where_label: "Where"
+  resize_column: "Resize {column} column"
   deleted_label: "Deleted"
   remaining_label: "Remaining"
   pages_label: "Pages"

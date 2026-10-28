@@ -51,6 +51,7 @@ ui:
   more_actions: "{name} 的更多操作"
   actions_label: "操作"
   where_label: "位置"
+  resize_column: "调整“{column}”列宽"
   deleted_label: "删除日期"
   remaining_label: "剩余"
   pages_label: "页数"

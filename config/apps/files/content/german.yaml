@@ -51,6 +51,7 @@ ui:
   more_actions: "Weitere Aktionen für {name}"
   actions_label: "Aktionen"
   where_label: "Ort"
+  resize_column: "Spaltenbreite „{column}“ anpassen"
   deleted_label: "Gelöscht"
   remaining_label: "Verbleibend"
   pages_label: "Seiten"

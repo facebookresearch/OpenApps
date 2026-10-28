@@ -286,6 +286,27 @@ class TestActions:
         assert "<dialog" in r.text and 'id="files-sidebar"' in r.text
 
 
+class TestColumns:
+    """List columns resize like Finder's, from markup the script can rely on."""
+
+    def test_each_boundary_has_a_keyboard_reachable_divider(self, client):
+        html = client.get("/files/Documents?view=list").text
+        table = re.search(r'<table[^>]*class="fs-table"[^>]*>', html).group(0)
+        assert 'data-cols="name,date,size,kind"' in table
+        assert 'data-columns-key="folder"' in table
+        dividers = re.findall(r'<span[^>]*class="fs-col-resize"[^>]*>', html)
+        # name|date, date|size, size|kind -- the last column has no right neighbour.
+        assert [re.search(r'data-col="(\w+)"', d).group(1) for d in dividers] == ["name", "date", "size"]
+        for d in dividers:
+            assert 'role="separator"' in d and 'tabindex="0"' in d and "aria-label=" in d
+        assert 'class="is-col-name"' in html and 'class="is-col-menu"' in html
+
+    def test_search_adds_where_and_keeps_its_own_widths(self, client):
+        html = client.get("/files/search?q=lease").text
+        assert 'data-cols="name,where,date,size,kind"' in html
+        assert 'data-columns-key="search"' in html
+
+
 class TestFolderMenus:
     """Built-in folders are fixed places tasks address by path: Open, Get Info
     and (except Code) Duplicate, never rename, move or delete."""
