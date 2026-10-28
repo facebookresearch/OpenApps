@@ -301,6 +301,12 @@ class TestColumns:
             assert 'role="separator"' in d and 'tabindex="0"' in d and "aria-label=" in d
         assert 'class="is-col-name"' in html and 'class="is-col-menu"' in html
 
+    def test_truncating_cells_does_not_clip_the_row_menu(self, client):
+        """Cells clip so long values truncate; the menu cell must not, or the
+        "..." dropdown, hanging below the row, is clipped to nothing."""
+        html = client.get("/files/Documents?view=list").text
+        assert ".fs-table td.is-menu { overflow: visible; }" in html
+
     def test_search_adds_where_and_keeps_its_own_widths(self, client):
         html = client.get("/files/search?q=lease").text
         assert 'data-cols="name,where,date,size,kind"' in html

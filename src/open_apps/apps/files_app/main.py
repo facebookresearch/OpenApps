@@ -492,6 +492,8 @@ styles = Style("""
     }
     /* Every cell truncates at its column's width; the full value is a resize away. */
     .fs-table td { overflow: hidden; text-overflow: ellipsis; }
+    /* Except the menu cell: its dropdown hangs below the row and would be clipped away. */
+    .fs-table td.is-menu { overflow: visible; }
     /* The facts are short and need little air; what they don't use goes to Name. */
     .fs-table th:not(:first-child), .fs-table td:not(:first-child) { padding-inline: calc(var(--space) * 0.75); }
     .fs-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
