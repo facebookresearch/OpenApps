@@ -425,6 +425,9 @@ styles = Style("""
         border-radius: var(--radius); color: var(--color-muted); cursor: pointer;
     }
     .fs-menu > summary::-webkit-details-marker { display: none; }
+    /* Pico spaces an open <details> summary from its content; a menu's content
+       floats, so that margin only pushed the row taller while the menu was open. */
+    .fs-root details.fs-menu[open] > summary { margin-bottom: 0; }
     .fs-menu > summary::after { display: none; }
     .fs-menu > summary:hover, .fs-menu[open] > summary { background: color-mix(in srgb, var(--color-fg) 8%, transparent); color: var(--color-fg); }
     .fs-menu-list {
