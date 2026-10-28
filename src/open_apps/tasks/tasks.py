@@ -1032,15 +1032,18 @@ class BuyWithCardTask(Task):
                 "balance": None,
             }
         )
-        if isinstance(target_state.get("files"), dict):
-            # The receipt checkout writes into Files. Content-agnostic (no
-            # size, no checksum): its bytes carry the checkout time.
-            tree = _FileTree(target_state["files"])
-            tree.put(
-                RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN),
-                {"kind": "application/pdf", "size": None, "sha256": None},
-            )
-            tree.into(target_state)
+        # The receipt checkout writes into Files, which every run serves (see
+        # ``open_apps.apps.availability.require_files``) -- so a state with no
+        # files slice is a failed probe, and expecting the receipt anyway lets
+        # that fail the episode rather than pass a purchase nobody could see.
+        # Content-agnostic (no size, no checksum): its bytes carry the
+        # checkout time.
+        tree = _FileTree(target_state.get("files"))
+        tree.put(
+            RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN),
+            {"kind": "application/pdf", "size": None, "sha256": None},
+        )
+        tree.into(target_state)
         if over_by > 0:
             # The charge first, then the notice -- `authorize_card_purchase`
             # inserts them in that order and `/openbanking_all` sorts by id,

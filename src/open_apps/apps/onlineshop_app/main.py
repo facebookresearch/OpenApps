@@ -50,6 +50,7 @@ from fasthtml.common import *
 from fasthtml.svg import Circle, G, Path, Rect, Svg
 
 from open_apps import files_store
+from open_apps.apps.availability import require_files
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
@@ -999,24 +1000,22 @@ def receipt_pdf(order) -> bytes:
     )
 
 
-def _files_ready() -> bool:
+def _point_store_at_files() -> None:
     """Point the shared store at this run's Files root.
 
     The Files app configures it at launch, and this is a no-op then. Doing it
     here too keeps a shop stood up on its own (its tests, a standalone run)
     writing into its own run's store rather than whichever one was configured
-    last in the process. ``False`` when the config has no Files app at all.
+    last in the process. A config without Files is refused: every checkout
+    writes a receipt (see ``availability.require_files``).
     """
-    config = getattr(app, "config", None)
-    files_cfg = getattr(config, "files", None) if config is not None else None
-    if files_cfg is None:
-        return False
+    config = app.config
+    require_files(config)
     code = getattr(getattr(config, "code_editor", None), "database_path", None)
-    files_store.configure(files_cfg.root, code, files_cfg.today)
-    return True
+    files_store.configure(config.files.root, code, config.files.today)
 
 
-def write_receipt(order, *, dated_by_order: bool = False) -> str | None:
+def write_receipt(order, *, dated_by_order: bool = False) -> str:
     """Save the order's receipt into Files; returns its path.
 
     A seeded order's receipt is dated by the order (``dated_by_order``); one
@@ -1027,8 +1026,7 @@ def write_receipt(order, *, dated_by_order: bool = False) -> str | None:
     re-seeding the shop over a store the Files app didn't reset doesn't grow
     " (2)" copies.
     """
-    if not _files_ready():
-        return None
+    _point_store_at_files()
     data = receipt_pdf(order)
     path = receipt_path(order.order_id)
     if files_store.exists(path) and files_store.read(path) == data:

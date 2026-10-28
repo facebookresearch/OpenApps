@@ -38,6 +38,7 @@ import re
 from typing import List, Optional
 from urllib.parse import quote, urlencode
 from open_apps import files_store
+from open_apps.apps.availability import require_files
 from open_apps.apps.openbanking_app import statements
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
@@ -1765,21 +1766,19 @@ def statement_pdf(account: Account, month: tuple) -> bytes:
     return documents.render(spec, {})
 
 
-def _files_ready() -> bool:
+def _point_store_at_files() -> None:
     """Point the shared store at this run's Files root.
 
     The Files app configures it at launch; doing it again here is a no-op
     then, and keeps a bank stood up on its own (a test, a standalone run)
     writing into its own run's store rather than whichever one was last
-    configured in the process.
+    configured in the process. A config without Files is refused (see
+    ``availability.require_files``).
     """
-    config = getattr(app, "config", None)
-    files_cfg = getattr(config, "files", None) if config is not None else None
-    if files_cfg is None:
-        return False
+    config = app.config
+    require_files(config)
     code = getattr(getattr(config, "code_editor", None), "database_path", None)
-    files_store.configure(files_cfg.root, code, files_cfg.today)
-    return True
+    files_store.configure(config.files.root, code, config.files.today)
 
 
 def save_statement(account: Account, month: tuple) -> tuple:
@@ -1923,8 +1922,9 @@ def openbanking_statement_view(account_id: int, month: str):
 @app.post("/openbanking/accounts/{account_id}/statements/{month}/download")
 def openbanking_statement_download(htmx: HtmxHeaders, account_id: int, month: str):
     target = _statement_target(account_id, month)
-    if target is None or not _files_ready():
+    if target is None:
         return Response("", status_code=404)
+    _point_store_at_files()
     account, parsed = target
     path, created = save_statement(account, parsed)
     if htmx.request:

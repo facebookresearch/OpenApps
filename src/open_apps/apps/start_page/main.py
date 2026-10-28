@@ -41,6 +41,7 @@ from open_apps.apps.availability import (  # noqa: F401
     onlineshop_has_catalog,
     onlineshop_is_served,
     onlineshop_unavailable_reason,
+    require_files,
 )
 from starlette.responses import RedirectResponse
 
@@ -429,6 +430,7 @@ def get_start_page_routes():
 def initialize_routes_and_configure_task(config: DictConfig = None):
     global app, rt
     """Initialize all apps and configure the app with provided config."""
+    require_files(config)
     # Hydra should handle the config loading, see launch_experiment.py
     app.config = config  # Update the global app config
     # Seed the desktop shell from config. Harmless under the gallery layout --
