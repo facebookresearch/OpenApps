@@ -73,11 +73,26 @@ For the complete set of configuration options, see `config/agent/default.yaml`.
 **Protected state endpoints:**
 
 Each app serves its raw state at `/<app>_all` (`/todo_all`, `/calendar_all`,
-`/onlineshop_all`, ...), and rewards are computed from it. The agent's
-`goto` action, defined in `src/open_apps/agent/utils.py`, refuses any URL
-whose path ends in `_all` and returns an error instead of navigating, so an
-agent can't read the state it is scored on. The reward code is unaffected:
-it reads these endpoints over HTTP, not through the agent's browser.
+`/onlineshop_all`, ...), and the map at `/maps/landmarks`; rewards are
+computed from these. The agent's `goto` action, defined in
+`src/open_apps/agent/utils.py`, refuses them so an agent can't read the
+state it is scored on:
+
+- The url is resolved by the page's own URL parser, so the check sees exactly
+  what Chromium will request: `/todo_all/.`, `/todo_all/%2e`,
+  `/x/../todo_all` and `/x\..\todo_all` are all refused.
+- Any path segment ending in `_all`, and anything under `/maps/landmarks`, is
+  refused.
+- Only `http:` and `https:` are allowed, so a `data:` or `javascript:` url
+  can't load an endpoint in an iframe or script.
+
+A refused `goto` raises an error, which the agent sees as the action's error.
+The reward code is unaffected: it reads these endpoints over HTTP, not
+through the agent's browser.
+
+The guard covers `goto` only. It does not cover the MCP server's `goto`
+(`src/open_apps/mcp/actions.py`) or other ways the page itself could request
+these urls.
 
 
 ## Creating Your Own Agent
