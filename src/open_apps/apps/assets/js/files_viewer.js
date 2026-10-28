@@ -123,8 +123,29 @@ async function initViewer(root) {
         return holder;
     });
 
+    // One render pass at a time: pdf.js rejects a second render() on a canvas
+    // that is still drawing ("Cannot use the same canvas during multiple
+    // render() operations"). A zoom during a pass marks it stale; the pass
+    // stops before its next page and starts over at the new scale, so every
+    // page, its text layer and the zoom label end up at the same one.
+    let rendering = null;
+    let stale = false;
+
+    function rerender() {
+        if (rendering) { stale = true; return rendering; }
+        rendering = (async () => {
+            try {
+                do { stale = false; await render(); } while (stale);
+            } finally {
+                rendering = null;
+            }
+        })();
+        return rendering;
+    }
+
     async function render() {
         for (let i = 0; i < pages.length; i++) {
+            if (stale) { return; }
             const holder = holders[i];
             holder.style.setProperty('--total-scale-factor', String(scale));
             const viewport = await drawPage(pages[i], holder.firstChild, scale);
@@ -141,11 +162,11 @@ async function initViewer(root) {
             });
             await layer.render();
         }
-        if (zoomLabel) { zoomLabel.textContent = `${Math.round(scale * 100)}%`; }
+        if (zoomLabel && !stale) { zoomLabel.textContent = `${Math.round(scale * 100)}%`; }
     }
 
     pagesEl.replaceChildren(...holders);
-    await render();
+    await rerender();
     root.dataset.ready = '1';
 
     // Thumbnails: one button per page.
@@ -203,7 +224,7 @@ async function initViewer(root) {
             : [...ZOOM_STEPS].reverse().find((s) => s < scale - 0.001);
         if (next === undefined) { return; }
         scale = next;
-        render().then(() => goTo(current));
+        rerender().then(() => goTo(current), (err) => console.warn('files: zoom failed', err));
     }
 
     root.querySelector('#files-prev-page')?.addEventListener('click', () => goTo(current - 1));
