@@ -3,6 +3,7 @@ from pathlib import PurePosixPath
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
 import hashlib
+import json
 import math
 import re
 from deepdiff import DeepDiff
@@ -14,15 +15,29 @@ from omegaconf.dictconfig import DictConfig
 from omegaconf import OmegaConf
 
 
-# Stands in for a checkout's random order id on both sides of a purchase diff.
-# Deliberately the same literal the shop's `card_descriptor` uses as its format
-# field, so a target descriptor is just the template left unformatted.
-ORDER_ID_TOKEN = "{order_id}"
-
 # Where a checkout's receipt lands, mirroring ``onlineshop_app.receipt_path``.
 # Inlined rather than imported to keep the tasks package import light; a test
 # pins the two together.
 RECEIPT_PATH = "Receipts/OpenShop order {order_id}.pdf"
+
+
+def _pending_order_id(n: int) -> str:
+    """A target's stand-in for the id its ``n``-th order will be minted with.
+
+    One per purchase rather than one shared token, so that each purchase's
+    receipt keeps a path of its own: Files is keyed by path, and a composite
+    that buys twice would otherwise write both receipts to the same target
+    row. A real id is ``uuid4().hex[:8]`` and never contains a hyphen, so the
+    two can't collide. ``_normalize_purchases`` renames these and real ids
+    alike, which is what lets the two sides meet.
+    """
+    return f"pending-{n}"
+
+
+def _order_token(n: int) -> str:
+    """What ``_normalize_purchases`` renames the ``n``-th order's id to, on
+    both sides of a purchase diff."""
+    return f"{{order_id {n}}}"
 
 # The Files app's pinned "today" (``apps.files.today``, which follows
 # ``apps.openbanking.as_of_date``): the ``deleted_on`` a delete stamps. Pinned
@@ -383,10 +398,13 @@ class AppStateComparison:
         embeds that same order id (``card_descriptor``). None of the three is
         derivable from the initial state. Rather than drop the description --
         the only thing tying a charge to the order that caused it -- every
-        order id present in the shop's slice is substituted with a fixed token
-        in every ledger description. Target and observed then both read
-        ``OPENAPPS SHOP {order_id}``, so the diff still asserts the charge
-        names *an order that exists*, which is the part worth checking.
+        order id present in the shop's slice is renamed to a token numbered
+        by the order's place in a content sort (``_order_token``), in every
+        ledger description and receipt path. A target's orders carry
+        ``_pending_order_id`` stand-ins and get the same treatment, so both
+        sides read ``OPENAPPS SHOP {order_id 1}`` and the diff still asserts
+        the charge names *an order that exists*, which is the part worth
+        checking.
 
         Ledger ``id`` and ``position`` go too. Both are functions of the
         bank's internal numbering (``max(id) + 1``, ``min(position) - 1``);
@@ -401,49 +419,67 @@ class AppStateComparison:
         bank = state.get("openbanking")
         txns = bank.get("transactions") or [] if isinstance(bank, dict) else []
 
-        order_ids = [str(o["order_id"]) for o in orders if o.get("order_id")]
-        if order_ids and txns:
+        # Sorted before renaming, so the n-th token goes to the same order on
+        # both sides however the agent ordered its checkouts. Observed orders
+        # come back in DB insertion order and target orders in append order.
+        orders.sort(key=self._order_sort_key)
+        tokens = {
+            str(o["order_id"]): _order_token(n)
+            for n, o in enumerate(orders, 1)
+            if o.get("order_id")
+        }
+        if tokens and txns:
+            by_lower = {i.lower(): t for i, t in tokens.items()}
             # Longest first, so an id that happens to prefix another cannot
             # half-match and leave a tail behind.
             pattern = re.compile(
-                "|".join(re.escape(i) for i in sorted(order_ids, key=len, reverse=True)),
+                "|".join(re.escape(i) for i in sorted(tokens, key=len, reverse=True)),
                 re.IGNORECASE,
             )
             for txn in txns:
                 if txn.get("description"):
-                    txn["description"] = pattern.sub(ORDER_ID_TOKEN, txn["description"])
+                    txn["description"] = pattern.sub(
+                        lambda m: by_lower[m.group(0).lower()], txn["description"]
+                    )
 
         for txn in txns:
             for key in ("id", "position"):
                 txn.pop(key, None)
 
         # A checkout also writes a receipt named after the order id, and its
-        # bytes carry the checkout time. Same substitution as the ledger, and
-        # only for ids of orders that exist -- a receipt naming no order still
-        # fails -- with the bytes left out of the diff.
+        # bytes carry the checkout time. Same renaming as the ledger, and only
+        # for ids of orders that exist -- a receipt naming no order still
+        # fails -- with the bytes left out of the diff. Each order keeps its
+        # own token, so two purchases leave two distinct receipt rows.
         files = state.get("files")
         rows = files.get("files") or [] if isinstance(files, dict) else []
-        receipts = {RECEIPT_PATH.format(order_id=i) for i in order_ids}
-        receipts.add(RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN))
+        receipts = {
+            RECEIPT_PATH.format(order_id=i): RECEIPT_PATH.format(order_id=t)
+            for i, t in tokens.items()
+        }
         for row in rows:
             if row.get("path") in receipts:
-                row["path"] = RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN)
+                row["path"] = receipts[row["path"]]
                 row["size"] = row["sha256"] = None
 
         for order in orders:
             for key in ("order_id", "date"):
                 order.pop(key, None)
-
-        # Observed orders come back in DB insertion order and target orders in
-        # append order; those agree today, but sorting costs nothing and stops
-        # a seeded order from failing the diff on position alone.
-        orders.sort(key=self._order_sort_key)
         return state
 
     @staticmethod
     def _order_sort_key(order: dict):
-        skus = sorted(str(item.get("sku", "")) for item in order.get("items") or [])
-        return (float(order.get("total") or 0.0), tuple(skus))
+        items = order.get("items") or []
+        skus = sorted(str(item.get("sku", "")) for item in items)
+        # Options and quantities break ties between two orders of the same
+        # product at the same total, so their tokens don't depend on which
+        # one the agent checked out first.
+        lines = sorted(
+            (str(item.get("sku", "")), json.dumps(item.get("options") or {}, sort_keys=True),
+             int(item.get("quantity") or 0))
+            for item in items
+        )
+        return (float(order.get("total") or 0.0), tuple(skus), tuple(lines))
 
     def sort_lists(self, state: dict) -> dict:
         """To ensure comparisons don't fail
@@ -984,9 +1020,11 @@ class BuyWithCardTask(Task):
             if not (row.get("sku") == self.sku and (row.get("options") or {}) == options)
         ]
 
-        shop.setdefault("orders", []).append(
+        orders = shop.setdefault("orders", [])
+        order_id = _pending_order_id(len(orders) + 1)
+        orders.append(
             {
-                "order_id": ORDER_ID_TOKEN,
+                "order_id": order_id,
                 "name": self.ship_to_name,
                 "address": self.ship_to_address,
                 # The date is dropped by _normalize_purchases; the status is
@@ -1026,7 +1064,7 @@ class BuyWithCardTask(Task):
                 # Charges post pending, so no wall-clock date or running
                 # balance reaches the payload.
                 "date": None,
-                "description": self.descriptor.format(order_id=ORDER_ID_TOKEN),
+                "description": self.descriptor.format(order_id=order_id),
                 "type": self.charge_type,
                 "amount": -total,
                 "balance": None,
@@ -1040,7 +1078,7 @@ class BuyWithCardTask(Task):
         # checkout time.
         tree = _FileTree(target_state.get("files"))
         tree.put(
-            RECEIPT_PATH.format(order_id=ORDER_ID_TOKEN),
+            RECEIPT_PATH.format(order_id=order_id),
             {"kind": "application/pdf", "size": None, "sha256": None},
         )
         tree.into(target_state)

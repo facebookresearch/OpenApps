@@ -35,7 +35,7 @@ from open_apps.apps.start_page.main import (
     reset_all_apps,
 )
 from open_apps.tasks.tasks import (
-    ORDER_ID_TOKEN,
+    RECEIPT_PATH,
     AppStateComparison,
     DeleteFileTask,
     DownloadStatementTask,
@@ -413,8 +413,6 @@ class TestMirrors:
 
     def test_receipt_path_matches_the_shop(self):
         from open_apps.apps.onlineshop_app.main import receipt_path
-        from open_apps.tasks.tasks import RECEIPT_PATH
-
         assert RECEIPT_PATH.format(order_id="a41f07c2") == receipt_path("a41f07c2")
 
     def test_files_today_matches_the_config(self, apps_cfg):
@@ -450,17 +448,47 @@ class TestFilesInComparison:
         state = {"todo": [], "calendar": [], "map": [], "messenger": []}
         assert AppStateComparison(state, dict(state)).compare()
 
+    def _receipt(self, order_id, size=None, sha=None):
+        return {"path": RECEIPT_PATH.format(order_id=order_id), "kind": "application/pdf",
+                "size": size, "sha256": sha, "deleted": False, "deleted_on": None}
+
+    def _purchases(self, rows, orders):
+        state = self._state(rows)
+        state["online_shop"] = {"cart": [], "orders": orders}
+        return state
+
     def test_receipts_follow_their_order_under_purchase_normalisation(self):
-        target = self._state([{"path": f"Receipts/OpenShop order {ORDER_ID_TOKEN}.pdf", "kind": "application/pdf",
-                               "size": None, "sha256": None, "deleted": False, "deleted_on": None}])
-        target["online_shop"] = {"cart": [], "orders": [{"order_id": ORDER_ID_TOKEN, "total": 1.0, "items": []}]}
-        observed = self._state([{"path": "Receipts/OpenShop order 1a2b3c4d.pdf", "kind": "application/pdf",
-                                 "size": 3070, "sha256": "c" * 64, "deleted": False, "deleted_on": None}])
-        observed["online_shop"] = {"cart": [], "orders": [{"order_id": "1a2b3c4d", "total": 1.0, "items": []}]}
+        from open_apps.tasks.tasks import _pending_order_id
+
+        pending = _pending_order_id(1)
+        target = self._purchases([self._receipt(pending)], [{"order_id": pending, "total": 1.0, "items": []}])
+        observed = self._purchases([self._receipt("1a2b3c4d", 3070, "c" * 64)],
+                                   [{"order_id": "1a2b3c4d", "total": 1.0, "items": []}])
         with contextlib.redirect_stdout(io.StringIO()):
             assert AppStateComparison(target, observed, normalize_purchases=True).compare()
             # A receipt for an order that doesn't exist is not normalised away.
-            observed["files"]["files"][0]["path"] = "Receipts/OpenShop order deadbeef.pdf"
+            observed["files"]["files"][0]["path"] = RECEIPT_PATH.format(order_id="deadbeef")
+            assert not AppStateComparison(target, observed, normalize_purchases=True).compare()
+
+    def test_two_purchases_keep_two_receipts(self):
+        """Each order keeps its own receipt path, so a composite that buys
+        twice expects two receipts -- in whichever order the agent bought."""
+        from open_apps.tasks.tasks import _pending_order_id
+
+        lamp = {"total": 20.0, "items": [{"sku": "LAMP", "options": {}, "quantity": 1}]}
+        desk = {"total": 90.0, "items": [{"sku": "DESK", "options": {}, "quantity": 1}]}
+        p1, p2 = _pending_order_id(1), _pending_order_id(2)
+        target = self._purchases([self._receipt(p1), self._receipt(p2)],
+                                 [{**lamp, "order_id": p1}, {**desk, "order_id": p2}])
+        assert len({r["path"] for r in target["files"]["files"]}) == 2
+        # Bought the other way round, so the ids sort the opposite way too.
+        observed = self._purchases(
+            [self._receipt("ffff0000", 3000, "c" * 64), self._receipt("0000ffff", 3100, "d" * 64)],
+            [{**desk, "order_id": "ffff0000"}, {**lamp, "order_id": "0000ffff"}],
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert AppStateComparison(target, observed, normalize_purchases=True).compare()
+            observed["files"]["files"].pop()
             assert not AppStateComparison(target, observed, normalize_purchases=True).compare()
 
 
@@ -507,8 +535,9 @@ class TestPurchasesWriteReceipts:
         initial = fresh()
         target = task.get_target_state(initial)
         before = {r["path"] for r in initial["files"]["files"]}
-        added = [r for r in target["files"]["files"] if r["path"] not in before]
-        assert [r["path"] for r in added] == [f"Receipts/OpenShop order {ORDER_ID_TOKEN}.pdf"]
+        added = [r["path"] for r in target["files"]["files"] if r["path"] not in before]
+        orders = target["online_shop"]["orders"]
+        assert added == [RECEIPT_PATH.format(order_id=orders[-1]["order_id"])]
 
     def test_a_declined_checkout_expects_no_receipt(self, client, fresh):
         task = self._shipped("attempt_the_copier_far_over_the_card_limit")
@@ -547,7 +576,7 @@ def seeded_state(client, apps_cfg):
 @pytest.mark.parametrize("group,key", _shipped_tasks())
 def test_every_shipped_task_leaves_files_alone(seeded_state, group, key):
     """Files is in every live state now. A task that isn't about files must
-    build a target with the files slice untouched -- beyond the one receipt a
+    build a target with the files slice untouched -- beyond the receipt each
     checkout writes -- and that target must pass its own comparison."""
     task = instantiate(OmegaConf.load(config_dir() / "tasks" / f"{group}.yaml")[key])
     if not hasattr(task, "get_target_state"):
@@ -556,7 +585,8 @@ def test_every_shipped_task_leaves_files_alone(seeded_state, group, key):
     target = task.get_target_state(initial)
     before = {r["path"] for r in initial["files"]["files"]}
     after = {r["path"] for r in target["files"]["files"]}
-    assert after - before <= {f"Receipts/OpenShop order {ORDER_ID_TOKEN}.pdf"}
+    orders = (target.get("online_shop") or {}).get("orders") or []
+    assert after - before <= {RECEIPT_PATH.format(order_id=o["order_id"]) for o in orders}
     assert before <= after
     if after == before:
         assert target["files"] == initial["files"]
