@@ -132,7 +132,12 @@ files remain separate runs. Local jobs run sequentially; `mode=slurm_cluster`
 submits them concurrently using the existing SLURM settings.
 
 Use `parallel_tasks.task_names=[task_a,task_b]` to select a subset across the
-files. Existing `agent=...`, `tasks=...` and Hydra `--multirun` commands retain
+files. `parallel_tasks.repeats=N` runs every job N times with the seed fixed, to
+measure run-to-run variance. Locally, `max_parallel=N` runs N jobs at once, each
+writing to its own `<job_id>/run.log`. With `use_wandb=True`, a sweep's runs
+share a W&B group named after its `run-<id>` directory, with the agent as
+`job_type`. For SLURM sweeps against a self-hosted model, see
+`scripts/sweep_slurm.sh` in the [agents docs](docs/agents.md). Existing `agent=...`, `tasks=...` and Hydra `--multirun` commands retain
 their behavior. `agents=...` selects one parallel sweep and cannot be combined
 with `agent=...` or `--multirun`.
 An explicit single `tasks=...` file also runs in full with `agents=...`, unless
