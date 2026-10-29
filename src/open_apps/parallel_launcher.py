@@ -123,6 +123,27 @@ def create_job_configs(
     return jobs
 
 
+def label_wandb_runs(jobs: Sequence[DictConfig], group: str) -> str:
+    """Give every run in a sweep the same W&B group, and its agent as job_type.
+
+    A value already set (``wandb.group=...`` or ``wandb.job_type=...`` on the
+    command line) is kept. Returns the group the runs ended up in.
+    """
+    for job in jobs:
+        with open_dict(job):
+            if not job.wandb.get("group"):
+                job.wandb.group = group
+            if not job.wandb.get("job_type"):
+                agent = job.get("agent") or {}
+                job.wandb.job_type = (
+                    job.get("agent_config_name")
+                    or agent.get("model_pretty_name")
+                    or agent.get("model_name")
+                    or "agent"
+                )
+    return jobs[0].wandb.group if jobs else group
+
+
 def run_task(
     config: DictConfig, launcher_class: type[AgentLauncher] = AgentLauncher
 ) -> None:
@@ -254,6 +275,8 @@ def launch_parallel(
     config.logs_dir = tempfile.mkdtemp(prefix="run-", dir=logs_root)
     print(f"Run directory: {config.logs_dir}")
     jobs = create_job_configs(config)
+    if config.get("use_wandb"):
+        print(f"W&B group: {label_wandb_runs(jobs, Path(config.logs_dir).name)}")
     for job_config in jobs:
         catalog = job_config.get("task_config_name")
         task_label = f"{catalog}/{job_config.task_name}" if catalog else job_config.task_name

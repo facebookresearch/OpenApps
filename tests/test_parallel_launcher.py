@@ -338,3 +338,16 @@ def test_a_single_run_has_no_repeat_number(catalogs):
 def test_repeats_must_be_positive(catalogs):
     with pytest.raises(Exception, match="repeats must be at least 1"):
         compose_jobs(catalogs, "parallel_tasks.repeats=0")
+
+
+def test_wandb_runs_share_the_sweep_group_and_are_typed_by_agent(catalogs):
+    _, jobs = compose_jobs(catalogs)
+    assert parallel_launcher.label_wandb_runs(jobs, "run-abc") == "run-abc"
+    assert {job.wandb.group for job in jobs} == {"run-abc"}
+    assert {job.wandb.job_type for job in jobs} == {"dummy", "other"}
+
+
+def test_wandb_labels_set_on_the_command_line_are_kept(catalogs):
+    _, jobs = compose_jobs(catalogs, "wandb.group=mine", "wandb.job_type=baseline")
+    assert parallel_launcher.label_wandb_runs(jobs, "run-abc") == "mine"
+    assert {(job.wandb.group, job.wandb.job_type) for job in jobs} == {("mine", "baseline")}

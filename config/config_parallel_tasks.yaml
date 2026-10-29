@@ -120,3 +120,8 @@ wandb:
   tags: null
   save_code: True
   reinit: True
+  # Every run in one sweep shares a group (the sweep's run-<id> directory name
+  # unless set), and job_type defaults to each run's agent, so a W&B report can
+  # compare agents across one sweep.
+  group: null
+  job_type: null
