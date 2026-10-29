@@ -51,6 +51,12 @@ parallel_tasks:
   # fixed, so the environment does not vary with it.
   repeats: 1
 
+# Local jobs to run at once (mode=local only; SLURM schedules its own). 1 runs
+# them one at a time in this process, streaming to the terminal. Above 1, each
+# job runs in its own process and writes to <job logs_dir>/run.log, with a
+# summary at the end; any failure exits non-zero.
+max_parallel: 1
+
 # auto-populated by launch_parallel_agents.py
 task_name: null
 job_id: 0
