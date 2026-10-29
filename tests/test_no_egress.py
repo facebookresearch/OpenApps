@@ -47,6 +47,7 @@ ROUTES = [
     "/onlineshop",
     "/openbanking",
     "/openbanking/accounts/0",
+    "/files",
     "/onlineshop",
 ]
 
@@ -70,6 +71,8 @@ ALLOWED_EXTERNAL_HOSTS = {
     # starts in the goal state. Keep it there.
     "/openbanking": set(),
     "/openbanking/accounts/0": set(),
+    # Theme tokens and local assets only, like the bank. Keep it there.
+    "/files": set(),
     # Unlike every other entry here, this is content rather than a styling
     # dependency: the default `content=webshop` pack sets
     # `product_images: hotlink`, so each product renders its own Amazon photo.

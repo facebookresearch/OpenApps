@@ -25,8 +25,8 @@ from open_apps.apps.start_page.helper import LAUNCHER_CSS
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 
 # Position order from `config/apps/start_page/default.yaml`. The online shop
-# is on by default now that it needs no JDK; OpenBanking (position 8) closes the
-# row because the UI Library's tile at 7 is disabled by default.
+# is on by default now that it needs no JDK; OpenBanking (position 8) and Files
+# (9) close the row, because the UI Library's tile at 7 is disabled by default.
 EXPECTED_TILES = [
     ("/todo", "OpenTodos"),
     ("/calendar", "OpenCalendar"),
@@ -35,6 +35,7 @@ EXPECTED_TILES = [
     ("/codeeditor", "OpenCodeEditor"),
     ("/onlineshop", "OpenShop"),
     ("/openbanking", "OpenBanking"),
+    ("/files", "OpenFiles"),
 ]
 
 TILE_RE = re.compile(
@@ -106,7 +107,7 @@ def test_clickable_logos_does_not_change_the_start_page(monkeypatch):
 
 OWN_ICON = {"/todo": "todo", "/calendar": "calendar", "/messages": "messages",
             "/maps": "maps", "/codeeditor": "code", "/onlineshop": "shop",
-            "/openbanking": "wallet"}
+            "/openbanking": "wallet", "/files": "files"}
 
 
 def test_default_icons_match_their_tiles(monkeypatch):

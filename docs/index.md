@@ -172,6 +172,7 @@ layout in play. Every app has `default`, plus:
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| `files` | `icons` | Folder contents as a grid of first-page thumbnails |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
 
@@ -605,6 +606,33 @@ All logs are stored `log_outputs` will contain information about each run
 You can also enable logging to weights and biases by logging into your account and setting the flag: `use_wandb=True`.
 
 
+
+##### Files, statements and receipts
+
+Files is one store shared by every app (`open_apps.files_store`), so every
+run serves it: a config without it (`~apps/files`) is refused at launch.
+
+* the bank's Statements page saves PDFs to `Statements/<account> — <Month YYYY>.pdf`;
+* the shop writes `Receipts/OpenShop order <id>.pdf` on checkout and for seeded orders;
+* `Code/` *is* the code editor's workspace. It is left out of `/files_all`, so
+  `/codeeditor_all` stays the only state for code files.
+
+Seeded documents are committed files (`src/open_apps/apps/files_app/seed/`,
+named by each content pack's `source`), copied in on every launch and reset.
+Statements and receipts are drawn by `open_apps.pdf_writer` when they are
+saved (deterministic: the same ledger or order gives the same bytes). PDFs
+are read with the vendored pdf.js, so their text is in the accessibility tree
+once a document is open -- not in the thumbnails. Recently Deleted keeps items for 30 days counted from the pinned
+date (`apps.files.today`, the bank's `as_of_date`), and never empties itself.
+
+`/files_all` lists every file and trashed item by path, size and sha256, and is
+compared exactly: "lease 2026.pdf" is not "Lease 2026.pdf".
+
+File tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=files task_name=restore_w2_draft
+```
 
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel

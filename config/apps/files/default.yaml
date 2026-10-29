@@ -1,0 +1,17 @@
+# The shared file store's browser. The store itself (open_apps.files_store) is
+# a folder tree under `root`; the bank and shop write statements and receipts
+# into it, and its Code folder *is* the code editor's workspace, not a copy.
+defaults:
+  - content: default
+  - layout: default
+
+root: ${databases_dir}/files
+
+# The app's "today", ISO format. Recently Deleted counts its "N days left"
+# from here, and a deleted file's `deleted_on` is stamped with it. Pinned to
+# the bank's date rather than the wall clock, so the counts -- and the state a
+# delete writes -- don't depend on when an episode runs.
+today: ${apps.openbanking.as_of_date}
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+theme: null

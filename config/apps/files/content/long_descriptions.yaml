@@ -1,0 +1,40 @@
+# @package apps.files
+defaults:
+  - default
+
+# Adds more files to read past. The default ones are untouched, so every
+# task's answer still holds, and nothing here is a medical report: the August
+# visit summary stays the latest one.
+documents:
+  labs_2025:
+    folder: Documents
+    name: "Lab Results 2025-09-02.pdf"
+    source: labs_2025.pdf
+  auto_renewal:
+    folder: Documents
+    name: "Auto Policy Renewal 2026.pdf"
+    source: auto_renewal.pdf
+  gym:
+    folder: Documents
+    name: "Gym Membership Agreement.pdf"
+    source: gym.pdf
+  recipes:
+    folder: Documents
+    name: "Low Sodium Recipes.txt"
+    body: |
+      Weeknight low-sodium rotation
+
+      Mon - sheet-pan salmon, lemon, asparagus
+      Tue - black bean tacos, lime crema (no added salt)
+      Wed - chicken & white bean soup, homemade stock
+      Thu - tofu stir-fry, low-sodium tamari (1 tsp)
+      Fri - pasta with roasted tomatoes and basil
+  moving_notes:
+    folder: Downloads
+    name: "Moving Checklist.txt"
+    body: |
+      If we move when the lease ends:
+      - give 60 days' notice (by Aug 1!)
+      - book movers 4 weeks out
+      - forward mail, update bank + insurance addresses
+      - deep clean, photos for the deposit walkthrough
