@@ -206,6 +206,9 @@ class OpenAppsLauncher:
         task_name = self.config.get("task_name")
         if task_name:
             run_name = f"{run_name}-{task_name}"
+        # Set only by a sweep with parallel_tasks.repeats > 1.
+        if self.config.get("repeat") is not None:
+            run_name = f"{run_name}-r{self.config.repeat}"
 
         logger = wandb.init(
             **self.config.wandb,

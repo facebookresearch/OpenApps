@@ -302,3 +302,39 @@ def test_local_uses_the_supplied_launcher(catalogs, monkeypatch):
     )
     parallel_launcher.run_locally(config, jobs, len(jobs), OpenAppsLauncher)
     assert calls == [(job, OpenAppsLauncher) for job in jobs]
+
+
+def test_repeats_multiply_every_job_with_the_seed_fixed(catalogs):
+    _, jobs = compose_jobs(catalogs, "parallel_tasks.repeats=2")
+    assert len(jobs) == 32
+    assert len({job.logs_dir for job in jobs}) == 32
+    assert [job.repeat for job in jobs[:4]] == [0, 1, 0, 1]
+    assert {job.seed for job in jobs} == {jobs[0].seed}
+    # A repeat is the same job again: only its id and storage differ.
+    first, again = jobs[0], jobs[1]
+    assert (first.task_name, first.agent_config_name, list(first.app_overrides)) == (
+        again.task_name, again.agent_config_name, list(again.app_overrides)
+    )
+
+
+def test_repeats_apply_to_the_single_file_sweep_too(tmp_path):
+    overrides = [
+        f"logs_dir={tmp_path}/logs",
+        "parallel_tasks.task_names=[navigate_to_todo]",
+        "parallel_tasks.app_variations=[[]]",
+        "parallel_tasks.repeats=3",
+    ]
+    with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+        config = compose(config_name="config_parallel_tasks", overrides=overrides)
+        jobs = create_job_configs(config, overrides, "config_parallel_tasks")
+    assert [job.repeat for job in jobs] == [0, 1, 2]
+
+
+def test_a_single_run_has_no_repeat_number(catalogs):
+    _, jobs = compose_jobs(catalogs)
+    assert {job.repeat for job in jobs} == {None}
+
+
+def test_repeats_must_be_positive(catalogs):
+    with pytest.raises(Exception, match="repeats must be at least 1"):
+        compose_jobs(catalogs, "parallel_tasks.repeats=0")

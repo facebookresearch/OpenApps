@@ -47,6 +47,9 @@ parallel_tasks:
     # One override now themes every app -- that is the point of the shared
     # `apps/theme` group replacing the per-app `appearance` ones.
     - ["apps/theme=dark"]
+  # Runs per job, to measure an agent's run-to-run variance. The seed stays
+  # fixed, so the environment does not vary with it.
+  repeats: 1
 
 # auto-populated by launch_parallel_agents.py
 task_name: null
