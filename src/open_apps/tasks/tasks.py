@@ -375,6 +375,12 @@ def _reconcile_payments(target: dict, observed: dict) -> tuple[dict, dict, bool]
         ({row["counterparty"], *row.pop("_aliases", [])}, row.pop("_memo_includes", []))
         for row in expected
     ]
+    # A state built by a task (a target compared with itself, or one task's
+    # target as another's observed state) carries the same hints; real app
+    # state never does.
+    for row in made:
+        row.pop("_aliases", None)
+        row.pop("_memo_includes", None)
     if len(expected) != len(made):
         return target, observed, False
 
@@ -1952,7 +1958,13 @@ class SendMoneyTask(Task):
                 "amount": -amount,
                 "balance": balance,
                 "counterparty": handle,
-                "memo": None,
+                # A memo that meets the task's own rules (the first
+                # alternative of each), so the target is a state the app can
+                # produce. Not compared -- see the normalizer.
+                "memo": " ".join(
+                    rule if isinstance(rule, str) else str(list(rule)[0])
+                    for rule in (self.memo_includes or [])
+                ) or None,
                 "_aliases": aliases,
                 "_memo_includes": [
                     rule if isinstance(rule, str) else list(rule)
