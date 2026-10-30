@@ -132,7 +132,9 @@ def _deposit_account(from_id) -> Optional[bank.Account]:
 def _new_contact_values(save_as: dict, payee: Payee) -> dict:
     """``save_as`` plus the payee's handle, in ``contacts_app.parse_form``'s shape."""
     kind = handle_kind(payee.handle)
-    entry = [("email" if kind == "email" else "mobile", payee.handle)]
+    # The labels the New Contact form defaults to; anything outside
+    # mobile/work/home/other is filed as "other".
+    entry = [("home" if kind == "email" else "mobile", payee.handle)]
     return {
         "first_name": str(save_as.get("first_name") or "").strip(),
         "last_name": str(save_as.get("last_name") or "").strip(),

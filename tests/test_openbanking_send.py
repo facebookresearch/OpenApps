@@ -131,14 +131,14 @@ class TestWhoGetsPaid:
         (sam,) = [c for c in client.get("/contacts_all").json()["contacts"] if c["first_name"] == "Sam"]
         assert sam["id"] == result.contact_id
         assert sam["last_name"] == "Ortiz"
-        assert [e["value"] for e in sam["emails"]] == ["sam.ortiz@example.com"]
+        assert sam["emails"] == [{"label": "home", "value": "sam.ortiz@example.com"}]
         assert sam["phones"] == []
 
     def test_a_saved_phone_is_filed_as_a_phone(self, client):
         result = send(to="555-014-7788", amount="60", save_as={"first_name": "Sam"})
         assert result.ok, result.errors
         (sam,) = [c for c in client.get("/contacts_all").json()["contacts"] if c["first_name"] == "Sam"]
-        assert [p["value"] for p in sam["phones"]] == ["+15550147788"]
+        assert sam["phones"] == [{"label": "mobile", "value": "+15550147788"}]
 
 
 class TestARefusedSendWritesNothing:
