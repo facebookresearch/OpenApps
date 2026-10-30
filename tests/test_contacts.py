@@ -349,6 +349,37 @@ class TestSearch:
         assert "favorite-row-" not in html and "ct-index" not in html
 
 
+class TestAddContact:
+    """``add_contact`` is the one insert path: the New Contact form and the
+    bank's "Save to Contacts" both go through it."""
+
+    @staticmethod
+    def values(**overrides) -> dict:
+        values = {"first_name": "", "last_name": "", "company": "", "note": "",
+                  "favorite": False, "phones": [], "emails": []}
+        values.update(overrides)
+        return values
+
+    def test_stores_the_contact_and_its_handle(self, client, reseed):
+        from open_apps.apps.contacts_app.main import add_contact
+
+        person, errors = add_contact(self.values(
+            first_name="Sam", last_name="Ortiz", emails=[("home", " Sam.Ortiz@Example.com ")]))
+        assert errors == {}
+        sam = by_name(client, "Sam Ortiz")
+        assert sam["id"] == person.id
+        assert sam["emails"] == [{"label": "home", "value": "sam.ortiz@example.com"}]
+
+    def test_refuses_a_handle_someone_else_owns(self, client, reseed):
+        from open_apps.apps.contacts_app.main import add_contact
+
+        before = client.get("/contacts_all").text
+        person, errors = add_contact(self.values(first_name="Robert", emails=[("home", "bob@example.com")]))
+        assert person is None
+        assert "Bob" in errors["_form"]
+        assert client.get("/contacts_all").text == before
+
+
 class TestEditing:
     def test_create_stores_normalised_handles(self, client, reseed):
         response = client.post(

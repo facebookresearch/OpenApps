@@ -81,6 +81,38 @@ charge_declined_message: "Karte abgelehnt. Bitte Kartendaten prüfen und erneut 
 charge_insufficient_message: "Karte abgelehnt: nicht genügend verfügbarer Kredit."
 charge_unavailable_message: "Kartenzahlungen sind derzeit nicht möglich."
 
+# Wie dieses Paket Buchungsdaten schreibt ("26. Aug. 2026").
+posting_date_style: de
+
+# --- Geld senden ---
+send_link_label: "Geld senden"
+send_heading: "Geld senden"
+send_from_label: "Von"
+send_to_label: "An"
+send_to_placeholder: "Name, E-Mail oder Mobilnummer"
+send_amount_label: "Betrag"
+send_memo_label: "Verwendungszweck (optional)"
+send_memo_summary_label: "Verwendungszweck"
+send_review_button: "Prüfen"
+send_cancel_label: "Abbrechen"
+send_no_matches: "Keine Kontakte gefunden. Geben Sie eine E-Mail-Adresse oder Mobilnummer ein."
+send_review_heading: "Zahlung prüfen"
+send_confirm_button: "{amount} senden"
+send_edit_label: "Bearbeiten"
+send_new_payee_note: "{handle} ist nicht in Ihren Kontakten."
+send_save_label: "In Kontakten speichern"
+send_first_name_label: "Vorname"
+send_last_name_label: "Nachname"
+send_sent_message: "{amount} an {name} gesendet"
+send_description: "Zelle an {name}"
+send_type: "Zelle"
+send_error_account: "Wählen Sie ein Giro- oder Sparkonto."
+send_error_amount: "Geben Sie einen Betrag über 0,00 $ ein."
+send_error_funds: "Nicht genügend Guthaben: {account} hat {available} verfügbar."
+send_error_recipient: "Geben Sie den Namen eines Kontakts, eine E-Mail-Adresse oder eine US-Telefonnummer ein."
+send_error_name: "Geben Sie einen Namen ein, um diesen Kontakt zu speichern."
+send_error_saved: "{handle} ist bereits als {name} gespeichert."
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit
@@ -231,3 +263,49 @@ accounts:
         type: "Zinsen"
         amount: -79.00
         balance: -1588.21
+
+  # Das eigene Konto (siehe `default.yaml`). Beträge und Salden wie dort.
+  - name: "EVERYDAY CHECKING (...4417)"
+    kind: deposit
+    holder: "Dana Reyes"
+    account_number: "801233014417"
+    routing_number: "123456789"
+    available_balance: 4212.67
+    present_balance: 4212.67
+    available_credit: 0.00
+    transactions:
+      - date: "24. Aug. 2026"
+        description: "BRIGHTLINE MOBILFUNK LASTSCHRIFT KONTO ...0912"
+        type: "SEPA-Lastschrift"
+        amount: -65.00
+        balance: 4212.67
+      - date: "21. Aug. 2026"
+        description: "GREENWAY MARKT #118 SEATTLE WA 20.08. (...4417)"
+        type: "Karte"
+        amount: -84.36
+        balance: 4277.67
+      - date: "18. Aug. 2026"
+        description: "NAHVERKEHR FAHRKARTE AUFLADUNG 17.08. (...4417)"
+        type: "Karte"
+        amount: -40.00
+        balance: 4362.03
+      - date: "15. Aug. 2026"
+        description: "GEHALT HARBOR LIGHT DESIGN DIREKTGUTSCHRIFT ID: 7731"
+        type: "Gutschrift"
+        amount: 2384.50
+        balance: 4402.03
+      - date: "12. Aug. 2026"
+        description: "STADTWERKE STROM LASTSCHRIFT KONTO ...5520"
+        type: "SEPA-Lastschrift"
+        amount: -112.48
+        balance: 2017.53
+      - date: "05. Aug. 2026"
+        description: "KREDITKARTE LASTSCHRIFT ...7781"
+        type: "SEPA-Lastschrift"
+        amount: -1500.00
+        balance: 2130.01
+      - date: "01. Aug. 2026"
+        description: "GEHALT HARBOR LIGHT DESIGN DIREKTGUTSCHRIFT ID: 7731"
+        type: "Gutschrift"
+        amount: 2384.50
+        balance: 3630.01

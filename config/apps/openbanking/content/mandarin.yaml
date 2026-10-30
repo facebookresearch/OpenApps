@@ -78,6 +78,38 @@ charge_declined_message: "银行卡被拒绝。请检查卡片信息后重试。
 charge_insufficient_message: "银行卡被拒绝：可用信用额度不足。"
 charge_unavailable_message: "目前无法使用银行卡付款。"
 
+# 本内容包的记账日期写法（"2026年8月26日"）。
+posting_date_style: zh
+
+# --- 转账 ---
+send_link_label: "转账"
+send_heading: "转账"
+send_from_label: "付款账户"
+send_to_label: "收款人"
+send_to_placeholder: "姓名、电子邮件或手机号码"
+send_amount_label: "金额"
+send_memo_label: "备注（可选）"
+send_memo_summary_label: "备注"
+send_review_button: "确认信息"
+send_cancel_label: "取消"
+send_no_matches: "没有匹配的联系人。请输入电子邮件地址或手机号码。"
+send_review_heading: "核对付款"
+send_confirm_button: "发送 {amount}"
+send_edit_label: "修改"
+send_new_payee_note: "{handle} 不在你的联系人中。"
+send_save_label: "保存到联系人"
+send_first_name_label: "名"
+send_last_name_label: "姓"
+send_sent_message: "已向 {name} 发送 {amount}"
+send_description: "Zelle 转账给 {name}"
+send_type: "Zelle"
+send_error_account: "请选择支票或储蓄账户。"
+send_error_amount: "请输入大于 $0.00 的金额。"
+send_error_funds: "余额不足：{account} 可用余额为 {available}。"
+send_error_recipient: "请输入联系人姓名、电子邮件地址或美国电话号码。"
+send_error_name: "请填写姓名以保存此联系人。"
+send_error_saved: "{handle} 已保存为 {name}。"
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit
@@ -227,3 +259,49 @@ accounts:
         type: "利息"
         amount: -79.00
         balance: -1588.21
+
+  # 用户本人的账户（见 `default.yaml`）。金额与余额与其一致。
+  - name: "EVERYDAY CHECKING (...4417)"
+    kind: deposit
+    holder: "Dana Reyes"
+    account_number: "801233014417"
+    routing_number: "123456789"
+    available_balance: 4212.67
+    present_balance: 4212.67
+    available_credit: 0.00
+    transactions:
+      - date: "2026年8月24日"
+        description: "BRIGHTLINE 手机 自动扣款 账户 ...0912"
+        type: "ACH 出账"
+        amount: -65.00
+        balance: 4212.67
+      - date: "2026年8月21日"
+        description: "GREENWAY 超市 #118 西雅图 WA 08/20 (...4417)"
+        type: "银行卡"
+        amount: -84.36
+        balance: 4277.67
+      - date: "2026年8月18日"
+        description: "城市公交 交通卡充值 08/17 (...4417)"
+        type: "银行卡"
+        amount: -40.00
+        balance: 4362.03
+      - date: "2026年8月15日"
+        description: "工资 HARBOR LIGHT DESIGN 直接存入 ID: 7731"
+        type: "存款"
+        amount: 2384.50
+        balance: 4402.03
+      - date: "2026年8月12日"
+        description: "城市电力 自动扣款 账户 ...5520"
+        type: "ACH 出账"
+        amount: -112.48
+        balance: 2017.53
+      - date: "2026年8月5日"
+        description: "信用卡 自动还款 ...7781"
+        type: "ACH 出账"
+        amount: -1500.00
+        balance: 2130.01
+      - date: "2026年8月1日"
+        description: "工资 HARBOR LIGHT DESIGN 直接存入 ID: 7731"
+        type: "存款"
+        amount: 2384.50
+        balance: 3630.01

@@ -308,6 +308,111 @@ def resolve_thread(to: str, state: dict) -> str:
     )
 
 
+def _send_rows(state: dict) -> list[dict]:
+    bank = state.get("openbanking")
+    txns = bank.get("transactions") or [] if isinstance(bank, dict) else []
+    return [t for t in txns if isinstance(t, dict) and t.get("counterparty") is not None]
+
+
+# A memo is matched on words, not on squeezed text: punctuation separates
+# words ("Unit-2" is "unit 2") rather than vanishing, and a match has to end
+# where a word does, so "Unit 21" is not "Unit 2". "#" is kept, because "#2"
+# is how people write a unit number.
+_MEMO_SEPARATORS = re.compile(r"[^\w#]+")
+
+
+def _memo_words(text) -> str:
+    return " ".join(_MEMO_SEPARATORS.sub(" ", str(text or "").casefold()).split())
+
+
+def _memo_has(memo, wanted) -> bool:
+    words = _memo_words(wanted)
+    return bool(words) and re.search(
+        rf"(?<![\w#]){re.escape(words)}(?![\w#])", _memo_words(memo)
+    ) is not None
+
+
+def _memo_satisfies(memo, rules) -> bool:
+    """Whether ``memo`` meets every rule. A rule is a string, or a list of
+    strings any one of which will do ("Unit 2", "Apt 2", "#2")."""
+    return all(
+        any(_memo_has(memo, alt) for alt in ([rule] if isinstance(rule, str) else rule))
+        for rule in rules
+    )
+
+
+def _reconcile_payments(target: dict, observed: dict) -> tuple[dict, dict, bool]:
+    """Pair each payment the target expects with one the observed state made.
+
+    Returns ``(target, observed, ok)`` -- copies whenever there is a payment
+    to reconcile, with the target's matching hints removed and each paired
+    observed payee rewritten to the target's spelling.
+
+    A target payment (``SendMoneyTask``) names one canonical payee and may
+    carry ``_aliases``, every handle that counts as that payee (a contact's
+    email *and* phone), and ``_memo_includes`` (see :func:`_memo_satisfies`).
+    It can pair with an observed payment on the same account, for the same
+    amount, whose memo meets the rules and whose payee is the canonical
+    handle or an alias -- compared exactly, because the fuzzy diff that
+    follows strips punctuation and would let ``samortiz@example.com`` pass
+    for ``sam.ortiz@example.com``.
+
+    The pairing is a matching, not a first-fit: with "pay Bob" (any of his
+    handles) and "pay bob@example.com" both expected, paying his email first
+    must not leave the second task without a partner. Payments are a handful
+    per episode, so a plain augmenting-path search is enough.
+
+    ``ok`` is False when the counts differ or no complete pairing exists.
+    Only the bank slice is copied.
+    """
+    expected, made = _send_rows(target), _send_rows(observed)
+    if not expected and not made:
+        return target, observed, True
+    target = {**target, "openbanking": copy.deepcopy(target.get("openbanking"))}
+    observed = {**observed, "openbanking": copy.deepcopy(observed.get("openbanking"))}
+    expected, made = _send_rows(target), _send_rows(observed)
+    hints = [
+        ({row["counterparty"], *row.pop("_aliases", [])}, row.pop("_memo_includes", []))
+        for row in expected
+    ]
+    # A state built by a task (a target compared with itself, or one task's
+    # target as another's observed state) carries the same hints; real app
+    # state never does.
+    for row in made:
+        row.pop("_aliases", None)
+        row.pop("_memo_includes", None)
+    if len(expected) != len(made):
+        return target, observed, False
+
+    def fits(i: int, j: int) -> bool:
+        row, seen = expected[i], made[j]
+        aliases, rules = hints[i]
+        return (
+            seen.get("account_id") == row.get("account_id")
+            and round(float(seen.get("amount") or 0), 2) == round(float(row.get("amount") or 0), 2)
+            and seen["counterparty"] in aliases
+            and _memo_satisfies(seen.get("memo"), rules)
+        )
+
+    partner_of: dict[int, int] = {}  # observed index -> expected index
+
+    def place(i: int, tried: set) -> bool:
+        for j in range(len(made)):
+            if j in tried or not fits(i, j):
+                continue
+            tried.add(j)
+            if j not in partner_of or place(partner_of[j], tried):
+                partner_of[j] = i
+                return True
+        return False
+
+    if not all(place(i, set()) for i in range(len(expected))):
+        return target, observed, False
+    for j, i in partner_of.items():
+        made[j]["counterparty"] = expected[i]["counterparty"]
+    return target, observed, True
+
+
 class AppStateComparison:
     """
     Compare two app states for similarity.
@@ -346,6 +451,10 @@ class AppStateComparison:
         # ``DeclinedCardPurchaseTask``.
         self.normalize_purchases = normalize_purchases
 
+        # Before preprocess, which drops a payment's memo: pairing reads it.
+        self.raw_state1, self.raw_state2, self.payments_match = _reconcile_payments(
+            self.raw_state1, self.raw_state2
+        )
         self.state1 = self.preprocess(self.raw_state1)
         self.state2 = self.preprocess(self.raw_state2)
 
@@ -378,10 +487,53 @@ class AppStateComparison:
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
+        state = self._normalize_bank(state)
         if self.normalize_purchases:
             state = self._normalize_purchases(state)
         state = self.sort_lists(state)
         state = self._sort_files(state)
+        return state
+
+    @staticmethod
+    def _normalize_bank(state: dict) -> dict:
+        """Normalise the ledger's payment fields.
+
+        A row's ``counterparty`` and ``memo`` go when they are null. Only a
+        payment the user sends sets them (``openbanking_app.send``); leaving
+        the nulls in would make every target that predates the fields -- a
+        card purchase's row, a captured fixture -- differ from the live
+        payload on keys nobody set.
+
+        On a payment (a row with a counterparty) ``id``, ``position``,
+        ``date``, ``description``, ``memo`` and ``balance`` go too. The first
+        two are the bank's numbering; the date is the pack's spelling of the
+        pinned day; the description carries the payee's name however it
+        resolved ("Zelle to Bob", "Zelle to bob@example.com"); the memo is
+        free text, already checked for what the task needs by
+        :func:`_reconcile_payments`; and the running balance depends on the
+        order two payments were made in, which a composite does not fix --
+        the account's own balances still have to come out right. What is
+        left -- account, amount, type, payee -- is what the payment did, and
+        payments sort on it, after the ledger's other rows.
+        """
+        bank = state.get("openbanking")
+        if not isinstance(bank, dict) or not isinstance(bank.get("transactions"), list):
+            return state
+        txns = bank["transactions"]
+        for txn in txns:
+            if txn.get("counterparty") is not None:
+                for key in ("id", "position", "date", "description", "memo", "balance"):
+                    txn.pop(key, None)
+            for key in ("counterparty", "memo"):
+                if key in txn and txn[key] is None:
+                    del txn[key]
+        sends = [t for t in txns if "counterparty" in t]
+        if sends:
+            others = [t for t in txns if "counterparty" not in t]
+            bank["transactions"] = others + sorted(
+                sends,
+                key=lambda t: (str(t.get("account_id")), t["counterparty"], float(t.get("amount") or 0)),
+            )
         return state
 
     @staticmethod
@@ -731,6 +883,9 @@ class AppStateComparison:
         if self.reply_contacts:
             self._truncate_message_replies()
 
+        if not self.payments_match:
+            print("===Payments differ (payee, amount, account or memo)")
+            return False
         if not self._contact_handles_match():
             print("===Contact handles differ")
             return False
@@ -1716,6 +1871,136 @@ class NavigateToAppTask(Task):
 
 
 @dataclass
+class SendMoneyTask(Task):
+    """Pay someone from a deposit account with the bank's Send money.
+
+    The target is the initial state plus one payment row and the two
+    balances it lowers -- and, with ``save_contact``, the payee filed in
+    Contacts. Everything else must stay as it was.
+
+    ``to`` is a handle (any spelling); ``to_contact`` names a contact instead,
+    and any of their handles counts as paying them -- "send Bob $18" is met
+    whether the agent picked his email or typed his number. Exactly one of
+    the two. ``memo_includes`` lists what the memo must contain, matched on
+    whole words, case-insensitively, with punctuation as a word break ("Unit
+    2" matches "unit-2 rent" but not "Unit 21"). An entry may be a list of
+    alternatives, any one of which will do.
+
+    The row's date, description and memo are not compared as text (see
+    ``AppStateComparison._normalize_bank``); the payee is compared exactly
+    (see :func:`_reconcile_payments`).
+    """
+
+    amount: float = 0.0
+    from_account_last4: str = ""
+    to: Optional[str] = None
+    to_contact: Optional[str] = None
+    memo_includes: list = field(default_factory=list)
+    # {first_name, last_name?, company?} when the task also saves the payee.
+    save_contact: Optional[dict] = None
+    # Mirrors `apps.openbanking.send_type`; a run that overrides it has to
+    # override this too.
+    send_type: str = "Zelle"
+
+    def __post_init__(self) -> None:
+        if (self.to is None) == (self.to_contact is None):
+            raise ValueError("SendMoneyTask needs exactly one of `to` and `to_contact`")
+
+    def _account(self, accounts: list) -> dict:
+        for account in accounts:
+            number = str(account.get("account_number") or "")
+            if account.get("kind", "deposit") != "credit_card" and number.endswith(self.from_account_last4):
+                return account
+        raise ValueError(f"no deposit account ending {self.from_account_last4} in the initial state")
+
+    def payee(self, initial_state: dict) -> tuple[str, list[str]]:
+        """``(canonical handle, every handle that counts)``. A contact is paid
+        at their first email, else their first phone -- what the bank picks
+        when the agent chooses them by name."""
+        if self.to is not None:
+            handle = normalize_handle(self.to)
+            if handle is None:
+                raise ValueError(f"{self.to!r} is not a handle")
+            return handle, [handle]
+        contact = _match_contact(self.to_contact, initial_state)
+        emails = [h["value"] for h in contact.get("emails") or []]
+        phones = [h["value"] for h in contact.get("phones") or []]
+        handles = emails + phones
+        if not handles:
+            raise ValueError(f"{self.to_contact!r} has no email or phone to pay")
+        return handles[0], handles
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        bank = target_state.get("openbanking")
+        if not isinstance(bank, dict):
+            raise ValueError("SendMoneyTask needs the bank")
+        account = self._account(bank.get("accounts") or [])
+        amount = round(float(self.amount), 2)
+        available = round(float(account.get("available_balance") or 0.0), 2)
+        if amount <= 0 or amount > available:
+            raise ValueError(f"{amount} is not a payment the bank would make from {available} available")
+        handle, aliases = self.payee(initial_state)
+
+        balance = round(float(account.get("present_balance") or 0.0) - amount, 2)
+        account["present_balance"] = balance
+        account["available_balance"] = round(available - amount, 2)
+        bank.setdefault("transactions", []).append(
+            {
+                # id/position/date/description/memo/balance are dropped for payments
+                # by the normalizer -- see there.
+                "id": None,
+                "account_id": account.get("id"),
+                "position": None,
+                "date": None,
+                "description": None,
+                "type": self.send_type,
+                "amount": -amount,
+                "balance": balance,
+                "counterparty": handle,
+                # A memo that meets the task's own rules (the first
+                # alternative of each), so the target is a state the app can
+                # produce. Not compared -- see the normalizer.
+                "memo": " ".join(
+                    rule if isinstance(rule, str) else str(list(rule)[0])
+                    for rule in (self.memo_includes or [])
+                ) or None,
+                "_aliases": aliases,
+                "_memo_includes": [
+                    rule if isinstance(rule, str) else list(rule)
+                    for rule in (self.memo_includes or [])
+                ],
+            }
+        )
+        if self.save_contact:
+            kind = "email" if "@" in handle else "phone"
+            book = target_state.setdefault("contacts", {}).setdefault("contacts", [])
+            book.append(
+                {
+                    "id": None,
+                    "first_name": str(self.save_contact.get("first_name") or ""),
+                    "last_name": str(self.save_contact.get("last_name") or ""),
+                    "company": str(self.save_contact.get("company") or ""),
+                    "note": "",
+                    "favorite": False,
+                    "phones": _contact_handles([handle], "phone") if kind == "phone" else [],
+                    "emails": _contact_handles([handle], "email") if kind == "email" else [],
+                }
+            )
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
 @dataclass
 class CompositeTask(Task):
     """A meta-task made of several sub-tasks that must *all* be satisfied.
