@@ -10,11 +10,11 @@ import hydra
 # Sentinel value for task_names that expands to every task in the tasks config.
 ALL_TASKS = "all"
 
-#: Keys every run takes from the parent config rather than from its own
-#: compose. The launcher settles them before fanning out -- `record_video_dir`
-#: is pinned to an absolute path by `freeze_recording_dir` -- and `${now:...}`
-#: is not cached, so a fresh compose would stamp each run with its own time.
-#: Copied unresolved, so `${job_id}` in a SLURM `logs_dir` still resolves per job.
+#: Paths every job inherits from the parent rather than recomputing them.
+#: The parallel launcher resolves logs_dir once and creates a per-run folder;
+#: create_job_configs then assigns job-specific logs and databases directories.
+#: freeze_recording_dir pins the common recordings path before fan-out.
+#: Other inherited interpolations stay unresolved until their job uses them.
 INHERITED_KEYS = ("logs_dir", "databases_dir", "record_video_dir")
 
 

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 from typing import Sequence
+import warnings
 
 import hydra
 import submitit
@@ -161,6 +162,17 @@ def launch_parallel(
     cluster = config.get("cluster")
     if cluster not in ("local", "slurm"):
         raise ValueError(f"cluster={cluster} is not supported for parallel agents")
+    logs_template = OmegaConf.to_container(config, resolve=False).get("logs_dir")
+    if isinstance(logs_template, str) and (
+        "${job_id}" in logs_template or "${agent." in logs_template
+    ):
+        warnings.warn(
+            "logs_dir is resolved once in the parent. References to job_id or "
+            "agent.* use the parent values for every job. Use a sweep-level "
+            "logs root; run and job subdirectories are added automatically.",
+            UserWarning,
+            stacklevel=2,
+        )
     logs_root = Path(hydra.utils.to_absolute_path(str(config.logs_dir))).resolve()
     logs_root.mkdir(parents=True, exist_ok=True)
     config.logs_dir = tempfile.mkdtemp(prefix="run-", dir=logs_root)

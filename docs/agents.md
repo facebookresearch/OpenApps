@@ -141,7 +141,7 @@ cp config/mode/slurm_cluster.yaml config/mode/internal-slurm_cluster.yaml
 # @package _global_
 project: open_apps
 
-logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${agent.model_name}/${job_id}
+logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}
 databases_dir: ${logs_dir}/databases
 
 cluster: slurm
@@ -159,6 +159,11 @@ slurm_sweep_launcher:
   slurm_srun_args: ["-vv", "--cpu-bind", "none"]
   slurm_comment: "parallel agent tasks"
 ```
+
+For the parallel launcher, `logs_dir` is a sweep-level root resolved once in
+the parent. Results go under `logs_dir/run-<id>/<job_id>/`, and each job's saved
+config records its agent. Do not include `${job_id}` or `${agent.*}` references
+in the root: they use the parent's values for every job and trigger a warning.
 
 Select it like any other Hydra mode:
 
