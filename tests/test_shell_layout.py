@@ -544,6 +544,8 @@ class TestPinResolution:
         pinned = self.resolve()
         assert pinned == [
             "todo", "calendar", "messages", "maps", "codeeditor", "onlineshop", "openbanking",
+            "files",
+            "contacts",
         ]
 
     @pytest.mark.parametrize(

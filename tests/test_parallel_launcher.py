@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from pathlib import Path
 import subprocess
 import sys
+import warnings
 
 import pytest
 from hydra import compose, initialize_config_dir
@@ -225,6 +226,42 @@ def test_worker_environment_interpolations_stay_lazy(tmp_path, monkeypatch):
     assert OmegaConf.is_interpolation(job.agent, "api_key")
 
 
+@pytest.mark.parametrize("reference", ["${job_id}", "${agent.model_name}"])
+@pytest.mark.parametrize("cluster", ["local", "slurm"])
+def test_job_specific_logs_root_warns_before_parent_resolution(
+    tmp_path, monkeypatch, reference, cluster
+):
+    config = OmegaConf.create({
+        "cluster": cluster,
+        "logs_dir": f"{tmp_path}/{reference}",
+        "job_id": 0,
+        "agent": {"model_name": "dummy"},
+    })
+    monkeypatch.setattr(parallel_launcher, "create_job_configs", lambda _: [])
+    monkeypatch.setattr(parallel_launcher, "run_locally", lambda *args: None)
+    monkeypatch.setattr(parallel_launcher, "run_via_slurm", lambda *args: [])
+    with pytest.warns(UserWarning, match="logs_dir is resolved once in the parent"):
+        parallel_launcher.launch_parallel(config)
+    expected_parent = "0" if reference == "${job_id}" else "dummy"
+    assert Path(config.logs_dir).parent == tmp_path / expected_parent
+
+
+@pytest.mark.parametrize("cluster", ["local", "slurm"])
+def test_sweep_level_logs_root_does_not_warn(tmp_path, monkeypatch, cluster):
+    config = OmegaConf.create({
+        "cluster": cluster,
+        "logs_dir": f"{tmp_path}/${{project}}",
+        "project": "open_apps",
+    })
+    monkeypatch.setattr(parallel_launcher, "create_job_configs", lambda _: [])
+    monkeypatch.setattr(parallel_launcher, "run_locally", lambda *args: None)
+    monkeypatch.setattr(parallel_launcher, "run_via_slurm", lambda *args: [])
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        parallel_launcher.launch_parallel(config)
+    assert not captured
+
+
 @pytest.mark.parametrize("cluster", ["local", "slurm"])
 def test_independent_launches_with_shared_logs_root_get_unique_storage(
     tmp_path, monkeypatch, cluster
@@ -260,6 +297,7 @@ def test_independent_launches_with_shared_logs_root_get_unique_storage(
         run_dir = Path(logs_dir).parent
         assert run_dir.parent == tmp_path and run_dir.is_dir()
         assert run_dir.name.startswith("run-")
+        assert run_dir.stat().st_mode & 0o777 == 0o755
         assert Path(databases_dir) == Path(logs_dir) / "databases"
         if cluster == "slurm":
             assert slurm_dir == str(run_dir / "slurm")

@@ -41,6 +41,7 @@ from omegaconf import DictConfig, OmegaConf
 # Project-specific imports
 from open_apps.apps.availability import (
     onlineshop_unavailable_reason,
+    require_files,
     task_needs_onlineshop,
 )
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
@@ -640,12 +641,15 @@ class AgentLauncher(OpenAppsLauncher):
             )
 
     def check_task_can_run(self):
-        """Refuse a task that needs the shop when this run does not serve it.
+        """Refuse a run without Files, or a task that needs the shop when this
+        run does not serve it.
 
         Otherwise the agent spends every step looking for an app whose routes
-        were never registered, and the run reads as a model failure. Checked
+        were never registered (or buys correctly and is scored on a receipt
+        nowhere to be written), and the run reads as a model failure. Checked
         before the web app starts, so the mistake costs nothing.
         """
+        require_files(self.config.apps)
         task_name = self.config.get("task_name")
         task_cfg = self.config.tasks.get(task_name) if task_name else None
         if not task_needs_onlineshop(task_cfg):

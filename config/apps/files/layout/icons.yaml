@@ -1,0 +1,5 @@
+# @package apps.files
+# Structure only -- no colors/fonts (those come from the shared theme).
+# `icons` opens folders as a grid of thumbnails; the preview pane fills in
+# when an item is clicked, as in Finder's icon view.
+layout: icons

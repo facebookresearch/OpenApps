@@ -54,8 +54,9 @@ ROUTES = (
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     # An open conversation, not just the chat list. `split_inbox` and
     # `compact_list` both change the thread view, which the list route never
-    # renders. Alice is present in every content variation.
-    RouteSpec("messages_thread", "/messages/Alice/", "#chatlist"),
+    # renders. Alice's thread is present in every content variation; threads
+    # are keyed by handle, so this is her number, not her name.
+    RouteSpec("messages_thread", "/messages/%2B15550100001/", "#chatlist"),
     RouteSpec("maps", "/maps", "#map"),
     RouteSpec("codeeditor", "/codeeditor/", "#editor"),
     RouteSpec("uilibrary", "/uilibrary", "#uilibrary"),
@@ -69,10 +70,26 @@ ROUTES = (
     # The card summary is a different layout from the deposit one -- card
     # graphic plus payment panel -- so it needs its own baseline.
     RouteSpec("openbanking_card", "/openbanking/accounts/2", ".ob-cardface"),
+    # Savings has three statement months (Jun-Aug), so the list isn't a
+    # single row.
+    RouteSpec("openbanking_statements", "/openbanking/accounts/1/statements", ".ob-card"),
     RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
     RouteSpec("onlineshop_search", "/onlineshop/search/coffee/1", ".card"),
+    RouteSpec("files", "/files/Documents", "#files-content"),
+    # Waits for pdf.js to finish drawing pages and the text layer.
+    RouteSpec(
+        "files_pdf",
+        "/files/view/Documents/Visit%20Summary%202026-08-12.pdf",
+        "#files-viewer[data-ready='1']",
+    ),
+    RouteSpec("files_trash", "/files/recently-deleted", "#files-content"),
+    RouteSpec("contacts", "/contacts", "#ct-list"),
+    # Alice (id 1) has a phone and an email, so the card shows both kinds of
+    # handle row and their Copy pills.
+    RouteSpec("contacts_detail", "/contacts/1", "#ct-detail"),
+    RouteSpec("contacts_new", "/contacts/new", "#ct-form"),
 )
 
 
@@ -80,7 +97,7 @@ THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
-    "onlineshop", "ui_library",
+    "onlineshop", "ui_library", "files", "contacts",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -102,6 +119,8 @@ LAYOUT_VARIATIONS = {
     "layout_code_editor_top_tree": ["apps/code_editor/layout=top_tree"],
     "layout_uilibrary_single_column": ["apps/ui_library/layout=single_column"],
     "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
+    "layout_files_icons": ["apps/files/layout=icons"],
+    "layout_contacts_list_detail": ["apps/contacts/layout=list_detail"],
 }
 
 

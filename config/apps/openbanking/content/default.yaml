@@ -56,6 +56,17 @@ credit_limit_label: "Credit limit"
 
 # --- Transactions panel -----------------------------------------------------
 transactions_heading: "Transactions"
+# Monthly statements, linked beside the Transactions heading. The statement
+# PDFs and their file names stay English in every pack: tasks address the
+# saved file by name.
+statements_label: "Statements"
+statements_heading: "Statements"
+view_label: "View"
+download_label: "Download"
+saved_to_files_label: "Saved to Files"
+already_in_files_label: "Already in Files"
+open_in_files_label: "Open in Files"
+no_statements_label: "No statements yet."
 showing_label: "Showing"
 # The first entry is the unfiltered default. `filter_*` keys below map the
 # remaining entries onto the predicate the app applies, so a translated

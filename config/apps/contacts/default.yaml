@@ -1,0 +1,11 @@
+# The address book. Every app that shows a person resolves the name here: the
+# messenger stores handles (phone/email) and draws names from these entries,
+# and payments and password sharing pick recipients from them.
+defaults:
+  - content: default
+  - layout: default
+
+database_path: ${databases_dir}/contacts.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+theme: null
