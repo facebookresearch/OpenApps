@@ -1,9 +1,15 @@
 """Shared entry points for task and agent sweeps, locally or on SLURM."""
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import functools
 import json
+import multiprocessing
+import os
 from pathlib import Path
+import sys
 import tempfile
-from typing import Sequence
+import traceback
+from typing import Callable, Optional, Sequence
 import warnings
 
 import hydra
@@ -118,10 +124,35 @@ def create_job_configs(
     return jobs
 
 
+def label_wandb_runs(jobs: Sequence[DictConfig], group: str) -> str:
+    """Give every run in a sweep the same W&B group, and its agent as job_type.
+
+    A value already set (``wandb.group=...`` or ``wandb.job_type=...`` on the
+    command line) is kept. Returns the group the runs ended up in.
+    """
+    for job in jobs:
+        with open_dict(job):
+            if not job.wandb.get("group"):
+                job.wandb.group = group
+            if not job.wandb.get("job_type"):
+                agent = job.get("agent") or {}
+                job.wandb.job_type = (
+                    job.get("agent_config_name")
+                    or agent.get("model_pretty_name")
+                    or agent.get("model_name")
+                    or "agent"
+                )
+    return jobs[0].wandb.group if jobs else group
+
+
 def run_task(
     config: DictConfig, launcher_class: type[AgentLauncher] = AgentLauncher
 ) -> None:
     launcher_class(config).launch()
+
+
+#: File each concurrent local job's stdout and stderr go to, inside its logs_dir.
+RUN_LOG = "run.log"
 
 
 def run_locally(
@@ -130,10 +161,88 @@ def run_locally(
     num_jobs: int,
     launcher_class: type[AgentLauncher] = AgentLauncher,
 ) -> None:
-    for job_config in parallel_configs:
-        print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
-        run_task(job_config, launcher_class)
-    print(f"\nFinished {num_jobs} local jobs.")
+    """Run the jobs on this machine: one at a time in this process, streaming
+    to the terminal (``max_parallel=1``, the default), or ``max_parallel`` at
+    a time, each in its own process writing to ``<job logs_dir>/run.log``."""
+    max_parallel = int(config.get("max_parallel", 1) or 1)
+    if max_parallel <= 1:
+        for job_config in parallel_configs:
+            print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
+            run_task(job_config, launcher_class)
+        print(f"\nFinished {num_jobs} local jobs.")
+        return
+    print(f"Running {num_jobs} local jobs, {max_parallel} at a time; each logs to <job>/{RUN_LOG}")
+    task = functools.partial(run_task, launcher_class=launcher_class)
+    failures = run_concurrently(parallel_configs, max_parallel, task)
+    print(f"\nFinished {num_jobs} local jobs: {num_jobs - len(failures)} ok, {len(failures)} failed.")
+    if failures:
+        raise SystemExit(1)
+
+
+def _run_logged(task: Callable[[DictConfig], None], config: DictConfig) -> Optional[str]:
+    """Run ``task`` with this process's output sent to the job's run log.
+
+    Redirects the file descriptors, not just ``sys.stdout``, so output from the
+    web app subprocess and from BrowserGym lands in the log too. Returns the
+    traceback on failure instead of raising, so one bad job is a line in the
+    summary rather than a broken pool.
+    """
+    log_path = Path(config.logs_dir) / RUN_LOG
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    with open(log_path, "a", buffering=1) as log:
+        os.dup2(log.fileno(), sys.stdout.fileno())
+        os.dup2(log.fileno(), sys.stderr.fileno())
+        try:
+            task(config)
+            return None
+        except Exception:
+            trace = traceback.format_exc()
+            print(trace, file=sys.stderr, flush=True)
+            return trace
+
+
+def run_concurrently(
+    configs: Sequence[DictConfig],
+    max_parallel: int,
+    task: Callable[[DictConfig], None] = run_task,
+) -> list[DictConfig]:
+    """Run every config, at most ``max_parallel`` at once. Returns the failures.
+
+    Each job runs in a fresh spawned process (``max_tasks_per_child=1``):
+
+    * **spawn, not fork** -- by the time jobs start, this process has imported
+      Playwright and may have started wandb, both of which run threads, and
+      forking a process with live threads is unsafe.
+    * **one job per process** -- a job leaves state behind: BrowserGym task
+      registrations, SQLite handles, wandb's run. A fresh process starts clean,
+      the same as a separate ``launch_agent.py`` would.
+
+    Each config already carries its own ``job_id``, ``logs_dir`` and
+    ``databases_dir`` (``create_job_configs``), which keep concurrent jobs off
+    each other's ports and databases. ``task`` must be importable by name, since
+    a spawned process receives it by reference.
+    """
+    failures: list[DictConfig] = []
+    with ProcessPoolExecutor(
+        max_workers=max_parallel,
+        mp_context=multiprocessing.get_context("spawn"),
+        max_tasks_per_child=1,
+    ) as pool:
+        futures = {pool.submit(_run_logged, task, config): config for config in configs}
+        for future in as_completed(futures):
+            config = futures[future]
+            try:
+                error = future.result()
+            except Exception as exc:  # the worker process itself died
+                error = repr(exc)
+            log_path = Path(config.logs_dir) / RUN_LOG
+            status = "ok" if error is None else "FAILED"
+            print(f"[done] job {config.job_id} {config.task_name}: {status} -> {log_path}", flush=True)
+            if error is not None:
+                failures.append(config)
+    return failures
 
 
 def run_via_slurm(
@@ -179,6 +288,8 @@ def launch_parallel(
     Path(config.logs_dir).chmod(0o755)
     print(f"Run directory: {config.logs_dir}")
     jobs = create_job_configs(config)
+    if config.get("use_wandb"):
+        print(f"W&B group: {label_wandb_runs(jobs, Path(config.logs_dir).name)}")
     for job_config in jobs:
         catalog = job_config.get("task_config_name")
         task_label = f"{catalog}/{job_config.task_name}" if catalog else job_config.task_name

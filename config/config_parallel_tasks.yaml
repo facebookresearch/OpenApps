@@ -49,6 +49,15 @@ parallel_tasks:
     # One override now themes every app -- that is the point of the shared
     # `apps/theme` group replacing the per-app `appearance` ones.
     - ["apps/theme=dark"]
+  # Runs per job, to measure an agent's run-to-run variance. The seed stays
+  # fixed, so the environment does not vary with it.
+  repeats: 1
+
+# Local jobs to run at once (mode=local only; SLURM schedules its own). 1 runs
+# them one at a time in this process, streaming to the terminal. Above 1, each
+# job runs in its own process and writes to <job logs_dir>/run.log, with a
+# summary at the end; any failure exits non-zero.
+max_parallel: 1
 
 # auto-populated by launch_parallel_agents.py
 task_name: null
@@ -113,3 +122,8 @@ wandb:
   tags: null
   save_code: True
   reinit: True
+  # Every run in one sweep shares a group (the sweep's run-<id> directory name
+  # unless set), and job_type defaults to each run's agent, so a W&B report can
+  # compare agents across one sweep.
+  group: null
+  job_type: null
