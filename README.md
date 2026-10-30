@@ -143,6 +143,7 @@ An explicit single `tasks=...` file also runs in full with `agents=...`, unless
 and databases live under `<logs_dir>/run-<id>/<job_id>/`; SLURM output lives in
 `<logs_dir>/run-<id>/slurm/`. Reusing the same logs root, including with native
 Hydra `--multirun`, therefore keeps job storage separate across runs.
+The run directory uses mode `0755`, so teammates can read and traverse it.
 **Compatibility:** analysis expecting `<logs_dir>/<job_id>/` must include the
 new run-directory level. Saved configs identify `task_config_name` and
 `agent_config_name` for matrix runs.

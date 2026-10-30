@@ -260,6 +260,7 @@ def test_independent_launches_with_shared_logs_root_get_unique_storage(
         run_dir = Path(logs_dir).parent
         assert run_dir.parent == tmp_path and run_dir.is_dir()
         assert run_dir.name.startswith("run-")
+        assert run_dir.stat().st_mode & 0o777 == 0o755
         assert Path(databases_dir) == Path(logs_dir) / "databases"
         if cluster == "slurm":
             assert slurm_dir == str(run_dir / "slurm")

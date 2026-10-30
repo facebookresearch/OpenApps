@@ -164,6 +164,7 @@ def launch_parallel(
     logs_root = Path(hydra.utils.to_absolute_path(str(config.logs_dir))).resolve()
     logs_root.mkdir(parents=True, exist_ok=True)
     config.logs_dir = tempfile.mkdtemp(prefix="run-", dir=logs_root)
+    Path(config.logs_dir).chmod(0o755)
     print(f"Run directory: {config.logs_dir}")
     jobs = create_job_configs(config)
     for job_config in jobs:
