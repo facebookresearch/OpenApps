@@ -30,8 +30,9 @@
 # Scoring notes (see `SendMoneyTask`):
 #   * the payee is compared exactly, after normalising (so "(555) 010-0002" is
 #     Bob's number, but "samortiz@" is not "sam.ortiz@");
-#   * the memo is checked only for `memo_includes`, case- and
-#     punctuation-insensitively;
+#   * the memo is checked only for `memo_includes`, on whole words: "Unit-2
+#     rent" and "Apt #2" include the unit number, "Unit 21" does not. A
+#     list inside `memo_includes` is a set of alternatives;
 #   * one payment exactly: paying twice fails. A refused attempt (a typo, too
 #     much for the balance) writes nothing, so it does not count against the
 #     agent.
@@ -52,7 +53,7 @@ pay_rent_to_northgate:
   from_account_last4: '4417'
   to: rent@northgateprop.example
   memo_includes:
-  - Unit 2
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
 
 pay_rent_to_northgate__casual_1:
   _target_: open_apps.tasks.tasks.SendMoneyTask
@@ -62,7 +63,7 @@ pay_rent_to_northgate__casual_1:
   from_account_last4: '4417'
   to: rent@northgateprop.example
   memo_includes:
-  - Unit 2
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
   goal_style: casual
 
 pay_rent_to_northgate__formal_1:
@@ -74,7 +75,7 @@ pay_rent_to_northgate__formal_1:
   from_account_last4: '4417'
   to: rent@northgateprop.example
   memo_includes:
-  - Unit 2
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
   goal_style: formal
 
 pay_rent_to_northgate__unrelated_context_1:
@@ -86,7 +87,7 @@ pay_rent_to_northgate__unrelated_context_1:
   from_account_last4: '4417'
   to: rent@northgateprop.example
   memo_includes:
-  - Unit 2
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
   goal_style: unrelated_context
 
 send_bob_lunch_money:

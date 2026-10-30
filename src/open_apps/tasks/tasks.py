@@ -314,6 +314,33 @@ def _send_rows(state: dict) -> list[dict]:
     return [t for t in txns if isinstance(t, dict) and t.get("counterparty") is not None]
 
 
+# A memo is matched on words, not on squeezed text: punctuation separates
+# words ("Unit-2" is "unit 2") rather than vanishing, and a match has to end
+# where a word does, so "Unit 21" is not "Unit 2". "#" is kept, because "#2"
+# is how people write a unit number.
+_MEMO_SEPARATORS = re.compile(r"[^\w#]+")
+
+
+def _memo_words(text) -> str:
+    return " ".join(_MEMO_SEPARATORS.sub(" ", str(text or "").casefold()).split())
+
+
+def _memo_has(memo, wanted) -> bool:
+    words = _memo_words(wanted)
+    return bool(words) and re.search(
+        rf"(?<![\w#]){re.escape(words)}(?![\w#])", _memo_words(memo)
+    ) is not None
+
+
+def _memo_satisfies(memo, rules) -> bool:
+    """Whether ``memo`` meets every rule. A rule is a string, or a list of
+    strings any one of which will do ("Unit 2", "Apt 2", "#2")."""
+    return all(
+        any(_memo_has(memo, alt) for alt in ([rule] if isinstance(rule, str) else rule))
+        for rule in rules
+    )
+
+
 def _reconcile_payments(target: dict, observed: dict) -> tuple[dict, dict, bool]:
     """Pair each payment the target expects with one the observed state made.
 
@@ -323,51 +350,61 @@ def _reconcile_payments(target: dict, observed: dict) -> tuple[dict, dict, bool]
 
     A target payment (``SendMoneyTask``) names one canonical payee and may
     carry ``_aliases``, every handle that counts as that payee (a contact's
-    email *and* phone), and ``_memo_includes``. It pairs with an unused
-    observed payment on the same account, for the same amount, whose payee
-    is the canonical handle or an alias -- compared exactly, because the
-    fuzzy diff that follows strips punctuation and would let
-    ``samortiz@example.com`` pass for ``sam.ortiz@example.com``. Pairing is by
-    content, not position, so a composite's payments can happen in any order.
+    email *and* phone), and ``_memo_includes`` (see :func:`_memo_satisfies`).
+    It can pair with an observed payment on the same account, for the same
+    amount, whose memo meets the rules and whose payee is the canonical
+    handle or an alias -- compared exactly, because the fuzzy diff that
+    follows strips punctuation and would let ``samortiz@example.com`` pass
+    for ``sam.ortiz@example.com``.
 
-    ``ok`` is False when any target payment finds no partner, when its memo
-    lacks a required string, or when the observed state made more payments
-    than the target expects.
+    The pairing is a matching, not a first-fit: with "pay Bob" (any of his
+    handles) and "pay bob@example.com" both expected, paying his email first
+    must not leave the second task without a partner. Payments are a handful
+    per episode, so a plain augmenting-path search is enough.
+
+    ``ok`` is False when the counts differ or no complete pairing exists.
+    Only the bank slice is copied.
     """
     expected, made = _send_rows(target), _send_rows(observed)
     if not expected and not made:
         return target, observed, True
-    target, observed = copy.deepcopy(target), copy.deepcopy(observed)
+    target = {**target, "openbanking": copy.deepcopy(target.get("openbanking"))}
+    observed = {**observed, "openbanking": copy.deepcopy(observed.get("openbanking"))}
     expected, made = _send_rows(target), _send_rows(observed)
+    hints = [
+        ({row["counterparty"], *row.pop("_aliases", [])}, row.pop("_memo_includes", []))
+        for row in expected
+    ]
     if len(expected) != len(made):
-        for row in expected:
-            row.pop("_aliases", None)
-            row.pop("_memo_includes", None)
         return target, observed, False
 
-    def norm(text) -> str:
-        return StringSimilarityOperator.normalize_string(str(text or ""))
-
-    ok = True
-    unused = list(made)
-    for row in expected:
-        aliases = {row["counterparty"], *row.pop("_aliases", [])}
-        needed = [norm(s) for s in row.pop("_memo_includes", [])]
-        partner = next(
-            (
-                m for m in unused
-                if m.get("account_id") == row.get("account_id")
-                and round(float(m.get("amount") or 0), 2) == round(float(row.get("amount") or 0), 2)
-                and m["counterparty"] in aliases
-            ),
-            None,
+    def fits(i: int, j: int) -> bool:
+        row, seen = expected[i], made[j]
+        aliases, rules = hints[i]
+        return (
+            seen.get("account_id") == row.get("account_id")
+            and round(float(seen.get("amount") or 0), 2) == round(float(row.get("amount") or 0), 2)
+            and seen["counterparty"] in aliases
+            and _memo_satisfies(seen.get("memo"), rules)
         )
-        if partner is None or not all(n in norm(partner.get("memo")) for n in needed):
-            ok = False
-            continue
-        unused.remove(partner)
-        partner["counterparty"] = row["counterparty"]
-    return target, observed, ok
+
+    partner_of: dict[int, int] = {}  # observed index -> expected index
+
+    def place(i: int, tried: set) -> bool:
+        for j in range(len(made)):
+            if j in tried or not fits(i, j):
+                continue
+            tried.add(j)
+            if j not in partner_of or place(partner_of[j], tried):
+                partner_of[j] = i
+                return True
+        return False
+
+    if not all(place(i, set()) for i in range(len(expected))):
+        return target, observed, False
+    for j, i in partner_of.items():
+        made[j]["counterparty"] = expected[i]["counterparty"]
+    return target, observed, True
 
 
 class AppStateComparison:
@@ -1838,8 +1875,10 @@ class SendMoneyTask(Task):
     ``to`` is a handle (any spelling); ``to_contact`` names a contact instead,
     and any of their handles counts as paying them -- "send Bob $18" is met
     whether the agent picked his email or typed his number. Exactly one of
-    the two. ``memo_includes`` lists strings the memo must contain, compared
-    case- and punctuation-insensitively ("Unit 2" matches "unit #2 rent").
+    the two. ``memo_includes`` lists what the memo must contain, matched on
+    whole words, case-insensitively, with punctuation as a word break ("Unit
+    2" matches "unit-2 rent" but not "Unit 21"). An entry may be a list of
+    alternatives, any one of which will do.
 
     The row's date, description and memo are not compared as text (see
     ``AppStateComparison._normalize_bank``); the payee is compared exactly
@@ -1915,7 +1954,10 @@ class SendMoneyTask(Task):
                 "counterparty": handle,
                 "memo": None,
                 "_aliases": aliases,
-                "_memo_includes": list(self.memo_includes or []),
+                "_memo_includes": [
+                    rule if isinstance(rule, str) else list(rule)
+                    for rule in (self.memo_includes or [])
+                ],
             }
         )
         if self.save_contact:

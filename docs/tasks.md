@@ -293,7 +293,7 @@ uv run launch_agent.py agent=GPT-5.5-computer-use \
 
 | task | what the agent has to find | scored on |
 | --- | --- | --- |
-| `pay_rent_to_northgate` | the amount, address and memo rule, from the lease in Files | $1,850 to `rent@northgateprop.example`, memo contains "Unit 2" |
+| `pay_rent_to_northgate` | the amount, address and memo rule, from the lease in Files | $1,850 to `rent@northgateprop.example`, memo names the unit ("Unit 2", "Apt #2", ...) |
 | `send_bob_lunch_money` | Bob, by name | $18 to any of Bob's handles |
 | `pay_sam_and_save_contact` | nothing -- but Sam is new | $60 to `sam.ortiz@example.com`, and Sam Ortiz in Contacts |
 
@@ -312,8 +312,8 @@ pay_rent_to_northgate:
   amount: 1850
   from_account_last4: '4417'
   to: rent@northgateprop.example   # or `to_contact: Bob` -- any of their handles counts
-  memo_includes:
-  - Unit 2                         # case- and punctuation-insensitive
+  memo_includes:                   # whole words: "Unit-2" passes, "Unit 21" does not
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']   # a list = any one of
   save_contact: null               # {first_name, last_name} to expect the payee in Contacts
 ```
 
@@ -328,6 +328,9 @@ How the reward reads a payment:
   text: the date is the pack's spelling of the pinned day, the description
   carries the payee's name however it resolved ("Zelle to Bob"), and the memo
   is checked only for `memo_includes`. The account's balances are compared.
+* Payments are paired as a matching, not first-fit, so overlapping payees
+  ("pay Bob" and "pay bob@example.com") or two payments that differ only in
+  their memo still pair up.
 * A refused send (a typo in the address, more than the balance) writes
   nothing, so an agent can fix it and try again. Two payments fail.
 * `send_type` mirrors `apps.openbanking.send_type` ("Zelle").

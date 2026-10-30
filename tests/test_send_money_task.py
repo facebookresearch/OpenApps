@@ -132,9 +132,9 @@ class TestTheHappyPath:
              save_as={"first_name": "Sam", "last_name": "Ortiz"})
         assert scores(sam(), initial, cross_state(client))
 
-    def test_memo_matching_ignores_case_and_punctuation(self, client):
+    def test_memo_matching_ignores_case(self, client):
         initial = cross_state(client)
-        send(memo="unit #2 rent")
+        send(memo="UNIT 2 rent")
         assert scores(rent(), initial, cross_state(client))
 
     def test_a_refused_attempt_before_the_right_one_still_scores(self, client):
@@ -143,6 +143,35 @@ class TestTheHappyPath:
         initial = cross_state(client)
         assert not send_payment(from_id=DANA, to="rent@northgateprop.example", amount="99999").ok
         send()
+        assert scores(rent(), initial, cross_state(client))
+
+
+class TestMemoMatching:
+    """The lease asks for "the unit number in the memo". People write that a
+    dozen ways, and one wrong way ("Unit 21") must not pass for it."""
+
+    @pytest.mark.parametrize("memo", ["Unit-2 rent", "unit #2", "Apt 2", "#2 September", "Apartment 2"])
+    def test_ways_of_writing_unit_2(self, client, memo):
+        initial = cross_state(client)
+        send(memo=memo)
+        task = rent(memo_includes=[["Unit 2", "Unit #2", "Apt 2", "Apt #2", "Apartment 2", "#2"]])
+        assert scores(task, initial, cross_state(client))
+
+    @pytest.mark.parametrize("memo", ["Unit 21", "unit2b", "Sept 2 rent", ""])
+    def test_not_unit_2(self, client, memo):
+        initial = cross_state(client)
+        send(memo=memo)
+        task = rent(memo_includes=[["Unit 2", "Unit #2", "Apt 2", "Apt #2", "Apartment 2", "#2"]])
+        assert not scores(task, initial, cross_state(client))
+
+    def test_a_plain_string_is_matched_on_word_boundaries(self, client):
+        initial = cross_state(client)
+        send(memo="Unit 21")
+        assert not scores(rent(), initial, cross_state(client))
+
+    def test_punctuation_separates_words_rather_than_vanishing(self, client):
+        initial = cross_state(client)
+        send(memo="Unit-2/Sept")
         assert scores(rent(), initial, cross_state(client))
 
 
@@ -230,6 +259,25 @@ class TestComposite:
             goal="Pay Bob and note it",
             subtasks=[bob_lunch(), AddToDoTask(goal="note", todo_name="Lunch with Bob", is_done=False)],
         )
+        assert scores(task, initial, cross_state(client))
+
+    def test_overlapping_payees_pair_whichever_way_works(self, client):
+        """`to_contact: Bob` accepts his email or phone; `to: bob@...` only the
+        email. Paid at his email first, a greedy pairing hands it to the first
+        task and leaves the second with nothing."""
+        initial = cross_state(client)
+        send(to="bob@example.com", amount="18", memo="")
+        send(to="+1 (555) 010-0002", amount="18", memo="")
+        task = CompositeTask(goal="Pay Bob twice", subtasks=[
+            bob_lunch(), bob_lunch(to_contact=None, to="bob@example.com")])
+        assert scores(task, initial, cross_state(client))
+
+    def test_same_payee_and_amount_pair_by_memo(self, client):
+        initial = cross_state(client)
+        send(to="Bob", amount="18", memo="dinner")
+        send(to="Bob", amount="18", memo="lunch")
+        task = CompositeTask(goal="Lunch and dinner", subtasks=[
+            bob_lunch(memo_includes=["lunch"]), bob_lunch(memo_includes=["dinner"])])
         assert scores(task, initial, cross_state(client))
 
     def test_two_payments_in_either_order(self, client):

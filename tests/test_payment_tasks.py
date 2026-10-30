@@ -132,7 +132,7 @@ class TestTaskSet:
         task = _task("pay_rent_to_northgate")
         assert task.amount == 1850
         assert task.to == "rent@northgateprop.example"
-        assert task.memo_includes == ["Unit 2"]
+        assert list(task.memo_includes[0])[0] == "Unit 2"
         assert "September" in task.goal
 
 
@@ -150,6 +150,17 @@ class TestPayRent:
     def test_the_renewal_rent_fails(self, client, fresh):
         task, initial = _task("pay_rent_to_northgate"), fresh()
         _pay(client, "rent@northgateprop.example", "1925", memo="Unit 2")
+        assert not _passes(task, initial, fresh())
+
+    @pytest.mark.parametrize("memo", ["Unit-2 Sept", "apt #2", "#2 rent"])
+    def test_the_unit_written_other_ways(self, client, fresh, memo):
+        task, initial = _task("pay_rent_to_northgate"), fresh()
+        _pay(client, "rent@northgateprop.example", "1850", memo=memo)
+        assert _passes(task, initial, fresh())
+
+    def test_the_wrong_unit_fails(self, client, fresh):
+        task, initial = _task("pay_rent_to_northgate"), fresh()
+        _pay(client, "rent@northgateprop.example", "1850", memo="Unit 21")
         assert not _passes(task, initial, fresh())
 
     def test_no_unit_in_the_memo_fails(self, client, fresh):
