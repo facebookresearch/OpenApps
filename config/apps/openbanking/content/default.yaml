@@ -99,8 +99,9 @@ column_labels:
 #
 # `balance: null` renders as an em dash (pending items have no posted balance).
 #
-# The three accounts belong to three different businesses, so an agent cannot
-# assume one holder and must read the one it was asked about.
+# The three business accounts belong to three different businesses, so an
+# agent cannot assume one holder and must read the one it was asked about. The
+# fourth, EVERYDAY CHECKING, is the user's own (Dana Reyes) -- see its comment.
 #
 # `account_number` is masked in the UI down to its last four digits, which
 # match the digits in the account's display name -- revealing it should confirm
@@ -134,6 +135,7 @@ charge_unavailable_message: "Card payments are unavailable right now."
 # sends is dated in it, so the new row reads like the seeded ones; one of
 # `en`, `de`, `zh` (see `statements.format_posting_date`).
 posting_date_style: en
+
 
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
@@ -307,3 +309,54 @@ accounts:
         type: "Interest"
         amount: -79.00
         balance: -1588.21
+
+  # The user's own account, and the one the payment tasks pay from ("from my
+  # Everyday Checking"). The three accounts above belong to three businesses,
+  # so none of them is plausibly where rent comes out of. Appended rather than
+  # inserted so the business accounts keep ids 0-2, and every task that reads
+  # them reads the same figures. Its balance stays under BUS SELECT SAVINGS,
+  # or it becomes the answer to `reconcile_the_largest_account`.
+  - name: "EVERYDAY CHECKING (...4417)"
+    kind: deposit
+    holder: "Dana Reyes"
+    account_number: "801233014417"
+    routing_number: "123456789"
+    available_balance: 4212.67
+    present_balance: 4212.67
+    available_credit: 0.00
+    transactions:
+      - date: "Aug 24, 2026"
+        description: "BRIGHTLINE MOBILE AUTOPAY ACCT ...0912"
+        type: "ACH debit"
+        amount: -65.00
+        balance: 4212.67
+      - date: "Aug 21, 2026"
+        description: "GREENWAY MARKET #118 SEATTLE WA 08/20 (...4417)"
+        type: "Card"
+        amount: -84.36
+        balance: 4277.67
+      - date: "Aug 18, 2026"
+        description: "METRO TRANSIT FARE CARD RELOAD 08/17 (...4417)"
+        type: "Card"
+        amount: -40.00
+        balance: 4362.03
+      - date: "Aug 15, 2026"
+        description: "PAYROLL HARBOR LIGHT DESIGN DIR DEP PPD ID: 7731"
+        type: "Deposit"
+        amount: 2384.50
+        balance: 4402.03
+      - date: "Aug 12, 2026"
+        description: "CITY POWER & LIGHT AUTOPAY ACCT ...5520"
+        type: "ACH debit"
+        amount: -112.48
+        balance: 2017.53
+      - date: "Aug 05, 2026"
+        description: "CARD SERVICES AUTOPAY ...7781"
+        type: "ACH debit"
+        amount: -1500.00
+        balance: 2130.01
+      - date: "Aug 01, 2026"
+        description: "PAYROLL HARBOR LIGHT DESIGN DIR DEP PPD ID: 7731"
+        type: "Deposit"
+        amount: 2384.50
+        balance: 3630.01

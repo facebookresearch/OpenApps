@@ -81,6 +81,7 @@ charge_unavailable_message: "目前无法使用银行卡付款。"
 # 本内容包的记账日期写法（"2026年8月26日"）。
 posting_date_style: zh
 
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit
@@ -230,3 +231,49 @@ accounts:
         type: "利息"
         amount: -79.00
         balance: -1588.21
+
+  # 用户本人的账户（见 `default.yaml`）。金额与余额与其一致。
+  - name: "EVERYDAY CHECKING (...4417)"
+    kind: deposit
+    holder: "Dana Reyes"
+    account_number: "801233014417"
+    routing_number: "123456789"
+    available_balance: 4212.67
+    present_balance: 4212.67
+    available_credit: 0.00
+    transactions:
+      - date: "2026年8月24日"
+        description: "BRIGHTLINE 手机 自动扣款 账户 ...0912"
+        type: "ACH 出账"
+        amount: -65.00
+        balance: 4212.67
+      - date: "2026年8月21日"
+        description: "GREENWAY 超市 #118 西雅图 WA 08/20 (...4417)"
+        type: "银行卡"
+        amount: -84.36
+        balance: 4277.67
+      - date: "2026年8月18日"
+        description: "城市公交 交通卡充值 08/17 (...4417)"
+        type: "银行卡"
+        amount: -40.00
+        balance: 4362.03
+      - date: "2026年8月15日"
+        description: "工资 HARBOR LIGHT DESIGN 直接存入 ID: 7731"
+        type: "存款"
+        amount: 2384.50
+        balance: 4402.03
+      - date: "2026年8月12日"
+        description: "城市电力 自动扣款 账户 ...5520"
+        type: "ACH 出账"
+        amount: -112.48
+        balance: 2017.53
+      - date: "2026年8月5日"
+        description: "信用卡 自动还款 ...7781"
+        type: "ACH 出账"
+        amount: -1500.00
+        balance: 2130.01
+      - date: "2026年8月1日"
+        description: "工资 HARBOR LIGHT DESIGN 直接存入 ID: 7731"
+        type: "存款"
+        amount: 2384.50
+        balance: 3630.01

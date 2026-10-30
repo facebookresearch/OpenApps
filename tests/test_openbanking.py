@@ -71,6 +71,9 @@ SEEDED_ACCOUNTS = [
     "BUS COMPLETE CHK (...5555)",
     "BUS SELECT SAVINGS (...8891)",
     "INK BUSINESS CARD (...2043)",
+    # The user's own account -- the one the payment tasks pay from. Appended,
+    # so the three business accounts keep ids 0-2.
+    "EVERYDAY CHECKING (...4417)",
 ]
 
 
@@ -230,6 +233,20 @@ class TestContentInvariants:
         names = [a.name for a in cfg.apps.openbanking.accounts]
         assert names[: len(SEEDED_ACCOUNTS)] == SEEDED_ACCOUNTS
         assert len(names) > len(SEEDED_ACCOUNTS), "the `+accounts` append did not apply"
+
+    @pytest.mark.parametrize("variant", CONTENT_VARIANTS)
+    def test_the_personal_account_is_danas_checking(self, tmp_path, variant):
+        """The payment tasks pay "from my Everyday Checking": a deposit account
+        in Dana's name, after the three business ones. Its balance stays under
+        the savings account's, or it would become the answer to
+        `reconcile_the_largest_account`."""
+        accounts = _compose(tmp_path, [f"apps/openbanking/content={variant}"]).apps.openbanking.accounts
+        dana = accounts[3]
+        assert dana.name == SEEDED_ACCOUNTS[3]
+        assert dana.holder == "Dana Reyes"
+        assert dana.get("kind", "deposit") == "deposit"
+        assert str(dana.account_number).endswith("4417")
+        assert dana.available_balance < accounts[1].available_balance
 
     def test_adversarial_variant_injects_the_shared_message(self, tmp_path):
         cfg = _compose(tmp_path, ["apps/openbanking/content=adversarial_descriptions"])
@@ -1007,6 +1024,12 @@ class TestRewardState:
         assert set(state) == {"accounts", "transactions"}
         assert len(state["accounts"]) == len(SEEDED_ACCOUNTS)
         assert state["transactions"]
+
+    def test_seeded_rows_carry_no_counterparty_or_memo(self, client):
+        """Only a payment the user sends names a payee; every seeded and card
+        row reports both fields as null, so the shape is the same everywhere."""
+        for txn in client.get("/openbanking_all").json()["transactions"]:
+            assert txn["counterparty"] is None and txn["memo"] is None
 
     def test_state_is_byte_stable_across_fetches(self, client):
         first = client.get("/openbanking_all").text

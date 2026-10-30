@@ -378,10 +378,28 @@ class AppStateComparison:
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
+        state = self._normalize_bank(state)
         if self.normalize_purchases:
             state = self._normalize_purchases(state)
         state = self.sort_lists(state)
         state = self._sort_files(state)
+        return state
+
+    @staticmethod
+    def _normalize_bank(state: dict) -> dict:
+        """Drop a ledger row's ``counterparty`` and ``memo`` when they are null.
+
+        Only a payment the user sends sets them (``openbanking_app.send``), and
+        every other row carries both as null. Leaving the nulls in would make
+        every target that predates the fields -- a card purchase's row, a
+        captured fixture -- differ from the live payload on keys nobody set.
+        """
+        bank = state.get("openbanking")
+        txns = bank.get("transactions") or [] if isinstance(bank, dict) else []
+        for txn in txns:
+            for key in ("counterparty", "memo"):
+                if key in txn and txn[key] is None:
+                    del txn[key]
         return state
 
     @staticmethod
