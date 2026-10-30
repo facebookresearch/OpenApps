@@ -88,7 +88,8 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   matches several contacts, or none, raises a `ValueError` naming the
   candidates instead of scoring against a guessed thread.
 - Messenger content packs moved to the handle-keyed `threads:` / `groups:`
-  format (`scripts/migrate_messenger_handles.py` converts old packs).
+  format. A pack still using the old name-keyed `chat_history` is refused at
+  launch, with the new shape in the error.
 
 ### Fixed
 

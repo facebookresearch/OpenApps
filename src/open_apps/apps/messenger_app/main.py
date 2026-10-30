@@ -43,7 +43,9 @@ class Thread:
 
 
 # Group chats: key -> {"title", "members"}. Seeded from config beside the
-# threads (see scripts/migrate_messenger_handles.py for why it is separate).
+# threads rather than inside one, so a `+threads` content pack
+# (open_apps.utils.merge_plus_keys) can still append messages to a group chat:
+# list values concatenate, dict values would be overwritten wholesale.
 _groups: dict[str, dict] = {}
 
 # Fixed replies, keyed by handle. Everyone else answers at random, as before.
@@ -435,7 +437,21 @@ def messenger_theme():
 
 
 def populate_database(config, db):
-    """Seed the threads (and group metadata) from the content pack."""
+    """Seed the threads (and group metadata) from the content pack.
+
+    A pack still in the old name-keyed ``chat_history`` shape is refused:
+    only ``threads``/``groups`` are read, so it would otherwise seed an empty
+    messenger without a word.
+    """
+    if getattr(config.messenger, "chat_history", None) is not None:
+        raise ValueError(
+            "This messenger content pack uses the old `chat_history` format, keyed by "
+            "contact name. Threads are now keyed by handle (a phone number in E.164 or "
+            "a lowercased email): `threads: {\"+15550100001\": [[text, sender, "
+            "timestamp], ...]}`, where sender is \"you\" or a handle, with group chats "
+            "under `groups: {\"group:<id>\": {title, members: [handles]}}`. Names "
+            "come from the Contacts app. See config/apps/messenger/content/default.yaml."
+        )
     _groups.clear()
     for key, group in (getattr(config.messenger, "groups", None) or {}).items():
         _groups[str(key)] = {

@@ -548,3 +548,17 @@ class TestStyles:
             thread = strip_assets(client.get(f"/messages/{ALICE}/").text)
             assert "#570df8" not in client.get(f"/messages/{ALICE}/").text
             assert 'id="chatlist"' in thread
+
+
+def test_an_old_name_keyed_pack_is_refused_not_seeded_empty(tmp_path):
+    """Only `threads`/`groups` are read, so a pack still in the old
+    `chat_history` shape would otherwise come up as an empty messenger."""
+    overrides = [
+        f"logs_dir={tmp_path}",
+        '++apps.messenger.chat_history={Alice: [["Hello", true, "Alice", "Sep 16, 10:00PM"]]}',
+    ]
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=overrides)
+    Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+    with pytest.raises(ValueError, match="old `chat_history` format"):
+        messenger.set_environment(config.apps)

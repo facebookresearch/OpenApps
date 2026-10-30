@@ -3,7 +3,7 @@
 # The long_descriptions messenger pack adds seventeen more conversations, and
 # the messenger now draws every thread's name from Contacts -- so the people
 # behind those threads have to be contacts here, or their chats would suddenly
-# show bare phone numbers. Handles match scripts/migrate_messenger_handles.py.
+# show bare phone numbers. Handles match the messenger pack's `threads:` keys.
 #
 # The default people are restated in full rather than appended with
 # `+contacts`: plus-keys are merged by the launcher only
