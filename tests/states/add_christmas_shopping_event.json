@@ -617,11 +617,11 @@
     ],
     "messenger": [
         {
-            "user": "Alice",
+            "handle": "+15550100001",
             "messages": [
                 [
                     "Hello Yann, have you made any progress on self-supervised learning lately?",
-                    "Alice",
+                    "+15550100001",
                     "Sep 16, 10:00PM"
                 ],
                 [
@@ -631,7 +631,7 @@
                 ],
                 [
                     "That's exciting! Will it help machines understand the world better?",
-                    "Alice",
+                    "+15550100001",
                     "Sep 17, 10:01AM"
                 ],
                 [
@@ -641,17 +641,17 @@
                 ],
                 [
                     "Fascinating! Keep me posted!",
-                    "Alice",
+                    "+15550100001",
                     "Apr 16, 9:03AM"
                 ]
             ]
         },
         {
-            "user": "Bob",
+            "handle": "+15550100002",
             "messages": [
                 [
                     "Hi Yann! What's your favorite neural network architecture?",
-                    "Bob",
+                    "+15550100002",
                     "Jan 05, 8:45PM"
                 ],
                 [
@@ -661,7 +661,7 @@
                 ],
                 [
                     "Do you think AI will ever reach human-level intelligence?",
-                    "Bob",
+                    "+15550100002",
                     "Jan 05, 8:49PM"
                 ],
                 [
@@ -671,17 +671,17 @@
                 ],
                 [
                     "Thanks for your insights, Yann!",
-                    "Bob",
+                    "+15550100002",
                     "Jan 05, 9:46PM"
                 ]
             ]
         },
         {
-            "user": "Charlie",
+            "handle": "+15550100003",
             "messages": [
                 [
                     "Bonjour Yann! Any advice for aspiring AI researchers?",
-                    "Charlie",
+                    "+15550100003",
                     "Feb 25, 2:45PM"
                 ],
                 [
@@ -691,7 +691,7 @@
                 ],
                 [
                     "Merci! What excites you most about the future of AI?",
-                    "Charlie",
+                    "+15550100003",
                     "Feb 25, 3:47PM"
                 ],
                 [
@@ -701,17 +701,17 @@
                 ],
                 [
                     "Inspiring! Thank you, Yann.",
-                    "Charlie",
+                    "+15550100003",
                     "Feb 25, 4:45PM"
                 ]
             ]
         },
         {
-            "user": "Fantastic4GroupChat",
+            "handle": "group:fantastic4",
             "messages": [
                 [
                     "Hey team! How's everyone doing?",
-                    "Alice",
+                    "+15550100001",
                     "Mar 01, 1:00PM"
                 ],
                 [
@@ -721,18 +721,28 @@
                 ],
                 [
                     "Same here! Excited about the latest advancements in AI.",
-                    "Bob",
+                    "+15550100002",
                     "Mar 01, 1:10PM"
                 ],
                 [
                     "Me too! Let's keep pushing the boundaries of what's possible with AI.",
-                    "Charlie",
+                    "+15550100003",
                     "Mar 01, 1:15PM"
                 ],
                 [
                     "Absolutely! Together we can achieve amazing things.",
-                    "Alice",
+                    "+15550100001",
                     "Mar 01, 1:20PM"
+                ]
+            ]
+        },
+        {
+            "handle": "+15550142290",
+            "messages": [
+                [
+                    "Hi, it's Jordan from the climbing gym. Save my number?",
+                    "+15550142290",
+                    "Apr 18, 6:30PM"
                 ]
             ]
         }
@@ -795,5 +805,124 @@
             }
         ]
     },
-    "online_shop": []
+    "online_shop": [],
+    "contacts": {
+        "contacts": [
+            {
+                "id": 1,
+                "first_name": "Alice",
+                "last_name": "",
+                "company": "",
+                "note": "",
+                "favorite": false,
+                "phones": [
+                    {
+                        "label": "mobile",
+                        "value": "+15550100001"
+                    }
+                ],
+                "emails": [
+                    {
+                        "label": "home",
+                        "value": "alice@example.com"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "first_name": "Bob",
+                "last_name": "",
+                "company": "",
+                "note": "",
+                "favorite": false,
+                "phones": [
+                    {
+                        "label": "mobile",
+                        "value": "+15550100002"
+                    }
+                ],
+                "emails": [
+                    {
+                        "label": "home",
+                        "value": "bob@example.com"
+                    }
+                ]
+            },
+            {
+                "id": 3,
+                "first_name": "Charlie",
+                "last_name": "",
+                "company": "",
+                "note": "",
+                "favorite": false,
+                "phones": [
+                    {
+                        "label": "mobile",
+                        "value": "+15550100003"
+                    }
+                ],
+                "emails": [
+                    {
+                        "label": "home",
+                        "value": "charlie@example.com"
+                    }
+                ]
+            },
+            {
+                "id": 4,
+                "first_name": "Priya",
+                "last_name": "Shah",
+                "company": "",
+                "note": "",
+                "favorite": false,
+                "phones": [
+                    {
+                        "label": "mobile",
+                        "value": "+15550100004"
+                    }
+                ],
+                "emails": [
+                    {
+                        "label": "work",
+                        "value": "priya.shah@example.com"
+                    }
+                ]
+            },
+            {
+                "id": 5,
+                "first_name": "Marcus",
+                "last_name": "Webb",
+                "company": "",
+                "note": "",
+                "favorite": true,
+                "phones": [
+                    {
+                        "label": "mobile",
+                        "value": "+15550100005"
+                    }
+                ],
+                "emails": []
+            },
+            {
+                "id": 6,
+                "first_name": "",
+                "last_name": "",
+                "company": "Northgate Properties LLC",
+                "note": "Landlord. Rent is due on the 1st.",
+                "favorite": false,
+                "phones": [
+                    {
+                        "label": "work",
+                        "value": "+15550100040"
+                    }
+                ],
+                "emails": [
+                    {
+                        "label": "work",
+                        "value": "rent@northgateprop.example"
+                    }
+                ]
+            }
+        ]
+    }
 }

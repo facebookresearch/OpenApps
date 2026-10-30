@@ -282,6 +282,7 @@ def test_theme_tokens_can_be_scoped_to_a_subtree():
 APP_PAGES = [
     "/todo", "/calendar", "/messages", "/maps", "/codeeditor", "/onlineshop", "/openbanking",
     "/files",
+    "/contacts",
 ]
 
 

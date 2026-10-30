@@ -21,6 +21,7 @@ defaults:
   - tasks: all_tasks
   - device: desktop
   - browsergym_env_args: default
+  - apps/theme: default
   - apps/code_editor: default
   - apps/maps: default
   - apps/messenger: default
@@ -31,6 +32,7 @@ defaults:
   - apps/onlineshop: default
   - apps/files: default
   - apps/ui_library: default
+  - apps/contacts: default
   - apps/pop_ups: default
   - apps/chrome: default
   - _self_

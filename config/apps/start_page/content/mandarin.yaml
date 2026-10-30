@@ -30,3 +30,6 @@ apps:
   files:
     title: "文件"
     description: "存放文档、银行对账单和收据的地方，可以预览、整理和删除文件。"
+  contacts:
+    title: "通讯录"
+    description: "保存联系人姓名、电话号码、电子邮件地址和备注的地方。"

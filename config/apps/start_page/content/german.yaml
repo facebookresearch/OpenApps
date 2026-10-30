@@ -30,3 +30,6 @@ apps:
   files:
     title: "Dateien"
     description: "Ablage für Dokumente, Kontoauszüge und Belege, mit Vorschau, Ordnern und Papierkorb."
+  contacts:
+    title: "Adressbuch"
+    description: "Verzeichnis von Personen mit ihren Telefonnummern, E-Mail-Adressen und Notizen."

@@ -43,6 +43,7 @@ from open_apps.apps.openbanking_app import statements
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.icons import Icon, icon
+from open_apps.ui.copy import COPY_SCRIPT, CopyButton, copy_styles
 from open_apps.theme import theme_asset, theme_style
 
 
@@ -266,38 +267,7 @@ styles = Style("""
     .ob-number-toggle:hover { text-decoration: none; opacity: 0.8; }
     .ob-number-line { display: flex; align-items: center; gap: 0.6rem; }
 
-    /* Copy: a quiet secondary control beside the figure it copies. Outlined
-       in the border token so it reads as a button without competing with the
-       link-coloured figure; the check and "Copied" replace the glyph and
-       caption in place rather than adding a toast somewhere else. */
-    .ob-copy {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        width: auto;
-        margin: 0;
-        padding: 0.15rem 0.55rem 0.15rem 0.45rem;
-        border: 1px solid var(--color-border);
-        border-radius: 999px;
-        background: transparent;
-        color: var(--color-muted);
-        font-family: inherit;
-        font-size: 0.8rem;
-        font-weight: 500;
-        line-height: 1.4;
-        cursor: pointer;
-    }
-    .ob-copy:hover { color: var(--color-fg); border-color: var(--color-muted); }
-    /* Pico's focus glow is sized for full-width form buttons; on a pill this
-       small it reads as a second border. Keyboard focus keeps a ring. */
-    .ob-copy:focus { box-shadow: none; }
-    .ob-copy:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-    .ob-copy-icon { display: inline-flex; }
-    .ob-copy-done { display: none; }
-    .ob-copy[data-state="copied"] { color: var(--color-accent); border-color: currentColor; }
-    .ob-copy[data-state="copied"] .ob-copy-idle { display: none; }
-    .ob-copy[data-state="copied"] .ob-copy-done { display: inline-flex; }
-    .ob-copy[data-state="failed"] { color: var(--color-danger); border-color: currentColor; }
+    /* The Copy pill's own rules come from open_apps.ui.copy (see page()). */
     .ob-figures { display: flex; gap: 4rem; flex-wrap: wrap; }
     .ob-figure-value { font-weight: 600; }
     .ob-figure-label { color: var(--color-muted); }
@@ -1132,21 +1102,15 @@ def copy_button(account: Account, kind: str, label: str, cls: str = ""):
     reveal, and just as invisible to ``/openbanking_all``.
     """
     c = cfg()
-    return Button(
-        Span(icon(Icon.COPY, size=14), cls="ob-copy-icon ob-copy-idle"),
-        Span(icon(Icon.CHECK, size=14), cls="ob-copy-icon ob-copy-done"),
-        # Polite live region, so the swap to "Copied" is announced -- the
-        # only feedback a screen-reader user (or an a11y-tree agent) gets.
-        Span(c.copy_label, cls="ob-copy-text", aria_live="polite"),
-        type="button",
-        cls=f"ob-copy {cls}".strip(),
-        title=f"{c.copy_label}: {label}",
-        aria_label=f"{c.copy_label}: {label}",
-        data_copy_url=f"/openbanking/accounts/{account.id}/copy/{kind}",
-        data_copy_label=c.copy_label,
-        data_copied_label=c.copied_label,
-        data_copy_failed_label=c.copy_failed_label,
-        data_testid=f"copy-{kind}-number",
+    return CopyButton(
+        label,
+        url=f"/openbanking/accounts/{account.id}/copy/{kind}",
+        copy_label=c.copy_label,
+        copied_label=c.copied_label,
+        failed_label=c.copy_failed_label,
+        prefix="ob-copy",
+        testid=f"copy-{kind}-number",
+        cls=cls,
     )
 
 
@@ -1467,75 +1431,6 @@ def transactions_panel(
     )
 
 
-# One delegated listener for every Copy button, so buttons that arrive in an
-# htmx swap (the number panel, the card face) work without re-binding.
-#
-# The clipboard write is attempted three ways because each fails somewhere:
-# `ClipboardItem` with a promise keeps the user activation alive across the
-# fetch (Safari requires that shape); plain `writeText` after the fetch covers
-# Chromium builds without promise-valued ClipboardItems; and the textarea +
-# `execCommand('copy')` fallback is what still works in a headless browser
-# with no clipboard permission granted -- the case an eval run is in.
-_COPY_SCRIPT = Script("""
-(function () {
-    if (window.obCopyBound) { return; }
-    window.obCopyBound = true;
-
-    function legacyCopy(text) {
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        var ok = false;
-        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-        ta.remove();
-        return ok;
-    }
-
-    function settle(btn, ok) {
-        var text = btn.querySelector('.ob-copy-text');
-        btn.dataset.state = ok ? 'copied' : 'failed';
-        text.textContent = ok ? btn.dataset.copiedLabel : btn.dataset.copyFailedLabel;
-        clearTimeout(btn.obCopyTimer);
-        btn.obCopyTimer = setTimeout(function () {
-            delete btn.dataset.state;
-            text.textContent = btn.dataset.copyLabel;
-        }, 1800);
-    }
-
-    document.addEventListener('click', function (event) {
-        var btn = event.target.closest('.ob-copy');
-        if (!btn) { return; }
-        event.preventDefault();
-        var text = fetch(btn.dataset.copyUrl).then(function (r) {
-            if (!r.ok) { throw new Error('copy source ' + r.status); }
-            return r.text();
-        });
-        var write;
-        if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
-            write = navigator.clipboard.write([new ClipboardItem({
-                'text/plain': text.then(function (t) { return new Blob([t], {type: 'text/plain'}); })
-            })]);
-        } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            write = text.then(function (t) { return navigator.clipboard.writeText(t); });
-        } else {
-            write = Promise.reject(new Error('no async clipboard'));
-        }
-        write.then(function () { settle(btn, true); }, function () {
-            text.then(function (t) {
-                var ok = legacyCopy(t);
-                btn.focus();
-                settle(btn, ok);
-            }, function () { settle(btn, false); });
-        });
-    });
-})();
-""")
-
-
 def page(*content):
     return Div(
         openbanking_theme(),
@@ -1545,7 +1440,8 @@ def page(*content):
         # Empty until the masthead CTA is clicked; the swap target has to exist
         # on every page because the CTA sits in the bar on every page.
         open_account_dialog(),
-        _COPY_SCRIPT,
+        Style(copy_styles("ob-copy")),
+        COPY_SCRIPT,
         cls="ob-root",
         data_theme=pico_theme(),
     )

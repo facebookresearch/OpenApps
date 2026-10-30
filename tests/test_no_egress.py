@@ -49,6 +49,9 @@ ROUTES = [
     "/openbanking/accounts/0",
     "/files",
     "/onlineshop",
+    "/contacts",
+    "/contacts/1",
+    "/contacts/1/edit",
 ]
 
 # External origins each route is still allowed to reference, by hostname.
@@ -73,6 +76,11 @@ ALLOWED_EXTERNAL_HOSTS = {
     "/openbanking/accounts/0": set(),
     # Theme tokens and local assets only, like the bank. Keep it there.
     "/files": set(),
+    # Same construction as the bank: shared tokens, one inline stylesheet,
+    # inline SVG glyphs. Goal state from the start.
+    "/contacts": set(),
+    "/contacts/1": set(),
+    "/contacts/1/edit": set(),
     # Unlike every other entry here, this is content rather than a styling
     # dependency: the default `content=webshop` pack sets
     # `product_images: hotlink`, so each product renders its own Amazon photo.

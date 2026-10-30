@@ -31,3 +31,6 @@ apps:
   files:
     title: "OpenFiles"
     description: # "Browse and manage your documents"
+  contacts:
+    title: "OpenContacts"
+    description: # "Keep your contacts in one place"
