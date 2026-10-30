@@ -7,14 +7,17 @@ LICENSE file in the root directory of this source tree.
 Retail online-banking surface: an account index and a per-account transaction
 ledger, modelled on a real bank dashboard.
 
-Read-only from the browser. Nothing an agent can click in *this* app mutates
-the seeded state, so ``/openbanking_all`` is byte-identical at episode start
-and end unless a purchase happens. That is load-bearing: ``AppStateComparison``
+Nothing an agent can click in *this* app mutates the seeded state except
+sending money (:mod:`.send`), so ``/openbanking_all`` is byte-identical at
+episode start and end unless a payment or a purchase happens. That is
+load-bearing: ``AppStateComparison``
 builds every task's target by deep-copying the *initial* cross-app state, so an
 app that drifted on its own (auto timestamps, nondeterministic row order) would
 inject a spurious diff into every unrelated todo/calendar task's reward.
 
-The one write path is ``authorize_card_purchase``: the online shop calls it to
+Sending money is the bank's own write path: Send money on a deposit account
+posts one dated row to a payee (see :mod:`.send`). The other is
+``authorize_card_purchase``: the online shop calls it to
 charge a card at checkout (see ``openbanking_app.main`` imports in
 ``onlineshop_app``). It is deliberately the only one, it only fires on an
 explicit checkout, and it posts *pending* rows -- ``date=None``,
@@ -22,7 +25,7 @@ explicit checkout, and it posts *pending* rows -- ``date=None``,
 checkout actually added: the charge, or the declined authorization when the
 card could not cover it. A task that involves a shop purchase therefore has to
 expect a delta in the ``openbanking`` slice as well as ``online_shop``; a task
-that does not involve one still sees a byte-identical bank.
+that involves neither still sees a byte-identical bank.
 
 Statements (:mod:`.statements`) are read-only too: viewing one renders it
 from the ledger, and downloading one writes the PDF into the shared file
@@ -1259,6 +1262,7 @@ def account_summary(
             ),
             cls="ob-figures",
         ),
+        send_ui.send_link(account),
         cls="ob-summary",
     )
 
@@ -1523,11 +1527,14 @@ def openbanking_account_detail(
     account: int = 0,
     routing: int = 0,
     expand: int = 0,
+    sent: int = -1,
 ):
     acct = get_account(account_id)
     if acct is None:
         return page(Div(cfg().no_results_label, cls="ob-page"))
+    notice = send_ui.sent_notice(acct, sent)
     return page(
+        Div(notice, cls="ob-page") if notice is not None else None,
         account_summary(acct, bool(account), bool(routing)),
         transactions_panel(acct, showing, q, bool(expand)),
         Div(
@@ -1848,6 +1855,11 @@ def get_all():
         ],
     }
     return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
+
+
+# Registers the Send money routes on `app`. Imported last: it reads this
+# module's helpers at import time, so they have to exist first.
+from open_apps.apps.openbanking_app import send as send_ui  # noqa: E402
 
 
 def get_openbanking_routes():

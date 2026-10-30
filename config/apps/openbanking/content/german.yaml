@@ -84,6 +84,33 @@ charge_unavailable_message: "Kartenzahlungen sind derzeit nicht möglich."
 # Wie dieses Paket Buchungsdaten schreibt ("26. Aug. 2026").
 posting_date_style: de
 
+# --- Geld senden ---
+send_link_label: "Geld senden"
+send_heading: "Geld senden"
+send_from_label: "Von"
+send_to_label: "An"
+send_to_placeholder: "Name, E-Mail oder Mobilnummer"
+send_amount_label: "Betrag"
+send_memo_label: "Verwendungszweck (optional)"
+send_review_button: "Prüfen"
+send_cancel_label: "Abbrechen"
+send_no_matches: "Keine Kontakte gefunden. Geben Sie eine E-Mail-Adresse oder Mobilnummer ein."
+send_review_heading: "Zahlung prüfen"
+send_confirm_button: "{amount} senden"
+send_edit_label: "Bearbeiten"
+send_new_payee_note: "{handle} ist nicht in Ihren Kontakten."
+send_save_label: "In Kontakten speichern"
+send_first_name_label: "Vorname"
+send_last_name_label: "Nachname"
+send_sent_message: "{amount} an {name} gesendet"
+send_description: "Zelle an {name}"
+send_type: "Zelle"
+send_error_account: "Wählen Sie ein Giro- oder Sparkonto."
+send_error_amount: "Geben Sie einen Betrag über 0,00 $ ein."
+send_error_funds: "Nicht genügend Guthaben: {account} hat {available} verfügbar."
+send_error_recipient: "Geben Sie den Namen eines Kontakts, eine E-Mail-Adresse oder eine US-Telefonnummer ein."
+send_error_name: "Geben Sie einen Namen ein, um diesen Kontakt zu speichern."
+send_error_saved: "{handle} ist bereits als {name} gespeichert."
 
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"

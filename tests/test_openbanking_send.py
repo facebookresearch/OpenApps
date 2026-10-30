@@ -169,3 +169,131 @@ class TestARefusedSendWritesNothing:
         result = send(amount="5000")
         assert "Insufficient funds" in result.errors["amount"]
 
+
+# ---------------------------------------------------------------------------
+# The pages. Every step a person sees is a GET -- the window chrome is spliced
+# into full-page GETs only -- and the one write, Confirm, answers with a 303.
+
+REVIEW = "/openbanking/send/review"
+
+
+def review_params(**overrides) -> dict:
+    params = {"from": DANA, "to": "rent@northgateprop.example", "amount": "1850", "memo": "Unit 2"}
+    params.update(overrides)
+    return params
+
+
+class TestTheForm:
+    def test_a_deposit_account_links_to_it(self, client):
+        html = client.get(f"/openbanking/accounts/{DANA}").text
+        assert f'href="/openbanking/send?from={DANA}"' in html
+        assert "Send money" in html
+
+    def test_a_card_does_not(self, client):
+        assert "/openbanking/send" not in client.get("/openbanking/accounts/2").text
+
+    def test_preselects_the_account_and_offers_only_deposit_accounts(self, client):
+        html = client.get("/openbanking/send", params={"from": DANA}).text
+        assert 'id="ob-send-form"' in html
+        assert f'<option value="{DANA}" selected>EVERYDAY CHECKING (...4417)' in html
+        assert "INK BUSINESS CARD" not in html
+
+    def test_keeps_what_was_typed_when_sent_back_to_edit(self, client):
+        html = client.get("/openbanking/send", params=review_params(memo="Unit 2 rent")).text
+        assert 'value="rent@northgateprop.example"' in html
+        assert 'value="1850"' in html
+        assert 'value="Unit 2 rent"' in html
+
+    def test_recipient_search_lists_matching_contacts(self, client):
+        html = client.get("/openbanking/send/recipients", params={"to": "north"},
+                          headers={"HX-Request": "true"}).text
+        assert "Northgate Properties LLC" in html
+        assert 'data-handle="rent@northgateprop.example"' in html
+
+    def test_recipient_search_with_no_match_says_what_to_do(self, client):
+        html = client.get("/openbanking/send/recipients", params={"to": "Sam"},
+                          headers={"HX-Request": "true"}).text
+        assert "No contacts match" in html
+
+
+class TestTheReview:
+    def test_shows_who_how_much_and_from_where(self, client):
+        html = client.get(REVIEW, params=review_params()).text
+        assert 'id="ob-send-review"' in html
+        assert "Northgate Properties LLC" in html
+        assert "rent@northgateprop.example" in html
+        assert "$1,850.00" in html
+        assert "EVERYDAY CHECKING (...4417)" in html
+        assert "Unit 2" in html
+
+    def test_reviewing_writes_nothing(self, client):
+        before = state(client)
+        client.get(REVIEW, params=review_params())
+        assert state(client) == before
+
+    def test_offers_save_to_contacts_only_for_someone_new(self, client):
+        assert "Save to Contacts" not in client.get(REVIEW, params=review_params()).text
+        html = client.get(REVIEW, params=review_params(to="sam.ortiz@example.com")).text
+        assert "Save to Contacts" in html
+        assert 'name="first_name"' in html
+
+    def test_a_bad_payment_goes_back_to_the_form_with_the_reason(self, client):
+        html = client.get(REVIEW, params=review_params(amount="9999")).text
+        assert 'id="ob-send-form"' in html
+        assert "Insufficient funds" in html
+        assert 'value="9999"' in html
+
+    def test_the_edit_link_carries_the_payment_back(self, client):
+        html = client.get(REVIEW, params=review_params()).text
+        assert "/openbanking/send?" in html and "amount=1850" in html
+
+
+class TestConfirming:
+    def test_sends_and_lands_on_the_account_with_a_notice(self, client):
+        response = client.post("/openbanking/send/confirm", data=review_params(), follow_redirects=False)
+        assert response.status_code == 303
+        (row,) = new_rows(client)
+        assert response.headers["location"] == f"/openbanking/accounts/{DANA}?sent={row['id']}"
+        html = client.get(response.headers["location"]).text
+        assert "Sent $1,850.00 to Northgate Properties LLC" in html
+        assert "$2,362.67" in html
+
+    def test_saving_a_new_payee(self, client):
+        data = review_params(to="sam.ortiz@example.com", amount="60", save="1",
+                             first_name="Sam", last_name="Ortiz")
+        response = client.post("/openbanking/send/confirm", data=data, follow_redirects=False)
+        assert response.status_code == 303
+        names = [(c["first_name"], c["last_name"]) for c in client.get("/contacts_all").json()["contacts"]]
+        assert ("Sam", "Ortiz") in names
+
+    def test_a_refused_confirm_goes_back_to_the_review_with_the_reason(self, client):
+        before = state(client)
+        data = review_params(to="sam.ortiz@example.com", save="1", first_name="", last_name="")
+        response = client.post("/openbanking/send/confirm", data=data, follow_redirects=False)
+        assert response.status_code == 303
+        assert response.headers["location"].startswith(REVIEW + "?")
+        assert state(client) == before
+        html = client.get(response.headers["location"]).text
+        assert "Add a name to save this contact" in html
+
+    def test_the_notice_ignores_a_row_that_is_not_a_send(self, client):
+        html = client.get(f"/openbanking/accounts/{DANA}", params={"sent": 0}).text
+        assert "Sent $" not in html
+
+
+class TestTranslations:
+    @pytest.mark.parametrize("pack", ["german", "mandarin"])
+    def test_every_send_string_is_translated(self, pack):
+        import yaml
+
+        from open_apps import config_dir
+
+        content = config_dir() / "apps" / "openbanking" / "content"
+        english = yaml.safe_load((content / "default.yaml").read_text())
+        other = yaml.safe_load((content / f"{pack}.yaml").read_text())
+        keys = [k for k in english if k.startswith("send_")]
+        assert keys, "default.yaml defines no send_ strings"
+        for key in keys:
+            assert key in other, f"{pack} is missing {key}"
+            if key != "send_type":  # "Zelle" is a name
+                assert other[key] != english[key], f"{pack} left {key} in English"
