@@ -28,6 +28,9 @@ apps:
   openbanking:
     title: "OpenBanking"
     description: # "Review your accounts and transactions"
+  files:
+    title: "OpenFiles"
+    description: # "Browse and manage your documents"
   contacts:
     title: "OpenContacts"
     description: # "Keep your contacts in one place"

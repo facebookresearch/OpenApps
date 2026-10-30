@@ -41,6 +41,7 @@ from omegaconf import DictConfig, OmegaConf
 # Project-specific imports
 from open_apps.apps.availability import (
     onlineshop_unavailable_reason,
+    require_files,
     task_needs_onlineshop,
 )
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
@@ -149,8 +150,11 @@ class OpenAppsLauncher:
         self.config = merge_plus_keys(self.config)
         random.seed(self.config.seed)
 
-        self.web_app_port = self.pick_empty_port(
-            start_port=5001 + self._job_port_offset()
+        configured_port = self.config.get("web_app_port")
+        self.web_app_port = (
+            int(configured_port)
+            if configured_port is not None
+            else self.pick_empty_port(start_port=5001 + self._job_port_offset())
         )
         print(f"Using port {self.web_app_port} for the web app")
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
@@ -250,7 +254,7 @@ class OpenAppsLauncher:
         Returns:
             int: An available port.
         """
-        port_range = list(range(start_port, start_port + 1000))
+        port_range = list(range(start_port, min(start_port + 1000, 65536)))
         port_range = self._remove_unsafe_ports(port_range)
 
         for port in port_range:
@@ -316,7 +320,8 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True "
+            f"++web_app_port={self.web_app_port}"
         )
         print("Launching web app with command: ", command)
         # Redirect the web app's output to a file rather than an unread PIPE.
@@ -626,12 +631,15 @@ class AgentLauncher(OpenAppsLauncher):
             )
 
     def check_task_can_run(self):
-        """Refuse a task that needs the shop when this run does not serve it.
+        """Refuse a run without Files, or a task that needs the shop when this
+        run does not serve it.
 
         Otherwise the agent spends every step looking for an app whose routes
-        were never registered, and the run reads as a model failure. Checked
+        were never registered (or buys correctly and is scored on a receipt
+        nowhere to be written), and the run reads as a model failure. Checked
         before the web app starts, so the mistake costs nothing.
         """
+        require_files(self.config.apps)
         task_name = self.config.get("task_name")
         task_cfg = self.config.tasks.get(task_name) if task_name else None
         if not task_needs_onlineshop(task_cfg):

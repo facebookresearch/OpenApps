@@ -47,6 +47,7 @@ ROUTES = [
     "/onlineshop",
     "/openbanking",
     "/openbanking/accounts/0",
+    "/files",
     "/onlineshop",
     "/contacts",
     "/contacts/1",
@@ -73,6 +74,8 @@ ALLOWED_EXTERNAL_HOSTS = {
     # starts in the goal state. Keep it there.
     "/openbanking": set(),
     "/openbanking/accounts/0": set(),
+    # Theme tokens and local assets only, like the bank. Keep it there.
+    "/files": set(),
     # Same construction as the bank: shared tokens, one inline stylesheet,
     # inline SVG glyphs. Goal state from the start.
     "/contacts": set(),

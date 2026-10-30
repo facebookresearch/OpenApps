@@ -41,6 +41,7 @@ from open_apps.apps.availability import (  # noqa: F401
     onlineshop_has_catalog,
     onlineshop_is_served,
     onlineshop_unavailable_reason,
+    require_files,
 )
 from starlette.responses import RedirectResponse
 
@@ -268,6 +269,12 @@ AVAILABLE_APPS = {
         "open_apps.apps.openbanking_app",
         "get_openbanking_routes",
     ),
+    # After the bank but, like everything here, before the shop, which is
+    # appended last at launch: both write into the store this one configures.
+    "files": (
+        "open_apps.apps.files_app",
+        "get_files_routes",
+    ),
     "contacts": (
         "open_apps.apps.contacts_app",
         "get_contacts_routes",
@@ -283,6 +290,7 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.onlineshop_app": "onlineshop",
     "open_apps.apps.openbanking_app": "openbanking",
     "open_apps.apps.uilibrary_app": "ui_library",
+    "open_apps.apps.files_app": "files",
     "open_apps.apps.contacts_app": "contacts",
 }
 
@@ -427,6 +435,7 @@ def get_start_page_routes():
 def initialize_routes_and_configure_task(config: DictConfig = None):
     global app, rt
     """Initialize all apps and configure the app with provided config."""
+    require_files(config)
     # Hydra should handle the config loading, see launch_experiment.py
     app.config = config  # Update the global app config
     # Seed the desktop shell from config. Harmless under the gallery layout --

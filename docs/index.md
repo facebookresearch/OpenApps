@@ -60,21 +60,21 @@ Appearance is split along two axes:
     ::bash
     uv run launch.py apps/theme=challenging_font
 
-![landing](images/landing-challenging-font.png)
+![Challenging font theme](images/theme-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
     uv run launch.py apps/theme=dark
 
-![landing](images/landing-dark.png)
+![Dark theme](images/theme-dark.png)
 ///
 /// tab | default
 
     ::bash
     uv run launch.py apps/theme=default
 
-![landing](images/landing.png)
+![Default theme](images/theme-default.png)
 
 ///
 
@@ -172,6 +172,7 @@ layout in play. Every app has `default`, plus:
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| `files` | `icons` | Folder contents as a grid of first-page thumbnails |
 | `contacts` | `list_detail` | One pane at a time: the list, then a contact on its own page |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
@@ -334,23 +335,23 @@ other appearance axis.
 /// tab | german
 
     ::bash
-    uv run launch.py apps/start_page/content=german
+    uv run launch.py apps/todo/content=german
 
-![landing](images/landing-german.png)
+![German todo list](images/content-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    uv run launch.py apps/start_page/content=long_descriptions
+    uv run launch.py apps/onlineshop/content=long_descriptions
 
-![landing](images/landing-long-descriptions.png)
+![Online shop with long descriptions](images/content-long-descriptions.png)
 ///
 /// tab | pop-up
 
     ::bash
     uv run launch.py apps/pop_ups=adversarial_descriptions
 
-![landing](images/landing-popup.png)
+![Adversarial pop-up](images/landing-popup.png)
 
 ///
 
@@ -446,7 +447,13 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
-![Live Agent](images/gif.gif)
+<video poster="images/agent-demo-poster.jpg" autoplay muted loop playsinline
+       style="display: block; width: 89.5%; margin: 2.5em auto 3.5em; border-radius: 7px;
+              box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 .5px 1px rgba(0,0,0,.3), 0 9px 22px rgba(0,0,0,.45);">
+  <source src="images/agent-demo.webm" type="video/webm">
+  <source src="images/agent-demo.mp4" type="video/mp4">
+  <a href="images/agent-demo.mp4">Watch the agent solve a task</a>
+</video>
 
 To record the full episode as a video instead:
 ```
@@ -600,6 +607,33 @@ All logs are stored `log_outputs` will contain information about each run
 You can also enable logging to weights and biases by logging into your account and setting the flag: `use_wandb=True`.
 
 
+
+##### Files, statements and receipts
+
+Files is one store shared by every app (`open_apps.files_store`), so every
+run serves it: a config without it (`~apps/files`) is refused at launch.
+
+* the bank's Statements page saves PDFs to `Statements/<account> — <Month YYYY>.pdf`;
+* the shop writes `Receipts/OpenShop order <id>.pdf` on checkout and for seeded orders;
+* `Code/` *is* the code editor's workspace. It is left out of `/files_all`, so
+  `/codeeditor_all` stays the only state for code files.
+
+Seeded documents are committed files (`src/open_apps/apps/files_app/seed/`,
+named by each content pack's `source`), copied in on every launch and reset.
+Statements and receipts are drawn by `open_apps.pdf_writer` when they are
+saved (deterministic: the same ledger or order gives the same bytes). PDFs
+are read with the vendored pdf.js, so their text is in the accessibility tree
+once a document is open -- not in the thumbnails. Recently Deleted keeps items for 30 days counted from the pinned
+date (`apps.files.today`, the bank's `as_of_date`), and never empties itself.
+
+`/files_all` lists every file and trashed item by path, size and sha256, and is
+compared exactly: "lease 2026.pdf" is not "Lease 2026.pdf".
+
+File tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=files task_name=restore_w2_draft
+```
 
 ##### Contacts, handles and names
 

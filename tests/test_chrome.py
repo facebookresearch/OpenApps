@@ -281,6 +281,7 @@ def test_theme_tokens_can_be_scoped_to_a_subtree():
 # so the chrome serves that page without naming it as the current app.
 APP_PAGES = [
     "/todo", "/calendar", "/messages", "/maps", "/codeeditor", "/onlineshop", "/openbanking",
+    "/files",
     "/contacts",
 ]
 

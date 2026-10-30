@@ -37,6 +37,10 @@ apps:
     title: "OpenBanking"
     description: |
       An online banking dashboard is where you review the money moving through your accounts. It lists each account you hold along with its available and present balance, and for any account you open it shows a statement of recent transactions: the date each one posted, a description identifying the merchant or counterparty, the type of transaction such as a card purchase, an ACH credit or a wire, the amount added or withdrawn, and the running balance afterwards. Pending items appear at the top before they post, without a settled balance. You can narrow the statement to deposits or withdrawals only, or search the descriptions to locate a particular charge. Reviewing these records regularly helps you reconcile your books, catch a charge you did not authorise, and understand where your money actually goes.
+  files:
+    title: "OpenFiles"
+    description: |
+      A file browser is where your documents live: medical records, a lease, tax forms, the statements your bank issues and the receipts a shop emails you. It shows them in folders, previews a PDF, an image or a text file without opening another program, and lets you rename a file, move it to another folder, make a copy, or delete it. Deleted files wait in Recently Deleted for thirty days, so a mistake can be undone; you can restore one there or remove it for good. Other apps save into it too, so a downloaded statement or a photo someone sent you ends up here.
   contacts:
     title: "OpenContacts"
     description: |

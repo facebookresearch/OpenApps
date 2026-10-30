@@ -70,10 +70,21 @@ ROUTES = (
     # The card summary is a different layout from the deposit one -- card
     # graphic plus payment panel -- so it needs its own baseline.
     RouteSpec("openbanking_card", "/openbanking/accounts/2", ".ob-cardface"),
+    # Savings has three statement months (Jun-Aug), so the list isn't a
+    # single row.
+    RouteSpec("openbanking_statements", "/openbanking/accounts/1/statements", ".ob-card"),
     RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
     RouteSpec("onlineshop_search", "/onlineshop/search/coffee/1", ".card"),
+    RouteSpec("files", "/files/Documents", "#files-content"),
+    # Waits for pdf.js to finish drawing pages and the text layer.
+    RouteSpec(
+        "files_pdf",
+        "/files/view/Documents/Visit%20Summary%202026-08-12.pdf",
+        "#files-viewer[data-ready='1']",
+    ),
+    RouteSpec("files_trash", "/files/recently-deleted", "#files-content"),
     RouteSpec("contacts", "/contacts", "#ct-list"),
     # Alice (id 1) has a phone and an email, so the card shows both kinds of
     # handle row and their Copy pills.
@@ -86,7 +97,7 @@ THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
-    "onlineshop", "ui_library", "contacts",
+    "onlineshop", "ui_library", "files", "contacts",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -108,6 +119,7 @@ LAYOUT_VARIATIONS = {
     "layout_code_editor_top_tree": ["apps/code_editor/layout=top_tree"],
     "layout_uilibrary_single_column": ["apps/ui_library/layout=single_column"],
     "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
+    "layout_files_icons": ["apps/files/layout=icons"],
     "layout_contacts_list_detail": ["apps/contacts/layout=list_detail"],
 }
 
@@ -125,6 +137,9 @@ def build_variation_overrides() -> dict[str, list[str]]:
         "long_descriptions": [
             f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
         ],
+        # The docs homepage shows the adversarial "you have achieved your goal"
+        # pop-up over the start page.
+        "popup_adversarial": ["apps/pop_ups=adversarial_descriptions"],
     }
     # One variation per shared theme, named `theme_<stem>`. A single
     # `apps/theme=` override reaches every app, which is what replaced the

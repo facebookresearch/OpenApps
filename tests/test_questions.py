@@ -284,7 +284,7 @@ class TestStartPageLayoutAwareness:
         assert not any("Which of these apps is pinned" in q.question for q in questions)
         counts = [q for q in questions if "How many apps are pinned" in q.question]
         assert len(counts) == 1
-        # Eight: todo, calendar, messages, maps, code editor, the shop (on by
-        # default now that it needs no JDK), OpenBanking and Contacts. The UI
+        # Nine: todo, calendar, messages, maps, code editor, the shop (on by
+        # default now that it needs no JDK), OpenBanking, Files and Contacts. The UI
         # Library's tile is disabled by default.
-        assert counts[0].choices[counts[0].correct] == "8"
+        assert counts[0].choices[counts[0].correct] == "9"
