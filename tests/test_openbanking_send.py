@@ -226,6 +226,10 @@ class TestTheReview:
         assert "EVERYDAY CHECKING (...4417)" in html
         assert "Unit 2" in html
 
+    def test_the_summary_labels_the_memo_without_optional(self, client):
+        html = client.get(REVIEW, params=review_params()).text
+        assert "<dt>Memo</dt>" in html
+
     def test_reviewing_writes_nothing(self, client):
         before = state(client)
         client.get(REVIEW, params=review_params())

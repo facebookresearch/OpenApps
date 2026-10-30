@@ -60,11 +60,31 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   name, each with casual, formal and unrelated-context phrasings. Kept out of
   `all_tasks`, like the OpenBanking set.
 - Known sender names in the messenger link to their contact card.
+- **Send money** in OpenBanking: a Send money link on every deposit account
+  opens a form (from, to, amount, memo), a review, and a confirm. The payee is
+  an email address or a phone number; the To field searches Contacts, a
+  contact's name pays their handle, and paying someone new can save them to
+  Contacts on the review step. A payment posts at once, dated on the pinned
+  `as_of_date`, and lowers the account's balances. Ledger rows gain
+  `counterparty` and `memo` (null except on payments).
+- **EVERYDAY CHECKING (...4417)**, Dana Reyes's own account, appended after
+  the three business accounts in every content pack. Their ids and figures
+  are unchanged.
+- **Payment tasks** (`tasks=payments`): pay September's rent from the lease in
+  Files (with a decoy landlord in the misleading Contacts pack), send Bob $18
+  by name, and pay someone new and save them, each with three phrasings.
+  `SendMoneyTask` scores the payee exactly and accepts any of a named
+  contact's handles. Kept out of `all_tasks`.
 
 ### Changed
 
 - `AppStateComparison` compares the files slice exactly (no fuzzy matching on
   file names).
+- `AppStateComparison` pairs payments before diffing, by exact payee, and
+  ignores a payment's date, description, memo and running balance. Null
+  `counterparty`/`memo` keys are dropped, so targets that predate them match.
+- Contacts' New Contact form and the bank's Save to Contacts share one insert
+  path (`contacts_app.add_contact`).
 - Purchase targets expect one new receipt in Files; a declined card expects
   none.
 - Parallel sweeps launch Files (`config_parallel_tasks*.yaml`).

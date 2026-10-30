@@ -275,11 +275,13 @@ send_styles = Style("""
     .ob-send-summary dd { margin: 0; font-weight: 600; }
     .ob-send-amount { font-size: 1.75rem; }
     .ob-send-handle { display: block; color: var(--color-muted); font-weight: 400; }
-    .ob-send-save { border-top: 1px solid var(--color-border); padding-top: 1rem; margin: 0; }
-    .ob-send-save legend { font-weight: 600; }
+    /* The rule is the fieldset's own top border with the legend dropped below
+       it: a legend sits *in* the border, which drew the line through it. */
+    .ob-send-save { border: 0; border-top: 1px solid var(--color-border); padding: 1rem 0 0 0; margin: 0; }
+    .ob-send-save legend { float: left; width: 100%; padding: 0; margin-bottom: 0.75rem; font-weight: 600; }
+    .ob-send-save legend + * { clear: both; }
     .ob-send-names { display: flex; gap: 0.75rem; }
     .ob-send-names > div { flex: 1 1 0; }
-    .ob-send-link { margin-top: 1.25rem; }
 """)
 
 # Fills the recipient field from a search match and closes the list. Inline
@@ -457,7 +459,7 @@ def review_card(values: dict, payee: Payee, amount: float, errors: dict):
         Dd(account.name),
     ]
     if memo:
-        summary += [Dt(L("send_memo_label", "Memo (optional)")), Dd(memo)]
+        summary += [Dt(L("send_memo_summary_label", "Memo")), Dd(memo)]
     return Div(
         Form(
             H2(L("send_review_heading", "Review payment"), cls="ob-band-heading"),

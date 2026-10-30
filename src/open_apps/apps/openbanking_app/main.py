@@ -488,6 +488,18 @@ styles = Style("""
     .ob-action:hover { border-color: var(--color-muted); text-decoration: none; }
     .ob-action:focus { box-shadow: none; }
     .ob-action:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    /* Send money on a deposit account: the page's one action, so filled in
+       the masthead's colour rather than outlined like the secondary pills. */
+    .ob-action.ob-send-link {
+        margin-top: 1.5rem;
+        padding: 0.45rem 1.1rem;
+        border-color: var(--color-primary);
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .ob-action.ob-send-link:hover { background-color: var(--color-primary-hover); }
     .ob-toast:empty { display: none; }
     .ob-toast {
         display: flex;
