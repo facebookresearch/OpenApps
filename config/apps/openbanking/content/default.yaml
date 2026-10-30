@@ -130,6 +130,11 @@ charge_declined_message: "Card declined. Check the card details and try again."
 charge_insufficient_message: "Card declined for insufficient available credit."
 charge_unavailable_message: "Card payments are unavailable right now."
 
+# How this pack spells a posting date ("Aug 26, 2026"). A payment the user
+# sends is dated in it, so the new row reads like the seeded ones; one of
+# `en`, `de`, `zh` (see `statements.format_posting_date`).
+posting_date_style: en
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit

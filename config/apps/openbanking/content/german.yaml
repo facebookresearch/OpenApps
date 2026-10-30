@@ -81,6 +81,9 @@ charge_declined_message: "Karte abgelehnt. Bitte Kartendaten prüfen und erneut 
 charge_insufficient_message: "Karte abgelehnt: nicht genügend verfügbarer Kredit."
 charge_unavailable_message: "Kartenzahlungen sind derzeit nicht möglich."
 
+# Wie dieses Paket Buchungsdaten schreibt ("26. Aug. 2026").
+posting_date_style: de
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit

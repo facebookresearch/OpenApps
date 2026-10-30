@@ -78,6 +78,9 @@ charge_declined_message: "银行卡被拒绝。请检查卡片信息后重试。
 charge_insufficient_message: "银行卡被拒绝：可用信用额度不足。"
 charge_unavailable_message: "目前无法使用银行卡付款。"
 
+# 本内容包的记账日期写法（"2026年8月26日"）。
+posting_date_style: zh
+
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
     kind: deposit

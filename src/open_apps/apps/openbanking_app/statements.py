@@ -74,6 +74,23 @@ def parse_posting_date(text: Optional[str]) -> Optional[date]:
     return None
 
 
+# How the German pack writes each month: abbreviated with a full stop, except
+# the ones short enough to print whole ("Juni", "Juli", "März", "Mai").
+_DE_ABBR = ("Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sep.",
+            "Okt.", "Nov.", "Dez.")
+
+
+def format_posting_date(day: date, style: str = "en") -> str:
+    """``day`` the way a pack's ledger prints it: ``en`` "Aug 26, 2026",
+    ``de`` "26. Aug. 2026", ``zh`` "2026年8月26日". The inverse of
+    :func:`parse_posting_date`; an unknown style falls back to English."""
+    if style == "de":
+        return f"{day.day:02d}. {_DE_ABBR[day.month - 1]} {day.year}"
+    if style == "zh":
+        return f"{day.year}年{day.month}月{day.day}日"
+    return f"{MONTH_ABBR[day.month - 1]} {day.day:02d}, {day.year}"
+
+
 def month_key(month: tuple[int, int]) -> str:
     """``(2026, 7)`` -> ``"2026-07"``, the form URLs carry."""
     return f"{month[0]:04d}-{month[1]:02d}"

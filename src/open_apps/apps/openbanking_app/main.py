@@ -96,6 +96,12 @@ class Transaction:
     type: str
     amount: float
     balance: Optional[float]  # None => no posted balance yet (pending)
+    # Set only on a payment the user sent (see `send.py`): the payee's handle,
+    # normalised, and what they wrote in the memo. None on every seeded row and
+    # on card charges, so the payload has one shape and a task can tell a send
+    # from everything else by `counterparty` alone.
+    counterparty: Optional[str] = None
+    memo: Optional[str] = None
 
 
 app, rt = fast_app(default_hdrs=False, hdrs=local_hdrs())
