@@ -1,4 +1,5 @@
 # @package apps.ui_library
+# German intro text and section labels for the UI library page.
 intro: >-
   Jede Komponente unten wird aus der gemeinsamen Bibliothek gerendert, mit
   dem aktuell aktiven Design. Wechseln Sie das Design mit `apps/theme=`, um

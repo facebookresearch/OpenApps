@@ -1,4 +1,7 @@
 # @package apps.code_editor
+# German welcome message, and the starter files again with German comments
+# (`+filesystem` is appended to the default tree by
+# open_apps.utils.merge_plus_keys).
 defaults:
   - default
 welcome_message: "Willkommen! Viel Spaß beim Programmieren!"

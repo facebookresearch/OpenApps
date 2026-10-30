@@ -1,4 +1,6 @@
 # @package apps.start_page
+# Mandarin start page: translated headline, sub-header, app titles and app
+# descriptions.
 headline: "欢迎使用 OpenApps！"
 sub_header: "一套日常应用软件的小型集合"
 # Apps configuration

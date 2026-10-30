@@ -1,3 +1,5 @@
+# label: Qwen3.6 35B-A3B computer use
+#
 # Qwen3.6-35B-A3B (MoE) via the Qwen3.6-VL tool_call action_parser.
 # Set hostname/port to your served model before running.
 defaults:

@@ -1,3 +1,9 @@
+# label: Base agent (no model)
+# Base for every model-backed agent config: the ModelArgs fields, the full
+# BrowserGym action set, AXTree + screenshot observations, history/thinking
+# flags and the default prompt text. It names no model (`model_name: null`), so
+# `agent=default` -- config.yaml's default -- does not run anything useful on its
+# own; the per-model configs inherit it through `defaults: [default]`.
 _target_: open_apps.agent.vLLM_agent.AgentArgs
 
 model_name: null

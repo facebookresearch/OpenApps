@@ -1,4 +1,7 @@
 # @package _global_
+# Submit sweep jobs to SLURM through submitit (`launch_parallel_agents.py
+# mode=slurm_cluster`). The paths, account, QOS and partition are placeholders:
+# replace them for your cluster before submitting.
 
 # Example values, please replace
 project: open_apps

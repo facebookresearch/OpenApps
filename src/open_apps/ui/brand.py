@@ -110,14 +110,10 @@ def _mark_geometry() -> dict:
     }
 
 
-def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
-    """Raw ``<svg>`` for the lockup: the wedged ring plus the word."""
+def _mark_defs_and_group(gradient_id: str) -> str:
+    """The gradient plus the stroked mark group, shared by every lockup."""
     g = _mark_geometry()
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg"'
-        f' viewBox="0 0 {_VIEWBOX_W} {_VIEWBOX_H:g}"'
-        f' height="{height}" role="img" aria-label="{label}"'
-        f' class="ui-wordmark">'
         # A subtle brand wash rising from the bottom: the ray tips pick up the
         # accent and it has faded into the text colour by roughly a third of the
         # way up. userSpaceOnUse rather than the default objectBoundingBox --
@@ -125,7 +121,7 @@ def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
         # renderers, so tying the stops to viewBox coordinates keeps the fade
         # landing in the same place everywhere.
         f'<defs>'
-        f'<linearGradient id="{_GRADIENT_ID}" gradientUnits="userSpaceOnUse"'
+        f'<linearGradient id="{gradient_id}" gradientUnits="userSpaceOnUse"'
         f' x1="0" y1="{_VIEWBOX_H:g}" x2="0" y2="0">'
         f'<stop offset="0%" stop-color="var(--color-accent, #0064e0)"/>'
         f'<stop offset="38%" stop-color="currentColor"/>'
@@ -133,10 +129,10 @@ def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
         f'</linearGradient>'
         f'</defs>'
         # One group so the ring and both rays share a stroke and cannot drift
-        # apart in weight. The class is a hook for the dark-mode flip in
-        # ui/styles.py -- flipping the <svg> itself would take the word with it.
+        # apart in weight. The class lets CSS target the mark without touching
+        # the word beside it.
         f'<g class="ui-wordmark-mark" fill="none"'
-        f' stroke="url(#{_GRADIENT_ID})"'
+        f' stroke="url(#{gradient_id})"'
         f' stroke-width="{_MARK_STROKE}" stroke-linecap="round">'
         f'<path d="M {g["arc_start"][0]:.3f} {g["arc_start"][1]:.3f}'
         f' A {_MARK_R:.3f} {_MARK_R:.3f} 0 {g["large_arc"]} {g["sweep"]}'
@@ -146,15 +142,103 @@ def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
             for a, b in g["rays"]
         )
         + f'</g>'
+    )
+
+
+def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
+    """Raw ``<svg>`` for the lockup: the wedged ring plus the word."""
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg"'
+        f' viewBox="0 0 {_VIEWBOX_W} {_VIEWBOX_H:g}"'
+        f' height="{height}" role="img" aria-label="{label}"'
+        f' class="ui-wordmark">'
+        + _mark_defs_and_group(_GRADIENT_ID)
         # The word stays flat currentColor. A gradient across lettering costs
         # legibility for no brand gain at this size.
-        f'<text x="{_TEXT_X:g}" y="20.5" fill="currentColor"'
+        + f'<text x="{_TEXT_X:g}" y="20.5" fill="currentColor"'
         f' font-family="var(--font-family)" font-size="19"'
         f' font-weight="700" letter-spacing="-0.5">{label}</text>'
         f'</svg>'
     )
 
 
+#: The mark alone is square: it fills the viewBox vertically (see above) and is
+#: centred horizontally in the same 28-unit width, so ``height`` sizes it.
+_LOGOMARK_GRADIENT_ID = "oa-logomark-gradient"
+
+
+def logomark_markup(height: int = 20, label: str = "OpenApps",
+                    extra_class: str = "") -> str:
+    """Raw ``<svg>`` for the mark without the word -- for favicons and the docs
+    header, where the site title already spells out the name.
+
+    Its own gradient id, so it can share a page with a wordmark: two instances
+    of one id resolve to the first one's stops.
+    """
+    cls = f"ui-logomark {extra_class}".strip()
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg"'
+        f' viewBox="0 0 {_VIEWBOX_H:g} {_VIEWBOX_H:g}"'
+        f' height="{height}" width="{height}" role="img" aria-label="{label}"'
+        f' class="{cls}">'
+        + _mark_defs_and_group(_LOGOMARK_GRADIENT_ID)
+        + f'</svg>'
+    )
+
+
 def Wordmark(height: int = 24, label: str = "OpenApps") -> NotStr:
     """``wordmark_markup`` wrapped so FastHTML emits markup, not escaped text."""
     return NotStr(wordmark_markup(height=height, label=label))
+
+
+# --- docs site -------------------------------------------------------------
+# The mkdocs theme draws its header icon from a template and its favicon from a
+# file, neither of which can import this module. Both are generated from it
+# instead (`uv run -m open_apps.ui.brand`), and tests/test_brand.py fails when
+# either goes stale -- so the docs mark cannot drift from the app's.
+
+#: Inlined rather than an <img src="...svg">: an SVG loaded as an image cannot
+#: inherit ``currentColor``, so the mark would stay black on the dark theme.
+DOCS_ICON_TEMPLATE = "overrides/components/icon.html"
+DOCS_FAVICON = "docs/assets/brand/logomark.svg"
+
+
+def docs_icon_template() -> str:
+    """The theme's header-icon partial: the inline mark.
+
+    Upright in both themes, like the launch screen's; ``currentColor``
+    handles the colour.
+    """
+    return (
+        "{#- Generated by `uv run -m open_apps.ui.brand`; do not edit. -#}\n"
+        + logomark_markup(height=20, extra_class="size-5")
+        + "\n"
+    )
+
+
+def docs_favicon() -> str:
+    """A standalone favicon. No page CSS reaches it, so the gradient's
+    ``currentColor`` stops are pinned to the light theme's ink."""
+    return (
+        logomark_markup(height=32).replace("currentColor", "#1c2b33") + "\n"
+    )
+
+
+def _write_docs_assets(root) -> list:
+    from pathlib import Path
+
+    written = []
+    for rel, text in ((DOCS_ICON_TEMPLATE, docs_icon_template()),
+                      (DOCS_FAVICON, docs_favicon())):
+        path = Path(root) / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        written.append(rel)
+    return written
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+
+    for rel in _write_docs_assets(Path(__file__).resolve().parents[3]):
+        print(f"wrote {rel}")

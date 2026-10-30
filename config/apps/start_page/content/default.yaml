@@ -1,4 +1,7 @@
 # @package apps.start_page
+# The start page's headline and each app's tile title (OpenTodos,
+# OpenCalendar, ...). Several apps (maps, messenger, OpenBanking) read their
+# own titles from here, so a pack that renames their tile renames the app.
 headline: "Welcome to OpenApps!"
 sub_header: ""
 

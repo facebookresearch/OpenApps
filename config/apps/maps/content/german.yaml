@@ -1,4 +1,7 @@
 # @package apps.maps
+# Centres the map on Germany and appends 100 real German places (from a Kaggle
+# POI dump, names as listed there) to the default saved places
+# (`+saved_places`).
 defaults:
   - default
 

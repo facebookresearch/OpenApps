@@ -1,0 +1,85 @@
+# Constraint rules for the config composer, as data. Not a Hydra config.
+#
+# Read by open_apps.compose.rules (the reference evaluator) and shipped inside
+# the catalog JSON for the docs-site JS port, which is tested against the same
+# fixtures. It sits at the config root so Hydra only ever sees it as a primary
+# config name, never as an option of a group.
+#
+# Each rule:
+#   id      stable name; fixtures and the UI refer to it
+#   when    all must hold. Keys are group paths (`tasks`, `apps/theme`),
+#           scalar paths (`browsergym_env_args.max_steps`), agent paths the
+#           catalog tracks (`agent.client_type`), any other dotted path set by
+#           an extra override (`apps.onlineshop.enable`), or a derived fact:
+#             task_app       config/apps apps the selected task(s) touch
+#             task_in_tasks  every selected task_name is in the selected tasks
+#                            group(s) -- several combine into one inventory
+#             target         single | sweep | pool | slurm_pool (the resolved
+#                            target: Worker pool + mode=slurm_cluster is slurm_pool)
+#             sweep_axes     apps/* groups and task_name chosen away from
+#                            their default (what a frozen suite pins itself)
+#           Values: a literal, a list (any of), null, or a comparison string
+#           ("<30", ">=5", "!=default"). A multi-valued selection matches if
+#           any of its values does.
+#   then    disable  the combination cannot work; the UI disables the pill
+#                    that would complete it
+#           warn     it runs, but probably not the way you meant
+#           require  it needs something outside the config (a server, a key)
+#   reason  shown on the warning / disabled pill
+#   fix     optional {key: value} applied by the one-click fix button
+
+- id: longer_horizon_step_budget
+  when: {tasks: longer_horizon, browsergym_env_args.max_steps: "<30"}
+  then: warn
+  reason: >-
+    Composite tasks chain several sub-goals across apps and need ~30+ steps;
+    at this limit they are unwinnable by construction.
+  fix: {browsergym_env_args.max_steps: 40}
+
+- id: task_not_in_tasks_group
+  when: {task_in_tasks: false}
+  then: disable
+  reason: >-
+    The selected task_name is not a key of the selected tasks group, so there
+    is no task to register. Pick a task from that group.
+
+- id: shop_task_without_catalog
+  when: {task_app: onlineshop, apps/onlineshop/content: default}
+  then: disable
+  reason: >-
+    This task uses the online shop, and open_apps.apps.availability serves the
+    shop only when the selected content pack has products. The `default` pack
+    is the chrome-only one with none, so the launcher refuses the run.
+  fix: {apps/onlineshop/content: webshop}
+
+- id: shop_task_with_shop_disabled
+  when: {task_app: onlineshop, apps.onlineshop.enable: false}
+  then: disable
+  reason: >-
+    This task uses the online shop, which `apps.onlineshop.enable=False`
+    hides; the launcher refuses the run.
+  fix: {apps.onlineshop.enable: true}
+
+- id: vllm_agent_needs_host
+  when: {agent.client_type: vllm, agent.hostname: null, target: [single, sweep, pool]}
+  then: require
+  reason: >-
+    This agent talks to a self-hosted vLLM server at http://<agent.hostname>:<agent.port>/v1.
+    Pass agent.hostname=<node> as an extra override, or use the SLURM worker
+    pool, which discovers the node serving the model.
+
+- id: gpt55_agent_needs_key
+  when: {agent: [GPT-5.5-computer-use, GPT-5.5-screen-and-text, GPT-5.5-text-only]}
+  then: require
+  reason: >-
+    The GPT-5.5 agent configs read their API key from the GPT55_API_KEY
+    environment variable (put it in .env); the launcher fails resolving the
+    config without it.
+
+- id: benchmark_pins_sweep_axes
+  when: {benchmark: "!=None", sweep_axes: "!=None"}
+  then: disable
+  reason: >-
+    The frozen suite pins these: benchmark=<name> brings its own tasks and app
+    variations (and refuses parallel_tasks overrides), so apps/* and task_name
+    choices have nothing to act on. Clear them to run the suite.

@@ -1,4 +1,7 @@
 # @package apps.code_editor
+# The code editor's seed file tree (a few Python and C files, nested and empty
+# folders) and its welcome message. The file-editing tasks edit files from
+# this tree.
 welcome_message: "Welcome! Happy coding everyday!"
 
 filesystem:
