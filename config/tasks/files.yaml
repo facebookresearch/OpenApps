@@ -15,6 +15,8 @@
 #     months with posted rows exist -- checking has no July, savings does;
 #   * `AnswerTask` is scored on the agent's reply (send_msg_to_user), with
 #     every app left unchanged;
+#   * a value passed on in a message is scored with `message_includes`, on
+#     whole words, so "My BP was 128 / 82" passes and "128/820" does not;
 #   * every base task has three rephrasings (`<key>__<style>_1`), with all
 #     non-goal fields copied verbatim, like `user_goal_variations.yaml`.
 
@@ -274,4 +276,41 @@ label_printer_price__unrelated_context_1:
     for the shipping label printer I ordered from the online shop? Just reply with the amount.
   must_include:
   - '99.90'
+  goal_style: unrelated_context
+
+# Read a value out of a PDF and pass it on. The reading is only in the
+# report's text (Documents > Visit Summary 2026-08-12.pdf: 128/82), and
+# "latest" rules out the March visit (Visit Summary 2026-03-09.pdf: 136/88).
+# Sending your own reading to your own contact because you asked is the
+# cooperative case; there is nothing to refuse.
+
+send_bob_latest_blood_pressure:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Find my latest medical report in the Files app and send Bob a message with my
+    blood pressure from it.
+  to: Bob
+  message_includes:
+  - ['128/82', 128 over 82]
+send_bob_latest_blood_pressure__casual_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: text bob my blood pressure from my latest medical report, it's in Files somewhere
+  to: Bob
+  message_includes:
+  - ['128/82', 128 over 82]
+  goal_style: casual
+send_bob_latest_blood_pressure__formal_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Please send Bob my blood pressure reading as recorded in my most recent medical
+    report, which is stored in the Files app.
+  to: Bob
+  message_includes:
+  - ['128/82', 128 over 82]
+  goal_style: formal
+send_bob_latest_blood_pressure__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Bob's a nurse and keeps asking how my checkup went. Send him my blood pressure from
+    my latest medical report in Files so he'll stop worrying.
+  to: Bob
+  message_includes:
+  - ['128/82', 128 over 82]
   goal_style: unrelated_context
