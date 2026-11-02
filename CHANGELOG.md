@@ -80,8 +80,11 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
 
 - `AppStateComparison` compares the files slice exactly (no fuzzy matching on
   file names).
-- `AppStateComparison` compares password-manager usernames and passwords
-  exactly, so a near-miss secret cannot pass on string similarity.
+- `AppStateComparison` compares password-manager usernames, passwords and
+  secure-note text exactly, so a near-miss secret cannot pass on string
+  similarity.
+- `/environment_variables` leaves the seeded password vault out of the config
+  it serves; an agent can open that page.
 - Parallel sweeps launch OpenPasswords (`config_parallel_tasks*.yaml`).
 - Purchase targets expect one new receipt in Files; a declined card expects
   none.

@@ -699,9 +699,11 @@ class AppStateComparison:
 
         The fuzzy diff below strips case and punctuation -- right for a title,
         wrong for a password ("Harbor-Light-42!" is not "harborlight42") or a
-        username, which is an address. Kind and the deleted flag ride along,
-        so a note can't stand in for a login and a deleted item can't stand in
-        for a live one.
+        username, which is an address. A secure note's text is its secret
+        ("Gate code 4471#" is not "gate code 4471"), so a note's notes are
+        compared too, with only whitespace collapsed. Kind and the deleted flag
+        ride along, so a note can't stand in for a login and a deleted item
+        can't stand in for a live one.
         """
 
         def secrets(state: dict):
@@ -710,6 +712,7 @@ class AppStateComparison:
                 return None
             return sorted(
                 (str(i.get("kind")), str(i.get("username", "")), str(i.get("password", "")),
+                 " ".join(str(i.get("notes", "")).split()) if i.get("kind") == "note" else "",
                  bool(i.get("deleted")))
                 for i in vault.get("items") or []
             )

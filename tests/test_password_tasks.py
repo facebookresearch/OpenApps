@@ -144,6 +144,24 @@ class TestAdd:
                                         "notes": "Harbor Self Storage, unit B-114. Gate code 4471#."})
         assert _passes(task, initial, fresh())
 
+    def test_a_secure_note_with_the_secret_garbled_fails(self, client, fresh):
+        """A note's text is its secret: the fuzzy diff would forgive the
+        missing hyphen and `#`, as it does for a password."""
+        task = AddPasswordTask(goal="Add the storage unit note.", kind="note", title="Storage unit",
+                               notes="Harbor Self Storage, unit B-114. Gate code 4471#.")
+        initial = fresh()
+        client.post("/passwords", data={"kind": "note", "title": "Storage unit",
+                                        "notes": "harbor self storage unit b114 gate code 4471"})
+        assert not _passes(task, initial, fresh())
+
+    def test_a_secure_note_with_other_line_breaks_passes(self, client, fresh):
+        task = AddPasswordTask(goal="Add the storage unit note.", kind="note", title="Storage unit",
+                               notes="Harbor Self Storage, unit B-114. Gate code 4471#.")
+        initial = fresh()
+        client.post("/passwords", data={"kind": "note", "title": "Storage unit",
+                                        "notes": "Harbor Self Storage, unit B-114.\n  Gate code 4471#."})
+        assert _passes(task, initial, fresh())
+
 
 class TestEdit:
     def test_correct_episode(self, client, fresh):

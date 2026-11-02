@@ -35,7 +35,7 @@ except ImportError:
     )
 from urllib.parse import urlsplit
 
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 # Re-exported: tests and other modules import these from here.
 from open_apps.apps.availability import (  # noqa: F401
     onlineshop_has_catalog,
@@ -1142,11 +1142,32 @@ def desktop_all():
     return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
 
 
+# Config keys that hold seeded secrets. The launcher's port guard reads
+# /environment_variables, and an agent can `goto` it too, so the response
+# leaves these out -- otherwise one page load would hand over the whole vault.
+_SECRET_CONFIG_KEYS = {"passwords": ("entries", "extra_entries")}
+
+
+def _public_config(config):
+    if not OmegaConf.is_config(config) or not any(app_key in config for app_key in _SECRET_CONFIG_KEYS):
+        return config
+    public = config.copy()
+    for app_key, keys in _SECRET_CONFIG_KEYS.items():
+        if app_key in public:
+            section = public[app_key].copy()
+            with open_dict(section):
+                for key in keys:
+                    section.pop(key, None)
+            with open_dict(public):
+                public[app_key] = section
+    return public
+
+
 @rt("/environment_variables")
 def get():
     # Prints or returns the environment variables dictionary
     # we can use this to score an envrionment and improve an agent
-    return app.config
+    return _public_config(app.config)
 
 
 if __name__ == "__main__":

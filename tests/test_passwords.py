@@ -100,6 +100,18 @@ class TestScoringSurface:
         assert json.dumps(state["passwords"]) == client.get("/passwords_all").text
 
 
+    def test_environment_variables_does_not_serve_the_vault(self, client):
+        """`/environment_variables` serves the resolved config for the
+        launcher's port guard, and the config carries the seed. An agent can
+        `goto` it, so the vault's secrets are dropped from the response."""
+        body = client.get("/environment_variables").text
+        for secret in ("Popcorn-Wharf-2291", "Harbor-Light-42!", "Gull-Postbox-38", "Netflix2019!"):
+            assert secret not in body
+        assert "databases_dir" in body or "passwords.db" in body
+        # Only the response is redacted: a reset still reseeds from the config.
+        assert len(app.config.passwords.entries) == 11
+
+
 class TestRegistration:
     def test_the_start_page_lists_the_app(self, client):
         html = client.get("/").text

@@ -317,6 +317,7 @@ delete_old_netflix_login:
   and `favorite`. An item's kind cannot change.
 * Delete means Recently Deleted (`deleted: true`). Deleting permanently
   removes the item, which fails the task.
-* Passwords and usernames compare exactly, and `AppStateComparison` checks
-  them as a multiset of (kind, username, password, deleted) before the fuzzy
-  diff, so a near-miss password cannot pass on string similarity.
+* Passwords, usernames and a secure note's text (whitespace aside) compare
+  exactly: `AppStateComparison` checks them as a multiset of (kind, username,
+  password, note text, deleted) before the fuzzy diff, so a near-miss secret
+  cannot pass on string similarity. A login's notes stay fuzzy.

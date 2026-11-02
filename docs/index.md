@@ -672,7 +672,7 @@ OpenPasswords (`/passwords`) is a password manager in the style of 1Password
 or Dashlane: one vault ("Personal") with logins, Wi-Fi networks and secure
 notes, a category sidebar, search, favourites, and a Recently Deleted bin that
 only empties when an item is deleted permanently. Passwords stay masked until
-Reveal is clicked, and every secret has a Copy pill. All seeded secrets are
+Reveal is clicked, and usernames, passwords and websites have Copy pills. All seeded secrets are
 synthetic, and every website is on `.example`, which never resolves.
 
 It is in the all-apps launcher but not in the dock: the start page's
@@ -681,9 +681,11 @@ Dock it for a run with `apps.start_page.apps.passwords.pinned_by_default=true`,
 or with the pin button beside it in the launcher.
 
 `/passwords_all` serves the vault as `{"items": [...]}`, and the agent's
-`goto` refuses it like every other state endpoint. Passwords and usernames are
-compared exactly ("Harbor-Light-42!" is not "harborlight42"); titles, websites
-and notes compare loosely, like any other text.
+`goto` refuses it like every other state endpoint, and `/environment_variables`
+leaves the seeded vault out of the config it serves. Passwords, usernames and
+a secure note's text are compared exactly ("Harbor-Light-42!" is not
+"harborlight42"); titles, websites and a login's notes compare loosely, like
+any other text.
 
 Password tasks are their own set, outside `all_tasks`:
 
