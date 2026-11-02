@@ -33,3 +33,6 @@ apps:
   contacts:
     title: "Adressbuch"
     description: "Verzeichnis von Personen mit ihren Telefonnummern, E-Mail-Adressen und Notizen."
+  passwords:
+    title: "Passwörter"
+    description: "Tresor für Anmeldedaten, WLAN-Passwörter und sichere Notizen."

@@ -66,7 +66,7 @@ def get_current_state(url: str) -> dict:
 
     Returns:
         Dict keyed by app name (todo, calendar, map, messenger,
-        codeeditor, ui_library, openbanking, files, contacts, online_shop) whose values are the
+        codeeditor, ui_library, openbanking, files, contacts, passwords, online_shop) whose values are the
         JSON the corresponding ``/<app>_all`` endpoints return.
     """
     state: dict = {}
@@ -81,6 +81,7 @@ def get_current_state(url: str) -> dict:
     # Message recipients are resolved through this slice, so it has to be
     # captured with the rest.
     state["contacts"] = safe_get_json(url + "/contacts_all") or {}
+    state["passwords"] = safe_get_json(url + "/passwords_all") or {}
     try:
         state["online_shop"] = safe_get_json(url + "/onlineshop_all")
     except Exception:

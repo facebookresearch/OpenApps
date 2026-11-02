@@ -33,3 +33,6 @@ apps:
   contacts:
     title: "通讯录"
     description: "保存联系人姓名、电话号码、电子邮件地址和备注的地方。"
+  passwords:
+    title: "密码"
+    description: "保存登录信息、Wi-Fi 密码和安全备注的保险库。"

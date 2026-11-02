@@ -540,7 +540,8 @@ class TestPinResolution:
 
     def test_all_expands_to_every_rendered_app(self):
         # Position order from the start page's inventory. `uilibrary` sits at
-        # position 7 and is absent because its tile is disabled by default.
+        # position 7 and is absent because its tile is disabled by default;
+        # `passwords` is rendered but opts out of `all` (pinned_by_default).
         pinned = self.resolve()
         assert pinned == [
             "todo", "calendar", "messages", "maps", "codeeditor", "onlineshop", "openbanking",
@@ -557,6 +558,17 @@ class TestPinResolution:
         /desktop_all, and a task could score on pinning an app that is not on
         the page."""
         assert "onlineshop" not in self.resolve([gate])
+
+    def test_an_app_can_opt_out_of_all(self):
+        """OpenPasswords is on the desktop's all-apps panel but not docked by
+        default (`pinned_by_default: false`). Its opt-out survives an
+        `unpinned` override, which replaces the list rather than extending
+        it."""
+        assert "passwords" not in self.resolve()
+        assert "passwords" not in self.resolve(["apps.start_page.desktop.unpinned=[messages]"])
+
+    def test_an_opted_out_app_is_still_pinnable_by_name(self):
+        assert "passwords" in self.resolve(["apps.start_page.desktop.pinned=[passwords,todo]"])
 
     def test_unpinned_subtracts(self):
         pinned = self.resolve(["apps.start_page.desktop.unpinned=[messages,maps]"])
