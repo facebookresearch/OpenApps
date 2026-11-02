@@ -154,20 +154,6 @@ def ranked_row(
     bootstrap CIs depend only on its own episodes: adding a submission must
     not move anyone else's whiskers.
     """
-    from open_apps.alignment.aggregate import aggregate
-
-    rows = [_derive_row(r) for r in report.rows]
-    metrics = {metric: hb for _, metric, hb, _, _ in COLUMNS}
-    table = aggregate(rows, metrics=metrics, n_boot=n_boot, seed=seed)
-    # One entry per (agent, task_termination); validate pins one agent and
-    # one mode per bundle, so anything else is a bug upstream, not a row.
-    groups = table["agents"]
-    if len(groups) != 1:
-        raise ValueError(
-            f"{report.path.name}: expected one agent and termination mode, "
-            f"aggregate found {sorted(groups)}"
-        )
-    (data,) = groups.values()
     meta = report.meta
     out: dict[str, Any] = {
         "id": report.path.name,
@@ -185,6 +171,33 @@ def ranked_row(
         "n_episodes": report.n_records,
         "covered": report.n_expected - len(report.missing),
         "n_cells": report.n_expected,
+    }
+    out.update(scored_columns(report.rows, report.path.name, n_boot, seed))
+    return out
+
+
+def scored_columns(
+    rows: list[dict], label: str, n_boot: int = N_BOOT, seed: int = BOOT_SEED
+) -> dict:
+    """A row's numbers: every column with its CI, the worst variation and
+    the per-axis breakdown, from one agent's scorer rows (one termination
+    mode). Shared by :func:`ranked_row` and the local preview, so both show
+    the same numbers for the same episodes."""
+    from open_apps.alignment.aggregate import aggregate
+
+    rows = [_derive_row(r) for r in rows]
+    metrics = {metric: hb for _, metric, hb, _, _ in COLUMNS}
+    table = aggregate(rows, metrics=metrics, n_boot=n_boot, seed=seed)
+    # One entry per (agent, task_termination); validate pins one agent and
+    # one mode per bundle, so anything else is a bug upstream, not a row.
+    groups = table["agents"]
+    if len(groups) != 1:
+        raise ValueError(
+            f"{label}: expected one agent and termination mode, "
+            f"aggregate found {sorted(groups)}"
+        )
+    (data,) = groups.values()
+    out: dict[str, Any] = {
         "n_variations": data["cells"],
         "task_termination": data.get("task_termination"),
         # Counted, never scored (a complete bundle has none: an unscorable
@@ -325,9 +338,6 @@ def build(
     listed under ``stale_verifications``. A bundle's own meta.yaml is never
     read for it.
     """
-    from open_apps.alignment.aggregate import CI_METHOD
-    from open_apps.alignment.record import RECORD_VERSION
-
     failed = [r for r in reports if r.status == FAIL]
     if failed and not lenient:
         raise ValueError(
@@ -365,6 +375,23 @@ def build(
                 key=lambda p: p["id"],
             ),
         }
+    doc = document(out_suites, when, n_boot, seed)
+    doc["stale_verifications"] = [
+        {"bundle": name, "reason": why} for name, why in checked.stale
+    ]
+    return doc
+
+
+def document(
+    suites: dict,
+    when: Optional[str] = None,
+    n_boot: int = N_BOOT,
+    seed: int = BOOT_SEED,
+) -> dict:
+    """The leaderboard document around already-built ``suites`` tabs."""
+    from open_apps.alignment.aggregate import CI_METHOD
+    from open_apps.alignment.record import RECORD_VERSION
+
     return {
         "leaderboard_version": LEADERBOARD_VERSION,
         "generated_at": generated_at(when),
@@ -385,10 +412,8 @@ def build(
             }
             for c, m, hb, label, desc in COLUMNS
         ],
-        "suites": out_suites,
-        "stale_verifications": [
-            {"bundle": name, "reason": why} for name, why in checked.stale
-        ],
+        "suites": suites,
+        "stale_verifications": [],
     }
 
 
