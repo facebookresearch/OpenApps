@@ -39,6 +39,7 @@ import datetime as dt
 import fnmatch
 import functools
 import json
+import os
 import socket
 import sys
 import webbrowser
@@ -343,24 +344,36 @@ def write_html(doc: dict, out: Path) -> Path:
 
 
 def _has_display() -> bool:
-    import os
-
     return sys.platform in ("darwin", "win32") or bool(
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     )
 
 
+def ssh_host() -> str:
+    """The name your laptop reaches this machine by. A login node's own
+    hostname is often an internal one (a pod or node name) that only
+    resolves inside the cluster, so ``$OPENAPPS_SSH_HOST`` (e.g. the
+    ``fair-sc-3`` alias from your ssh config) wins when set."""
+    return os.environ.get("OPENAPPS_SSH_HOST") or socket.gethostname()
+
+
 def how_to_view(out: Path, port: int = DEFAULT_PORT) -> str:
     """What to run on a laptop to see a page written on a remote machine."""
-    host = socket.gethostname()
+    host = ssh_host()
     path = Path(out).resolve()
+    note = (
+        ""
+        if "OPENAPPS_SSH_HOST" in os.environ
+        else f"  ({host} is this machine's own name; set OPENAPPS_SSH_HOST to your ssh alias for it)\n"
+    )
     return (
         f"To view it from your laptop:\n"
         f"  scp {host}:{path} . && open {path.name}\n"
         f"or serve it here and forward the port:\n"
         f"  uv run -m open_apps.leaderboard.preview --serve-only {path} --port {port}\n"
-        f"  ssh -L {port}:localhost:{port} {host}   # then open http://localhost:{port}/"
-    )
+        f"  ssh -L {port}:localhost:{port} {host}   # then open http://localhost:{port}/\n"
+        + note
+    ).rstrip("\n")
 
 
 def serve(out: Path, host: str = "127.0.0.1", port: int = DEFAULT_PORT) -> None:
@@ -386,7 +399,7 @@ def serve(out: Path, host: str = "127.0.0.1", port: int = DEFAULT_PORT) -> None:
 
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"Serving {out.name} at http://{host}:{port}/ (Ctrl-C to stop)")
-    print(f"From your laptop: ssh -L {port}:localhost:{port} {socket.gethostname()}")
+    print(f"From your laptop: ssh -L {port}:localhost:{port} {ssh_host()}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -514,7 +527,12 @@ def main(argv: Optional[list[str]] = None) -> int:
             file=sys.stderr,
         )
     if not result.n_episodes:
-        print(f"no scorable runs under {', '.join(map(str, paths))}", file=sys.stderr)
+        print(
+            f"no scorable runs under {', '.join(map(str, paths))} on {socket.gethostname()}. "
+            "Run this where the logs are (e.g. on the cluster) and copy the HTML it "
+            "writes, not the logs.",
+            file=sys.stderr,
+        )
         return 1
     out = write_html(result.doc, args.out)
     if args.json:
