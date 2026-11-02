@@ -110,6 +110,33 @@ stop cannot be measured, so a mixed bundle fails). An *unscorable* episode, one 
 app state could not be read, is reported as a warning and counted, but it is never scored
 and covers no cell: re-run it, or the bundle is partial.
 
+## Your own runs, locally
+
+To see how your models compare before (or without) submitting, point the preview at the
+directory your runs are in. It finds every run below it, however the sweeps are nested, and
+renders this same table with one row per model across every task:
+
+```bash
+uv run -m open_apps.leaderboard.preview                        # everything under log_outputs/
+uv run -m open_apps.leaderboard.preview /checkpoint/$USER/logs/open_apps --open
+uv run -m open_apps.leaderboard.preview log_outputs --agent 'Qwen*' --task 'todo_*'
+```
+
+It writes `leaderboard_preview.html`, a single file with the page, styles and data inlined.
+Open it from disk, or copy that one file off a cluster with `scp` (the command prints the
+exact line). `--serve` serves it instead, for `ssh -L` port forwarding. It also reads an
+`alignment_aggregate.json` table (`open_apps.alignment.aggregate`'s output) if that is what
+you have.
+
+`launch_parallel_agents.py` runs it on its own after a local sweep, over the whole logs root,
+and opens the page when there is a display; a SLURM sweep prints the command to run once its
+jobs finish. `open_leaderboard=false` turns that off.
+
+The numbers are the scorer's and the aggregation is the one this page uses. Re-runs of a cell
+count once, by the same rule as `pack`. Nothing is checked against the suite lock, though,
+and a model with a few episodes is ranked next to one with the full suite. The cell count
+under each name shows how much of the suite a row covers. To publish, follow the steps below.
+
 ## Submit
 
 Five steps, from a working agent config to a row in the table. You need the repository set up
