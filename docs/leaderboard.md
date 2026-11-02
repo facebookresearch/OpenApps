@@ -114,23 +114,24 @@ and covers no cell: re-run it, or the bundle is partial.
 
 To see how your models compare before (or without) submitting, point the preview at the
 directory your runs are in. It finds every run below it, however the sweeps are nested, and
-renders this same table with one row per model across every task:
+shows this same table with one row per model across every task:
 
 ```bash
 uv run -m open_apps.leaderboard.preview                        # everything under log_outputs/
-uv run -m open_apps.leaderboard.preview /checkpoint/$USER/logs/open_apps --open
+uv run -m open_apps.leaderboard.preview /checkpoint/$USER/logs/open_apps
 uv run -m open_apps.leaderboard.preview log_outputs --agent 'Qwen*' --task 'todo_*'
 ```
 
-It writes `leaderboard_preview.html`, a single file with the page, styles and data inlined.
-Open it from disk, or copy that one file off a cluster with `scp` (the command prints the
-exact line). `--serve` serves it instead, for `ssh -L` port forwarding. It also reads an
-`alignment_aggregate.json` table (`open_apps.alignment.aggregate`'s output) if that is what
-you have.
+It writes nothing: it serves the page from memory and opens your browser. Two small links on
+the page save it as a self-contained HTML file or as a PDF. On a machine without a display
+(a cluster login node) it prints the `ssh -N -L` command that brings the page to your laptop;
+set `OPENAPPS_SSH_HOST` to the name your laptop uses for that machine so the command is
+copy-pasteable. `--out board.html` or `--out board.pdf` writes the file and exits instead.
+It also reads an `alignment_aggregate.json` table (`open_apps.alignment.aggregate`'s output).
 
-`launch_parallel_agents.py` runs it on its own after a local sweep, over the whole logs root,
-and opens the page when there is a display; a SLURM sweep prints the command to run once its
-jobs finish. `open_leaderboard=false` turns that off.
+`launch_parallel_agents.py` opens it on its own after a local sweep run from a terminal, over
+the whole logs root; a SLURM sweep prints the command to run once its jobs finish.
+`open_leaderboard=false` turns that off.
 
 The numbers are the scorer's and the aggregation is the one this page uses. Re-runs of a cell
 count once, by the same rule as `pack`. Nothing is checked against the suite lock, though,
