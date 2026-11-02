@@ -570,6 +570,11 @@ class TestPinResolution:
     def test_an_opted_out_app_is_still_pinnable_by_name(self):
         assert "passwords" in self.resolve(["apps.start_page.desktop.pinned=[passwords,todo]"])
 
+    def test_an_opted_out_app_can_opt_back_in(self):
+        """The one-key override docs/index.md gives for docking OpenPasswords."""
+        pinned = self.resolve(["apps.start_page.apps.passwords.pinned_by_default=true"])
+        assert "passwords" in pinned and "todo" in pinned
+
     def test_unpinned_subtracts(self):
         pinned = self.resolve(["apps.start_page.desktop.unpinned=[messages,maps]"])
         assert "messages" not in pinned and "maps" not in pinned

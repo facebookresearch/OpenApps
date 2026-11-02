@@ -423,9 +423,11 @@ def detail_fields(item: Item) -> list:
         if item.password:
             rows.append(password_row(item))
         if item.website:
-            rows.append(field_row(c.website_label, A(
-                item.website, href=item.website, target="_blank", rel="noopener noreferrer",
-                cls="pw-field-value pw-link",
+            # Text with a Copy pill rather than a link: every website is on
+            # `.example`, and a link out of the sandbox is a dead page.
+            rows.append(field_row(c.website_label, (
+                Span(item.website, cls="pw-field-value"),
+                Span(copy_button(item, "website", c.website_label), cls="pw-field-actions"),
             )))
     elif item.kind == "wifi":
         rows.append(field_row(c.network_label, Span(item.title, cls="pw-field-value")))
@@ -756,7 +758,6 @@ styles = Style("""
     .pw-field-label { color: var(--color-muted); font-size: var(--font-size-sm); }
     .pw-field-body { display: flex; align-items: center; justify-content: space-between; gap: var(--space); min-width: 0; }
     .pw-field-value { overflow-wrap: anywhere; color: var(--color-fg); }
-    .pw-link { color: var(--color-accent); }
     .pw-secret { font-family: var(--font-mono); letter-spacing: 0.08em; }
     .pw-secret.is-revealed { letter-spacing: 0.02em; }
     .pw-field-actions { display: inline-flex; align-items: center; gap: calc(var(--space) * 0.5); flex: none; }
@@ -797,6 +798,7 @@ styles = Style("""
     .pw-form-check { display: flex; align-items: center; gap: 0.5rem; margin: var(--space) 0; }
     .pw-form-check input { margin: 0; }
     .pw-form-foot { display: flex; justify-content: flex-end; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
+    .pw-form-foot .pw-btn { width: auto; margin-bottom: 0; }
     .pw-error { display: block; color: var(--color-danger); font-size: var(--font-size-sm); margin-top: 0.25rem; }
     .pw-error-summary {
         padding: calc(var(--space) * 0.75) var(--space); border-radius: var(--radius);
@@ -989,7 +991,8 @@ def passwords_copy(item_id: int, field: str):
     ``/passwords_all`` is unaffected; 404 rather than an empty string that
     would paste as nothing."""
     item = get_item(item_id)
-    value = {"password": item.password, "username": item.username}.get(field) if item else None
+    value = {"password": item.password, "username": item.username,
+             "website": item.website}.get(field) if item else None
     if not value:
         return Response("", status_code=404)
     return Response(value, media_type="text/plain")

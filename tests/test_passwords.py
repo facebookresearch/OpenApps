@@ -164,7 +164,10 @@ class TestTheItem:
         html = client.get(f"/passwords/{item_id(client, 'Netflix')}").text
         assert 'id="pw-detail"' in html
         assert "dana.reyes@example.com" in html
-        assert 'href="https://netflix.example"' in html
+        # Text with a Copy pill, not a link: a link out of the sandbox is a
+        # dead page an agent would waste steps on.
+        assert "https://netflix.example" in html and 'href="https://netflix.example"' not in html
+        assert 'data-testid="copy-website"' in html
         assert "Family plan. Bob uses the second profile." in html
         assert "Popcorn-Wharf-2291" not in html
         assert "Last edited" in html

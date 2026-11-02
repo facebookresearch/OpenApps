@@ -52,6 +52,9 @@ ROUTES = [
     "/contacts",
     "/contacts/1",
     "/contacts/1/edit",
+    "/passwords",
+    "/passwords/1",
+    "/passwords/new?kind=login",
 ]
 
 # External origins each route is still allowed to reference, by hostname.
@@ -81,6 +84,11 @@ ALLOWED_EXTERNAL_HOSTS = {
     "/contacts": set(),
     "/contacts/1": set(),
     "/contacts/1/edit": set(),
+    # Same construction as Contacts. Websites are on `.example`, so even a
+    # clicked item link cannot leave the sandbox. Goal state from the start.
+    "/passwords": set(),
+    "/passwords/1": set(),
+    "/passwords/new?kind=login": set(),
     # Unlike every other entry here, this is content rather than a styling
     # dependency: the default `content=webshop` pack sets
     # `product_images: hotlink`, so each product renders its own Amazon photo.
