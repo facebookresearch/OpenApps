@@ -15,9 +15,14 @@ Point it at one directory and it finds every run below it: each
 ``episode.json`` (or a finished run without one, rebuilt the way ``pack``
 does), however the sweeps under it are nested. The result is one row per
 model across every task and run, ranked by its aligned rate, in the same
-table the docs site shows. It is written as one self-contained HTML file
-(page, styles and data inlined), so on a cluster you can copy that single
-file to your laptop and open it, or pass ``--serve`` and forward the port.
+table the docs site shows, over a faint halftone background drawn for each
+run (``halftone.py``).
+
+Nothing is written by default: it serves the page from memory and opens a
+browser. The page has two small links, *Save as HTML* (one self-contained
+file) and *Save as PDF*. On a cluster without a display it prints the
+``ssh -L`` command that brings the page to your laptop. ``--out FILE``
+(``.html`` or ``.pdf``) writes the file and exits instead.
 
 What it is not: a submission check. Nothing is validated against a suite
 lock, and a model with a handful of episodes is ranked next to one with a
@@ -27,7 +32,7 @@ infrastructure error loses to its re-run, otherwise the later run wins), so
 pointing it at a sweep and its re-run of crashed jobs counts each cell once.
 To publish, ``pack`` and ``validate`` as docs/leaderboard.md describes.
 
-``launch_parallel_agents.py`` calls :func:`open_preview` after a local sweep
+``launch_parallel_agents.py`` calls :func:`launch` after a local sweep
 (``open_leaderboard=false`` turns it off).
 """
 
@@ -51,7 +56,6 @@ from typing import Any, Optional, Sequence
 from open_apps.leaderboard import build as LB
 from open_apps.leaderboard import bundle as B
 
-DEFAULT_OUT = Path("leaderboard_preview.html")
 DEFAULT_LOGS = Path("log_outputs")
 DEFAULT_PORT = 8765
 # The tab for runs that were not launched with ``benchmark=<suite>``.
@@ -298,49 +302,217 @@ def preview(
 
 # --- the page ----------------------------------------------------------------------
 
+#: Appended to the element's stylesheet, in the preview only: Meta's
+#: Optimistic Display where it is installed (system fonts otherwise), a
+#: neutral palette over the docs site's yellow, and a translucent sheet so the halftone shows
+#: around the table. The docs page itself is unchanged.
+PREVIEW_CSS = """
+:host {
+  --sans: "Optimistic Display", -apple-system, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --page: rgba(255, 255, 255, 0.8);
+  --ink: #15171a;
+  --ink-2: #33373d;
+  --muted: #5f646c;
+  --eyebrow: #2f5e4e;
+  --control: #ffffff;
+  --control-hover: #f2f3f4;
+  --line: #15171a;
+  --line-soft: rgba(21, 23, 26, 0.16);
+  --sel-bg: #15171a;
+  --sel-ink: #ffffff;
+  --chip: #f3f4f5;
+  --row-hover: rgba(21, 23, 26, 0.03);
+  --detail: rgba(247, 248, 249, 0.94);
+}
+:host([data-scheme="dark"]) {
+  --page: rgba(17, 18, 20, 0.82);
+  --ink: #eceef1;
+  --ink-2: #cdd1d6;
+  --muted: #9aa0a8;
+  --eyebrow: #86c9ae;
+  --control: #16181b;
+  --control-hover: #1f2226;
+  --line: #4b5058;
+  --line-soft: rgba(236, 238, 241, 0.14);
+  --sel-bg: #eceef1;
+  --sel-ink: #111214;
+  --chip: #1c1f23;
+  --row-hover: rgba(236, 238, 241, 0.04);
+  --detail: rgba(22, 24, 27, 0.94);
+  --whisker: rgba(236, 238, 241, 0.35);
+}
+.olb {
+  border: 1px solid var(--line-soft);
+  -webkit-backdrop-filter: blur(1.5px);
+  backdrop-filter: blur(1.5px);
+}
+"""
+
+# The page around the element. The halftone tiles repeat on <html> (seamless,
+# so the texture has no edge), and two fixed, viewport-sized glows on <body>
+# break up the repeat. {placeholders} are filled by Page.html().
+_PAGE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<script>
+  if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
+</script>
+<style>
+  :root {{ color-scheme: light dark; }}
+  html {{ min-height: 100%; background: #f6f6f4 url("{tile_light}") repeat; image-rendering: pixelated; }}
+  html.dark {{ background: #0f1012 url("{tile_dark}") repeat; }}
+  body {{
+    margin: 0; min-height: 100vh; box-sizing: border-box;
+    padding: 1rem clamp(1rem, 4vw, 3rem) 2.5rem;
+    background:
+      radial-gradient(70vmax 50vmax at 10% -10%, rgba(255, 255, 255, 0.7), transparent 70%),
+      radial-gradient(60vmax 60vmax at 110% 110%, rgba(255, 255, 255, 0.55), transparent 70%);
+    background-attachment: fixed;
+  }}
+  html.dark body {{
+    background:
+      radial-gradient(70vmax 50vmax at 10% -10%, rgba(0, 0, 0, 0.55), transparent 70%),
+      radial-gradient(60vmax 60vmax at 110% 110%, rgba(0, 0, 0, 0.45), transparent 70%);
+    background-attachment: fixed;
+  }}
+  openapps-leaderboard {{ display: block; max-width: 1440px; margin: 0 auto; }}
+  .save {{
+    max-width: 1440px; margin: 0 auto 0.5rem; display: flex; justify-content: flex-end; gap: 1rem;
+    font: 13px/1.4 "Optimistic Display", -apple-system, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  }}
+  .save a {{ color: #5f646c; text-decoration: none; border-bottom: 1px dotted currentColor; }}
+  .save a:hover, .save a:focus-visible {{ color: #15171a; }}
+  html.dark .save a {{ color: #9aa0a8; }}
+  html.dark .save a:hover, html.dark .save a:focus-visible {{ color: #eceef1; }}
+  @media print {{ .save {{ display: none; }} }}
+</style>
+</head>
+<body>
+{toolbar}<openapps-leaderboard
+  src="{data}"
+  stylesheet="{css}"></openapps-leaderboard>
+<script src="{js}"></script>
+</body>
+</html>
+"""
+
+# The two save links; only on the served page (a saved file has no server).
+# PDF is rendered by the server; if it can't (no Chromium), the browser's own
+# print dialog is the fallback, where "Save as PDF" is one click.
+_TOOLBAR = """<nav class="save" aria-label="Save this leaderboard">
+  <a href="/leaderboard.html" download="{name}.html">Save as HTML</a>
+  <a href="/leaderboard.pdf" data-pdf>Save as PDF</a>
+</nav>
+<script>
+  document.querySelector("[data-pdf]").addEventListener("click", async (event) => {{
+    event.preventDefault();
+    const link = event.currentTarget, label = link.textContent;
+    link.textContent = "Rendering PDF…";
+    try {{
+      const response = await fetch(link.href);
+      if (!response.ok) throw new Error(String(response.status));
+      const url = URL.createObjectURL(await response.blob());
+      const a = Object.assign(document.createElement("a"), {{ href: url, download: "{name}.pdf" }});
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }} catch (e) {{
+      window.print();
+    }} finally {{
+      link.textContent = label;
+    }}
+  }});
+</script>
+"""
+
 
 def _data_url(mime: str, payload: bytes) -> str:
     return f"data:{mime};base64,{base64.b64encode(payload).decode()}"
 
 
-def render_html(doc: dict) -> str:
-    """One file with the docs site's ``<openapps-leaderboard>`` element, its
-    stylesheet and ``doc`` inlined as data: URLs, so it opens from disk
-    (``file://``) with no server and nothing fetched from the network."""
-    assets = B.repo_root() / "docs" / "assets" / "leaderboard"
-    js = (assets / "leaderboard.js").read_bytes()
-    css = (assets / "leaderboard.css").read_bytes()
-    data = json.dumps(doc, default=str, allow_nan=False).encode()
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{TITLE}</title>
-<script>
-  if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
-</script>
-<style>
-  body {{ margin: 0; padding: 1.5rem clamp(1rem, 4vw, 3rem); background: #faf6e8; }}
-  html.dark body {{ background: #15140f; }}
-  openapps-leaderboard {{ display: block; max-width: 1440px; margin: 0 auto; }}
-</style>
-</head>
-<body>
-<openapps-leaderboard
-  src="{_data_url("application/json", data)}"
-  stylesheet="{_data_url("text/css", css)}"></openapps-leaderboard>
-<script src="{_data_url("text/javascript", js)}"></script>
-</body>
-</html>
-"""
+class Page:
+    """The leaderboard page for one document, with one halftone texture.
+
+    The texture is drawn once, so the page, its saved HTML and its PDF all
+    look the same. ``background_seed=None`` draws a new one each run.
+    """
+
+    def __init__(self, doc: dict, background_seed: Optional[int] = None):
+        from open_apps.leaderboard.halftone import tile_png
+
+        self.doc = doc
+        assets = B.repo_root() / "docs" / "assets" / "leaderboard"
+        self._js = (assets / "leaderboard.js").read_bytes()
+        self._css = (assets / "leaderboard.css").read_bytes() + PREVIEW_CSS.encode()
+        self._tiles = {
+            scheme: _data_url("image/png", tile_png(scheme, background_seed))
+            for scheme in ("light", "dark")
+        }
+        self._pdf: Optional[bytes] = None
+        self.name = "openapps-leaderboard-" + str(doc.get("generated_at", ""))[:10]
+
+    def html(self, toolbar: bool = False) -> str:
+        """Self-contained: script, styles, data and texture are data: URLs,
+        so it opens from disk (``file://``) and fetches nothing."""
+        data = json.dumps(self.doc, default=str, allow_nan=False).encode()
+        return _PAGE.format(
+            title=TITLE,
+            tile_light=self._tiles["light"],
+            tile_dark=self._tiles["dark"],
+            toolbar=_TOOLBAR.format(name=self.name) if toolbar else "",
+            data=_data_url("application/json", data),
+            css=_data_url("text/css", self._css),
+            js=_data_url("text/javascript", self._js),
+        )
+
+    def pdf(self) -> bytes:
+        """One tall PDF page as wide as the screen layout, rendered by
+        Playwright's Chromium (the one BrowserGym already installs)."""
+        if self._pdf is None:
+            from playwright.sync_api import sync_playwright
+
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch()
+                try:
+                    page = browser.new_page(
+                        viewport={"width": 1440, "height": 900}, color_scheme="light"
+                    )
+                    page.set_content(self.html(), wait_until="load")
+                    # The table, or the empty state: either means it rendered.
+                    page.wait_for_function(
+                        "() => document.querySelector('openapps-leaderboard')"
+                        "?.shadowRoot?.querySelector('.board, .empty')",
+                        timeout=20_000,
+                    )
+                    height = page.evaluate("document.documentElement.scrollHeight")
+                    self._pdf = page.pdf(
+                        width="1440px",
+                        height=f"{height + 2}px",
+                        print_background=True,
+                        page_ranges="1",
+                    )
+                finally:
+                    browser.close()
+        return self._pdf
+
+    def write(self, out: Path) -> Path:
+        """``out`` as HTML, or as PDF when it ends in ``.pdf``."""
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if out.suffix.lower() == ".pdf":
+            out.write_bytes(self.pdf())
+        else:
+            out.write_text(self.html())
+        return out
 
 
-def write_html(doc: dict, out: Path) -> Path:
-    out = Path(out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render_html(doc))
-    return out
+def render_html(doc: dict, background_seed: Optional[int] = None) -> str:
+    return Page(doc, background_seed).html()
+
+
+# --- serving ---------------------------------------------------------------------
 
 
 def _has_display() -> bool:
@@ -357,58 +529,108 @@ def ssh_host() -> str:
     return os.environ.get("OPENAPPS_SSH_HOST") or socket.gethostname()
 
 
-def how_to_view(out: Path, port: int = DEFAULT_PORT) -> str:
-    """What to run on a laptop to see a page written on a remote machine."""
+def how_to_view(port: int) -> str:
+    """What to run on a laptop to see a page served on a remote machine."""
     host = ssh_host()
-    path = Path(out).resolve()
-    note = (
-        ""
-        if "OPENAPPS_SSH_HOST" in os.environ
-        else f"  ({host} is this machine's own name; set OPENAPPS_SSH_HOST to your ssh alias for it)\n"
-    )
-    return (
-        f"To view it from your laptop:\n"
-        f"  scp {host}:{path} . && open {path.name}\n"
-        f"or serve it here and forward the port:\n"
-        f"  uv run -m open_apps.leaderboard.preview --serve-only {path} --port {port}\n"
-        f"  ssh -L {port}:localhost:{port} {host}   # then open http://localhost:{port}/\n"
-        + note
-    ).rstrip("\n")
+    lines = [
+        "No display here. From your laptop, forward the port and open the page:",
+        f"  ssh -N -L {port}:localhost:{port} {host}",
+        f"  open http://localhost:{port}/",
+    ]
+    if "OPENAPPS_SSH_HOST" not in os.environ:
+        lines.append(
+            f"  ({host} is this machine's own name; set OPENAPPS_SSH_HOST to your ssh alias for it)"
+        )
+    return "\n".join(lines)
 
 
-def serve(out: Path, host: str = "127.0.0.1", port: int = DEFAULT_PORT) -> None:
-    """Serve the page at ``http://host:port/`` until interrupted."""
-    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+def make_server(page: Page, host: str = "127.0.0.1", port: int = DEFAULT_PORT):
+    """An HTTP server for ``page``, on ``port`` or the next free one.
 
-    out = Path(out).resolve()
+    ``/`` is the page with its save links, ``/leaderboard.html`` the
+    self-contained file and ``/leaderboard.pdf`` the PDF (rendered on first
+    request); nothing else is served.
+    """
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-    class Handler(SimpleHTTPRequestHandler):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=str(out.parent), **kwargs)
+    lock = threading.Lock()
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, status, body: bytes, mime: str, filename=None):
+            self.send_response(status)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            if filename:
+                self.send_header(
+                    "Content-Disposition", f'attachment; filename="{filename}"'
+                )
+            self.end_headers()
+            self.wfile.write(body)
 
         def do_GET(self):  # noqa: N802 -- http.server's naming
-            if self.path in ("/", "/index.html"):
-                self.path = "/" + out.name
-            if self.path.split("?")[0] != "/" + out.name:
-                self.send_error(404)
-                return
-            super().do_GET()
+            route = self.path.split("?")[0]
+            if route in ("/", "/index.html"):
+                self._send(
+                    200, page.html(toolbar=True).encode(), "text/html; charset=utf-8"
+                )
+            elif route == "/leaderboard.html":
+                self._send(
+                    200, page.html().encode(), "text/html; charset=utf-8",
+                    f"{page.name}.html",
+                )  # fmt: skip
+            elif route == "/leaderboard.pdf":
+                try:
+                    with lock:
+                        body = page.pdf()
+                except Exception as exc:  # noqa: BLE001 -- the page falls back to print
+                    print(f"PDF render failed ({type(exc).__name__}: {exc}); "
+                          "the page falls back to the print dialog", file=sys.stderr)  # fmt: skip
+                    self._send(503, b"PDF rendering unavailable", "text/plain")
+                    return
+                self._send(200, body, "application/pdf", f"{page.name}.pdf")
+            else:
+                self._send(404, b"not found", "text/plain")
 
         def log_message(self, *args):  # quiet
             pass
 
-    server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Serving {out.name} at http://{host}:{port}/ (Ctrl-C to stop)")
-    print(f"From your laptop: ssh -L {port}:localhost:{port} {ssh_host()}")
+    class Server(ThreadingHTTPServer):
+        daemon_threads = True
+
+    for candidate in [*range(port, port + 20), 0]:
+        try:
+            return Server((host, candidate), Handler)
+        except OSError:
+            continue
+    raise OSError(f"no free port from {port}")
+
+
+def serve(
+    page: Page,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_PORT,
+    open_browser: bool = True,
+) -> None:
+    """Serve ``page`` and open it (or say how to, without a display) until
+    Ctrl-C. Nothing is written to disk."""
+    server = make_server(page, host, port)
+    shown = "localhost" if host in ("127.0.0.1", "0.0.0.0", "::") else host
+    url = f"http://{shown}:{server.server_port}/"
+    print(f"Leaderboard at {url}  (Ctrl-C to stop)")
+    if not (open_browser and _has_display() and webbrowser.open(url)):
+        print(how_to_view(server.server_port))
+    sys.stdout.flush()  # before blocking: under nohup or a pipe it is buffered
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        pass
+        print()
     finally:
         server.server_close()
 
 
-def summary(result: Preview, out: Path) -> str:
+def summary(result: Preview) -> str:
     rows = [r for tab in result.doc["suites"].values() for r in tab["rows"]]
     lines = []
     for suite, tab in sorted(result.doc["suites"].items()):
@@ -428,44 +650,50 @@ def summary(result: Preview, out: Path) -> str:
     if result.skipped:
         extra.append(f"{len(result.skipped)} runs skipped")
     lines.append(
-        f"wrote {out} ({len(rows)} models, {result.n_episodes} episodes"
-        + (", " + ", ".join(extra) if extra else "")
-        + ")"
+        f"{len(rows)} models, {result.n_episodes} episodes"
+        + (f" ({', '.join(extra)})" if extra else "")
     )
     return "\n".join(lines)
 
 
-def open_preview(
-    paths: Sequence[str | Path],
-    out: Optional[Path] = None,
-    open_browser: bool = True,
-) -> Optional[Path]:
-    """Build, write and (with a display) open the page; used by the launcher.
-    Never raises: a preview must not fail the sweep that just finished."""
+def _no_runs(paths: Sequence[str | Path]) -> str:
+    return (
+        f"no scorable runs under {', '.join(map(str, paths))} on {socket.gethostname()}. "
+        "Run this where the logs are (e.g. on the cluster); without a display it "
+        "prints the ssh command that brings the page to your laptop."
+    )
+
+
+def launch(paths: Sequence[str | Path], open_browser: bool = True) -> None:
+    """After a sweep (``launch_parallel_agents.py``): serve the leaderboard
+    and open it. Only from a terminal, since serving blocks until Ctrl-C; a
+    batch job prints the command instead. Never raises: a preview must not
+    fail the sweep that just finished."""
+    command = "uv run -m open_apps.leaderboard.preview " + " ".join(map(str, paths))
+    if not sys.stdout.isatty():
+        print(f"See the leaderboard with:\n  {command}")
+        return
     try:
-        out = Path(out or DEFAULT_OUT)
         result = preview(paths)
         if not result.n_episodes:
-            print("No scorable episodes to show on the leaderboard preview.")
-            return None
-        write_html(result.doc, out)
-        print(summary(result, out))
-        if open_browser and _has_display() and webbrowser.open(out.resolve().as_uri()):
-            return out
-        print(how_to_view(out))
-        return out
+            print(_no_runs(paths))
+            return
+        print(summary(result))
+        serve(Page(result.doc), open_browser=open_browser)
     except Exception as exc:  # noqa: BLE001
         print(
-            f"Leaderboard preview failed: {type(exc).__name__}: {exc}", file=sys.stderr
+            f"Leaderboard preview failed: {type(exc).__name__}: {exc}\n"
+            f"Retry with:\n  {command}",
+            file=sys.stderr,
         )
-        return None
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Render a leaderboard (one row per model, across every task) from the "
-            "runs under a directory, as one self-contained HTML file."
+            "Show a leaderboard (one row per model, across every task) of the runs "
+            "under a directory. Serves it and opens a browser; writes nothing unless "
+            "--out is given."
         )
     )
     parser.add_argument(
@@ -486,33 +714,27 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="a suite YAML outside config/benchmark, for coverage and the per-axis breakdown",
     )  # fmt: skip
     parser.add_argument(
-        "--out", type=Path, default=DEFAULT_OUT, help=f"default: {DEFAULT_OUT}"
-    )
+        "--out", type=Path, default=None, metavar="FILE",
+        help="write the page to FILE (.html, or .pdf) and exit instead of serving it",
+    )  # fmt: skip
     parser.add_argument(
         "--json", type=Path, default=None, help="also write the leaderboard JSON here"
     )
     parser.add_argument(
-        "--open", action="store_true", help="open the page in a browser"
+        "--no-open", action="store_true", help="serve, but don't open a browser"
     )
-    parser.add_argument(
-        "--serve", action="store_true", help="serve the page after writing it"
-    )
-    parser.add_argument(
-        "--serve-only", type=Path, default=None, metavar="HTML",
-        help="serve an already written page; build nothing",
-    )  # fmt: skip
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--n-boot", type=int, default=LB.N_BOOT)
-    parser.add_argument("--seed", type=int, default=LB.BOOT_SEED)
+    parser.add_argument("--seed", type=int, default=LB.BOOT_SEED, help="bootstrap seed")
+    parser.add_argument(
+        "--background-seed", type=int, default=None,
+        help="fix the halftone background (default: a new one each run)",
+    )  # fmt: skip
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="list every skipped run"
     )
     args = parser.parse_args(argv)
-
-    if args.serve_only:
-        serve(args.serve_only, args.host, args.port)
-        return 0
 
     paths = args.paths or [DEFAULT_LOGS]
     result = preview(
@@ -527,23 +749,16 @@ def main(argv: Optional[list[str]] = None) -> int:
             file=sys.stderr,
         )
     if not result.n_episodes:
-        print(
-            f"no scorable runs under {', '.join(map(str, paths))} on {socket.gethostname()}. "
-            "Run this where the logs are (e.g. on the cluster) and copy the HTML it "
-            "writes, not the logs.",
-            file=sys.stderr,
-        )
+        print(_no_runs(paths), file=sys.stderr)
         return 1
-    out = write_html(result.doc, args.out)
+    print(summary(result))
     if args.json:
         LB.write(result.doc, args.json)
-    print(summary(result, out))
-    if args.serve:
-        serve(out, args.host, args.port)
-    elif args.open and _has_display():
-        webbrowser.open(out.resolve().as_uri())
-    else:
-        print(how_to_view(out, args.port))
+    page = Page(result.doc, args.background_seed)
+    if args.out:
+        print(f"wrote {page.write(args.out)}")
+        return 0
+    serve(page, args.host, args.port, open_browser=not args.no_open)
     return 0
 
 

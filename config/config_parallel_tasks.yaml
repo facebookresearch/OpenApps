@@ -74,10 +74,11 @@ apps:
 # useful to debug configs without launching jobs
 use_wandb: False
 
-# After a local sweep, build a leaderboard of every run under the logs root
-# (one row per model, across every task) and open it in a browser; without a
-# display it prints how to view it. SLURM sweeps print the command to run once
-# their jobs finish. See open_apps.leaderboard.preview.
+# After a local sweep, serve a leaderboard of every run under the logs root
+# (one row per model, across every task) and open it in a browser, until
+# Ctrl-C; without a display it prints the ssh command to view it. SLURM sweeps
+# print the command to run once their jobs finish. See
+# open_apps.leaderboard.preview.
 open_leaderboard: True
 
 # Sweeps are never interactive. Also required to exist: the launcher starts

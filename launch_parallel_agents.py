@@ -88,7 +88,7 @@ def run_via_slurm(config, parallel_configs, num_jobs, sweep_dir):
         logs_root = (sweep.parent if sweep.name.isdigit() else sweep).parent
         print(
             "When the jobs finish, see every model under the logs root ranked with:\n"
-            f"  uv run -m open_apps.leaderboard.preview {logs_root} --serve"
+            f"  uv run -m open_apps.leaderboard.preview {logs_root}"
         )
 
 
@@ -106,12 +106,11 @@ def run_locally(config, parallel_configs, num_jobs):
         run_task(job_config)
     print(f"\nFinished {num_jobs} local jobs.")
     if config.get("open_leaderboard", True):
-        from open_apps.leaderboard.preview import open_preview
+        from open_apps.leaderboard.preview import launch
 
         # The whole logs root (log_outputs/), not just this sweep: the point
         # is the new model next to the ones run before it.
-        logs_root = Path(base_logs_dir).parent
-        open_preview([logs_root], out=logs_root / "leaderboard_preview.html")
+        launch([Path(base_logs_dir).parent])
 
 
 if __name__ == "__main__":

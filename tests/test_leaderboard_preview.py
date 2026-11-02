@@ -13,6 +13,7 @@ re-runs counted once; and the page it writes must open from disk.
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from open_apps.leaderboard import preview as P
@@ -110,19 +111,21 @@ def test_an_aggregate_table_is_read_from_its_rows(logs, tmp_path):
     assert row["agent"] == "dummy" and row["n_episodes"] == n_json
 
 
-def test_the_page_is_one_self_contained_file(logs, tmp_path, monkeypatch, capsys):
+def test_out_writes_one_self_contained_file(logs, tmp_path, capsys):
     out = tmp_path / "page.html"
     assert P.main([str(logs.parent), "--suite", str(TINY_SUITE), "--out", str(out),
-                   "--n-boot", "0"]) == 0  # fmt: skip
+                   "--n-boot", "0", "--background-seed", "1"]) == 0  # fmt: skip
     html = out.read_text()
     assert "<openapps-leaderboard" in html
-    # Nothing to fetch: the script, stylesheet and data are data: URLs.
+    # Nothing to fetch: script, stylesheet, data and texture are data: URLs.
     assert 'src="data:application/json;base64,' in html
     assert 'stylesheet="data:text/css;base64,' in html
     assert 'src="data:text/javascript;base64,' in html
+    assert html.count('url("data:image/png;base64,') == 2  # light and dark
     assert "http://" not in html and "https://" not in html.split("base64,")[0]
-    printed = capsys.readouterr().out
-    assert "dummy" in printed and "scp " in printed
+    # A saved file has no server behind it, so no save links.
+    assert "Save as PDF" not in html
+    assert "dummy" in capsys.readouterr().out
 
 
 def test_nothing_to_show_is_an_error(tmp_path):
@@ -131,26 +134,113 @@ def test_nothing_to_show_is_an_error(tmp_path):
     assert not (tmp_path / "x.html").exists()
 
 
-def test_open_preview_never_raises_and_opens_only_with_a_display(logs, monkeypatch):
+def test_the_halftone_tile_is_seamless_faint_and_new_each_run():
+    from open_apps.leaderboard import halftone as H
+
+    rng = np.random.default_rng(0)
+    field = H.periodic_noise(64, rng)
+    # Wrapping: the step across the seam is no larger than any step inside.
+    inner = np.abs(np.diff(field, axis=1)).max()
+    assert np.abs(field[:, 0] - field[:, -1]).max() <= inner + 1e-9
+    for scheme, (paper, _) in H.SCHEMES.items():
+        img = np.asarray(H.tile(scheme, seed=0), dtype=int)
+        assert img.shape == (H.TILE, H.TILE, 3)
+        assert np.abs(img - np.array(paper)).max() <= 24, scheme  # subtle
+        assert (img != np.array(paper)).any(axis=2).mean() > 0.01, scheme  # but there
+    assert H.tile_png("light", 3) == H.tile_png("light", 3)
+    assert H.tile_png("light") != H.tile_png("light")
+
+
+def _get(url):
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(url, timeout=60) as r:
+            return r.status, dict(r.headers), r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, dict(e.headers), e.read()
+
+
+def test_the_server_serves_the_page_and_its_two_downloads(logs, monkeypatch):
+    import threading
+
+    page = P.Page(_preview([logs.parent]).doc, background_seed=0)
+    monkeypatch.setattr(page, "pdf", lambda: b"%PDF-1.4 stub")
+    server = P.make_server(page, port=0)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    try:
+        status, _, body = _get(base + "/")
+        assert status == 200 and b"Save as HTML" in body and b"Save as PDF" in body
+        status, headers, body = _get(base + "/leaderboard.html")
+        assert status == 200 and b"Save as PDF" not in body
+        assert (
+            'filename="openapps-leaderboard-2026-10-16.html"'
+            in headers["Content-Disposition"]
+        )
+        status, headers, body = _get(base + "/leaderboard.pdf")
+        assert status == 200 and body.startswith(b"%PDF")
+        assert headers["Content-Type"] == "application/pdf"
+        assert _get(base + "/../.env")[0] == 404
+        monkeypatch.setattr(page, "pdf", lambda: 1 / 0)
+        assert _get(base + "/leaderboard.pdf")[0] == 503  # the page falls back to print
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_a_busy_port_moves_to_the_next_free_one(logs):
+    page = P.Page(_preview([logs.parent]).doc, background_seed=0)
+    first = P.make_server(page, port=0)
+    try:
+        second = P.make_server(page, port=first.server_port)
+        assert second.server_port != first.server_port
+        second.server_close()
+    finally:
+        first.server_close()
+
+
+def test_serve_opens_a_browser_only_with_a_display(logs, monkeypatch, capsys):
+    page = P.Page(_preview([logs.parent]).doc, background_seed=0)
     opened = []
     monkeypatch.setattr(P.webbrowser, "open", lambda url: opened.append(url) or True)
+    # serve_forever returns at once: the test only checks what happens around it.
+    monkeypatch.setattr(
+        "socketserver.BaseServer.serve_forever", lambda self, *a, **k: None
+    )
+    monkeypatch.setenv("OPENAPPS_SSH_HOST", "my-cluster")
     monkeypatch.setattr(P, "_has_display", lambda: False)
-    out = P.open_preview([logs.parent], out=logs.parent / "lb.html")
-    assert out and out.is_file() and opened == []
+    P.serve(page, port=0)
+    out = capsys.readouterr().out
+    assert opened == [] and "ssh -N -L" in out and "my-cluster" in out
 
     monkeypatch.setattr(P, "_has_display", lambda: True)
-    P.open_preview([logs.parent], out=logs.parent / "lb.html")
-    assert opened == [(logs.parent / "lb.html").resolve().as_uri()]
+    P.serve(page, port=0)
+    assert len(opened) == 1 and opened[0].startswith("http://localhost:")
+
+
+def test_launch_never_raises_and_only_serves_from_a_terminal(logs, monkeypatch, capsys):
+    served = []
+    monkeypatch.setattr(P, "serve", lambda page, **k: served.append(page))
+    monkeypatch.setattr(P.sys.stdout, "isatty", lambda: False, raising=False)
+    P.launch([logs.parent])
+    assert served == [] and "open_apps.leaderboard.preview" in capsys.readouterr().out
+
+    monkeypatch.setattr(P.sys.stdout, "isatty", lambda: True, raising=False)
+    P.launch([logs.parent])
+    assert len(served) == 1
 
     monkeypatch.setattr(P, "preview", lambda *a, **k: 1 / 0)
-    assert P.open_preview([logs.parent]) is None
+    P.launch([logs.parent])  # does not raise
+    assert "Retry with" in capsys.readouterr().err
 
 
 @pytest.mark.slow
 def test_the_page_renders_from_disk(logs, tmp_path):
     """file://, no server: the shipped element reads the inlined data."""
     sync_api = pytest.importorskip("playwright.sync_api")
-    out = P.write_html(_preview([logs.parent]).doc, tmp_path / "page.html")
+    out = P.Page(_preview([logs.parent]).doc).write(tmp_path / "page.html")
     errors = []
     with sync_api.sync_playwright() as pw:
         browser = pw.chromium.launch()
@@ -158,19 +248,27 @@ def test_the_page_renders_from_disk(logs, tmp_path):
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(out.resolve().as_uri())
         page.wait_for_selector("openapps-leaderboard >> table.board")
-        assert (
-            "local preview"
-            in page.locator("openapps-leaderboard >> .eyebrow").inner_text().lower()
-        )
+        eyebrow = page.locator("openapps-leaderboard >> .eyebrow").inner_text()
+        assert "local preview" in eyebrow.lower()
         assert (
             page.locator("openapps-leaderboard >> .agent-name").inner_text() == "dummy"
         )
-        assert (
-            "6/6 cells"
-            in page.locator("openapps-leaderboard >> .agent-sub").inner_text()
+        sub = page.locator("openapps-leaderboard >> .agent-sub").inner_text()
+        assert "6/6 cells" in sub
+        # The preview's palette, not the docs site's yellow.
+        bg = page.locator("openapps-leaderboard >> .olb").evaluate(
+            "el => getComputedStyle(el).backgroundColor"
         )
+        assert bg == "rgba(255, 255, 255, 0.8)"
         page.click("openapps-leaderboard >> button.expand")
         links = page.locator("openapps-leaderboard >> .links").inner_text()
         assert str(logs) in links and "not validated" in links
         browser.close()
     assert errors == []
+
+
+@pytest.mark.slow
+def test_the_pdf_is_rendered(logs, tmp_path):
+    pytest.importorskip("playwright.sync_api")
+    out = P.Page(_preview([logs.parent]).doc, 0).write(tmp_path / "board.pdf")
+    assert out.read_bytes().startswith(b"%PDF") and out.stat().st_size > 10_000
