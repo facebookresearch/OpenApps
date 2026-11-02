@@ -16,6 +16,7 @@ What's protected here is what an agent and a reward depend on:
 """
 
 import json
+from html import unescape
 from pathlib import Path
 
 import pytest
@@ -110,3 +111,140 @@ class TestRegistration:
 
         assert url_path_for("passwords") == "/passwords"
         assert config_dir_for("passwords") == "passwords"
+
+
+def item_id(client, title: str) -> int:
+    (match,) = [i["id"] for i in items(client) if i["title"] == title]
+    return match
+
+
+def list_titles(html: str) -> list[str]:
+    import re
+
+    return re.findall(r'<span class="pw-row-title">([^<]*)</span>', html)
+
+
+class TestBrowsing:
+    @pytest.mark.parametrize("category,expected", [
+        ("wifi", {"Wharf Street 5G", "Wharf Street Guest"}),
+        ("note", {"Bike lock"}),
+        ("favorites", {"Netflix", "OpenBanking"}),
+        ("login", {"Netflix", "Netflix (old)", "Northgate Tenant Portal", "Harborline Patient Portal",
+                   "OpenBanking", "Mail", "Iron Harbor Gym", "Northwind VPN"}),
+    ])
+    def test_each_category_lists_its_items(self, client, category, expected):
+        html = client.get("/passwords", params={"category": category}).text
+        assert set(list_titles(html)) == expected
+
+    def test_all_items_is_every_item_not_deleted(self, client):
+        assert set(list_titles(client.get("/passwords").text)) == {t for _, t in SEEDED}
+
+    def test_the_list_is_alphabetical(self, client):
+        titles = list_titles(client.get("/passwords").text)
+        assert titles == sorted(titles, key=str.casefold)
+
+    def test_the_sidebar_counts_each_category(self, client):
+        html = client.get("/passwords").text
+        assert 'href="/passwords?category=wifi"' in html
+        assert '<span class="pw-count">2</span>' in html  # Wi-Fi
+        assert 'href="/passwords?category=deleted"' in html
+
+    def test_recently_deleted_starts_empty(self, client):
+        html = client.get("/passwords", params={"category": "deleted"}).text
+        assert list_titles(html) == []
+        assert "Recently Deleted is empty." in html
+
+    def test_rows_are_links_to_their_item(self, client):
+        html = client.get("/passwords", params={"category": "wifi"}).text
+        assert f'href="/passwords/{item_id(client, "Wharf Street 5G")}?category=wifi"' in html
+
+
+class TestTheItem:
+    def test_a_login_shows_its_fields_with_the_password_masked(self, client):
+        html = client.get(f"/passwords/{item_id(client, 'Netflix')}").text
+        assert 'id="pw-detail"' in html
+        assert "dana.reyes@example.com" in html
+        assert 'href="https://netflix.example"' in html
+        assert "Family plan. Bob uses the second profile." in html
+        assert "Popcorn-Wharf-2291" not in html
+        assert "Last edited" in html
+
+    def test_a_wifi_item_shows_network_and_security(self, client):
+        html = client.get(f"/passwords/{item_id(client, 'Wharf Street 5G')}").text
+        assert "WPA3" in html and "network name" in html
+        assert "Harbor-Light-42!" not in html
+
+    def test_a_note_shows_its_text(self, client):
+        html = client.get(f"/passwords/{item_id(client, 'Bike lock')}").text
+        assert "Combination 3-9-1-7" in html
+        assert "password" not in html.split('id="pw-detail"')[1].split("</article>")[0]
+
+    def test_reveal_shows_the_password_and_writes_nothing(self, client):
+        before = client.get("/passwords_all").text
+        netflix = item_id(client, "Netflix")
+        shown = client.get(f"/passwords/{netflix}/reveal", params={"show": 1},
+                           headers={"HX-Request": "true"}).text
+        assert "Popcorn-Wharf-2291" in shown
+        hidden = client.get(f"/passwords/{netflix}/reveal", params={"show": 0},
+                            headers={"HX-Request": "true"}).text
+        assert "Popcorn-Wharf-2291" not in hidden
+        assert client.get("/passwords_all").text == before
+
+    @pytest.mark.parametrize("field,value", [("password", "Popcorn-Wharf-2291"),
+                                             ("username", "dana.reyes@example.com")])
+    def test_copy_returns_plain_text(self, client, field, value):
+        response = client.get(f"/passwords/{item_id(client, 'Netflix')}/copy/{field}")
+        assert response.status_code == 200
+        assert response.text == value
+        assert response.headers["content-type"].startswith("text/plain")
+
+    @pytest.mark.parametrize("path", ["/passwords/9999/copy/password", "/passwords/{note}/copy/password",
+                                      "/passwords/{netflix}/copy/notes"])
+    def test_copy_refuses_what_is_not_there(self, client, path):
+        path = path.format(note=item_id(client, "Bike lock"), netflix=item_id(client, "Netflix"))
+        assert client.get(path).status_code == 404
+
+    def test_an_unknown_item_is_a_404_page(self, client):
+        response = client.get("/passwords/9999")
+        assert response.status_code == 404
+        assert "doesn't exist" in unescape(response.text)
+
+
+class TestSearch:
+    @pytest.mark.parametrize("query,expected", [
+        ("wharf", {"Wharf Street 5G", "Wharf Street Guest"}),  # title
+        ("northgateprop", {"Northgate Tenant Portal"}),  # website
+        ("dreyes", {"OpenBanking", "Northwind VPN"}),  # username
+    ])
+    def test_search_matches_title_website_and_username(self, client, query, expected):
+        html = client.get("/passwords/search", params={"q": query}, headers={"HX-Request": "true"}).text
+        assert set(list_titles(html)) == expected
+
+    def test_search_never_matches_a_password(self, client):
+        html = client.get("/passwords/search", params={"q": "Popcorn"}, headers={"HX-Request": "true"}).text
+        assert list_titles(html) == []
+
+    def test_a_search_with_no_match_says_so(self, client):
+        html = client.get("/passwords/search", params={"q": "zzz"}, headers={"HX-Request": "true"}).text
+        assert 'No items match "zzz".' in unescape(html)
+
+
+class TestReadOnly:
+    def test_reading_writes_nothing(self, client):
+        before = client.get("/passwords_all").text
+        netflix = item_id(client, "Netflix")
+        for route in ["/passwords", "/passwords?category=wifi", "/passwords?category=deleted",
+                      f"/passwords/{netflix}", f"/passwords/{netflix}/copy/password",
+                      "/passwords/search?q=mail"]:
+            assert client.get(route).status_code == 200
+        assert client.get("/passwords_all").text == before
+
+    def test_styles_use_only_the_shared_token_contract(self):
+        import re
+
+        from open_apps.apps.passwords_app.main import styles
+        from open_apps.theme import load_theme
+
+        used = set(re.findall(r"var\(--([a-z0-9-]+)", str(styles)))
+        used = {t for t in used if not t.startswith(("pico-", "oa-"))}
+        assert used <= set(load_theme("default")["tokens"])
