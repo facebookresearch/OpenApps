@@ -177,7 +177,7 @@ class TestTheItem:
     def test_a_note_shows_its_text(self, client):
         html = client.get(f"/passwords/{item_id(client, 'Bike lock')}").text
         assert "Combination 3-9-1-7" in html
-        assert "password" not in html.split('id="pw-detail"')[1].split("</article>")[0]
+        assert 'id="pw-password-row"' not in html
 
     def test_reveal_shows_the_password_and_writes_nothing(self, client):
         before = client.get("/passwords_all").text
@@ -248,3 +248,152 @@ class TestReadOnly:
         used = set(re.findall(r"var\(--([a-z0-9-]+)", str(styles)))
         used = {t for t in used if not t.startswith(("pico-", "oa-"))}
         assert used <= set(load_theme("default")["tokens"])
+
+
+@pytest.fixture
+def reseed(client):
+    """Put the seeded vault back after a test that writes."""
+    from open_apps.apps.passwords_app import main as passwords_app
+
+    yield
+    passwords_app.set_environment(app.config)
+
+
+def login_form(**overrides) -> dict:
+    data = {"kind": "login", "title": "Harbor Climbing Gym", "username": "dana.reyes@example.com",
+            "password": "Chalk-Bag-77", "website": "https://harborclimb.example", "notes": ""}
+    data.update(overrides)
+    return data
+
+
+def by_title(client, title: str) -> dict:
+    (match,) = [i for i in items(client) if i["title"] == title]
+    return match
+
+
+class TestCreating:
+    def test_the_type_picker_offers_each_kind(self, client):
+        html = client.get("/passwords/new").text
+        for kind in ("login", "wifi", "note"):
+            assert f'href="/passwords/new?kind={kind}"' in html
+
+    def test_each_kind_gets_its_own_fields(self, client):
+        assert 'name="website"' in client.get("/passwords/new", params={"kind": "login"}).text
+        wifi = client.get("/passwords/new", params={"kind": "wifi"}).text
+        assert 'name="security"' in wifi and 'name="website"' not in wifi
+        note = client.get("/passwords/new", params={"kind": "note"}).text
+        assert 'name="password"' not in note
+
+    def test_a_login_is_saved_with_the_pinned_date(self, client, reseed):
+        response = client.post("/passwords", data=login_form(), follow_redirects=False)
+        assert response.status_code == 303
+        gym = by_title(client, "Harbor Climbing Gym")
+        assert response.headers["location"] == f"/passwords/{gym['id']}"
+        assert gym["password"] == "Chalk-Bag-77"
+        assert gym["edited_on"] == app.config.passwords.today
+        assert not gym["deleted"]
+
+    def test_a_password_is_stored_exactly_as_typed(self, client, reseed):
+        client.post("/passwords", data=login_form(password="  spaced pass  "), follow_redirects=False)
+        assert by_title(client, "Harbor Climbing Gym")["password"] == "  spaced pass  "
+
+    def test_a_note_and_a_wifi_network(self, client, reseed):
+        client.post("/passwords", data={"kind": "note", "title": "Storage unit", "notes": "Gate code 4471#"},
+                    follow_redirects=False)
+        client.post("/passwords", data={"kind": "wifi", "title": "Cabin", "password": "pine-cone-8",
+                                        "security": "WPA2"}, follow_redirects=False)
+        assert by_title(client, "Storage unit")["kind"] == "note"
+        assert by_title(client, "Cabin")["security"] == "WPA2"
+
+    @pytest.mark.parametrize("data,message", [
+        (login_form(title="  "), "Add a title."),
+        (login_form(username="", password=""), "A login needs a username or a password."),
+        ({"kind": "wifi", "title": "Cabin", "password": ""}, "A Wi-Fi network needs a password."),
+    ])
+    def test_refusals_write_nothing_and_say_why(self, client, reseed, data, message):
+        before = client.get("/passwords_all").text
+        response = client.post("/passwords", data=data, follow_redirects=False)
+        assert response.status_code == 422
+        assert message in unescape(response.text)
+        assert client.get("/passwords_all").text == before
+
+    def test_a_refusal_through_htmx_swaps_the_form_in_place(self, client, reseed):
+        response = client.post("/passwords", data=login_form(title=""), headers={"HX-Request": "true"})
+        assert response.status_code == 200
+        assert 'id="pw-detail"' in response.text and "Add a title." in unescape(response.text)
+
+    def test_a_save_through_htmx_navigates(self, client, reseed):
+        response = client.post("/passwords", data=login_form(), headers={"HX-Request": "true"})
+        assert response.headers["HX-Redirect"].startswith("/passwords/")
+
+
+class TestEditing:
+    def test_the_form_is_prefilled(self, client):
+        html = client.get(f"/passwords/{item_id(client, 'Netflix')}/edit").text
+        assert 'value="dana.reyes@example.com"' in html
+        assert 'value="Popcorn-Wharf-2291"' in html  # editing shows the secret, as the app does
+
+    def test_saving_changes_the_fields_and_the_date(self, client, reseed):
+        netflix = item_id(client, "Netflix")
+        data = login_form(title="Netflix", username="dana.reyes@example.com", password="New-Popcorn-1",
+                          website="https://netflix.example", notes="Family plan. Bob uses the second profile.",
+                          favorite="1")
+        response = client.post(f"/passwords/{netflix}", data=data, follow_redirects=False)
+        assert response.status_code == 303
+        after = by_title(client, "Netflix")
+        assert after["password"] == "New-Popcorn-1"
+        assert after["favorite"] is True
+        assert after["edited_on"] == app.config.passwords.today
+
+    def test_the_kind_cannot_change(self, client, reseed):
+        netflix = item_id(client, "Netflix")
+        client.post(f"/passwords/{netflix}", data=login_form(kind="note", title="Netflix"), follow_redirects=False)
+        assert by_title(client, "Netflix")["kind"] == "login"
+
+    def test_a_refused_edit_writes_nothing(self, client, reseed):
+        before = client.get("/passwords_all").text
+        netflix = item_id(client, "Netflix")
+        assert client.post(f"/passwords/{netflix}", data=login_form(title=""), follow_redirects=False).status_code == 422
+        assert client.get("/passwords_all").text == before
+
+    def test_editing_an_unknown_item_is_a_404(self, client):
+        assert client.post("/passwords/9999", data=login_form(), follow_redirects=False).status_code == 404
+
+
+class TestDeleting:
+    def test_the_item_page_offers_delete_behind_a_confirm(self, client):
+        html = client.get(f"/passwords/{item_id(client, 'Netflix (old)')}").text
+        assert 'id="pw-delete-dialog"' in html
+        assert f'action="/passwords/{item_id(client, "Netflix (old)")}/delete"' in html
+
+    def test_delete_moves_it_to_recently_deleted(self, client, reseed):
+        old = item_id(client, "Netflix (old)")
+        response = client.post(f"/passwords/{old}/delete", follow_redirects=False)
+        assert response.status_code == 303
+        assert by_title(client, "Netflix (old)")["deleted"] is True
+        assert "Netflix (old)" not in list_titles(client.get("/passwords").text)
+        assert list_titles(client.get("/passwords", params={"category": "deleted"}).text) == ["Netflix (old)"]
+
+    def test_a_deleted_item_offers_only_permanent_deletion(self, client, reseed):
+        old = item_id(client, "Netflix (old)")
+        client.post(f"/passwords/{old}/delete")
+        html = client.get(f"/passwords/{old}", params={"category": "deleted"}).text
+        assert f'action="/passwords/{old}/purge"' in html
+        assert f'href="/passwords/{old}/edit"' not in html
+
+    def test_purge_removes_it(self, client, reseed):
+        old = item_id(client, "Netflix (old)")
+        client.post(f"/passwords/{old}/delete")
+        response = client.post(f"/passwords/{old}/purge", follow_redirects=False)
+        assert response.status_code == 303
+        assert "Netflix (old)" not in {i["title"] for i in items(client)}
+
+    def test_purge_refuses_an_item_not_in_recently_deleted(self, client, reseed):
+        before = client.get("/passwords_all").text
+        assert client.post(f"/passwords/{item_id(client, 'Netflix')}/purge").status_code == 404
+        assert client.get("/passwords_all").text == before
+
+    def test_a_deleted_item_cannot_be_edited(self, client, reseed):
+        old = item_id(client, "Netflix (old)")
+        client.post(f"/passwords/{old}/delete")
+        assert client.get(f"/passwords/{old}/edit").status_code == 404
