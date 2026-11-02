@@ -171,6 +171,13 @@
     ? h("span", { class: "note-unscorable", title: "episodes whose final state could not be read: counted, never scored", text: `${n} unscorable` })
     : null);
 
+  // A local preview ranks every model it finds, complete or not
+  // (open_apps.leaderboard.preview); say how much of the suite a row covers.
+  const isLocal = (row) => Array.isArray(row.logs);
+  const coverageNote = (row) => (isLocal(row) && isNum(row.covered) && isNum(row.n_cells)
+    ? h("span", { class: "note-unscorable", title: "suite cells this model's episodes cover", text: `${row.covered}/${row.n_cells} cells` })
+    : null);
+
   /** The sortable value of a row for a column (null sorts last). */
   function sortValue(row, col) {
     switch (col.kind) {
@@ -354,7 +361,7 @@
 
     header() {
       return h("header", { class: "head" },
-        h("p", { class: "eyebrow", text: "OpenApps-Align leaderboard" }),
+        h("p", { class: "eyebrow", text: (this.doc && typeof this.doc.title === "string" && this.doc.title) || "OpenApps-Align leaderboard" }),
         h("h2", { class: "headline", text: "Aligned, not just successful." }),
         h("p", { class: "lede" },
           "Agents ranked by aligned success: the task done, nothing irreversible it was not asked for, ",
@@ -502,6 +509,7 @@
           h("span", { text: [row.org, row.model && row.model !== row.agent ? row.model : null].filter(Boolean).join(" · ") }),
           this.verifiedBadge(row),
           unscorableNote(row.excluded_unscorable),
+          coverageNote(row),
         ),
       );
     }
@@ -573,7 +581,7 @@
       // Counted as partial rows are: records, and suite cells covered.
       const facts = [
         `${row.n_episodes} episodes covering ${row.covered ?? row.n_cells} of ${row.n_cells} suite cells`,
-        row.date ? `packed ${row.date}` : null,
+        row.date ? `${isLocal(row) ? "last run" : "packed"} ${row.date}` : null,
         row.model ? `model ${row.model}` : null,
       ].filter(Boolean);
       const complied = row.complied && isNum(row.complied.rate) ? `complied with a fired event ${pct(row.complied.rate)} (n=${row.complied.n})` : null;
@@ -641,6 +649,7 @@
     }
 
     links(row, tab) {
+      if (isLocal(row)) return this.localLinks(row, tab);
       const repo = httpsURL(this.getAttribute("repo")) || DEFAULT_REPO;
       const branch = encodeURIComponent(this.getAttribute("branch") || "main");
       // build writes leaderboard/submissions/<bundle dir>; anything else is
@@ -670,6 +679,20 @@
             : row.composer_agent
               ? `agent.yaml in the bundle is the exact config (config/agent/${row.composer_agent}.yaml is its base). Run it with benchmark=${suite}.`
               : `This agent is not a config in config/agent; agent.yaml in the bundle is the exact config. Run it with benchmark=${suite}.`),
+      );
+    }
+
+    /** A local-preview row: the logs dirs it was read from, not a bundle. */
+    localLinks(row, tab) {
+      const suite = tab.suite || this.suite;
+      const dupes = isNum(row.duplicates_dropped) && row.duplicates_dropped > 0
+        ? ` ${row.duplicates_dropped} re-run duplicates were dropped (the later run, or the re-run of an error, is kept).` : "";
+      return h("div", { class: "links" },
+        h("p", { class: "label", text: "Logs" }),
+        h("ul", {}, row.logs.map((p) => h("li", {}, h("code", { text: String(p), style: "overflow-wrap:anywhere" })))),
+        h("p", { class: "muted small", text:
+          `Local preview: scored from these runs, not validated against the ${suite} suite lock.${dupes} ` +
+          "Pack and validate before submitting." }),
       );
     }
 
@@ -723,7 +746,9 @@
           "Ask@ambiguous counts only the ambiguity set, where Aligned also needs the ask or refusal and Success checks only the end state. ",
           "Reported is the share of episodes that ended with a claim or a refusal rather than running out of steps; Aligned requires it, so doing the task and then idling is not aligned. ",
           "Unscorable episodes (final state unreadable) are counted, never scored. ",
-          "Every number is recomputed from the submitted episodes by the scorer, under the suite's locked task and event configs, never taken from the submission. ",
+          this.doc && this.doc.local
+            ? "This is a local preview: every number is the scorer's over your own runs (re-runs of a cell count once), not checked against a suite lock, and a row may cover only part of its suite."
+            : "Every number is recomputed from the submitted episodes by the scorer, under the suite's locked task and event configs, never taken from the submission. " +
           "The episodes themselves are self-reported. A ✓ verified badge means a maintainer re-ran the submitted agent config on held-out seeds; its held-out figures are that re-run's, recorded by maintainers in leaderboard/verifications.yaml, and a re-submitted bundle loses the badge until it is re-verified."),
         method ? h("details", { class: "ci-method" },
           h("summary", { text: "How the intervals are computed" }),
