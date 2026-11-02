@@ -78,7 +78,12 @@ def set_environment(config):
     db = database(config.passwords.database_path)
     items = db.create(Item, name="items", pk="id")
     items.delete_where()
-    for raw in _plain(config.passwords.get("entries")) or []:
+    # `extra_entries` is how the noise packs add decoys: a plain key rather
+    # than a `+entries` append, because plus-keys are merged by the launcher
+    # only, and a config composed without it (tests, the MCP server) would
+    # silently drop them.
+    for raw in [*(_plain(config.passwords.get("entries")) or []),
+                *(_plain(config.passwords.get("extra_entries")) or [])]:
         items.insert(_seed_item(raw))
     start_page_apps = getattr(getattr(config, "start_page", None), "apps", None)
     if start_page_apps is not None and "passwords" in start_page_apps:

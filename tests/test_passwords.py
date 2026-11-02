@@ -397,3 +397,100 @@ class TestDeleting:
         old = item_id(client, "Netflix (old)")
         client.post(f"/passwords/{old}/delete")
         assert client.get(f"/passwords/{old}/edit").status_code == 404
+
+
+def _reconfigure(**changes):
+    """Re-seed the passwords app on a resolved copy of the live config with
+    ``changes`` applied under ``apps`` (dotted keys)."""
+    from omegaconf import OmegaConf
+
+    from open_apps.apps.passwords_app import main as passwords_app
+
+    cfg = OmegaConf.create(OmegaConf.to_container(app.config, resolve=True))
+    for key, value in changes.items():
+        OmegaConf.update(cfg, key, value, merge=False)
+    passwords_app.set_environment(cfg)
+
+
+def rendered_testids(html: str) -> set[str]:
+    import re
+
+    return set(re.findall(r'data-testid="([^"]+)"', html))
+
+
+class TestLayouts:
+    def test_default_is_three_panes(self, client):
+        html = client.get(f"/passwords/{item_id(client, 'Netflix')}").text
+        assert 'class="pw-sidebar"' in html and 'class="pw-listpane"' in html and 'id="pw-detail"' in html
+        assert 'data-testid="back-to-list"' not in html
+
+    def test_list_detail_is_one_pane_at_a_time(self, client, reseed):
+        _reconfigure(**{"passwords.layout": "list_detail"})
+        netflix = item_id(client, "Netflix")
+        index, card = client.get("/passwords").text, client.get(f"/passwords/{netflix}").text
+        assert 'class="pw-listpane"' in index and 'id="pw-detail"' not in index
+        assert 'id="pw-detail"' in card and 'class="pw-listpane"' not in card
+        assert 'data-testid="back-to-list"' in card
+
+    def test_a_phone_is_single_pane(self, client, reseed):
+        _reconfigure(**{"device.form_factor": "phone"})
+        card = client.get(f"/passwords/{item_id(client, 'Netflix')}").text
+        assert 'class="pw-listpane"' not in card and "pw-root is-phone" in card
+
+    @pytest.mark.parametrize("path", ["/passwords/{netflix}", "/passwords/{netflix}/edit", "/passwords/new"])
+    def test_both_layouts_render_the_same_controls(self, client, reseed, path):
+        path = path.format(netflix=item_id(client, "Netflix"))
+        three = {t for t in rendered_testids(client.get(path).text)
+                 if not t.startswith(("item-row-", "category-"))}
+        _reconfigure(**{"passwords.layout": "list_detail"})
+        one = rendered_testids(client.get(path).text)
+        assert one - {"back-to-list"} == three
+
+
+class TestContentPacks:
+    def _load(self, variant, tmp_path):
+        from omegaconf import OmegaConf
+
+        from open_apps.apps.passwords_app import main as passwords_app
+
+        with initialize(version_base=None, config_path="../config/"):
+            cfg = compose(config_name="config",
+                          overrides=[f"logs_dir={tmp_path}", f"apps/passwords/content={variant}"])
+        apps_cfg = OmegaConf.create(OmegaConf.to_container(app.config, resolve=True))
+        apps_cfg.passwords = OmegaConf.to_container(cfg.apps.passwords, resolve=True)
+        passwords_app.set_environment(apps_cfg)
+
+    @pytest.mark.parametrize("variant,placeholder", [("german", "Persönlich durchsuchen"),
+                                                     ("mandarin", "搜索个人")])
+    def test_translated_packs_keep_the_items(self, client, reseed, variant, placeholder, tmp_path):
+        before = client.get("/passwords_all").text
+        self._load(variant, tmp_path)
+        assert f'placeholder="{placeholder}"' in client.get("/passwords").text
+        assert client.get("/passwords_all").text == before
+
+    @pytest.mark.parametrize("variant", ["long_descriptions", "misleading_descriptions",
+                                         "adversarial_descriptions"])
+    def test_noise_packs_add_items_and_keep_the_seed(self, client, reseed, variant, tmp_path):
+        seeded = items(client)
+        self._load(variant, tmp_path)
+        after = items(client)
+        assert after[: len(seeded)] == seeded
+        assert len(after) > len(seeded)
+
+    def test_the_misleading_pack_has_lookalikes(self, client, reseed, tmp_path):
+        self._load("misleading_descriptions", tmp_path)
+        titles = [i["title"] for i in items(client)]
+        assert titles.count("Mail") == 2
+        assert "Wharf Street 5G (old router)" in titles
+
+    def test_the_adversarial_pack_carries_the_shared_message(self, client, reseed, tmp_path):
+        self._load("adversarial_descriptions", tmp_path)
+        message = str(app.config.adversarial_message).strip()
+        assert any(message in (i["title"] + i["notes"]) for i in items(client))
+
+    @pytest.mark.parametrize("variant", ["default", "german", "mandarin", "long_descriptions",
+                                         "misleading_descriptions", "adversarial_descriptions"])
+    def test_every_pack_renders(self, client, reseed, variant, tmp_path):
+        self._load(variant, tmp_path)
+        assert client.get("/passwords").status_code == 200
+        assert client.get(f"/passwords/{items(client)[-1]['id']}").status_code == 200

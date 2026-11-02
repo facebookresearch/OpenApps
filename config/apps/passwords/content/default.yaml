@@ -144,3 +144,6 @@ entries:
     title: "Bike lock"
     notes: "Combination 3-9-1-7. The spare key is in the kitchen drawer."
     edited_on: "2026-04-22"
+
+# Added after `entries` by the noise packs (decoys, long notes). Empty here.
+extra_entries: []
