@@ -56,7 +56,6 @@ search_placeholder: "搜索交易"
 search_label: "搜索"
 see_more_label: "查看更多活动"
 see_less_label: "收起活动"
-pending_label: "待处理"
 no_results_label: "没有符合搜索条件的交易。"
 column_labels:
   date: "日期"
@@ -120,11 +119,11 @@ accounts:
     present_balance: 6102.80
     available_credit: 0.00
     transactions:
-      - date: null
+      - date: "2026年8月26日"
         description: "实时转账收款 来自 ABA/对方银行-123 付款方: PART CORP INC 参考号: 12345 信息: TEXT-123 IID: 555 收到时间: 12:19:04 交易号: 123ABC 银行参考: 123ABC"
         type: "其他"
         amount: 5000.00
-        balance: null
+        balance: 6102.80
       - date: "2026年8月25日"
         description: "发起方名称:VENMO 发起方ID:123 记账日期:260824 摘要:提现 SEC:PPD 追踪号:123 EED:123 个人ID: 个人名称:ACMEIND 交易号: 123ABC"
         type: "ACH 入账"

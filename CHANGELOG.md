@@ -85,6 +85,15 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   `counterparty`/`memo` keys are dropped, so targets that predate them match.
 - Contacts' New Contact form and the bank's Save to Contacts share one insert
   path (`contacts_app.add_contact`).
+- **Nothing in OpenBanking is pending.** A card charge from a shop checkout
+  (and its overlimit notice, or a declined authorization) posts at once, dated
+  on the pinned `as_of_date` with the card's running balance, like a payment.
+  The seeded real-time transfer on BUS COMPLETE CHK is dated Aug 26, 2026 with
+  its balance (no account figure changes), so it now appears on August's
+  statement. Purchase targets predict the row's date (`posting_date`, which
+  german/mandarin runs override) and balance; a seeded row without a date or
+  balance is refused at launch. `note_pending_transfer_in_calendar_and_todo`
+  becomes `note_realtime_transfer_in_calendar_and_todo`, with the same answer.
 - Purchase targets expect one new receipt in Files; a declined card expects
   none.
 - Parallel sweeps launch Files (`config_parallel_tasks*.yaml`).

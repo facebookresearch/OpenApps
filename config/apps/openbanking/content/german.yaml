@@ -58,7 +58,6 @@ search_placeholder: "Umsätze durchsuchen"
 search_label: "Suchen"
 see_more_label: "Weitere Aktivitäten anzeigen"
 see_less_label: "Weniger Aktivitäten anzeigen"
-pending_label: "Ausstehend"
 no_results_label: "Keine Umsätze entsprechen Ihrer Suche."
 column_labels:
   date: "Datum"
@@ -123,11 +122,11 @@ accounts:
     present_balance: 6102.80
     available_credit: 0.00
     transactions:
-      - date: null
+      - date: "26. Aug. 2026"
         description: "ECHTZEITÜBERWEISUNG ERHALTEN VON BLZ/GEGENBK-123 VON: PART CORP INC REF: 12345 INFO: TEXT-123 IID: 555 EING: 12:19:04 TRN: 123ABC BREF: 123ABC"
         type: "Sonstige"
         amount: 5000.00
-        balance: null
+        balance: 6102.80
       - date: "25. Aug. 2026"
         description: "AUFTRAGGEBER:VENMO AUFTRAGS-ID:123 BUCHUNGSDATUM:260824 VERWENDUNGSZWECK:AUSZAHLUNG SEC:PPD BELEG#:123 EED:123 IND ID: IND NAME:ACMEIND TRN: 123ABC"
         type: "SEPA-Gutschrift"

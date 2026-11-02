@@ -169,8 +169,8 @@ uv run launch_agent.py agent=GPT-5-1 \
 ```
 
 `BuyWithCardTask` builds a target in which the shop gained an order carrying the
-paying card's last four, and the bank gained a pending `Card` row that debits the
-headroom by exactly the order total. What makes it cross-app rather than a
+paying card's last four, and the bank gained a `Card` row, dated on its pinned
+`as_of_date`, that debits the headroom by exactly the order total. What makes it cross-app rather than a
 form-fill is that the card number, expiry and CVV live only on the card's page in
 OpenBanking, each masked until clicked, and checkout takes no order without all
 three.

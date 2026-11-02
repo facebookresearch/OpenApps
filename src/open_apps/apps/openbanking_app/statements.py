@@ -16,8 +16,8 @@ amount, closing balance is the last row's posted balance, and the bank's
 seeded ledgers are self-consistent (``tests/test_bank_statements.py`` checks
 every pack).
 
-Pending rows (no date yet) belong on no statement. That also keeps a shop
-checkout -- which posts pending rows -- from changing any statement.
+Every row is dated -- nothing in the bank is pending -- so a payment or a
+shop checkout lands on the statement for the pinned ``as_of_date``'s month.
 
 Posting dates are stored as each content pack prints them ("Aug 25, 2026",
 "25. Aug. 2026", "2026年8月25日"), so :func:`parse_posting_date` reads all

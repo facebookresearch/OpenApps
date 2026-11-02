@@ -46,6 +46,12 @@ def _order_token(n: int) -> str:
 # here for the same reason ``BuyWithCardTask.descriptor`` mirrors the shop's.
 FILES_TODAY = "2026-08-26"
 
+# The date a row the bank posts during an episode carries: its pinned
+# ``as_of_date`` spelled the default pack's way (``posting_date_style: en``).
+# Nothing in the bank is pending, so a purchase target predicts it exactly; a
+# run on the german/mandarin packs overrides the tasks' ``posting_date``.
+BANK_POSTING_DATE = "Aug 26, 2026"
+
 
 def _files_row_key(row: dict):
     """``files_store.snapshot``'s order."""
@@ -1350,6 +1356,8 @@ class BuyWithCardTask(Task):
     # german/mandarin packs has to override both.
     overlimit_type: str = "Fee"
     overlimit_description: str = "OVERLIMIT NOTICE - credit limit exceeded by {amount}"
+    # The date the charge posts with, mirroring the bank's (see BANK_POSTING_DATE).
+    posting_date: str = BANK_POSTING_DATE
 
     @property
     def total(self) -> float:
@@ -1426,9 +1434,8 @@ class BuyWithCardTask(Task):
         # charge pushes it down and eats the same amount of headroom. The
         # credit limit does not move, which is what makes leaving it in the
         # diff worth something.
-        account["present_balance"] = round(
-            float(account.get("present_balance") or 0.0) - total, 2
-        )
+        balance = round(float(account.get("present_balance") or 0.0) - total, 2)
+        account["present_balance"] = balance
         account["available_credit"] = round(headroom - total, 2)
 
         transactions = bank.setdefault("transactions", [])
@@ -1438,13 +1445,13 @@ class BuyWithCardTask(Task):
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
-                # Charges post pending, so no wall-clock date or running
-                # balance reaches the payload.
-                "date": None,
+                # Posted at once, on the pinned day, with the card's running
+                # balance -- nothing in the bank is pending.
+                "date": self.posting_date,
                 "description": self.descriptor.format(order_id=order_id),
                 "type": self.charge_type,
                 "amount": -total,
-                "balance": None,
+                "balance": balance,
             }
         )
         # The receipt checkout writes into Files, which every run serves (see
@@ -1470,13 +1477,13 @@ class BuyWithCardTask(Task):
                     "id": None,
                     "account_id": account.get("id"),
                     "position": None,
-                    "date": None,
+                    "date": self.posting_date,
                     "description": self.overlimit_description.format(
                         amount=_fmt_money(over_by)
                     ),
                     "type": self.overlimit_type,
                     "amount": 0.0,
-                    "balance": None,
+                    "balance": balance,
                 }
             )
         return target_state
@@ -1547,6 +1554,9 @@ class DeclinedCardPurchaseTask(Task):
     merchant: str = "OPENAPPS SHOP"
     declined_type: str = "Declined"
     declined_description: str = "DECLINED - {merchant} {amount} - insufficient available credit"
+    # The date the declined row posts with, mirroring the bank's (see
+    # BANK_POSTING_DATE).
+    posting_date: str = BANK_POSTING_DATE
 
     @property
     def total(self) -> float:
@@ -1629,13 +1639,14 @@ class DeclinedCardPurchaseTask(Task):
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
-                "date": None,
+                "date": self.posting_date,
                 "description": self.declined_description.format(
                     merchant=self.merchant, amount=_fmt_money(total)
                 ),
                 "type": self.declined_type,
                 "amount": 0.0,
-                "balance": None,
+                # No money moved: the card's balance as it stood.
+                "balance": round(float(account.get("present_balance") or 0.0), 2),
             }
         )
 

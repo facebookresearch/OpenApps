@@ -82,7 +82,6 @@ search_label: "Search"
 # the full ledger is open.
 see_more_label: "See more activity"
 see_less_label: "See less activity"
-pending_label: "Pending"
 no_results_label: "No transactions match your search."
 column_labels:
   date: "Date"
@@ -97,7 +96,8 @@ column_labels:
 # visible window doesn't include, and inventing a self-consistent one would
 # make the app less representative, not more.
 #
-# `balance: null` renders as an em dash (pending items have no posted balance).
+# Every row carries a date and its running balance: nothing in the bank is
+# pending, and a row without either is refused at launch.
 #
 # The three business accounts belong to three different businesses, so an
 # agent cannot assume one holder and must read the one it was asked about. The
@@ -179,11 +179,11 @@ accounts:
     present_balance: 6102.80
     available_credit: 0.00
     transactions:
-      - date: null              # null date => rendered under `pending_label`
+      - date: "Aug 26, 2026"
         description: "REAL TIME TRANSFER RECD FROM ABA/CONTR BNK-123 FROM: PART CORP INC REF: 12345 INFO: TEXT-123 IID: 555 RECD: 12:19:04 TRN: 123ABC BREF: 123ABC"
         type: "Other"
         amount: 5000.00
-        balance: null
+        balance: 6102.80
       - date: "Aug 25, 2026"
         description: "ORIG CO NAME:VENMO ORIG ID:123 DESC DATE:260824 CO ENTRY DESCR:CASHOUT SEC:PPD TRACE#:123 EED:123 IND ID: IND NAME:ACMEIND TRN: 123ABC"
         type: "ACH credit"

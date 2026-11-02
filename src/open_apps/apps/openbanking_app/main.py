@@ -20,12 +20,14 @@ posts one dated row to a payee (see :mod:`.send`). The other is
 ``authorize_card_purchase``: the online shop calls it to
 charge a card at checkout (see ``openbanking_app.main`` imports in
 ``onlineshop_app``). It is deliberately the only one, it only fires on an
-explicit checkout, and it posts *pending* rows -- ``date=None``,
-``balance=None`` -- so the payload still gains nothing but the rows the
-checkout actually added: the charge, or the declined authorization when the
-card could not cover it. A task that involves a shop purchase therefore has to
-expect a delta in the ``openbanking`` slice as well as ``online_shop``; a task
-that involves neither still sees a byte-identical bank.
+explicit checkout. Both post dated rows, on the pinned ``as_of_date`` in the
+pack's date format, with a running balance -- nothing is ever pending -- so the
+payload gains nothing but the rows the action added, and the same rows on every
+run: the charge (plus an overlimit notice when it broke the limit), or the
+declined authorization when the card could not cover it. A task that involves a
+shop purchase therefore has to expect a delta in the ``openbanking`` slice as
+well as ``online_shop``; a task that involves neither still sees a
+byte-identical bank.
 
 Statements (:mod:`.statements`) are read-only too: viewing one renders it
 from the ledger, and downloading one writes the PDF into the shared file
@@ -94,11 +96,13 @@ class Transaction:
     # ordered newest-first by posting, which the human-readable `date` string
     # ("Aug 25, 2026", "2026年8月24日") cannot be sorted on.
     position: int
-    date: Optional[str]  # None => pending, rendered under `pending_label`
+    # The pack's spelling of the posting day. Every row has one: nothing is
+    # pending, so a seeded row without a date is refused at launch.
+    date: str
     description: str
     type: str
     amount: float
-    balance: Optional[float]  # None => no posted balance yet (pending)
+    balance: float  # the running balance after this row posted
     # Set only on a payment the user sent (see `send.py`): the payee's handle,
     # normalised, and what they wrote in the memo. None on every seeded row and
     # on card charges, so the payload has one shape and a task can tell a send
@@ -315,7 +319,6 @@ styles = Style("""
     .ob-num { text-align: right; white-space: nowrap; }
     .ob-credit { color: var(--color-accent); font-weight: 600; }
     .ob-debit { color: var(--color-fg); font-weight: 700; }
-    .ob-pending td { color: var(--color-muted); }
 
     .ob-txn-card {
         border: 1px solid var(--color-border);
@@ -569,6 +572,12 @@ def set_environment(config):
         )
         for position, txn_cfg in enumerate(account_cfg.transactions):
             balance = txn_cfg.balance
+            if txn_cfg.date is None or balance is None:
+                raise ValueError(
+                    f"{account_cfg.name}: ledger row {txn_cfg.description!r} has no "
+                    "date or balance. Nothing in the bank is pending: give every row "
+                    "its posting date and the running balance after it."
+                )
             transactions.insert(
                 Transaction(
                     id=txn_id,
@@ -578,7 +587,7 @@ def set_environment(config):
                     description=txn_cfg.description,
                     type=txn_cfg.type,
                     amount=float(txn_cfg.amount),
-                    balance=None if balance is None else float(balance),
+                    balance=float(balance),
                 )
             )
             txn_id += 1
@@ -721,9 +730,9 @@ def get_account(account_id: int) -> Optional[Account]:
 #
 # Called by the online shop's checkout, never from this app's own UI. See the
 # module docstring for why that exception is narrow on purpose. The posted rows
-# are pending (`date=None`, `balance=None`): a real issuer shows a card charge
-# that way until the statement cuts, and it keeps `datetime.now()` -- the one
-# thing guaranteed to differ between two runs -- out of `/openbanking_all`.
+# are dated on the pinned `as_of_date` and carry their running balance, like a
+# payment: nothing in the bank is pending, which keeps every run's ledger the
+# same and `datetime.now()` out of `/openbanking_all`.
 
 
 @dataclass
@@ -782,6 +791,13 @@ def as_of_date() -> date:
     """
     value = getattr(cfg(), "as_of_date", None)
     return date.fromisoformat(str(value)) if value else date.today()
+
+
+def posting_date() -> str:
+    """The date a row posted now carries: the pinned ``as_of_date``, spelled
+    the way this pack prints dates (``posting_date_style``)."""
+    style = str(getattr(cfg(), "posting_date_style", None) or "en")
+    return statements.format_posting_date(as_of_date(), style)
 
 
 def expiry_has_passed(expiry: tuple) -> bool:
@@ -906,14 +922,14 @@ def authorize_card_purchase(
                 id=None,
                 account_id=account.id,
                 position=0,
-                date=None,
+                date=posting_date(),
                 description=c.declined_description.format(
                     merchant=merchant if merchant is not None else descriptor,
                     amount=fmt_money(amount),
                 ),
                 type=c.declined_type,
                 amount=0.0,
-                balance=None,
+                balance=round(account.present_balance, 2),
             )
         ])
         return ChargeResult(
@@ -922,17 +938,22 @@ def authorize_card_purchase(
 
     # Approved. The charge first, then -- only if it broke the limit -- the
     # notice, so the ledger reads top-down as "this happened, and here is what
-    # was unusual about it".
+    # was unusual about it". The notice moves no money, so it carries the same
+    # balance as the charge.
+    # A card's `present_balance` is what is owed, carried negative, so a charge
+    # pushes it further down while eating the same amount of headroom.
+    balance = round(account.present_balance - amount, 2)
+    posted = posting_date()
     rows = [
         Transaction(
             id=None,
             account_id=account.id,
             position=0,
-            date=None,
+            date=posted,
             description=descriptor,
             type=c.purchase_type,
             amount=-amount,
-            balance=None,
+            balance=balance,
         )
     ]
     if over_by > 0:
@@ -941,19 +962,17 @@ def authorize_card_purchase(
                 id=None,
                 account_id=account.id,
                 position=0,
-                date=None,
+                date=posted,
                 description=c.overlimit_description.format(amount=fmt_money(over_by)),
                 type=c.overlimit_type,
                 amount=0.0,
-                balance=None,
+                balance=balance,
             )
         )
 
     _post(account.id, rows)
 
-    # A card's `present_balance` is what is owed, carried negative, so a charge
-    # pushes it further down while eating the same amount of headroom.
-    account.present_balance = round(account.present_balance - amount, 2)
+    account.present_balance = balance
     account.available_credit = round(headroom - amount, 2)
     accounts.update(account)
 
@@ -1300,12 +1319,11 @@ def txn_table(txns: List[Transaction]):
     for txn in txns:
         rows.append(
             Tr(
-                Td(txn.date if txn.date else c.pending_label),
+                Td(txn.date),
                 Td(txn.description),
                 Td(txn.type),
                 amount_cell(txn),
                 Td(fmt_money(txn.balance), cls="ob-num"),
-                cls="ob-pending" if txn.date is None else None,
                 id=f"txn-{txn.id}",
             )
         )
@@ -1321,7 +1339,7 @@ def txn_cards(txns: List[Transaction]):
             Div(
                 Div(txn.description, cls="ob-txn-card-desc"),
                 Div(
-                    Span(f"{labels.date}: {txn.date if txn.date else c.pending_label}"),
+                    Span(f"{labels.date}: {txn.date}"),
                     Span(f"{labels.type}: {txn.type}"),
                     Span(f"{labels.amount}: {fmt_money(txn.amount)}"),
                     Span(f"{labels.balance}: {fmt_money(txn.balance)}"),

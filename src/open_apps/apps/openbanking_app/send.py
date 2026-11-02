@@ -15,8 +15,9 @@ them there ("Save to Contacts").
 
 A send posts immediately, as a dated row on the bank's pinned ``as_of_date``
 in the pack's own date spelling, and lowers the account's available and
-present balances together. Unlike a card charge it is not pending: the money
-has left, and a ledger that showed it as pending would invite a second send.
+present balances together. Like every row in the bank it is never pending:
+the money has left, and a ledger that showed it as pending would invite a
+second send.
 
 Nothing is written until every check passes -- account, amount, funds, payee,
 and the name for a new contact. A refused send leaves both apps exactly as
@@ -39,7 +40,6 @@ from starlette.responses import RedirectResponse
 
 from open_apps.apps.contacts_app import main as contacts_app
 from open_apps.apps.openbanking_app import main as bank
-from open_apps.apps.openbanking_app import statements
 from open_apps.handles import format_handle, handle_kind, normalize_handle
 from open_apps.icons import Icon, icon
 
@@ -202,15 +202,12 @@ def send_payment(from_id, to, amount, memo: str = "", save_as: Optional[dict] = 
         contact_id = person.id
         name = contacts_app.display_name(person)
 
-    c = bank.cfg()
     balance = round(account.present_balance - value, 2)
     row = bank.Transaction(
         id=None,
         account_id=account.id,
         position=0,
-        date=statements.format_posting_date(
-            bank.as_of_date(), str(getattr(c, "posting_date_style", None) or "en")
-        ),
+        date=bank.posting_date(),
         description=bank._label("send_description", "Zelle to {name}").format(name=name),
         type=bank._label("send_type", "Zelle"),
         amount=-value,
