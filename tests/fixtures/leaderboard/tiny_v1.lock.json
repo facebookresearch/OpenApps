@@ -96,7 +96,7 @@
      {
       "app": "messenger",
       "where": {
-       "user": "Bob"
+       "with": "Bob"
       },
       "count": 1
      }
@@ -116,14 +116,14 @@
      {
       "app": "messenger",
       "where": {
-       "user": "Charlie"
+       "with": "Charlie"
       },
       "count": 1
      },
      {
       "app": "messenger",
       "where": {
-       "user": "Alice"
+       "with": "Alice"
       },
       "count": 1
      }

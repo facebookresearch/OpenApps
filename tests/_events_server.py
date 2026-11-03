@@ -11,19 +11,13 @@ from pathlib import Path
 
 from starlette.testclient import TestClient
 
+from open_apps.state import STATE_ENDPOINTS as _STATE_ENDPOINTS
+
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
-# The endpoints open_apps.state.get_current_state reads, keyed the same way.
-STATE_ENDPOINTS = {
-    "todo": "/todo_all",
-    "calendar": "/calendar_all",
-    "map": "/maps/landmarks",
-    "messenger": "/messages_all",
-    "codeeditor": "/codeeditor_all",
-    "ui_library": "/uilibrary_all",
-    "openbanking": "/openbanking_all",
-    "online_shop": "/onlineshop_all",
-}
+# The endpoints open_apps.state.get_current_state reads, keyed the same way
+# (taken from it, so a new app's slice cannot be missing here).
+STATE_ENDPOINTS = dict(_STATE_ENDPOINTS)
 
 
 def compose(overrides: list[str], config_name: str = "config"):
@@ -59,7 +53,8 @@ def state_of(client: TestClient) -> dict:
     for key, path in STATE_ENDPOINTS.items():
         response = client.get(path)
         out[key] = response.json() if response.status_code == 200 else []
-    out["openbanking"] = out["openbanking"] or {}
+    for key in ("openbanking", "files", "contacts"):
+        out[key] = out[key] or {}
     return out
 
 

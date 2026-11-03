@@ -484,13 +484,38 @@ def add_new_message_to_history(key, message, sender, timestamp):
     chat_history.timestamps = timestamps
     message_history_db.update(chat_history)
 
+def thread_key_for(sender) -> str:
+    """The thread a message from ``sender`` belongs in.
+
+    An event names its sender the way a person would -- "Alice", "Account
+    Security" -- while threads are keyed by handle. A handle in any spelling
+    is that handle; a name exactly one contact answers to is that contact's
+    thread (the handle that already has one, else their first); anything
+    else is a sender nobody has saved, whose thread is keyed by the name it
+    gave -- the way a phone shows an alphanumeric sender ID.
+    """
+    text = str(sender)
+    handle = normalize_handle(text)
+    if handle is not None:
+        return handle
+    if contacts_app.contacts is not None:
+        matches = contacts_app.find_by_name(text)
+        if len(matches) == 1:
+            own = [h.value for h in contacts_app.handles_for(matches[0].id)]
+            with_thread = [h for h in own if _get_thread(h) is not None]
+            if with_thread or own:
+                return (with_thread or own)[0]
+    return text
+
+
 def receive_message(contact, message, timestamp=None) -> bool:
-    """An incoming message from ``contact``, opening a conversation with them
-    if they are not a contact yet. Returns whether it opened one.
+    """An incoming message from ``contact`` (a name or handle; see
+    ``thread_key_for``), opening a conversation with them if there is none
+    yet. Returns whether it opened one.
 
     The return value is what lets the scorer take the delivery back out
     exactly: a conversation this created goes with its message, while a
-    contact that already existed -- even one with no messages -- is initial
+    thread that already existed -- even one with no messages -- is initial
     state and must stay.
 
     The entry point for anything that is not the user typing -- today the
@@ -502,12 +527,11 @@ def receive_message(contact, message, timestamp=None) -> bool:
     """
     if timestamp is None:
         timestamp = datetime.now().strftime("%b %d, %I:%M %p")
-    created = contact not in {history.user for history in message_history_db()}
+    key = thread_key_for(contact)
+    created = _get_thread(key) is None
     if created:
-        message_history_db.insert(
-            Messages(user=contact, messages=[], senders=[], timestamps=[])
-        )
-    add_new_message_to_history(contact, message, contact, timestamp)
+        message_history_db.insert(Thread(handle=key, messages=[], senders=[], timestamps=[]))
+    add_new_message_to_history(key, message, key, timestamp)
     return created
 
 
@@ -1603,7 +1627,7 @@ def index(key: str):
     # Opening the conversation reads it, however the agent got here (toast,
     # contact list, URL). Before the page is rendered, so the toast is
     # already gone from it (the chrome middleware draws unread toasts last).
-    notifications.mark_conversation_read(key)
+    notifications.mark_conversation_read(key, key_of=thread_key_for)
     messages = ast.literal_eval(chat_history.messages)
     senders = ast.literal_eval(chat_history.senders)
     timestamps = ast.literal_eval(chat_history.timestamps)
