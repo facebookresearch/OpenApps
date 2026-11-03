@@ -95,6 +95,15 @@ _CSS = """
   cursor: pointer;
 }
 .ui-icon-btn:hover { background: color-mix(in srgb, var(--color-fg) 8%, transparent); }
+/* The start page also loads the gallery's html5up stylesheet (assets/css/
+   main.css), which sets `button { color: #000 !important }` and a cyan
+   `!important` on hover. Inside the shell that pinned every icon button to
+   black -- invisible on the dark-mode toolbar and launcher (and the weather
+   chip's glyph, which inherits the button colour). Two classes
+   outrank its bare `button` (and `button:hover`) at equal importance. */
+.ui-desktop .ui-icon-btn,
+.ui-desktop .ui-chip.is-button { color: var(--color-fg) !important; }
+.ui-desktop .ui-pin-btn.is-pinned { color: var(--color-accent) !important; }
 .ui-icon-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
 .ui-badge {
@@ -377,15 +386,18 @@ _CSS = """
   text-decoration: none;
   color: var(--color-fg);
 }
+/* The app's bare glyph, no tile behind it: a menu of coloured squares reads
+   as a second dock, and the row's hover tint is the only fill it needs. Ink
+   is the text colour, so the light/dark toggle flips it -- dark glyphs in
+   light mode, light ones in dark mode -- with the label beside it. */
 .ui-launcher-glyph {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 28px; height: 28px;
-  border-radius: calc(var(--radius) * 0.75);
-  background: var(--color-surface);
-  color: var(--color-accent);
+  color: var(--color-fg);
 }
+.ui-launcher-glyph svg { width: 24px; height: 24px; }
 
 /* The pin is always in the DOM; hover only changes its opacity. Rendering it
    on hover would put it out of reach of keyboards and of any agent acting off
@@ -603,6 +615,7 @@ _CSS = """
 }
 .is-phone .ui-launcher-link { padding: var(--space); gap: calc(var(--space) * 1.25); }
 .is-phone .ui-launcher-glyph { width: 34px; height: 34px; }
+.is-phone .ui-launcher-glyph svg { width: 28px; height: 28px; }
 
 /* ---- tablet ----------------------------------------------------------- */
 /* Keeps the desktop composition -- there is room for it -- and grows the hit

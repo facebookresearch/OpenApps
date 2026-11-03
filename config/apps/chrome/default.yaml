@@ -50,9 +50,10 @@ dock:
   # An "All apps" button last, opening a panel that lists every enabled app --
   # including excluded and unpinned ones.
   launcher: true
-  # The start page already has its own shortcuts. The dock still shows there
-  # by default: a dock that disappears on one page is a dock an agent cannot
-  # rely on being in the same place.
+  # The desktop draws no app icons of its own, so on the start page the dock
+  # is the one-click route to an app. Turning this off leaves only the
+  # launcher menu there -- a deliberate navigation-pressure condition, not a
+  # cosmetic one.
   on_start_page: true
   # Alt+1..9 opens the nth dock item; Alt+0 goes to the desktop. Advertised in
   # the accessibility tree via aria-keyshortcuts, so an agent reading the tree

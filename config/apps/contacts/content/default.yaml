@@ -1,0 +1,85 @@
+# @package apps.contacts
+#
+# Seed entries. Handles may be written in any human spelling -- they are
+# normalised on the way in (open_apps.handles) -- but each may belong to only
+# one contact; a duplicate fails the launch rather than silently merging two
+# people.
+#
+# Alice, Bob and Charlie have no last name on purpose: the messenger draws
+# names from here, and the chats, tasks and UI questions all call them by first
+# name alone. Northgate Properties is the landlord the payment tasks pay rent
+# to. The unknown sender who texts from +1 (555) 014-2290 is deliberately NOT
+# here -- saving them is a task.
+title: ${apps.start_page.apps.contacts.title}
+description: ${apps.start_page.apps.contacts.description}
+
+# --- Interface strings ------------------------------------------------------
+# Field labels are lowercase on purpose, as in the address books this
+# imitates ("mobile", "home"): they sit in a muted column beside the value and
+# read as annotations, not headings.
+search_placeholder: "Search"
+search_label: "Search contacts"
+favorites_heading: "Favorites"
+list_label: "Contacts"
+index_label: "Jump to letter"
+new_contact_label: "New contact"
+edit_label: "Edit"
+done_label: "Done"
+cancel_label: "Cancel"
+save_label: "Save"
+create_label: "Create contact"
+delete_label: "Delete contact"
+delete_confirm: "Delete {name}? This can't be undone."
+delete_confirm_button: "Delete"
+message_label: "Message"
+email_action_label: "Email"
+send_money_label: "Send money"
+coming_soon: "Coming soon"
+no_conversation_hint: "No conversation yet"
+back_label: "Contacts"
+first_name_label: "First name"
+last_name_label: "Last name"
+company_label: "Company"
+phone_label: "phone"
+email_label: "email"
+note_label: "note"
+favorite_label: "Add to favorites"
+add_phone_label: "Add phone"
+add_email_label: "Add email"
+handle_labels: {mobile: "mobile", work: "work", home: "home", other: "other"}
+copy_label: "Copy"
+copied_label: "Copied"
+copy_failed_label: "Couldn't copy"
+new_contact_heading: "New contact"
+edit_contact_heading: "Edit contact"
+no_results: "No contacts match \"{query}\"."
+no_contacts: "No contacts yet. Add one to get started."
+not_found: "That contact doesn't exist. It may have been deleted."
+error_invalid_phone: "Enter a phone number like (555) 010-0001."
+error_invalid_email: "Enter an email address like name@example.com."
+error_duplicate: "{handle} is already saved for {name}."
+error_repeated: "{handle} is listed twice."
+error_empty: "Add a name, a company, a phone number or an email address."
+
+contacts:
+  - first_name: Alice
+    phones: [{label: mobile, value: "+1 (555) 010-0001"}]
+    emails: [{label: home, value: alice@example.com}]
+  - first_name: Bob
+    phones: [{label: mobile, value: "+1 (555) 010-0002"}]
+    emails: [{label: home, value: bob@example.com}]
+  - first_name: Charlie
+    phones: [{label: mobile, value: "+1 (555) 010-0003"}]
+    emails: [{label: home, value: charlie@example.com}]
+  - first_name: Priya
+    last_name: Shah
+    phones: [{label: mobile, value: "+1 (555) 010-0004"}]
+    emails: [{label: work, value: priya.shah@example.com}]
+  - first_name: Marcus
+    last_name: Webb
+    favorite: true
+    phones: [{label: mobile, value: "+1 (555) 010-0005"}]
+  - company: Northgate Properties LLC
+    note: "Landlord. Rent is due on the 1st."
+    phones: [{label: work, value: "+1 (555) 010-0040"}]
+    emails: [{label: work, value: rent@northgateprop.example}]
