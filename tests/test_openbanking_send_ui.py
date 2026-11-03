@@ -77,3 +77,29 @@ def test_paying_someone_new_and_saving_them(tmp_path_factory):
         assert task.check_if_task_is_complete(initial, get_current_state(base_url))
     finally:
         stop_server(launcher, process)
+
+
+@pytest.mark.slow
+def test_the_amount_field_reformats_the_way_the_bank_reads_it():
+    """``_FORMAT_AMOUNT`` is a JS copy of ``parse_amount``: on every typed
+    amount it must show what the server will send, or leave the text alone
+    where the server will refuse it."""
+    import html
+
+    playwright_api = pytest.importorskip("playwright.sync_api")
+    from open_apps.apps.openbanking_app.send import _FORMAT_AMOUNT, format_amount
+
+    from tests.test_openbanking_send import AMOUNTS
+
+    with playwright_api.sync_playwright() as p:
+        browser, page = open_any_browser(p, playwright_api, viewport={"width": 400, "height": 200})
+        try:
+            page.set_content(f'<input id="amount" onchange="{html.escape(_FORMAT_AMOUNT)}">')
+            shown = {}
+            for typed in AMOUNTS:
+                page.fill("#amount", typed)
+                page.dispatch_event("#amount", "change")
+                shown[typed] = page.input_value("#amount")
+        finally:
+            browser.close()
+    assert shown == {typed: format_amount(typed) for typed in AMOUNTS}

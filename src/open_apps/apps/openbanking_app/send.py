@@ -74,12 +74,45 @@ def contacts_available() -> bool:
 
 
 def parse_amount(raw) -> Optional[float]:
-    """Dollars as people type them -- "1850", "1,850", "$1,850.00" -- or
-    ``None``. Rounded to cents; the sign is kept so the caller can refuse it."""
-    text = re.sub(r"[\s$,]", "", str(raw or ""))
-    if not re.fullmatch(r"-?(\d+(\.\d*)?|\.\d+)", text):
+    """Dollars as people type them, or ``None`` when there are no digits.
+
+    Everything but digits and separators is dropped first ("$", "USD",
+    spaces, "dollars"). Then the last "." or "," is the decimal point when it
+    can be one -- the other mark comes before it, or it is the only separator
+    and does not sit in front of exactly three digits -- and every other
+    separator groups thousands. So "18,50" is 18.50, "1.850,00" and
+    "1,850.00" are both 1850.00, and "1,850" and "1.850" are both 1850: no
+    one types dollars to three decimals. ``_FORMAT_AMOUNT`` mirrors this in
+    the browser. Rounded half up to cents, in whole cents from the digits
+    themselves, so the browser's rounding cannot drift from it the way
+    ``round()`` on a float would. A minus before the first digit is kept so
+    the caller refuses it rather than sending its absolute value.
+    """
+    text = str(raw or "")
+    kept = re.sub(r"[^\d.,]", "", text)
+    if not re.search(r"\d", kept):
         return None
-    return round(float(text), 2)
+    whole, fraction = kept, ""
+    last = max(kept.rfind("."), kept.rfind(","))
+    if last >= 0:
+        head, tail = kept[:last], kept[last + 1:]
+        other = "," if kept[last] == "." else "."
+        sole = kept.count(kept[last]) == 1 and other not in head
+        # "0.125" and ".125" have no thousands to group.
+        if other in head or (sole and (len(tail) != 3 or not re.search(r"[1-9]", head))):
+            whole, fraction = head, tail
+    dollars = int(re.sub(r"\D", "", whole) or "0")
+    fraction = re.sub(r"\D", "", fraction)
+    cents = dollars * 100 + int((fraction + "00")[:2]) + (fraction[2:3] >= "5")
+    value = cents / 100
+    return -value if re.match(r"[^\d]*[-−]", text) else value
+
+
+def format_amount(raw) -> str:
+    """``raw`` as the field shows it once read -- "1,850.00" -- or as typed
+    when it is no amount the bank would send, so the error sits beside it."""
+    value = parse_amount(raw)
+    return f"{value:,.2f}" if value is not None and value > 0 else str(raw or "")
 
 
 def _contact_by_name(text: str):
@@ -292,6 +325,23 @@ _PICK = (
     "document.getElementById('ob-send-amount').focus();"
 )
 
+# Rewrites the amount as the bank reads it ("1.850,00" -> "1,850.00") when
+# the field changes, so the figure on screen is the one that will be sent.
+# Mirrors ``parse_amount``; leaves the text alone when it is no amount, or a
+# negative one, so the server's error explains it.
+_FORMAT_AMOUNT = (
+    "var t=this.value,k=t.replace(/[^0-9.,]/g,'');"
+    "if(!/[0-9]/.test(k)||/^[^0-9]*[-−]/.test(t))return;"
+    "var i=Math.max(k.lastIndexOf('.'),k.lastIndexOf(',')),w=k,f='';"
+    "if(i>=0){var h=k.slice(0,i),l=k.slice(i+1),o=k[i]=='.'?',':'.',"
+    "s=k.split(k[i]).length==2&&h.indexOf(o)<0;"
+    "if(h.indexOf(o)>=0||(s&&(l.length!=3||!/[1-9]/.test(h)))){w=h;f=l;}}"
+    "f=f.replace(/\\D/g,'');"
+    "var v=(parseInt(w.replace(/\\D/g,'')||'0',10)*100+parseInt((f+'00').slice(0,2),10)"
+    "+((f[2]||'')>='5'?1:0))/100;"
+    "if(v>0)this.value=v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});"
+)
+
 
 def _deposit_accounts() -> list:
     return [a for a in bank.account_rows() if not a.is_card]
@@ -364,7 +414,8 @@ def send_form(values: dict, errors: dict | None = None):
             _field(
                 "amount",
                 L("send_amount_label", "Amount"),
-                _input("amount", values.get("amount"), errors, inputmode="decimal", placeholder="0.00"),
+                _input("amount", format_amount(values.get("amount")), errors, inputmode="decimal",
+                       placeholder="0.00", onchange=_FORMAT_AMOUNT),
                 errors,
             ),
             _field(

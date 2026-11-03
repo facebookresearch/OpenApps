@@ -64,7 +64,9 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   opens a form (from, to, amount, memo), a review, and a confirm. The payee is
   an email address or a phone number; the To field searches Contacts, a
   contact's name pays their handle, and paying someone new can save them to
-  Contacts on the review step. A payment posts at once, dated on the pinned
+  Contacts on the review step. The amount is read in either separator style
+  ("18,50" is $18.50, "1.850,00" is $1,850.00) and the field reformats to
+  what will be sent. A payment posts at once, dated on the pinned
   `as_of_date`, and lowers the account's balances. Ledger rows gain
   `counterparty` and `memo` (null except on payments).
 - **EVERYDAY CHECKING (...4417)**, Dana Reyes's own account, appended after

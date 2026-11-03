@@ -94,10 +94,56 @@ class TestAGoodSend:
         assert send(amount=str(BALANCE)).ok
         assert dana(client)["available_balance"] == 0.0
 
-    @pytest.mark.parametrize("typed", ["1,850", "$1,850.00", " 1850.0 "])
+    @pytest.mark.parametrize(
+        "typed", ["1,850", "$1,850.00", " 1850.0 ", "1.850,00", "1.850", "USD 1 850", "1850 dollars"]
+    )
     def test_amounts_are_read_the_way_people_type_them(self, client, typed):
         assert send(amount=typed).ok
         assert new_rows(client)[0]["amount"] == -1850.0
+
+    def test_a_negative_amount_is_refused_not_sent_as_positive(self, client):
+        result = send(amount="-$18")
+        assert not result.ok and "amount" in result.errors
+        assert new_rows(client) == []
+
+    def test_the_form_shows_the_amount_as_it_was_read(self, client):
+        page = client.get("/openbanking/send", params={"from": DANA, "amount": "1.850,00"}).text
+        assert 'value="1,850.00"' in page
+
+
+# Typed -> what the bank reads. Shared with the browser test of _FORMAT_AMOUNT,
+# which must read every one the same way.
+AMOUNTS = {
+    "18": 18.0,
+    "18,50": 18.5,
+    "18.50": 18.5,
+    "18,5": 18.5,
+    "18.": 18.0,
+    ".5": 0.5,
+    "0.125": 0.13,
+    "1,850": 1850.0,
+    "1.850": 1850.0,
+    "1.850,00": 1850.0,
+    "1,850.00": 1850.0,
+    "1 850,00 €": 1850.0,
+    "$1,234,567.89": 1234567.89,
+    "1.234.567,89": 1234567.89,
+    "1,000.505": 1000.51,
+    "-18": -18.0,
+    "$-18": -18.0,
+    "−18": -18.0,
+    "0": 0.0,
+    "": None,
+    "abc": None,
+    "$.,": None,
+}
+
+
+@pytest.mark.parametrize("typed,expected", AMOUNTS.items())
+def test_parse_amount(typed, expected):
+    from open_apps.apps.openbanking_app.send import parse_amount
+
+    assert parse_amount(typed) == expected
 
     def test_a_blank_memo_is_stored_as_none(self, client):
         send(memo="   ")
@@ -201,7 +247,7 @@ class TestTheForm:
     def test_keeps_what_was_typed_when_sent_back_to_edit(self, client):
         html = client.get("/openbanking/send", params=review_params(memo="Unit 2 rent")).text
         assert 'value="rent@northgateprop.example"' in html
-        assert 'value="1850"' in html
+        assert 'value="1,850.00"' in html  # as the bank read it
         assert 'value="Unit 2 rent"' in html
 
     def test_recipient_search_lists_matching_contacts(self, client):
@@ -245,7 +291,7 @@ class TestTheReview:
         html = client.get(REVIEW, params=review_params(amount="9999")).text
         assert 'id="ob-send-form"' in html
         assert "Insufficient funds" in html
-        assert 'value="9999"' in html
+        assert 'value="9,999.00"' in html
 
     def test_the_edit_link_carries_the_payment_back(self, client):
         html = client.get(REVIEW, params=review_params()).text
