@@ -11,6 +11,13 @@ Every release is a git tag. To reproduce a result, check out its tag and run
 
 ## [Unreleased]
 
+### Fixed
+
+- `uv run launch.py device=phone` opens a window exactly the phone's width.
+  Chromium won't make a tabbed window narrower than about 500px, so the
+  390px phone sat beside a ~110px blank strip; phone and tablet previews
+  now open as a popup window, which has no such floor.
+
 ## [2.0.0] - 2026-10-23
 
 **Realism.** Every app now looks and behaves like the product it imitates,
