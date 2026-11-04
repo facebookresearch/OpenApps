@@ -19,6 +19,7 @@ upstream, so only one ``AppServer`` can be alive per Python process
 
 from __future__ import annotations
 
+import random
 import shutil
 import socket
 import tempfile
@@ -150,9 +151,16 @@ class AppServer:
         self._thread.start()
         _wait_until_healthy(self.base_url)
 
-    def reset(self) -> None:
-        """Reset every app's state (drop sqlite/filesystem, re-seed from config)."""
-        reset_all_apps(self.config.apps)
+    def reset(self, *, seed: int | None = None) -> None:
+        """Reset every app's state (drop sqlite/filesystem, re-seed from config).
+
+        Args:
+            seed: If provided, reconfigures the apps with this new seed.
+        """
+        if seed is not None:
+            self.reconfigure(seed=seed)
+        else:
+            reset_all_apps(self.config.apps)
 
     def reconfigure(
         self,
@@ -222,6 +230,8 @@ class AppServer:
         _fasthtml_app.config = self.config.apps
 
         shutil.rmtree(new_tmp_logs, ignore_errors=True)
+        random.seed(self.config.seed)
+        reset_all_apps(self.config.apps)
 
     def get_state(self) -> dict:
         """Probe the running server for the current cross-app state."""
