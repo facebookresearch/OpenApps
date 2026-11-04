@@ -133,6 +133,21 @@ def test_create_configs_count_all_longer_horizon(monkeypatch):
     assert len(configs) == len(task_names) * len(app_variations)
 
 
+def _app_groups(name: str) -> set[str]:
+    defaults = OmegaConf.to_container(OmegaConf.load(config_dir() / name).defaults)
+    return {k for entry in defaults if isinstance(entry, dict) for k in entry if k.startswith("apps/")}
+
+
+@pytest.mark.parametrize(
+    "name", ["config_parallel_tasks.yaml", "config_parallel_tasks_across_goal_variations.yaml"]
+)
+def test_parallel_configs_launch_every_app(name):
+    """A parallel run composes its own defaults list, so an app added to
+    config.yaml alone is missing from every sweep -- and an app other apps
+    resolve through (Contacts, for messenger names) breaks them."""
+    assert _app_groups("config.yaml") <= _app_groups(name)
+
+
 class TestVariationOverridesCompose:
     """The variation grids are raw Hydra override strings -- data, not code.
 

@@ -1,0 +1,4 @@
+# @package apps.files
+# Structure only -- no colors/fonts (those come from the shared theme).
+# `default` is the Finder-style list with a preview pane beside it.
+layout: default

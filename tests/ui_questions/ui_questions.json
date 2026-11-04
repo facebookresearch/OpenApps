@@ -722,16 +722,16 @@
   {
     "question": "Where is the 'Add button' control located on the todo page?",
     "choices": {
-      "A": "Inside the new-todo input row",
-      "B": "Top right next to the search bar",
+      "A": "Top right next to the search bar",
+      "B": "Inside the new-todo input row",
       "C": "In the right edge of each todo item",
       "D": "Above the app title"
     },
-    "correct": "A",
+    "correct": "B",
     "category": "element_location",
     "app": "todo",
     "difficulty": "easy",
-    "formatted": "Where is the 'Add button' control located on the todo page?\n  A) Inside the new-todo input row\n  B) Top right next to the search bar\n  C) In the right edge of each todo item\n  D) Above the app title",
+    "formatted": "Where is the 'Add button' control located on the todo page?\n  A) Top right next to the search bar\n  B) Inside the new-todo input row\n  C) In the right edge of each todo item\n  D) Above the app title",
     "screenshot_path": "tests/generated_screenshots/default/todo.png"
   },
   {
@@ -783,15 +783,15 @@
     "question": "Which month and year does the calendar currently display?",
     "choices": {
       "A": "February 2026",
-      "B": "September 2026",
+      "B": "August 2026",
       "C": "December 2026",
-      "D": "May 2026"
+      "D": "October 2026"
     },
     "correct": "D",
     "category": "element_content",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Which month and year does the calendar currently display?\n  A) February 2026\n  B) September 2026\n  C) December 2026\n  D) May 2026",
+    "formatted": "Which month and year does the calendar currently display?\n  A) February 2026\n  B) August 2026\n  C) December 2026\n  D) October 2026",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
@@ -799,21 +799,21 @@
     "choices": {
       "A": "0",
       "B": "3",
-      "C": "2",
+      "C": "1",
       "D": "4"
     },
     "correct": "C",
     "category": "element_counting",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "How many events are shown on the calendar grid for the displayed month?\n  A) 0\n  B) 3\n  C) 2\n  D) 4",
+    "formatted": "How many events are shown on the calendar grid for the displayed month?\n  A) 0\n  B) 3\n  C) 1\n  D) 4",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "Which of the following events appears on the displayed calendar month?",
     "choices": {
       "A": "NeurIPS 2026 Deadline",
-      "B": "Greta's Birthday",
+      "B": "Josef's Birthday",
       "C": "Yoga Class",
       "D": "ICML 2026 Workshop"
     },
@@ -821,239 +821,194 @@
     "category": "element_content",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Which of the following events appears on the displayed calendar month?\n  A) NeurIPS 2026 Deadline\n  B) Greta's Birthday\n  C) Yoga Class\n  D) ICML 2026 Workshop",
+    "formatted": "Which of the following events appears on the displayed calendar month?\n  A) NeurIPS 2026 Deadline\n  B) Josef's Birthday\n  C) Yoga Class\n  D) ICML 2026 Workshop",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
-    "question": "Which of the following events appears on the displayed calendar month?",
+    "question": "On which day of the displayed month is the event 'Josef's Birthday' shown?",
     "choices": {
-      "A": "Sprint Planning",
-      "B": "Granni's Birthday",
-      "C": "Team Standup Meeting",
-      "D": "Yoga Class"
+      "A": "15",
+      "B": "12",
+      "C": "21",
+      "D": "3"
     },
     "correct": "B",
     "category": "element_content",
     "app": "calendar",
-    "difficulty": "easy",
-    "formatted": "Which of the following events appears on the displayed calendar month?\n  A) Sprint Planning\n  B) Granni's Birthday\n  C) Team Standup Meeting\n  D) Yoga Class",
-    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
-  },
-  {
-    "question": "On which day of the displayed month is the event 'Greta's Birthday' shown?",
-    "choices": {
-      "A": "10",
-      "B": "24",
-      "C": "12",
-      "D": "23"
-    },
-    "correct": "A",
-    "category": "element_content",
-    "app": "calendar",
     "difficulty": "medium",
-    "formatted": "On which day of the displayed month is the event 'Greta's Birthday' shown?\n  A) 10\n  B) 24\n  C) 12\n  D) 23",
-    "screenshot_path": "tests/generated_screenshots/default/calendar.png"
-  },
-  {
-    "question": "On which day of the displayed month is the event 'Granni's Birthday' shown?",
-    "choices": {
-      "A": "18",
-      "B": "22",
-      "C": "5",
-      "D": "23"
-    },
-    "correct": "A",
-    "category": "element_content",
-    "app": "calendar",
-    "difficulty": "medium",
-    "formatted": "On which day of the displayed month is the event 'Granni's Birthday' shown?\n  A) 18\n  B) 22\n  C) 5\n  D) 23",
+    "formatted": "On which day of the displayed month is the event 'Josef's Birthday' shown?\n  A) 15\n  B) 12\n  C) 21\n  D) 3",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What two view-toggle buttons are shown above the calendar grid?",
     "choices": {
-      "A": "Month and Year",
+      "A": "Timeline and Board",
       "B": "Day and Week",
-      "C": "Timeline and Board",
-      "D": "Calendar and Agenda"
+      "C": "Calendar and Agenda",
+      "D": "Month and Year"
     },
-    "correct": "D",
+    "correct": "C",
     "category": "element_identification",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What two view-toggle buttons are shown above the calendar grid?\n  A) Month and Year\n  B) Day and Week\n  C) Timeline and Board\n  D) Calendar and Agenda",
+    "formatted": "What two view-toggle buttons are shown above the calendar grid?\n  A) Timeline and Board\n  B) Day and Week\n  C) Calendar and Agenda\n  D) Month and Year",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What controls are shown for navigating between months on the calendar?",
     "choices": {
-      "A": "A dropdown to select the month",
-      "B": "Up and down arrow keys",
-      "C": "A search box for jumping to a date",
-      "D": "'< Prev' on the left and 'Next >' on the right of the month name"
+      "A": "Up and down arrow keys",
+      "B": "A dropdown to select the month",
+      "C": "'< Prev' on the left and 'Next >' on the right of the month name",
+      "D": "A search box for jumping to a date"
     },
-    "correct": "D",
+    "correct": "C",
     "category": "navigation",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What controls are shown for navigating between months on the calendar?\n  A) A dropdown to select the month\n  B) Up and down arrow keys\n  C) A search box for jumping to a date\n  D) '< Prev' on the left and 'Next >' on the right of the month name",
+    "formatted": "What controls are shown for navigating between months on the calendar?\n  A) Up and down arrow keys\n  B) A dropdown to select the month\n  C) '< Prev' on the left and 'Next >' on the right of the month name\n  D) A search box for jumping to a date",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What weekday header labels appear across the top of the calendar grid?",
     "choices": {
-      "A": "Monday through Friday only",
-      "B": "Sun, Mon, Tue, Wed, Thu, Fri, Sat",
-      "C": "Mon, Tue, Wed, Thu, Fri, Sat, Sun",
-      "D": "M, T, W, T, F, S, S"
+      "A": "M, T, W, T, F, S, S",
+      "B": "Mon, Tue, Wed, Thu, Fri, Sat, Sun",
+      "C": "Sun, Mon, Tue, Wed, Thu, Fri, Sat",
+      "D": "Monday through Friday only"
     },
-    "correct": "C",
+    "correct": "B",
     "category": "element_content",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What weekday header labels appear across the top of the calendar grid?\n  A) Monday through Friday only\n  B) Sun, Mon, Tue, Wed, Thu, Fri, Sat\n  C) Mon, Tue, Wed, Thu, Fri, Sat, Sun\n  D) M, T, W, T, F, S, S",
+    "formatted": "What weekday header labels appear across the top of the calendar grid?\n  A) M, T, W, T, F, S, S\n  B) Mon, Tue, Wed, Thu, Fri, Sat, Sun\n  C) Sun, Mon, Tue, Wed, Thu, Fri, Sat\n  D) Monday through Friday only",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What title is displayed at the top of the calendar app page?",
     "choices": {
       "A": "Schedule",
-      "B": "My Calendar",
-      "C": "Events",
+      "B": "Events",
+      "C": "My Calendar",
       "D": "OpenCalendar"
     },
     "correct": "D",
     "category": "element_content",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What title is displayed at the top of the calendar app page?\n  A) Schedule\n  B) My Calendar\n  C) Events\n  D) OpenCalendar",
+    "formatted": "What title is displayed at the top of the calendar app page?\n  A) Schedule\n  B) Events\n  C) My Calendar\n  D) OpenCalendar",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What is the label on the button at the bottom-left of the calendar page?",
     "choices": {
-      "A": "+ Event",
-      "B": "New Event",
-      "C": "Add Event",
-      "D": "Create Event"
+      "A": "New Event",
+      "B": "+ Event",
+      "C": "Create Event",
+      "D": "Add Event"
     },
-    "correct": "C",
+    "correct": "D",
     "category": "element_content",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What is the label on the button at the bottom-left of the calendar page?\n  A) + Event\n  B) New Event\n  C) Add Event\n  D) Create Event",
+    "formatted": "What is the label on the button at the bottom-left of the calendar page?\n  A) New Event\n  B) + Event\n  C) Create Event\n  D) Add Event",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "What is the label on the button at the bottom-right of the calendar page?",
     "choices": {
-      "A": "Back to Home",
-      "B": "Return to List of Apps",
-      "C": "All Apps",
+      "A": "All Apps",
+      "B": "Back to Home",
+      "C": "Return to List of Apps",
       "D": "Main Menu"
     },
-    "correct": "B",
+    "correct": "C",
     "category": "navigation",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "What is the label on the button at the bottom-right of the calendar page?\n  A) Back to Home\n  B) Return to List of Apps\n  C) All Apps\n  D) Main Menu",
+    "formatted": "What is the label on the button at the bottom-right of the calendar page?\n  A) All Apps\n  B) Back to Home\n  C) Return to List of Apps\n  D) Main Menu",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "Which visible control would you use to start creating a new calendar event?",
     "choices": {
-      "A": "The 'Next >' button beside the month name",
-      "B": "The 'Add Event' button in the footer area",
+      "A": "A date number inside the calendar grid",
+      "B": "The 'Next >' button beside the month name",
       "C": "The 'Agenda' view-toggle button",
-      "D": "A date number inside the calendar grid"
+      "D": "The 'Add Event' button in the footer area"
     },
-    "correct": "B",
+    "correct": "D",
     "category": "element_interaction",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Which visible control would you use to start creating a new calendar event?\n  A) The 'Next >' button beside the month name\n  B) The 'Add Event' button in the footer area\n  C) The 'Agenda' view-toggle button\n  D) A date number inside the calendar grid",
+    "formatted": "Which visible control would you use to start creating a new calendar event?\n  A) A date number inside the calendar grid\n  B) The 'Next >' button beside the month name\n  C) The 'Agenda' view-toggle button\n  D) The 'Add Event' button in the footer area",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "Which visible control would you use to move to the following month?",
     "choices": {
-      "A": "The 'Calendar' view-toggle button",
-      "B": "The 'Next >' button to the right of the month heading",
-      "C": "The 'Return to List of Apps' button in the footer",
-      "D": "The '< Prev' button to the left of the month heading"
+      "A": "The 'Return to List of Apps' button in the footer",
+      "B": "The '< Prev' button to the left of the month heading",
+      "C": "The 'Next >' button to the right of the month heading",
+      "D": "The 'Calendar' view-toggle button"
     },
-    "correct": "B",
+    "correct": "C",
     "category": "element_interaction",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Which visible control would you use to move to the following month?\n  A) The 'Calendar' view-toggle button\n  B) The 'Next >' button to the right of the month heading\n  C) The 'Return to List of Apps' button in the footer\n  D) The '< Prev' button to the left of the month heading",
+    "formatted": "Which visible control would you use to move to the following month?\n  A) The 'Return to List of Apps' button in the footer\n  B) The '< Prev' button to the left of the month heading\n  C) The 'Next >' button to the right of the month heading\n  D) The 'Calendar' view-toggle button",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "Where are the 'Calendar' and 'Agenda' view-toggle controls positioned?",
     "choices": {
       "A": "Inside the bottom footer next to the return button",
-      "B": "In a right-side sidebar",
-      "C": "In the leftmost column of the calendar grid",
-      "D": "Near the top of the page, above the calendar grid"
+      "B": "Near the top of the page, above the calendar grid",
+      "C": "In a right-side sidebar",
+      "D": "In the leftmost column of the calendar grid"
     },
-    "correct": "D",
+    "correct": "B",
     "category": "element_location",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Where are the 'Calendar' and 'Agenda' view-toggle controls positioned?\n  A) Inside the bottom footer next to the return button\n  B) In a right-side sidebar\n  C) In the leftmost column of the calendar grid\n  D) Near the top of the page, above the calendar grid",
+    "formatted": "Where are the 'Calendar' and 'Agenda' view-toggle controls positioned?\n  A) Inside the bottom footer next to the return button\n  B) Near the top of the page, above the calendar grid\n  C) In a right-side sidebar\n  D) In the leftmost column of the calendar grid",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "Where are the 'Add Event' and 'Return to List of Apps' controls located?",
     "choices": {
-      "A": "Floating over the top-right calendar cell",
+      "A": "Above the month navigation controls",
       "B": "At the bottom of the calendar page, beneath the grid",
-      "C": "Above the month navigation controls",
+      "C": "Floating over the top-right calendar cell",
       "D": "In the first row of weekday headers"
     },
     "correct": "B",
     "category": "element_location",
     "app": "calendar",
     "difficulty": "easy",
-    "formatted": "Where are the 'Add Event' and 'Return to List of Apps' controls located?\n  A) Floating over the top-right calendar cell\n  B) At the bottom of the calendar page, beneath the grid\n  C) Above the month navigation controls\n  D) In the first row of weekday headers",
+    "formatted": "Where are the 'Add Event' and 'Return to List of Apps' controls located?\n  A) Above the month navigation controls\n  B) At the bottom of the calendar page, beneath the grid\n  C) Floating over the top-right calendar cell\n  D) In the first row of weekday headers",
     "screenshot_path": "tests/generated_screenshots/default/calendar.png"
   },
   {
     "question": "How many conversation rows are shown in the messenger conversation list?",
     "choices": {
-      "A": "5",
-      "B": "4",
-      "C": "1",
-      "D": "6"
+      "A": "6",
+      "B": "5",
+      "C": "8",
+      "D": "7"
     },
     "correct": "B",
     "category": "element_counting",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "How many conversation rows are shown in the messenger conversation list?\n  A) 5\n  B) 4\n  C) 1\n  D) 6",
+    "formatted": "How many conversation rows are shown in the messenger conversation list?\n  A) 6\n  B) 5\n  C) 8\n  D) 7",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Which of the following contact names is shown in the messenger conversation list?",
     "choices": {
-      "A": "Diana",
-      "B": "Grace",
-      "C": "Alice",
-      "D": "Ivan"
-    },
-    "correct": "C",
-    "category": "element_content",
-    "app": "messenger",
-    "difficulty": "easy",
-    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Diana\n  B) Grace\n  C) Alice\n  D) Ivan",
-    "screenshot_path": "tests/generated_screenshots/default/messages.png"
-  },
-  {
-    "question": "Which of the following contact names is shown in the messenger conversation list?",
-    "choices": {
-      "A": "Bob",
-      "B": "Julia",
+      "A": "Alice",
+      "B": "Ivan",
       "C": "Eve",
       "D": "Frank"
     },
@@ -1061,7 +1016,37 @@
     "category": "element_content",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Bob\n  B) Julia\n  C) Eve\n  D) Frank",
+    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Alice\n  B) Ivan\n  C) Eve\n  D) Frank",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contact names is shown in the messenger conversation list?",
+    "choices": {
+      "A": "Diana",
+      "B": "Bob",
+      "C": "Frank",
+      "D": "Ivan"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Diana\n  B) Bob\n  C) Frank\n  D) Ivan",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contact names is shown in the messenger conversation list?",
+    "choices": {
+      "A": "Eve",
+      "B": "Diana",
+      "C": "Charlie",
+      "D": "Frank"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Eve\n  B) Diana\n  C) Charlie\n  D) Frank",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
@@ -1070,13 +1055,13 @@
       "A": "Henry",
       "B": "Ivan",
       "C": "Grace",
-      "D": "Charlie"
+      "D": "Fantastic4GroupChat"
     },
     "correct": "D",
     "category": "element_content",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Henry\n  B) Ivan\n  C) Grace\n  D) Charlie",
+    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Henry\n  B) Ivan\n  C) Grace\n  D) Fantastic4GroupChat",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
@@ -1085,154 +1070,184 @@
       "A": "Eve",
       "B": "Henry",
       "C": "Ivan",
-      "D": "Fantastic4GroupChat"
+      "D": "+1 (555) 014-2290"
     },
     "correct": "D",
     "category": "element_content",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Eve\n  B) Henry\n  C) Ivan\n  D) Fantastic4GroupChat",
-    "screenshot_path": "tests/generated_screenshots/default/messages.png"
-  },
-  {
-    "question": "Which of the following contact names does NOT appear in the messenger conversation list?",
-    "choices": {
-      "A": "Charlie",
-      "B": "Diana",
-      "C": "Fantastic4GroupChat",
-      "D": "Alice"
-    },
-    "correct": "B",
-    "category": "element_content",
-    "app": "messenger",
-    "difficulty": "medium",
-    "formatted": "Which of the following contact names does NOT appear in the messenger conversation list?\n  A) Charlie\n  B) Diana\n  C) Fantastic4GroupChat\n  D) Alice",
-    "screenshot_path": "tests/generated_screenshots/default/messages.png"
-  },
-  {
-    "question": "Which of the following contact names does NOT appear in the messenger conversation list?",
-    "choices": {
-      "A": "Fantastic4GroupChat",
-      "B": "Alice",
-      "C": "Charlie",
-      "D": "Eve"
-    },
-    "correct": "D",
-    "category": "element_content",
-    "app": "messenger",
-    "difficulty": "medium",
-    "formatted": "Which of the following contact names does NOT appear in the messenger conversation list?\n  A) Fantastic4GroupChat\n  B) Alice\n  C) Charlie\n  D) Eve",
+    "formatted": "Which of the following contact names is shown in the messenger conversation list?\n  A) Eve\n  B) Henry\n  C) Ivan\n  D) +1 (555) 014-2290",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Which of the following contact names does NOT appear in the messenger conversation list?",
     "choices": {
       "A": "Alice",
-      "B": "Frank",
-      "C": "Charlie",
+      "B": "Diana",
+      "C": "Fantastic4GroupChat",
       "D": "Bob"
     },
     "correct": "B",
     "category": "element_content",
     "app": "messenger",
     "difficulty": "medium",
-    "formatted": "Which of the following contact names does NOT appear in the messenger conversation list?\n  A) Alice\n  B) Frank\n  C) Charlie\n  D) Bob",
+    "formatted": "Which of the following contact names does NOT appear in the messenger conversation list?\n  A) Alice\n  B) Diana\n  C) Fantastic4GroupChat\n  D) Bob",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contact names does NOT appear in the messenger conversation list?",
+    "choices": {
+      "A": "+1 (555) 014-2290",
+      "B": "Eve",
+      "C": "Bob",
+      "D": "Charlie"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "Which of the following contact names does NOT appear in the messenger conversation list?\n  A) +1 (555) 014-2290\n  B) Eve\n  C) Bob\n  D) Charlie",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "Which of the following contact names does NOT appear in the messenger conversation list?",
+    "choices": {
+      "A": "+1 (555) 014-2290",
+      "B": "Fantastic4GroupChat",
+      "C": "Frank",
+      "D": "Charlie"
+    },
+    "correct": "C",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "medium",
+    "formatted": "Which of the following contact names does NOT appear in the messenger conversation list?\n  A) +1 (555) 014-2290\n  B) Fantastic4GroupChat\n  C) Frank\n  D) Charlie",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Is a group chat row visible in the messenger conversation list?",
     "choices": {
-      "A": "Yes \u2014 'Fantastic4GroupChat'",
-      "B": "Yes \u2014 'General Channel'",
-      "C": "Yes \u2014 'Team Chat'",
+      "A": "Yes \u2014 'Team Chat'",
+      "B": "Yes \u2014 'Fantastic4GroupChat'",
+      "C": "Yes \u2014 'General Channel'",
       "D": "No, only individual conversations"
-    },
-    "correct": "A",
-    "category": "element_content",
-    "app": "messenger",
-    "difficulty": "easy",
-    "formatted": "Is a group chat row visible in the messenger conversation list?\n  A) Yes \u2014 'Fantastic4GroupChat'\n  B) Yes \u2014 'General Channel'\n  C) Yes \u2014 'Team Chat'\n  D) No, only individual conversations",
-    "screenshot_path": "tests/generated_screenshots/default/messages.png"
-  },
-  {
-    "question": "What title is displayed at the top of the messenger page?",
-    "choices": {
-      "A": "My Messages",
-      "B": "OpenMessages",
-      "C": "Chats",
-      "D": "Inbox"
     },
     "correct": "B",
     "category": "element_content",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "What title is displayed at the top of the messenger page?\n  A) My Messages\n  B) OpenMessages\n  C) Chats\n  D) Inbox",
+    "formatted": "Is a group chat row visible in the messenger conversation list?\n  A) Yes \u2014 'Team Chat'\n  B) Yes \u2014 'Fantastic4GroupChat'\n  C) Yes \u2014 'General Channel'\n  D) No, only individual conversations",
+    "screenshot_path": "tests/generated_screenshots/default/messages.png"
+  },
+  {
+    "question": "What title is displayed at the top of the messenger page?",
+    "choices": {
+      "A": "OpenMessages",
+      "B": "Inbox",
+      "C": "Chats",
+      "D": "My Messages"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "messenger",
+    "difficulty": "easy",
+    "formatted": "What title is displayed at the top of the messenger page?\n  A) OpenMessages\n  B) Inbox\n  C) Chats\n  D) My Messages",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "What is the label on the button at the bottom of the messenger page?",
     "choices": {
       "A": "Back",
-      "B": "Main Menu",
-      "C": "Return to List of Apps",
-      "D": "Home"
+      "B": "Return to List of Apps",
+      "C": "Home",
+      "D": "Main Menu"
     },
-    "correct": "C",
+    "correct": "B",
     "category": "navigation",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "What is the label on the button at the bottom of the messenger page?\n  A) Back\n  B) Main Menu\n  C) Return to List of Apps\n  D) Home",
+    "formatted": "What is the label on the button at the bottom of the messenger page?\n  A) Back\n  B) Return to List of Apps\n  C) Home\n  D) Main Menu",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Which visible element would you use to open a conversation from the messenger list?",
     "choices": {
-      "A": "Click the page title at the top",
-      "B": "Use a compose box at the bottom of the conversation list",
+      "A": "Use a compose box at the bottom of the conversation list",
+      "B": "Use the 'Return to List of Apps' button",
       "C": "Select the conversation row with the contact's name and avatar",
-      "D": "Use the 'Return to List of Apps' button"
+      "D": "Click the page title at the top"
     },
     "correct": "C",
     "category": "element_interaction",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Which visible element would you use to open a conversation from the messenger list?\n  A) Click the page title at the top\n  B) Use a compose box at the bottom of the conversation list\n  C) Select the conversation row with the contact's name and avatar\n  D) Use the 'Return to List of Apps' button",
+    "formatted": "Which visible element would you use to open a conversation from the messenger list?\n  A) Use a compose box at the bottom of the conversation list\n  B) Use the 'Return to List of Apps' button\n  C) Select the conversation row with the contact's name and avatar\n  D) Click the page title at the top",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "Where is the 'Return to List of Apps' button positioned on the messenger list page?",
     "choices": {
       "A": "To the right of each contact name",
-      "B": "Inside a top navigation bar",
+      "B": "Above the app title",
       "C": "Below the conversation list",
-      "D": "Above the app title"
+      "D": "Inside a top navigation bar"
     },
     "correct": "C",
     "category": "element_location",
     "app": "messenger",
     "difficulty": "easy",
-    "formatted": "Where is the 'Return to List of Apps' button positioned on the messenger list page?\n  A) To the right of each contact name\n  B) Inside a top navigation bar\n  C) Below the conversation list\n  D) Above the app title",
+    "formatted": "Where is the 'Return to List of Apps' button positioned on the messenger list page?\n  A) To the right of each contact name\n  B) Above the app title\n  C) Below the conversation list\n  D) Inside a top navigation bar",
     "screenshot_path": "tests/generated_screenshots/default/messages.png"
   },
   {
     "question": "How many entries are listed under 'Saved Locations' in the map sidebar?",
     "choices": {
-      "A": "5",
-      "B": "7",
-      "C": "2",
-      "D": "6"
+      "A": "7",
+      "B": "4",
+      "C": "5",
+      "D": "2"
     },
-    "correct": "A",
+    "correct": "C",
     "category": "element_counting",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "How many entries are listed under 'Saved Locations' in the map sidebar?\n  A) 5\n  B) 7\n  C) 2\n  D) 6",
+    "formatted": "How many entries are listed under 'Saved Locations' in the map sidebar?\n  A) 7\n  B) 4\n  C) 5\n  D) 2",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
     "choices": {
-      "A": "Statue of Liberty",
+      "A": "Sydney Opera House",
+      "B": "Statue of Liberty",
+      "C": "Colosseum",
+      "D": "Eiffel Tower"
+    },
+    "correct": "B",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Sydney Opera House\n  B) Statue of Liberty\n  C) Colosseum\n  D) Eiffel Tower",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
+    "choices": {
+      "A": "Central Park",
+      "B": "Taj Mahal",
+      "C": "Buckingham Palace",
+      "D": "Colosseum"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Central Park\n  B) Taj Mahal\n  C) Buckingham Palace\n  D) Colosseum",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
+    "choices": {
+      "A": "Brooklyn Bridge",
       "B": "Buckingham Palace",
       "C": "Taj Mahal",
       "D": "Golden Gate Bridge"
@@ -1241,7 +1256,22 @@
     "category": "element_content",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Statue of Liberty\n  B) Buckingham Palace\n  C) Taj Mahal\n  D) Golden Gate Bridge",
+    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Brooklyn Bridge\n  B) Buckingham Palace\n  C) Taj Mahal\n  D) Golden Gate Bridge",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
+    "choices": {
+      "A": "Times Square",
+      "B": "Taj Mahal",
+      "C": "Golden Gate Bridge",
+      "D": "Big Ben"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "easy",
+    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Times Square\n  B) Taj Mahal\n  C) Golden Gate Bridge\n  D) Big Ben",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
@@ -1249,164 +1279,119 @@
     "choices": {
       "A": "Big Ben",
       "B": "Colosseum",
-      "C": "Buckingham Palace",
-      "D": "Central Park"
+      "C": "Sydney Opera House",
+      "D": "Empire State Building"
     },
     "correct": "D",
     "category": "element_content",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Big Ben\n  B) Colosseum\n  C) Buckingham Palace\n  D) Central Park",
-    "screenshot_path": "tests/generated_screenshots/default/maps.png"
-  },
-  {
-    "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
-    "choices": {
-      "A": "Big Ben",
-      "B": "Eiffel Tower",
-      "C": "Buckingham Palace",
-      "D": "Brooklyn Bridge"
-    },
-    "correct": "D",
-    "category": "element_content",
-    "app": "map",
-    "difficulty": "easy",
-    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Big Ben\n  B) Eiffel Tower\n  C) Buckingham Palace\n  D) Brooklyn Bridge",
-    "screenshot_path": "tests/generated_screenshots/default/maps.png"
-  },
-  {
-    "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
-    "choices": {
-      "A": "Buckingham Palace",
-      "B": "Times Square",
-      "C": "Colosseum",
-      "D": "Taj Mahal"
-    },
-    "correct": "B",
-    "category": "element_content",
-    "app": "map",
-    "difficulty": "easy",
-    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Buckingham Palace\n  B) Times Square\n  C) Colosseum\n  D) Taj Mahal",
-    "screenshot_path": "tests/generated_screenshots/default/maps.png"
-  },
-  {
-    "question": "Which of the following appears under 'Saved Locations' in the map sidebar?",
-    "choices": {
-      "A": "Eiffel Tower",
-      "B": "Sydney Opera House",
-      "C": "Empire State Building",
-      "D": "Big Ben"
-    },
-    "correct": "C",
-    "category": "element_content",
-    "app": "map",
-    "difficulty": "easy",
-    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Eiffel Tower\n  B) Sydney Opera House\n  C) Empire State Building\n  D) Big Ben",
+    "formatted": "Which of the following appears under 'Saved Locations' in the map sidebar?\n  A) Big Ben\n  B) Colosseum\n  C) Sydney Opera House\n  D) Empire State Building",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
     "choices": {
-      "A": "Central Park",
+      "A": "Brooklyn Bridge",
       "B": "Statue of Liberty",
       "C": "Golden Gate Bridge",
-      "D": "Times Square"
+      "D": "Empire State Building"
     },
     "correct": "C",
     "category": "element_content",
     "app": "map",
     "difficulty": "medium",
-    "formatted": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?\n  A) Central Park\n  B) Statue of Liberty\n  C) Golden Gate Bridge\n  D) Times Square",
+    "formatted": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?\n  A) Brooklyn Bridge\n  B) Statue of Liberty\n  C) Golden Gate Bridge\n  D) Empire State Building",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
     "choices": {
-      "A": "Times Square",
-      "B": "Empire State Building",
-      "C": "Brooklyn Bridge",
-      "D": "Eiffel Tower"
-    },
-    "correct": "D",
-    "category": "element_content",
-    "app": "map",
-    "difficulty": "medium",
-    "formatted": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?\n  A) Times Square\n  B) Empire State Building\n  C) Brooklyn Bridge\n  D) Eiffel Tower",
-    "screenshot_path": "tests/generated_screenshots/default/maps.png"
-  },
-  {
-    "question": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
-    "choices": {
-      "A": "Buckingham Palace",
+      "A": "Eiffel Tower",
       "B": "Brooklyn Bridge",
-      "C": "Empire State Building",
+      "C": "Statue of Liberty",
       "D": "Times Square"
     },
     "correct": "A",
     "category": "element_content",
     "app": "map",
     "difficulty": "medium",
-    "formatted": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?\n  A) Buckingham Palace\n  B) Brooklyn Bridge\n  C) Empire State Building\n  D) Times Square",
+    "formatted": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?\n  A) Eiffel Tower\n  B) Brooklyn Bridge\n  C) Statue of Liberty\n  D) Times Square",
+    "screenshot_path": "tests/generated_screenshots/default/maps.png"
+  },
+  {
+    "question": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?",
+    "choices": {
+      "A": "Buckingham Palace",
+      "B": "Statue of Liberty",
+      "C": "Times Square",
+      "D": "Brooklyn Bridge"
+    },
+    "correct": "A",
+    "category": "element_content",
+    "app": "map",
+    "difficulty": "medium",
+    "formatted": "Which of the following is NOT listed under 'Saved Locations' in the map sidebar?\n  A) Buckingham Palace\n  B) Statue of Liberty\n  C) Times Square\n  D) Brooklyn Bridge",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "What control is shown next to each saved location row in the map sidebar?",
     "choices": {
-      "A": "A trash-can icon at the bottom of the sidebar",
-      "B": "An 'x' button next to each saved location in the sidebar",
-      "C": "There is no visible delete control",
+      "A": "An 'x' button next to each saved location in the sidebar",
+      "B": "There is no visible delete control",
+      "C": "A trash-can icon at the bottom of the sidebar",
       "D": "A 'Delete' button below the map"
     },
-    "correct": "B",
+    "correct": "A",
     "category": "element_interaction",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "What control is shown next to each saved location row in the map sidebar?\n  A) A trash-can icon at the bottom of the sidebar\n  B) An 'x' button next to each saved location in the sidebar\n  C) There is no visible delete control\n  D) A 'Delete' button below the map",
+    "formatted": "What control is shown next to each saved location row in the map sidebar?\n  A) An 'x' button next to each saved location in the sidebar\n  B) There is no visible delete control\n  C) A trash-can icon at the bottom of the sidebar\n  D) A 'Delete' button below the map",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Where is the sidebar containing search and saved locations positioned?",
     "choices": {
-      "A": "On the right side of the page, next to the map",
-      "B": "At the bottom of the page, below the map",
-      "C": "In a floating overlay on top of the map",
+      "A": "At the bottom of the page, below the map",
+      "B": "In a floating overlay on top of the map",
+      "C": "On the right side of the page, next to the map",
       "D": "On the left side of the page"
     },
-    "correct": "A",
+    "correct": "C",
     "category": "element_location",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Where is the sidebar containing search and saved locations positioned?\n  A) On the right side of the page, next to the map\n  B) At the bottom of the page, below the map\n  C) In a floating overlay on top of the map\n  D) On the left side of the page",
+    "formatted": "Where is the sidebar containing search and saved locations positioned?\n  A) At the bottom of the page, below the map\n  B) In a floating overlay on top of the map\n  C) On the right side of the page, next to the map\n  D) On the left side of the page",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Which visible controls would you use to look up a location in the map sidebar?",
     "choices": {
-      "A": "Type in the search input and use the 'Search' button beside it",
-      "B": "Use the 'x' button beside a saved location",
+      "A": "Click directly on the 'Saved Locations' heading",
+      "B": "Type in the search input and use the 'Search' button beside it",
       "C": "Use the map tile-provider radio buttons",
-      "D": "Click directly on the 'Saved Locations' heading"
+      "D": "Use the 'x' button beside a saved location"
     },
-    "correct": "A",
+    "correct": "B",
     "category": "element_interaction",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Which visible controls would you use to look up a location in the map sidebar?\n  A) Type in the search input and use the 'Search' button beside it\n  B) Use the 'x' button beside a saved location\n  C) Use the map tile-provider radio buttons\n  D) Click directly on the 'Saved Locations' heading",
+    "formatted": "Which visible controls would you use to look up a location in the map sidebar?\n  A) Click directly on the 'Saved Locations' heading\n  B) Type in the search input and use the 'Search' button beside it\n  C) Use the map tile-provider radio buttons\n  D) Use the 'x' button beside a saved location",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {
     "question": "Where is the 'Return to List of Apps' button located on the map page?",
     "choices": {
-      "A": "At the bottom-left corner of the map",
+      "A": "Centered below the map",
       "B": "At the top of the right-hand sidebar",
-      "C": "Inside the saved-location list",
-      "D": "Centered below the map"
+      "C": "At the bottom-left corner of the map",
+      "D": "Inside the saved-location list"
     },
     "correct": "B",
     "category": "element_location",
     "app": "map",
     "difficulty": "easy",
-    "formatted": "Where is the 'Return to List of Apps' button located on the map page?\n  A) At the bottom-left corner of the map\n  B) At the top of the right-hand sidebar\n  C) Inside the saved-location list\n  D) Centered below the map",
+    "formatted": "Where is the 'Return to List of Apps' button located on the map page?\n  A) Centered below the map\n  B) At the top of the right-hand sidebar\n  C) At the bottom-left corner of the map\n  D) Inside the saved-location list",
     "screenshot_path": "tests/generated_screenshots/default/maps.png"
   },
   {

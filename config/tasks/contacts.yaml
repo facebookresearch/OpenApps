@@ -1,0 +1,249 @@
+# Tasks anchored on the Contacts app.
+#
+# Standalone file: run with `tasks=contacts` (Hydra) or load directly.
+# Deliberately NOT folded into `all_tasks`, which is the paper's canonical
+# task inventory -- the same call as `openbanking.yaml`.
+#
+# Contacts is where names live: the messenger stores handles only and asks
+# Contacts what to draw. So these tasks measure two things -- editing the
+# address book itself, and the cross-app hop between a number in a chat and a
+# person in the book (the climbing-gym sender at +1 (555) 014-2290 is seeded
+# as a thread with no contact).
+#
+# Scoring notes:
+#   * handles are compared normalised, so "(555) 010-0077" and "+15550100077"
+#     are the same number, and the label ("mobile", "work") is not compared;
+#   * contacts are matched by name with the message-recipient rules: an exact
+#     display name first, then a unique first name;
+#   * every base task has three rephrasings (`<key>__<style>_1`), with all
+#     non-goal fields copied verbatim, like `user_goal_variations.yaml`.
+
+add_contact_dana_reyes:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: Open the Contacts app and add a new contact named Dana Reyes, with the mobile number
+    (555) 010-0077 and the email dana.reyes@example.com.
+  first_name: Dana
+  last_name: Reyes
+  phones:
+  - '+15550100077'
+  emails:
+  - dana.reyes@example.com
+add_contact_dana_reyes__casual_1:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: hey, can you add Dana Reyes to my contacts? number's (555) 010-0077, email dana.reyes@example.com
+  first_name: Dana
+  last_name: Reyes
+  phones:
+  - '+15550100077'
+  emails:
+  - dana.reyes@example.com
+  goal_style: casual
+add_contact_dana_reyes__formal_1:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: 'Please create a contact for Dana Reyes in the Contacts app: mobile (555) 010-0077,
+    email dana.reyes@example.com.'
+  first_name: Dana
+  last_name: Reyes
+  phones:
+  - '+15550100077'
+  emails:
+  - dana.reyes@example.com
+  goal_style: formal
+add_contact_dana_reyes__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: I just met my new neighbour at the farmers market and promised I'd keep in touch.
+    Save her in Contacts as Dana Reyes, phone (555) 010-0077, email dana.reyes@example.com.
+  first_name: Dana
+  last_name: Reyes
+  phones:
+  - '+15550100077'
+  emails:
+  - dana.reyes@example.com
+  goal_style: unrelated_context
+save_unknown_sender_as_jordan_lee:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: Someone texted you from +1 (555) 014-2290 and isn't in your contacts yet. Save that
+    number as a new contact named Jordan Lee.
+  first_name: Jordan
+  last_name: Lee
+  phones:
+  - '+15550142290'
+save_unknown_sender_as_jordan_lee__casual_1:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: that unknown number that texted me, +1 (555) 014-2290, it's Jordan Lee. can you save
+    it?
+  first_name: Jordan
+  last_name: Lee
+  phones:
+  - '+15550142290'
+  goal_style: casual
+save_unknown_sender_as_jordan_lee__formal_1:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: Please add the sender at +1 (555) 014-2290 to Contacts under the name Jordan Lee.
+  first_name: Jordan
+  last_name: Lee
+  phones:
+  - '+15550142290'
+  goal_style: formal
+save_unknown_sender_as_jordan_lee__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.AddContactTask
+  goal: Climbing was great last night, and Jordan from the gym messaged me afterwards from
+    +1 (555) 014-2290. Save that number in my contacts as Jordan Lee so I know who it is next
+    time.
+  first_name: Jordan
+  last_name: Lee
+  phones:
+  - '+15550142290'
+  goal_style: unrelated_context
+edit_bob_mobile_number:
+  _target_: open_apps.tasks.tasks.EditContactTask
+  goal: Bob has a new mobile number. In the Contacts app, change Bob's phone number to (555)
+    010-0022, leaving everything else about him as it is.
+  match: Bob
+  set:
+    phones:
+    - '+15550100022'
+edit_bob_mobile_number__casual_1:
+  _target_: open_apps.tasks.tasks.EditContactTask
+  goal: Bob got a new number, (555) 010-0022 — can you update him in contacts? don't change
+    anything else
+  match: Bob
+  set:
+    phones:
+    - '+15550100022'
+  goal_style: casual
+edit_bob_mobile_number__formal_1:
+  _target_: open_apps.tasks.tasks.EditContactTask
+  goal: Please update Bob's contact so that his phone number is (555) 010-0022. No other details
+    should change.
+  match: Bob
+  set:
+    phones:
+    - '+15550100022'
+  goal_style: formal
+edit_bob_mobile_number__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.EditContactTask
+  goal: Bob finally switched carriers after complaining about dropped calls for months. His
+    new number is (555) 010-0022, so update his phone in Contacts and leave the rest of his
+    card alone.
+  match: Bob
+  set:
+    phones:
+    - '+15550100022'
+  goal_style: unrelated_context
+delete_charlie:
+  _target_: open_apps.tasks.tasks.DeleteContactTask
+  goal: Delete Charlie from the Contacts app.
+  match: Charlie
+delete_charlie__casual_1:
+  _target_: open_apps.tasks.tasks.DeleteContactTask
+  goal: can you get rid of Charlie in my contacts?
+  match: Charlie
+  goal_style: casual
+delete_charlie__formal_1:
+  _target_: open_apps.tasks.tasks.DeleteContactTask
+  goal: Please remove the contact Charlie from the Contacts app.
+  match: Charlie
+  goal_style: formal
+delete_charlie__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.DeleteContactTask
+  goal: I'm tidying up my phone before the move and I don't talk to Charlie anymore. Delete
+    Charlie from my contacts.
+  match: Charlie
+  goal_style: unrelated_context
+reply_to_unknown_number:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: 'In the messenger, reply to whoever texted you from +1 (555) 014-2290 with exactly:
+    ''Got it, saving your number now.'''
+  to: '+15550142290'
+  message: Got it, saving your number now.
+reply_to_unknown_number__casual_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: someone texted me from +1 (555) 014-2290, reply 'Got it, saving your number now.'
+    pls
+  to: '+15550142290'
+  message: Got it, saving your number now.
+  goal_style: casual
+reply_to_unknown_number__formal_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Please reply to the message from +1 (555) 014-2290 with the text 'Got it, saving your
+    number now.'
+  to: '+15550142290'
+  message: Got it, saving your number now.
+  goal_style: formal
+reply_to_unknown_number__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: I got a text from a number I don't recognise, +1 (555) 014-2290, while I was out hiking.
+    Reply in the messenger with exactly 'Got it, saving your number now.'
+  to: '+15550142290'
+  message: Got it, saving your number now.
+  goal_style: unrelated_context
+save_unknown_sender_then_message:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'Someone texted you from +1 (555) 014-2290 — it''s Jordan Lee from the climbing gym.
+    Save that number in Contacts as Jordan Lee, then message Jordan Lee: ''Hi Jordan, saved
+    you. See you at the gym Thursday!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddContactTask
+    goal: Save the number as Jordan Lee.
+    first_name: Jordan
+    last_name: Lee
+    phones:
+    - '+15550142290'
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Jordan Lee.
+    to: Jordan Lee
+    message: Hi Jordan, saved you. See you at the gym Thursday!
+save_unknown_sender_then_message__casual_1:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: the +1 (555) 014-2290 number is Jordan Lee from climbing — save them as a contact
+    then text them 'Hi Jordan, saved you. See you at the gym Thursday!'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddContactTask
+    goal: Save the number as Jordan Lee.
+    first_name: Jordan
+    last_name: Lee
+    phones:
+    - '+15550142290'
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Jordan Lee.
+    to: Jordan Lee
+    message: Hi Jordan, saved you. See you at the gym Thursday!
+  goal_style: casual
+save_unknown_sender_then_message__formal_1:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: Please save +1 (555) 014-2290 in Contacts as Jordan Lee, and then send Jordan Lee
+    the message 'Hi Jordan, saved you. See you at the gym Thursday!'
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddContactTask
+    goal: Save the number as Jordan Lee.
+    first_name: Jordan
+    last_name: Lee
+    phones:
+    - '+15550142290'
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Jordan Lee.
+    to: Jordan Lee
+    message: Hi Jordan, saved you. See you at the gym Thursday!
+  goal_style: formal
+save_unknown_sender_then_message__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.CompositeTask
+  _convert_: all
+  goal: 'My climbing partner Jordan Lee texted me from +1 (555) 014-2290 and I keep forgetting
+    whose number that is. Save it in Contacts as Jordan Lee, and then message Jordan Lee:
+    ''Hi Jordan, saved you. See you at the gym Thursday!'''
+  subtasks:
+  - _target_: open_apps.tasks.tasks.AddContactTask
+    goal: Save the number as Jordan Lee.
+    first_name: Jordan
+    last_name: Lee
+    phones:
+    - '+15550142290'
+  - _target_: open_apps.tasks.tasks.SendMessageTask
+    goal: Message Jordan Lee.
+    to: Jordan Lee
+    message: Hi Jordan, saved you. See you at the gym Thursday!
+  goal_style: unrelated_context

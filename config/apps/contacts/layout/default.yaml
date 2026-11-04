@@ -1,0 +1,3 @@
+# @package apps.contacts
+# Two panes on desktop: the list beside the selected contact.
+layout: default

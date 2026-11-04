@@ -54,3 +54,15 @@ def test_code_editor_files_with_static_extensions_open_in_the_editor(client, nam
 ])
 def test_missing_static_paths_are_404_not_empty_200(client, path):
     assert client.get(path).status_code == 404
+
+
+@pytest.mark.parametrize("name", ["pdf-6.4.299.min.js", "pdf.worker-6.4.299.min.js"])
+def test_pdfjs_is_served_as_javascript(client, name):
+    """pdf.js loads as an ES module and spawns its worker from this URL; a
+    browser refuses either one unless it arrives with a JavaScript MIME type."""
+    response = client.get(f"/assets/vendor/{name}")
+    assert response.status_code == 200
+    assert response.headers["content-type"].split(";")[0] in {
+        "text/javascript", "application/javascript",
+    }
+    assert len(response.content) > 100_000

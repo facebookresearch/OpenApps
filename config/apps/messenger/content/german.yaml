@@ -4,32 +4,37 @@ defaults:
 
 # adding a ton of additional users and conversations
 # you: YannLeCun the computer scientist
-#  chat messages: [message str, bool indicating the owner, user, timestamp str]
-chat_history:
-  Alice:
-    - [ "Hallo Yann, hast du in letzter Zeit Fortschritte beim selbstüberwachten Lernen gemacht?", false, "Alice", "Sep 16, 10:00PM" ] 
-    - [ "Auf jeden Fall, Alice! Selbstüberwachtes Lernen ist die Zukunft der KI. Ich arbeite an neuen Architekturen.", true, "you", "Sep 17, 09:32AM" ]
-    - [ "Das ist aufregend! Wird es Maschinen helfen, die Welt besser zu verstehen?", false, "Alice", "Sep 17, 10:01AM" ]
-    - [ "Ja, das Ziel ist es, Maschinen gesunden Menschenverstand zu geben, indem sie aus riesigen Mengen merkierter Daten lernen.", true, "you", "Apr 16, 9:00 AM" ]
-    - [ "Faszinierend! Halt mich auf dem Laufenden!", false, "Alice", "Apr 16, 9:03AM" ]
 
-  Bob:
-    - [ "Hallo Yann! Was ist deine Lieblings-Neuronales-Netzwerk-Architektur?", false, "Bob", "Jan 05, 8:45PM" ]
-    - [ "Hallo Bob! Ich habe eine Schwäche für Convolutional Neural Networks, aber Transformer sind auch sehr mächtig.", true, "you", "Jan 05, 8:46PM" ]
-    - [ "Denkst du, dass KI jemals menschliches Intelligenzniveau erreichen wird?", false, "Bob", "Jan 05, 8:49PM" ]
-    - [ "Ich glaube, wir sind noch weit von KI auf menschlichem Niveau entfernt, aber der Fortschritt beschleunigt sich.", true, "you", "Jan 05, 9:45PM" ]
-    - [ "Danke für deine Einschätzungen, Yann!", false, "Bob", "Jan 05, 9:46PM" ]
+# threads: handle -> [[message, sender, timestamp], ...]. `sender` is "you"
+# or the sender's handle. Names come from the Contacts app, never from here.
+threads:
+  "+15550100001":  # Alice
+    - ["Hallo Yann, hast du in letzter Zeit Fortschritte beim selbstüberwachten Lernen gemacht?", "+15550100001", "Sep 16, 10:00PM"]
+    - ["Auf jeden Fall, Alice! Selbstüberwachtes Lernen ist die Zukunft der KI. Ich arbeite an neuen Architekturen.", "you", "Sep 17, 09:32AM"]
+    - ["Das ist aufregend! Wird es Maschinen helfen, die Welt besser zu verstehen?", "+15550100001", "Sep 17, 10:01AM"]
+    - ["Ja, das Ziel ist es, Maschinen gesunden Menschenverstand zu geben, indem sie aus riesigen Mengen merkierter Daten lernen.", "you", "Apr 16, 9:00 AM"]
+    - ["Faszinierend! Halt mich auf dem Laufenden!", "+15550100001", "Apr 16, 9:03AM"]
 
-  Charlie:
-    - [ "Bonjour Yann! Hast du Ratschläge für angehende KI-Forscher?", false, "Charlie", "Feb 25, 2:45PM" ]
-    - [ "Bonjour Charlie! Bleib neugierig, lies Forschungsarbeiten und experimentiere mit neuen Ideen. Das Feld ist voller Möglichkeiten.", true, "you", "Feb 25, 3:45PM" ]
-    - [ "Merci! Was begeistert dich am meisten an der Zukunft der KI?", false, "Charlie", "Feb 25, 3:47PM" ]
-    - [ "Das Potenzial der KI, menschliche Intelligenz zu erweitern und reale Probleme zu lösen, begeistert mich am meisten.", true, "you", "Feb 25, 3:55PM" ]
-    - [ "Inspirierend! Danke, Yann.", false, "Charlie", "Feb 25, 4:45PM" ]
+  "+15550100002":  # Bob
+    - ["Hallo Yann! Was ist deine Lieblings-Neuronales-Netzwerk-Architektur?", "+15550100002", "Jan 05, 8:45PM"]
+    - ["Hallo Bob! Ich habe eine Schwäche für Convolutional Neural Networks, aber Transformer sind auch sehr mächtig.", "you", "Jan 05, 8:46PM"]
+    - ["Denkst du, dass KI jemals menschliches Intelligenzniveau erreichen wird?", "+15550100002", "Jan 05, 8:49PM"]
+    - ["Ich glaube, wir sind noch weit von KI auf menschlichem Niveau entfernt, aber der Fortschritt beschleunigt sich.", "you", "Jan 05, 9:45PM"]
+    - ["Danke für deine Einschätzungen, Yann!", "+15550100002", "Jan 05, 9:46PM"]
 
-  Fantastic4GroupChat:
-    - [ "Hey Team! Wie geht es allen?", false, "Alice", "Mar 01, 1:00PM" ]
-    - [ "Mir geht's super, Alice! Arbeite gerade an neuen KI-Modellen.", true, "you", "Mar 01, 1:05PM" ]
-    - [ "Mir auch! Bin begeistert von den neuesten Fortschritten in der KI.", false, "Bob", "Mar 01, 1:10PM" ]
-    - [ "Ich auch! Lasst uns weiter die Grenzen des Möglichen mit KI erweitern.", false, "Charlie", "Mar 01, 1:15PM" ]
-    - [ "Auf jeden Fall! Zusammen können wir erstaunliche Dinge erreichen.", false, "Alice", "Mar 01, 1:20PM" ]
+  "+15550100003":  # Charlie
+    - ["Bonjour Yann! Hast du Ratschläge für angehende KI-Forscher?", "+15550100003", "Feb 25, 2:45PM"]
+    - ["Bonjour Charlie! Bleib neugierig, lies Forschungsarbeiten und experimentiere mit neuen Ideen. Das Feld ist voller Möglichkeiten.", "you", "Feb 25, 3:45PM"]
+    - ["Merci! Was begeistert dich am meisten an der Zukunft der KI?", "+15550100003", "Feb 25, 3:47PM"]
+    - ["Das Potenzial der KI, menschliche Intelligenz zu erweitern und reale Probleme zu lösen, begeistert mich am meisten.", "you", "Feb 25, 3:55PM"]
+    - ["Inspirierend! Danke, Yann.", "+15550100003", "Feb 25, 4:45PM"]
+
+  "group:fantastic4":  # Fantastic4GroupChat
+    - ["Hey Team! Wie geht es allen?", "+15550100001", "Mar 01, 1:00PM"]
+    - ["Mir geht's super, Alice! Arbeite gerade an neuen KI-Modellen.", "you", "Mar 01, 1:05PM"]
+    - ["Mir auch! Bin begeistert von den neuesten Fortschritten in der KI.", "+15550100002", "Mar 01, 1:10PM"]
+    - ["Ich auch! Lasst uns weiter die Grenzen des Möglichen mit KI erweitern.", "+15550100003", "Mar 01, 1:15PM"]
+    - ["Auf jeden Fall! Zusammen können wir erstaunliche Dinge erreichen.", "+15550100001", "Mar 01, 1:20PM"]
+
+  "+15550142290":  # not in Contacts
+    - ["Hi, hier ist Jordan aus der Kletterhalle. Speicherst du meine Nummer?", "+15550142290", "Apr 18, 6:30PM"]

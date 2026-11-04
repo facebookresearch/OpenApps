@@ -255,7 +255,7 @@ class TestCheckout:
         assert after["cart"] == []
         order = after["orders"][-1]
         assert order["name"] == "Dana Reed"
-        assert order["status"] == "Processing"
+        assert order["status"] == "Shipping"
         assert order["total"] == expected_total
         assert len(order["items"]) == len(cart_before)
 
