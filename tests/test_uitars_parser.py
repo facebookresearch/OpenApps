@@ -112,3 +112,39 @@ def test_wait_prompts_describe_the_actual_sleep():
         text = path.read_text()
         if "wait()" in text:
             assert "for 3s" in text and "for 5s" not in text, path.name
+
+
+def test_type_preserves_literal_unicode():
+    import ast
+
+    for text in ("café", "你好", "مرحبا", "🙂", "e\u0301"):
+        call = ast.parse(_action(f"type(content={text!r})"), mode="eval").body
+        assert ast.literal_eval(call.keywords[0].value) == text
+
+
+def test_type_preserves_unicode_alongside_escapes():
+    import ast
+
+    text = "café\n你好\t'🙂'\\end"
+    call = ast.parse(_action(f"type(content={text!r})"), mode="eval").body
+    assert ast.literal_eval(call.keywords[0].value) == text
+
+
+def test_type_decodes_explicit_unicode_escapes():
+    import ast
+
+    native = r"type(content='\u4f60\u597d \U0001f642 \N{LATIN SMALL LETTER E WITH ACUTE}')"
+    call = ast.parse(_action(native), mode="eval").body
+    assert ast.literal_eval(call.keywords[0].value) == "你好 🙂 é"
+
+
+def test_type_keeps_literal_newlines_and_unknown_nonascii_escapes():
+    import ast
+
+    for native, expected in (
+        ("type(content='café\n你好')", "café\n你好"),
+        ("type(content='\\你\\n好')", "\\你\n好"),
+        (r"type(content='café\xZZ\n')", r"café\xZZ\n"),
+    ):
+        call = ast.parse(_action(native), mode="eval").body
+        assert ast.literal_eval(call.keywords[0].value) == expected
