@@ -133,7 +133,9 @@ def test_type_preserves_unicode_alongside_escapes():
 def test_type_decodes_explicit_unicode_escapes():
     import ast
 
-    native = r"type(content='\u4f60\u597d \U0001f642 \N{LATIN SMALL LETTER E WITH ACUTE}')"
+    native = (
+        r"type(content='\u4f60\u597d \U0001f642 \N{LATIN SMALL LETTER E WITH ACUTE}')"
+    )
     call = ast.parse(_action(native), mode="eval").body
     assert ast.literal_eval(call.keywords[0].value) == "你好 🙂 é"
 
