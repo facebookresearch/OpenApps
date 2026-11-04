@@ -710,12 +710,12 @@ class AppStateComparison:
             vault = state.get("passwords")
             if not isinstance(vault, dict):
                 return None
-            return sorted(
+            return [
                 (str(i.get("kind")), str(i.get("username", "")), str(i.get("password", "")),
                  " ".join(str(i.get("notes", "")).split()) if i.get("kind") == "note" else "",
                  bool(i.get("deleted")))
                 for i in vault.get("items") or []
-            )
+            ]
 
         return secrets(self.state1) == secrets(self.state2)
 
