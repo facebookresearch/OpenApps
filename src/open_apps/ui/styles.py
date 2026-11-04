@@ -139,15 +139,9 @@ _CSS = """
 .ui-toolbar-side { display: flex; align-items: center; gap: var(--space); }
 
 .ui-wordmark { display: block; }
-/* Dark mode flips the mark vertically, so the V opens upward. Scoped to the
-   mark group, not the <svg>: flipping the whole thing would mirror the word
-   too. transform-box: fill-box makes the origin the group's own bounds rather
-   than the SVG viewport, which is what keeps it spinning in place. */
-#desktop-shell[data-mode="dark"] .ui-wordmark-mark {
-  transform: scaleY(-1);
-  transform-box: fill-box;
-  transform-origin: center;
-}
+/* No dark-mode transform: the mark keeps its shape in both modes, and only the
+   ink changes, through currentColor. It used to flip vertically in dark mode,
+   which carried the brand wash up to the tips and read as a different logo. */
 .ui-brand { display: inline-flex; align-items: center; }
 
 .ui-chip {
