@@ -42,7 +42,7 @@ html[data-oa-titlebar] { --oa-titlebar-h: 38px; }
    would only push the shell's full-height surface into a scroll. */
 html[data-oa-dock="reserve"] { --oa-dock-space: 92px; }
 html[data-oa-dock="reserve"][data-oa-labels="false"] { --oa-dock-space: 74px; }
-html[data-oa-dock="reserve"][data-oa-device="phone"] { --oa-dock-space: 80px; }
+html[data-oa-dock="reserve"][data-oa-device="phone"] { --oa-dock-space: 88px; }
 /* Maximized hands the dock's space back to the app. */
 html[data-oa-maximized] { --oa-dock-space: 0px; }
 html[data-oa-maximized] #oa-chrome .oa-dock { display: none; }
@@ -256,19 +256,21 @@ html[data-oa-chrome][data-oa-app="maps"] .container {
 /* Bare icons: the label is gone from the page but stays as the link's name. */
 #oa-chrome .oa-dock.is-unlabelled .oa-dock-item { min-width: 52px; padding-bottom: 9px; }
 
-/* Phone: a full-width bar, items share the width, scrolls if they do not fit. */
+/* Phone: a full-width bar. Over a home screen it holds Home plus at most four
+   apps, so the items share the width evenly and a name like "OpenCalendar"
+   fits whole; it still scrolls if a config docks more than that. */
 html[data-oa-device="phone"] #oa-chrome .oa-dock {
-  left: 8px; right: 8px;
+  left: 6px; right: 6px;
   width: auto;
   max-width: none;
   justify-content: space-around;
   overflow-x: auto;
-  border-radius: 24px;
+  border-radius: 26px;
 }
-html[data-oa-device="phone"] #oa-chrome .oa-dock-item { min-width: 0; width: 56px; padding-inline: 2px; flex: none; }
+html[data-oa-device="phone"] #oa-chrome .oa-dock-item { flex: 1 1 0; min-width: 60px; max-width: 88px; padding-inline: 0; }
 html[data-oa-device="phone"] #oa-chrome .oa-dock-icon,
-html[data-oa-device="phone"] #oa-chrome .oa-dock-icon img { width: 36px; height: 36px; }
-html[data-oa-device="phone"] #oa-chrome .oa-dock-label { font-size: 10px; }
+html[data-oa-device="phone"] #oa-chrome .oa-dock-icon img { width: 40px; height: 40px; }
+html[data-oa-device="phone"] #oa-chrome .oa-dock-label { font-size: 10px; letter-spacing: -0.02em; }
 html[data-oa-device="phone"] #oa-chrome .oa-dock-panel { position: fixed; left: 8px; right: 8px; bottom: 88px; grid-template-columns: repeat(4, 1fr); }
 
 /* ---- agent cursor ------------------------------------------------------ */
