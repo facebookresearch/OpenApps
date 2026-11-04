@@ -689,7 +689,7 @@ class AppStateComparison:
         rows = [{k: v for k, v in item.items() if k not in ("id", "edited_on")} for item in vault["items"]]
         vault["items"] = sorted(
             rows,
-            key=lambda i: (str(i.get("kind")), str(i.get("title", "")).casefold(),
+            key=lambda i: (str(i.get("kind")), StringSimilarityOperator.normalize_string(str(i.get("title", ""))),
                            str(i.get("username", "")), str(i.get("password", ""))),
         )
         return state
