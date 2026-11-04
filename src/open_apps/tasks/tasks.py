@@ -644,34 +644,31 @@ class AppStateComparison:
         return False
 
     def _truncate_message_replies(self) -> None:
-        """Drop each targeted contact's trailing auto-replies before diffing.
+        """Ignore each targeted send's incoming reply, including between sends.
 
-        Runs after ``preprocess`` (so each contact's ``messages`` is already a
-        flat list of message texts). For every contact named in
-        ``reply_contacts`` (mapped to the number of messages the task sent
-        them), if the observed conversation is longer than the target by no
-        more than that many messages, truncate the observed conversation to
-        the target's length. Content matching of the remaining prefix is left
-        to the fuzzy diff.
-
-        This ignores the one auto-reply the app appends per sent message,
-        while still failing on:
-          * a spurious message to a contact the task never targeted (that
-            contact isn't in ``reply_contacts``, so it's compared exactly);
-          * an extra message to a targeted contact (observed exceeds the
-            tolerated count, so no truncation happens and the diff fails);
-          * a missing send (observed is shorter than target).
+        Preserve the initial history and every outgoing message. The raw
+        history still carries senders, which preprocessing intentionally drops
+        for the fuzzy text comparison. At most one new incoming reply per
+        requested send is tolerated; extra messages still fail the diff.
         """
         target_by_handle = {c["handle"]: c for c in self.state1["messenger"]}
+        raw_by_handle = {c["handle"]: c for c in self.raw_state2["messenger"]}
         for contact in self.state2["messenger"]:
             handle = contact["handle"]
             allowed = self.reply_contacts.get(handle)
             if allowed is None or handle not in target_by_handle:
                 continue
-            n_target = len(target_by_handle[handle]["messages"])
-            extra = len(contact["messages"]) - n_target
-            if 0 <= extra <= allowed:
-                contact["messages"] = contact["messages"][:n_target]
+            n_initial = len(target_by_handle[handle]["messages"]) - allowed
+            raw_messages = raw_by_handle[handle]["messages"]
+            replies = {
+                i for i, message in enumerate(raw_messages)
+                if i >= n_initial and len(message) > 1 and message[1] != "you"
+            }
+            if len(replies) <= allowed:
+                contact["messages"] = [
+                    message[0] for i, message in enumerate(raw_messages)
+                    if i not in replies
+                ]
 
     def _contact_handles_match(self) -> bool:
         """Compare every contact's handles exactly.
