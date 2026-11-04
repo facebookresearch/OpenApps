@@ -22,12 +22,14 @@ layout: desktop
 desktop:
   # Composition per device form factor (see config/device/). `shell` is the
   # desktop: toolbar, centred headline, and the chrome's dock along the bottom.
-  # `home_screen` is the phone: status bar, wordmark widget, a grid of the apps
-  # that are NOT pinned, and a dock holding the ones that are.
+  # `home_screen` is a phone or tablet: status bar, wordmark widget, a
+  # scrollable grid of the apps that are NOT pinned, and a dock holding the
+  # ones that are -- at most `dock_size_by_variant.home_screen` of them. No
+  # launcher: on a phone an app is on the home screen or in the dock, and that
+  # is every place it can be.
   #
-  # Anything unlisted -- `tablet` here -- gets `shell`, which on a tablet is
-  # the right answer: there is room for the desktop composition, and what the
-  # tablet actually changes is the input model (touch, no hover).
+  # Anything unlisted gets `shell`, so a new device file renders a working
+  # desktop before anyone writes it a composition.
   #
   # Overridable, which is the point of it being data: rendering the desktop
   # composition on a phone is the control condition for measuring whether the
@@ -35,6 +37,7 @@ desktop:
   #   uv run launch.py device=phone apps.start_page.desktop.variants.phone=shell
   variants:
     phone: home_screen
+    tablet: home_screen
 
   # Centred at the top of the desktop surface. Falls back to the start page's
   # own `headline` when unset, so the gallery layout's copy is not disturbed.
@@ -80,9 +83,15 @@ desktop:
   # The home screen splits apps between a grid (unpinned) and a dock (pinned),
   # so `all` there would dock every app and leave the grid empty. It is not the
   # composition to run launcher experiments on anyway: a phone's unpinned apps
-  # are on the grid, in plain view, not behind the menu.
+  # are on the grid, in plain view, not behind a menu.
   pinned_by_variant:
-    home_screen: ["todo", "calendar"]
+    home_screen: ["todo", "calendar", "messages", "maps"]
+  # How many apps a composition's dock holds. Pins past it are dropped at
+  # reset, in inventory order, and pinning into a full dock is refused -- a
+  # phone dock has four slots, not a scroll bar. Unlisted compositions are
+  # unlimited; the desktop dock grows with what is pinned.
+  dock_size_by_variant:
+    home_screen: 4
   # Programmatically generated background, rendered by open_apps.wallpaper
   # with Pillow and numpy -- both already dependencies, so there is nothing to
   # install. If rendering fails for any reason the shell falls back to a

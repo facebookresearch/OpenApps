@@ -207,6 +207,7 @@ def Dock(
     home: bool = True,
     launcher: bool = True,
     shortcuts: bool = True,
+    home_label: str = "Desktop",
 ):
     """The dock.
 
@@ -219,6 +220,10 @@ def Dock(
     Shortcuts number the items left to right: Alt+0 is the desktop, Alt+1..9
     the first nine apps. They are advertised in ``aria-keyshortcuts`` -- the
     only place an agent reading the tree would find them.
+
+    ``home_label`` names the way back to the start page: "Desktop" on a
+    desktop, "Home" over a phone or tablet home screen. The test id stays
+    ``dock-desktop`` either way, so a selector does not depend on the device.
     """
     by_key = {a.key: a for a in apps}
     slots = [by_key[k] for k in docked if k in by_key]
@@ -228,7 +233,7 @@ def Dock(
     if home:
         items.append(
             DockItem(
-                "Desktop",
+                home_label,
                 "/",
                 glyph=Icon.HOME,
                 labels=labels,
@@ -415,6 +420,7 @@ def configured_dock(
         home=bool(dock_cfg.get("home", True)),
         launcher=bool(dock_cfg.get("launcher", True)),
         shortcuts=bool(dock_cfg.get("shortcuts", True)),
+        home_label=str(dock_cfg.get("home_label") or "Desktop"),
     )
 
 

@@ -26,8 +26,9 @@ titlebar:
   # mac      traffic lights on the left, title centred
   # windows  title on the left, minimise / maximise / close on the right
   style: mac
-  # A phone has no windows. Form factors come from config/device/.
-  form_factors: [desktop, tablet]
+  # Neither a phone nor a tablet has windows: an app is full screen, and the
+  # way out is Home in the dock. Form factors come from config/device/.
+  form_factors: [desktop]
 
 dock:
   enabled: true
