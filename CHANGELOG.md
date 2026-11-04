@@ -93,6 +93,10 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
 
 ### Fixed
 
+- `uv run launch.py device=phone` opens a window exactly the phone's width.
+  Chromium won't make a tabbed window narrower than about 500px, so the
+  390px phone sat beside a ~110px blank strip; phone and tablet previews
+  now open as a popup window, which has no such floor.
 - Parallel sweeps launch every app: `config_parallel_tasks*.yaml` now include
   Contacts, and the goal-variation sweep includes `apps/theme` like
   `config.yaml` does, so its runs may differ from earlier ones.
