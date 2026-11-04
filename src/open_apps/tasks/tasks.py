@@ -189,7 +189,7 @@ MAP_COORDS_REGEX = r"root\['map'\]\[\d+\]\['coords'\]$"
 #       40°N (NYC)   →  ~85 km / 53 mi
 #       60°N (Oslo)  →  ~55 km / 34 mi
 #   So a 10 km (≈ 6.2 mi) tolerance ≈ 0.09° of latitude, or ~0.11° of
-#   longitude at 40°N. Coords arrive here as int(degrees * 10) from
+#   longitude at 40°N. Coords arrive here as degrees * 10 from
 #   _normalize_map_locations, so we divide by 10 to recover degrees before
 #   computing the distance.
 _KM_PER_DEGREE_LAT = 111.0
@@ -489,7 +489,7 @@ class AppStateComparison:
             name = place["name"].split(",", 1)[0].strip()
             new_place = {
                 "name": name,
-                "coords": [int(place["coords"][0] * 10), int(place["coords"][1] * 10)],
+                "coords": [place["coords"][0] * 10, place["coords"][1] * 10],
             }
             normalized_places.append(new_place)
         state["map"] = normalized_places
