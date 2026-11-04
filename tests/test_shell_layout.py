@@ -490,6 +490,11 @@ class TestWallpaperTextIsThemeAware:
         assert "var(--color-bg)" in declarations
         assert "var(--color-fg)" not in declarations
 
+    def test_the_mark_keeps_its_shape_in_dark_mode(self):
+        # Only the ink changes between modes; a flip read as a different logo.
+        css = self.strip_comments(self.css())
+        assert not re.search(r"\.ui-wordmark-mark\s*\{[^}]*transform", css)
+
     def test_tile_hover_keeps_the_ink_and_only_firms_the_halo(self):
         """html5up's `a:hover { color: #47D3E5 }` outranks `.ui-tile`; left
         alone it turned the label cyan inside its halo, a heavy glow in light
