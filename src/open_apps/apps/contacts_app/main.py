@@ -794,6 +794,25 @@ def _store_handles(contact_id: int, clean: list) -> None:
         handles.insert(ContactHandle(id=None, contact_id=contact_id, kind=kind, label=label, value=value))
 
 
+def add_contact(values: dict) -> tuple[Optional[Contact], dict]:
+    """Validate and store a new contact; ``(contact, {})`` or ``(None, errors)``.
+
+    The one insert path. The New Contact form uses it, and so does the bank's
+    "Save to Contacts" on a payment to someone new -- a second copy of the
+    rules would let the bank file a handle the form refuses (a duplicate, a
+    malformed number). ``values`` is :func:`parse_form`'s shape.
+    """
+    errors, clean = validate(values)
+    if errors:
+        return None, errors
+    person = contacts.insert(
+        Contact(id=None, first_name=values["first_name"], last_name=values["last_name"],
+                company=values["company"], note=values["note"], favorite=values["favorite"])
+    )
+    _store_handles(person.id, clean)
+    return person, {}
+
+
 # --- Page frame ---------------------------------------------------------------
 
 styles = Style("""
@@ -1113,14 +1132,9 @@ def contacts_edit(contact_id: int):
 @app.post("/contacts")
 async def contacts_create(req):
     values = parse_form(await req.form())
-    errors, clean = validate(values)
+    person, errors = add_contact(values)
     if errors:
         return _form_error(req, contact_form(values, errors))
-    person = contacts.insert(
-        Contact(id=None, first_name=values["first_name"], last_name=values["last_name"],
-                company=values["company"], note=values["note"], favorite=values["favorite"])
-    )
-    _store_handles(person.id, clean)
     return _saved(req, f"/contacts/{person.id}")
 
 
