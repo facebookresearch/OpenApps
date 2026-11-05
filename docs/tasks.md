@@ -277,3 +277,27 @@ attempt_the_copier_far_over_the_card_limit:
 `BuyWithCardTask`: a refused checkout mints no order id and no timestamp, so
 there is nothing volatile to forgive — and leaving it off means a run that
 somehow *did* buy the thing fails the diff with its ids intact.
+
+## Passing a value on in a message
+
+A task that has the agent read something in one app and message it to
+someone can't pin the message's exact wording. `SendMessageTask` takes
+`message_includes` instead of `message`: what the text must contain, matched
+on whole words (punctuation is a word break, so "My BP was 128 / 82" passes
+and "128/820" does not). A list inside it is a set of alternatives:
+
+```yaml
+send_bob_latest_blood_pressure:          # config/tasks/files.yaml
+  _target_: open_apps.tasks.tasks.SendMessageTask
+  goal: Find my latest medical report in the Files app and send Bob a message with my
+    blood pressure from it.
+  to: Bob
+  message_includes:
+  - ['128/82', 128 over 82]              # Aug 12 visit; March's 136/88 fails
+```
+
+Exactly one message has to go to that thread; the contact's auto-reply is
+ignored, and a message to anyone else fails the diff as usual. In a
+`CompositeTask`, use `message` -- the composite builds one target for all its
+sub-tasks and does not run this check.
+

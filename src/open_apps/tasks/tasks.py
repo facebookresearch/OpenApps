@@ -908,16 +908,53 @@ class MarkToDoDoneTask(Task):
         return app_state_comparison.compare()
 
 
+# Required text is matched on words, not on squeezed text: punctuation
+# separates words ("128/82" is "128 82") rather than vanishing, and a match has
+# to end where a word does, so "128/820" is not "128/82". "#" is kept, because
+# "#2" is how people write a unit number.
+_TEXT_SEPARATORS = re.compile(r"[^\w#]+")
+
+
+def _text_words(text) -> str:
+    return " ".join(_TEXT_SEPARATORS.sub(" ", str(text or "").casefold()).split())
+
+
+def _text_has(text, wanted) -> bool:
+    words = _text_words(wanted)
+    return bool(words) and re.search(
+        rf"(?<![\w#]){re.escape(words)}(?![\w#])", _text_words(text)
+    ) is not None
+
+
+def _text_satisfies(text, rules) -> bool:
+    """Whether ``text`` meets every rule. A rule is a string, or a list of
+    strings any one of which will do ("128/82", "128 over 82")."""
+    return all(
+        any(_text_has(text, alt) for alt in ([rule] if isinstance(rule, str) else rule))
+        for rule in rules
+    )
+
+
 @dataclass
 class SendMessageTask(Task):
+    """Send one message to ``to``.
+
+    Either ``message`` is the text (compared like any other string, case- and
+    punctuation-insensitively), or ``message_includes`` lists what the text
+    must contain, matched on whole words (see :func:`_text_satisfies`) --
+    for a value read out of another app, which nobody phrases the same way
+    twice ("128/82", "My BP was 128 / 82 at the Aug 12 visit").
+    """
+
     to: str
-    message: str
+    message: str = ""
     # Retained for backwards compatibility and goal phrasing. Replies are
     # ignored by default when checking completion (the app's auto-reply is
     # random for anyone other than Alice/Bob), so this is not part of the
     # target state. Pass ``ignore_message_replies=False`` to
     # ``AppStateComparison`` to compare replies.
     expected_reply: str | None = None
+    message_includes: list = field(default_factory=list)
 
     def thread(self, initial_state: dict) -> str:
         """The handle this task messages; see :func:`resolve_thread`."""
@@ -938,13 +975,34 @@ class SendMessageTask(Task):
         thread["messages"].append([self.message, "you", formatted_time_string])
         return target_state
 
+    def _sent_text(self, initial_state: dict, current_state: dict) -> str | None:
+        """The one message the agent sent in this task's thread, or None when
+        it sent none or several there."""
+        handle = self.thread(initial_state)
+        before = next((t for t in initial_state.get("messenger") or [] if t["handle"] == handle), None)
+        after = next((t for t in current_state.get("messenger") or [] if t["handle"] == handle), None)
+        if before is None or after is None:
+            return None
+        sent = [m for m in after["messages"][len(before["messages"]):] if m[1] == "you"]
+        return sent[0][0] if len(sent) == 1 else None
+
     def check_if_task_is_complete(
         self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         target_state = self.get_target_state(initial_state)
+        handle = self.thread(initial_state)
+        if self.message_includes:
+            # Check the text here, then let the diff see the agent's own words
+            # in the target: everything else -- a message to someone else, an
+            # extra one -- is the comparison's to catch.
+            text = self._sent_text(initial_state, current_state)
+            if text is None or not _text_satisfies(text, self.message_includes):
+                return False
+            thread = next(t for t in target_state["messenger"] if t["handle"] == handle)
+            thread["messages"][-1][0] = text
         # Ignore the single auto-reply this contact appends to our one message.
         app_state_comparison = AppStateComparison(
-            target_state, current_state, reply_contacts={self.thread(initial_state): 1}
+            target_state, current_state, reply_contacts={handle: 1}
         )
         return app_state_comparison.compare()
 

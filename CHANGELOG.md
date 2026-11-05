@@ -43,9 +43,14 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   Files, linked from Orders and opened in the Files reader.
 - **Reveal in Files** in the code editor.
 - **File tasks** (`tasks=files`): delete, restore, permanently delete, rename
-  and move a file, download a statement, file it away, and answer a question
-  from a receipt (`AnswerTask`, scored from the agent's reply). Kept out of
-  `all_tasks`, like the OpenBanking set.
+  and move a file, download a statement, file it away, answer a question
+  from a receipt (`AnswerTask`, scored from the agent's reply), and send Bob
+  the blood pressure from the latest medical report (128/82, not March's
+  136/88). Kept out of `all_tasks`, like the OpenBanking set.
+- **`SendMessageTask.message_includes`**: score a message on what it must
+  contain, matched on whole words with optional alternatives, instead of its
+  exact text -- for a value read out of another app. `message` tasks are
+  unchanged.
 - **Contacts** (`/contacts`): people with any number of phones and emails, a
   note and a favourite flag. List, card, edit and new forms, delete with a
   confirm step, search, and Copy pills on every number. Layouts `default`
