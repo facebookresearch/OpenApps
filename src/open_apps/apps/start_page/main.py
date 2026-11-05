@@ -35,7 +35,7 @@ except ImportError:
     )
 from urllib.parse import urlsplit
 
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 # Re-exported: tests and other modules import these from here.
 from open_apps.apps.availability import (  # noqa: F401
     onlineshop_has_catalog,
@@ -174,7 +174,9 @@ def resolve_pinned(desktop_cfg, start_page_cfg, variant: str = "shell") -> list[
 
     `pinned` is either a list of keys or the string `all`, which expands to the
     whole inventory so that adding an app does not silently leave it off the
-    desktop. `unpinned` is then subtracted, and that is the ergonomic half: the
+    desktop -- except apps whose inventory entry says `pinned_by_default:
+    false`, which stay on the all-apps panel until pinned (by name in
+    `pinned`, or at runtime). `unpinned` is then subtracted, and that is the ergonomic half: the
     launcher only matters to an agent when something it needs is behind it, so
     forcing that case should be one short override rather than re-listing every
     app you still want pinned.
@@ -199,7 +201,9 @@ def resolve_pinned(desktop_cfg, start_page_cfg, variant: str = "shell") -> list[
                 f"apps.start_page.desktop.pinned={pinned!r} is not understood; "
                 f"use `all` or a list of app keys from {inventory}."
             )
-        keys = list(inventory)
+        apps = start_page_cfg.get("apps") if hasattr(start_page_cfg, "get") else None
+        apps = (OmegaConf.to_container(apps, resolve=True) if OmegaConf.is_config(apps) else dict(apps or {}))
+        keys = [k for k in inventory if (apps.get(k) or {}).get("pinned_by_default", True)]
     else:
         keys = list(pinned or [])
 
@@ -286,6 +290,10 @@ AVAILABLE_APPS = {
         "open_apps.apps.contacts_app",
         "get_contacts_routes",
     ),
+    "passwords": (
+        "open_apps.apps.passwords_app",
+        "get_passwords_routes",
+    ),
 }
 
 APP_MODULE_TO_NAME = {
@@ -299,6 +307,7 @@ APP_MODULE_TO_NAME = {
     "open_apps.apps.uilibrary_app": "ui_library",
     "open_apps.apps.files_app": "files",
     "open_apps.apps.contacts_app": "contacts",
+    "open_apps.apps.passwords_app": "passwords",
 }
 
 
@@ -1158,11 +1167,32 @@ def desktop_all():
     return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
 
 
+# Config keys that hold seeded secrets. The launcher's port guard reads
+# /environment_variables, and an agent can `goto` it too, so the response
+# leaves these out -- otherwise one page load would hand over the whole vault.
+_SECRET_CONFIG_KEYS = {"passwords": ("entries", "extra_entries")}
+
+
+def _public_config(config):
+    if not OmegaConf.is_config(config) or not any(app_key in config for app_key in _SECRET_CONFIG_KEYS):
+        return config
+    public = config.copy()
+    for app_key, keys in _SECRET_CONFIG_KEYS.items():
+        if app_key in public:
+            section = public[app_key].copy()
+            with open_dict(section):
+                for key in keys:
+                    section.pop(key, None)
+            with open_dict(public):
+                public[app_key] = section
+    return public
+
+
 @rt("/environment_variables")
 def get():
     # Prints or returns the environment variables dictionary
     # we can use this to score an envrionment and improve an agent
-    return app.config
+    return _public_config(app.config)
 
 
 if __name__ == "__main__":

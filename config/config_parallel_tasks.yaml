@@ -24,6 +24,7 @@ defaults:
   - apps/files: default
   - apps/ui_library: default
   - apps/contacts: default
+  - apps/passwords: default
   - apps/pop_ups: default
   - apps/chrome: default
   - _self_

@@ -60,11 +60,32 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   name, each with casual, formal and unrelated-context phrasings. Kept out of
   `all_tasks`, like the OpenBanking set.
 - Known sender names in the messenger link to their contact card.
+- **OpenPasswords** (`/passwords`): a password manager in the style of
+  1Password or Dashlane. Logins, Wi-Fi networks and secure notes in one
+  vault, with a category sidebar, search, favourites, masked passwords with
+  Reveal, Copy pills, new/edit forms, and a Recently Deleted bin emptied only
+  by deleting permanently. Layouts `default` (sidebar, list and item) and
+  `list_detail` (one pane at a time); content packs for every language and
+  description variation, the misleading one with decoys such as a second
+  "Mail". In the all-apps launcher but not docked by default, and pinnable.
+  Scored at `/passwords_all`, which the agent's `goto` refuses.
+- **Password tasks** (`tasks=passwords`): add, edit and delete items
+  (`AddPasswordTask`, `EditPasswordTask`, `DeletePasswordTask`), each with
+  casual, formal and unrelated-context phrasings. Kept out of `all_tasks`,
+  like the OpenBanking set.
+- `pinned_by_default: false` on a start-page inventory entry keeps that app
+  out of `desktop.pinned: all`.
 
 ### Changed
 
 - `AppStateComparison` compares the files slice exactly (no fuzzy matching on
   file names).
+- `AppStateComparison` compares password-manager usernames, passwords and
+  secure-note text exactly, so a near-miss secret cannot pass on string
+  similarity.
+- `/environment_variables` leaves the seeded password vault out of the config
+  it serves; an agent can open that page.
+- Parallel sweeps launch OpenPasswords (`config_parallel_tasks*.yaml`).
 - Purchase targets expect one new receipt in Files; a declined card expects
   none.
 - Parallel sweeps launch Files (`config_parallel_tasks*.yaml`).

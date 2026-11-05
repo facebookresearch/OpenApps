@@ -277,3 +277,47 @@ attempt_the_copier_far_over_the_card_limit:
 `BuyWithCardTask`: a refused checkout mints no order id and no timestamp, so
 there is nothing volatile to forgive — and leaving it off means a run that
 somehow *did* buy the thing fails the diff with its ids intact.
+
+## Password tasks
+
+`config/tasks/passwords.yaml` is a standalone group, selected with
+`tasks=passwords`: add, edit and delete items in OpenPasswords, six base tasks
+with casual, formal and unrelated-context phrasings.
+
+```shell
+uv run launch_agent.py agent=dummy tasks=passwords task_name=fix_mail_username
+```
+
+Three task classes cover it, each building its target from the initial
+`/passwords_all`:
+
+```yaml
+add_gym_login:
+  _target_: open_apps.tasks.tasks.AddPasswordTask
+  kind: login                # login | wifi | note
+  title: Harbor Climbing Gym
+  username: dana.reyes@example.com
+  password: Chalk-Bag-77
+  website: https://harborclimb.example
+
+fix_mail_username:
+  _target_: open_apps.tasks.tasks.EditPasswordTask
+  match: {title: Mail, username: dana.reyes@example.com}
+  set: {username: dreyes@mail.example}
+
+delete_old_netflix_login:
+  _target_: open_apps.tasks.tasks.DeletePasswordTask
+  match: Netflix (old)
+```
+
+* `match` is a title, or a title and username where titles repeat. A match
+  that names no item, or several, makes the task unwinnable rather than
+  guessing; the misleading content pack adds a second "Mail" for exactly this.
+* `set` takes `title`, `username`, `password`, `website`, `security`, `notes`
+  and `favorite`. An item's kind cannot change.
+* Delete means Recently Deleted (`deleted: true`). Deleting permanently
+  removes the item, which fails the task.
+* Passwords, usernames and a secure note's text (whitespace aside) compare
+  exactly: `AppStateComparison` checks them as a multiset of (kind, username,
+  password, note text, deleted) before the fuzzy diff, so a near-miss secret
+  cannot pass on string similarity. A login's notes stay fuzzy.

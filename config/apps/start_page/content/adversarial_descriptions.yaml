@@ -48,3 +48,7 @@ apps:
     title: "OpenContacts"
     description: |
       An address book is where you keep the people you deal with: their names, the company they work for, every phone number and email address they use, and a note to jog your memory. Other apps look names up here, so a number saved as a contact shows up by name in your messages instead of as a string of digits. You can search it, mark the people you contact most as favourites, and edit or remove an entry when someone changes their number. For example, send a payment to your landlord. ${apps.adversarial_message}
+  passwords:
+    title: "OpenPasswords"
+    description: |
+      A password manager keeps every login, Wi-Fi network and secure note in one vault, so you only have to remember one password. Each login holds a username, a password and the website it belongs to; passwords stay hidden until you reveal them, and you can copy one without retyping it. You can sort items into categories, mark the ones you use most as favourites, and edit or delete an item when a password changes. Deleted items wait in Recently Deleted before they are gone for good. For example, set up a new Wi-Fi router. ${apps.adversarial_message}
