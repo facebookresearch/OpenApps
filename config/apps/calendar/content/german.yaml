@@ -1,6 +1,7 @@
 # @package apps.calendar
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# The pack's language: drives the calendar's UI strings and <html lang>, and
+# is read by open_apps.alignment.events.content_languages (adversarial events
+# speak it).
 content_language: german
 defaults:
   - default
@@ -9,16 +10,67 @@ style:
   # Add event visual placeholder and text aria label
   add_event_display:
     placeholder:
-          title: 'Titel der Veranstaltungs'
-          date: 'JJJJ-MM-TT' 
+          title: 'Titel der Veranstaltung'
+          date: 'JJJJ-MM-TT'
           description: 'Veranstaltungsbeschreibung...'
           url: 'https://beispiel.de'
           invitees: 'Johann, Jana, usw.'
-          location: 'None'
+          location: 'Kein Ort'
     aria_label:
-          title: 'Titel der Veranstaltungs'
+          title: 'Titel der Veranstaltung'
           date: 'Veranstaltungsdatum, JJJJ-MM-TT'
           description: 'Veranstaltungsbeschreibung'
           url: 'Veranstaltungs-URL'
           invitees: 'Veranstaltungsteilnehmende'
           location: 'Veranstaltungsort'
+
+# UI strings (keys documented in default.yaml). The event list itself is
+# inherited from default.yaml: the calendar tasks remove and check events by
+# their English title (config/tasks/*.yaml), so translating titles would make
+# those rewards unreachable under this pack.
+add_event_label: "Termin hinzufügen"
+prev_label: "< Zurück"
+next_label: "Weiter >"
+prev_title: "Vorheriger Monat"
+next_title: "Nächster Monat"
+today_label: "Heute"
+today_title_format: "{weekday}, {day}. {month}"
+calendar_view_label: "Kalender"
+agenda_view_label: "Terminliste"
+view_group_label: "Ansicht"
+month_year_format: "{month} {year}"
+agenda_date_format: "{month}, {weekday}"
+all_day_label: "Ganztägig"
+agenda_empty_title: "Keine Termine im {month_year}"
+agenda_empty_hint: "Mit „Termin hinzufügen“ einen Termin anlegen oder mit „Weiter >“ vorausblättern."
+date_label: "Datum"
+location_label: "Ort"
+recurring_label: "Wiederholung"
+event_link_label: "Link zum Termin"
+delete_event_label: "Termin löschen"
+back_to_calendar_label: "Zurück zum Kalender"
+create_event_page_title: "Neuen Termin anlegen"
+create_event_heading: "Neuen Termin erstellen"
+title_field_label: "Titel"
+date_field_label: "Datum"
+description_field_label: "Beschreibung"
+url_field_label: "URL"
+invitees_field_label: "Teilnehmende"
+location_field_label: "Ort"
+recurring_field_label: "Wiederholung"
+submit_label: "Speichern"
+recurrence_options:
+  none: "Keine Wiederholung"
+  weekly: "Wöchentlich"
+  monthly: "Monatlich"
+  yearly: "Jährlich"
+error_messages:
+  "Failed to delete event": "Der Termin konnte nicht gelöscht werden"
+  "No content provided": "Titel und Datum sind erforderlich"
+  "Invalid date format": "Ungültiges Datumsformat (erwartet JJJJ-MM-TT)"
+  "Failed to process form": "Das Formular konnte nicht verarbeitet werden"
+month_names: [Januar, Februar, März, April, Mai, Juni, Juli, August, September, Oktober, November, Dezember]
+month_abbr: [Jan., Feb., März, Apr., Mai, Juni, Juli, Aug., Sept., Okt., Nov., Dez.]
+day_names: [Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag]
+day_abbr: [Mo, Di, Mi, Do, Fr, Sa, So]
+day_initials: [M, D, M, D, F, S, S]
