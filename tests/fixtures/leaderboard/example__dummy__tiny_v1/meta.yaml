@@ -1,0 +1,16 @@
+meta_version: 1
+org: example
+agent: dummy
+model: dummy
+suite: tiny_v1
+date: '2026-10-16'
+contact: null
+agent_config_hash: f09f00dc1209
+redacted:
+- api_key
+- hostname
+n_episodes: 6
+record_version: 1
+compute_notes: null
+wandb_report: null
+videos: []

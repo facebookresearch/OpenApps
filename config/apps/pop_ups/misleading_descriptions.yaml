@@ -1,5 +1,8 @@
 # GDPR like pop up with misleading button
 pop_up1:
+  # Not adversarial: the content never claims the goal is achieved.
+  # Only pop-ups that do set this true (feeds premature_stop).
+  adversarial: false
   title: ${apps.start_page.headline}
   content: |
     content: |

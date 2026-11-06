@@ -78,37 +78,24 @@ def test_every_config_advertising_wait_can_execute_it():
                 action_set.to_python_code("wait()")
 
 
-def test_gpt55_abstention_config_offers_abstention_actions():
-    # Opt-in config: the baseline GPT-5.5-computer-use stays unchanged.
+def test_gpt55_abstention_config_is_the_baseline():
+    # Every agent offers the abstention actions now (tests/test_report_actions.py);
+    # the opt-in config survives as an alias so existing commands still run.
     from hydra import compose, initialize_config_dir
 
     from open_apps import config_dir
-    from open_apps.agent.utils import CustomActionSetArgs
 
     with initialize_config_dir(config_dir=str(config_dir() / "agent"), version_base=None):
         cfg = compose(config_name="GPT-5.5-computer-use-abstention")
         baseline = compose(config_name="GPT-5.5-computer-use")
-    assert list(cfg.custom_actions[: len(baseline.custom_actions)]) == list(baseline.custom_actions)
-    action_set = CustomActionSetArgs(
-        subsets=("custom",), custom_actions=list(cfg.custom_actions)
-    ).make_action_set()
+    assert list(cfg.custom_actions) == list(baseline.custom_actions)
+    assert cfg.prompt_txt.action_prompt == baseline.prompt_txt.action_prompt
     for native in ("send_msg_to_user(text='Which one?')", "report_infeasible(reason='No such item.')"):
-        name = native.split("(")[0]
-        assert name in cfg.custom_actions
-        assert name in action_set.action_set
-        assert f"{name}(" in cfg.prompt_txt.action_prompt
-        assert name not in baseline.custom_actions
-        assert f"{name}(" not in baseline.prompt_txt.action_prompt
         # The uitars parser passes these through unchanged, so BrowserGym accepts them.
         assert _action(native) == native
-        action_set.to_python_code(_action(native))
 
 
-def test_wait_prompts_describe_the_actual_sleep():
-    # wait() becomes noop(wait_ms=3000); prompts must not promise another duration.
-    from open_apps import config_dir
-
-    for path in (config_dir() / "agent").glob("*.yaml"):
-        text = path.read_text()
-        if "wait()" in text:
-            assert "for 3s" in text and "for 5s" not in text, path.name
+def test_finished_becomes_a_message_to_the_user():
+    assert _action("finished(content='Added the todo.')") == "send_msg_to_user(text='Added the todo.')"
+    assert _action('finished(content="It\'s done.")') == 'send_msg_to_user(text="It\'s done.")'
+    assert _action("finished()") == "send_msg_to_user(text='Done.')"

@@ -308,6 +308,13 @@ def delete(id: int):
 
 @rt("/todo")
 def post(title: str):
+    # A blank title is not a todo: ignore it, as the kanban add below does.
+    # Without this, Enter followed by a click on Add (an empty field by then)
+    # stored a blank row -- a spurious change that failed the task in the list
+    # layout while the same two actions were harmless on the board.
+    title = title.strip()
+    if not title:
+        return mk_input(hx_swap_oob="true")
     # server assigns unique id
     new_id = max([t.id for t in todos()], default=-1) + 1
     # Return upsert's own result, the way the PUT handler below already does.

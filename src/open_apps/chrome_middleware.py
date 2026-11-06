@@ -54,6 +54,24 @@ class ChromeParts:
     html_attrs: dict[str, str] = field(default_factory=dict)
 
 
+def merge_parts(*parts: ChromeParts | None) -> ChromeParts | None:
+    """Several layers' parts as one splice, in order; None when all are None.
+
+    The window chrome and the notification toasts are independent layers --
+    ``apps/chrome=none`` must not hide an adversarial event -- but one
+    middleware buffering each page once is cheaper than two.
+    """
+    present = [p for p in parts if p is not None]
+    if not present:
+        return None
+    merged = ChromeParts()
+    for p in present:
+        merged.head += p.head
+        merged.body += p.body
+        merged.html_attrs.update(p.html_attrs)
+    return merged
+
+
 #: Called once per full-page GET with the request path. Returns ``None`` to
 #: leave the page alone.
 Renderer = Callable[[str], ChromeParts | None]

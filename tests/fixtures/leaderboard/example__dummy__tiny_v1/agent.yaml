@@ -1,0 +1,11 @@
+_target_: open_apps.agent.dummy_agent.DummyAgentArgs
+api_key: <redacted>
+client_type: dummy
+hostname: <redacted>
+max_tokens: 5000
+model_name: dummy
+model_pretty_name: dummy
+save_som: false
+use_axtree: true
+use_html: true
+use_screenshot: true

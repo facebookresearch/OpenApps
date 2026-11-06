@@ -39,10 +39,31 @@ jobs:
         run: |
           pip install uv
           uv sync --extra dev
+      # Generated from leaderboard/submissions with main's code on every build
+      # and gitignored, so the table is always what main's scorer says about
+      # the merged bundles -- the authoritative check: main's code, main's
+      # suite locks, maintainer-owned leaderboard/verifications.yaml. build
+      # re-validates every bundle; --lenient lists a failing one on the page
+      # as "not currently valid" (with why) instead of failing the deploy,
+      # so one bundle gone stale cannot take the page down. The PR workflow
+      # stays strict. The commit time pins generated_at, so redeploying an
+      # unchanged main is byte-identical.
+      - name: Build leaderboard.json
+        run: |
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
+            uv run -m open_apps.leaderboard.build --lenient --out docs/assets/leaderboard/leaderboard.json
       - name: Build Docs
         run: |
           source .venv/bin/activate 
           mkdocs build
+      - name: Publish the leaderboard schemas
+        # Where their $id URLs point.
+        run: |
+          mkdir -p site/schemas
+          cp leaderboard/schema/episode.schema.json site/schemas/episode-record-v1.json
+          cp leaderboard/schema/meta.schema.json site/schemas/leaderboard-meta-v1.json
+          cp leaderboard/schema/demonstration.schema.json site/schemas/leaderboard-demonstration-v1.json
+          cp leaderboard/schema/verifications.schema.json site/schemas/leaderboard-verifications-v1.json
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

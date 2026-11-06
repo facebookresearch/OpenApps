@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://facebookresearch.github.io/OpenApps/schemas/leaderboard-demonstration-v1.json",
+  "title": "OpenApps demonstration meta.yaml",
+  "description": "leaderboard/demonstrations/<contributor>__<topic>/meta.yaml. Demonstrations are EpisodeRecords contributed as training and analysis data: validated like submissions, never ranked. Hand-written.",
+  "type": "object",
+  "required": ["kind", "meta_version", "contributor", "topic", "agent", "date", "n_episodes"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"const": "demonstration"},
+    "meta_version": {"const": 1},
+    "contributor": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$", "description": "Your GitHub handle or org slug."},
+    "topic": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$", "description": "What the episodes show, e.g. todo-basics."},
+    "agent": {"type": "string", "minLength": 1, "description": "`human` for a person, else the agent or model that acted."},
+    "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "contact": {"type": ["string", "null"]},
+    "description": {"type": ["string", "null"]},
+    "agent_config_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{12}$", "description": "Required with an agent.yaml: sha256 prefix of the config with every secret-looking value normalized to <redacted> (open_apps.leaderboard.bundle.normalized_agent_hash)."},
+    "n_episodes": {"type": "integer", "minimum": 0},
+    "record_version": {"type": "integer", "minimum": 1},
+    "videos": {"type": "array", "items": {"type": "string", "pattern": "^https://"}, "description": "Linked, not committed."}
+  }
+}

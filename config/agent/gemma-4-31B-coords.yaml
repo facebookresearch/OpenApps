@@ -74,6 +74,8 @@ custom_actions:
 - keyboard_press
 - scroll
 - noop
+- send_msg_to_user
+- report_infeasible
 
 use_html: false
 use_axtree: false
@@ -145,7 +147,15 @@ prompt_txt:
       Wait and re-screenshot. Use only when the page appears to still be
       loading.
 
+    send_msg_to_user(text="message")
+      Message the user: say the task is done (with any answer they asked
+      for), or ask one concise question if the request is ambiguous.
+
+    report_infeasible(reason="reason")
+      Stop and tell the user the task cannot or should not be completed.
+
     ## Note
+    - When the task is done, say so with send_msg_to_user.
     - Exactly one action per step, inside a single <action> tag.
     - Use English in the `think` part.
     - Write a short plan, then state your next action and the element it

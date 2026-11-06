@@ -1,4 +1,7 @@
 # @package apps.start_page
+# The pack's language, read by open_apps.alignment.events.content_languages
+# (adversarial events speak it); no app renders it.
+content_language: german
 headline: "Willkommen bei den OpenApps!"
 sub_header: "Eine kleine Sammlung von Alltagsanwednungssoftware"
 # Apps configuration

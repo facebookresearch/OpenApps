@@ -1,0 +1,158 @@
+/*
+ * Notification toasts (adversarial events, open_apps.ui.toast).
+ *
+ * Inlined into every page that has an unread toast -- by the page renderer on
+ * a full load, by OpenAppsTask's page.evaluate when an event fires mid-page --
+ * so the same rules of the road as chrome.css apply:
+ *
+ * 1. Reset first. Pico, Tailwind's preflight and the html5up start page all
+ *    style bare `a`, `button` and `form`. Everything inside #oa-toasts is
+ *    unset at id specificity and every rule after is `#oa-toasts .class`.
+ *
+ * 2. Theme tokens, not colours. The container carries the *page's* app theme
+ *    scoped onto it (a <style> block inside it), so a toast over the dark
+ *    code editor is dark and one over the solarized todo app is solarized,
+ *    whether or not the page itself declares :root tokens (the Jinja apps).
+ *
+ * 3. No motion. A toast that slides in would be caught mid-slide by the
+ *    observation captured right after it is injected.
+ *
+ * Desktop and tablet: a card in the top-right corner, under the title bar.
+ * Phone: a banner across the top, as a phone shows a notification.
+ */
+
+#oa-toasts,
+#oa-toasts :not(svg, svg *, style) {
+  all: unset;
+  box-sizing: border-box;
+}
+#oa-toasts [hidden] { display: none !important; }
+#oa-toasts svg { display: block; flex: none; }
+#oa-toasts form { display: contents; }
+
+#oa-toasts.oa-toasts {
+  position: fixed;
+  top: calc(var(--oa-titlebar-h, 0px) + 12px);
+  right: 16px;
+  /* Above the window chrome (2147483000), below the agent cursor
+     (2147483647), which must stay visible over everything it points at. */
+  z-index: 2147483200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+  /* The stack itself never takes a click: only the cards do, so the gaps
+     between them leave the page underneath clickable. */
+  pointer-events: none;
+  font-family: var(--font-family, system-ui, -apple-system, "Segoe UI", sans-serif);
+  color: var(--color-fg, #1a1a1a);
+}
+
+#oa-toasts .oa-toast {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 8px 12px 12px;
+  border-radius: calc(var(--radius, 8px) + 4px);
+  background: var(--color-bg, #ffffff);
+  border: 1px solid var(--color-border, #dfe1e6);
+  /* The accent strip says "this is new" without colouring the whole card. */
+  box-shadow: inset 3px 0 0 var(--color-primary, #2563eb),
+              0 12px 32px rgb(0 0 0 / 18%), 0 2px 6px rgb(0 0 0 / 10%);
+  line-height: 1.35;
+}
+
+#oa-toasts .oa-toast-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--radius, 8px);
+}
+#oa-toasts a.oa-toast-main:hover .oa-toast-title { text-decoration: underline; }
+#oa-toasts a.oa-toast-main:focus-visible,
+#oa-toasts .oa-toast-dismiss:focus-visible {
+  outline: 2px solid var(--color-accent, #2563eb);
+  outline-offset: 2px;
+}
+
+#oa-toasts .oa-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary, #2563eb);
+  color: var(--color-on-primary, #ffffff);
+}
+
+#oa-toasts .oa-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#oa-toasts .oa-toast-title {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-fg, #1a1a1a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#oa-toasts .oa-toast-body {
+  /* Clamped on screen; the whole text stays in the DOM, so an agent reading
+     the accessibility tree gets all of it. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-muted, #6b7280);
+  overflow-wrap: anywhere;
+}
+
+#oa-toasts .oa-toast-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--color-muted, #6b7280);
+  cursor: pointer;
+}
+#oa-toasts .oa-toast-dismiss:hover {
+  background: color-mix(in srgb, var(--color-fg, #1a1a1a) 8%, transparent);
+  color: var(--color-fg, #1a1a1a);
+}
+
+/* ---- phone: a banner across the top ----------------------------------- */
+#oa-toasts.oa-toasts[data-oa-device="phone"] {
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  width: auto;
+}
+#oa-toasts[data-oa-device="phone"] .oa-toast {
+  padding: 12px 8px 12px 14px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-bg, #ffffff) 94%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+#oa-toasts[data-oa-device="phone"] .oa-toast-title { font-size: 15px; }
+#oa-toasts[data-oa-device="phone"] .oa-toast-body { font-size: 14px; -webkit-line-clamp: 2; }
+/* Touch: a 28px target is too small for a finger. */
+#oa-toasts[data-oa-device="phone"] .oa-toast-dismiss,
+#oa-toasts[data-oa-device="tablet"] .oa-toast-dismiss { width: 40px; height: 40px; }

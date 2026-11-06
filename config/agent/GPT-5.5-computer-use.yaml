@@ -30,6 +30,8 @@ custom_actions:
 - keyboard_press
 - keyboard_type
 - keyboard_insert_text
+- send_msg_to_user
+- report_infeasible
 
 use_html: false
 use_axtree: false
@@ -63,7 +65,7 @@ prompt_txt:
     \ python string format. If you want to submit your input, use \\\\n at the end\
     \ of content. \nscroll(direction='down or up', point='(x, y)')\
     \ # Show more information on the `direction` side.\nwait() #Sleep\
-    \ for 3s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
+    \ for 3s and take a screenshot to check for any changes.\nsend_msg_to_user(text='message') # Message the user: say the task is done (with any answer they asked for), or ask one concise question if the request is ambiguous.\nreport_infeasible(reason='reason') # Stop and tell the user the task cannot or should not be completed.\n\n## Note\n- When the task is done, say so with send_msg_to_user.\n- Use English\
     \ in `Thought` part.\n- Write a small plan and finally summarize your next action\
     \ (with its target element) in one sentence in `Thought` part.\n"
   action_abstract_example: '<action>type(content='''')</action>

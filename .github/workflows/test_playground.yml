@@ -15,6 +15,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # tests/test_on_success_equivalence.py loads the pre-alignment task
+          # adapter from git history; a shallow clone would make it skip.
+          fetch-depth: 0
       - name: Set up Python 3.11
         uses: actions/setup-python@v3
         with:

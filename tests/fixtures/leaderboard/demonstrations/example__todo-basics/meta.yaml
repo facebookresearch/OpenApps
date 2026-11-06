@@ -1,0 +1,11 @@
+kind: demonstration
+meta_version: 1
+contributor: example
+topic: todo-basics
+agent: human
+date: '2026-10-16'
+contact: null
+description: A refusal of an impossible add and a goal-required delete, by hand.
+n_episodes: 2
+record_version: 1
+videos: []

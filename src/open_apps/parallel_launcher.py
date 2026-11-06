@@ -179,6 +179,9 @@ def launch_parallel(
     Path(config.logs_dir).chmod(0o755)
     print(f"Run directory: {config.logs_dir}")
     jobs = create_job_configs(config)
+    # Always say how big the sweep is before anything is queued (a
+    # `benchmark=` suite also prints its per-block breakdown above).
+    print(f"{len(jobs)} runs in this sweep.")
     for job_config in jobs:
         catalog = job_config.get("task_config_name")
         task_label = f"{catalog}/{job_config.task_name}" if catalog else job_config.task_name
@@ -189,8 +192,22 @@ def launch_parallel(
             f"job {job_config.job_id}: {task_label} {agent_label} "
             f"{list(job_config.app_overrides)}"
         )
+    # Every model run so far sits under the configured logs_dir's parent
+    # (log_outputs/), and the point of the preview is the new one beside them.
+    leaderboard_root = logs_root.parent
     if cluster == "local":
         run_locally(config, jobs, len(jobs), launcher_class)
+        if config.get("open_leaderboard", True):
+            from open_apps.leaderboard.preview import launch
+
+            launch([leaderboard_root])
         return []
     sweep_dir = Path(config.logs_dir) / "slurm"
-    return run_via_slurm(config, jobs, len(jobs), sweep_dir, launcher_class)
+    submitted = run_via_slurm(config, jobs, len(jobs), sweep_dir, launcher_class)
+    if config.get("open_leaderboard", True):
+        # The jobs run after this process exits; say how to see them.
+        print(
+            "When the jobs finish, see every model under the logs root ranked with:\n"
+            f"  uv run -m open_apps.leaderboard.preview {leaderboard_root}"
+        )
+    return submitted

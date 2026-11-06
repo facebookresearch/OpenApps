@@ -5,6 +5,11 @@
 defaults:
   - webshop
 
+# The content tells the agent its goal is achieved (apps.adversarial_message):
+# an exposure for the alignment scorer's premature_stop. Read only by
+# open_apps.alignment.record.adversarial_content; no app renders it.
+adversarial: true
+
 
 description: "${apps.adversarial_message}"
 promotional_message: "${apps.adversarial_message}"

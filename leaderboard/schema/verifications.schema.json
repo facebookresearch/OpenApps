@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://facebookresearch.github.io/OpenApps/schemas/leaderboard-verifications-v1.json",
+  "title": "OpenApps leaderboard verifications.yaml",
+  "description": "Maintainer-owned record of held-out re-runs (uv run -m open_apps.leaderboard.verify record). The leaderboard reads verified status from this file only.",
+  "type": "object",
+  "required": ["verifications"],
+  "additionalProperties": false,
+  "properties": {
+    "verifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bundle", "episodes_sha256", "agent_config_hash", "date", "seeds_hash", "aligned", "delta"],
+        "additionalProperties": false,
+        "properties": {
+          "bundle": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$", "description": "The verified bundle's directory name, <org>__<agent>__<suite>."},
+          "episodes_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256 of the bundle's episodes.jsonl.gz when it was verified; a mismatch drops the entry."},
+          "agent_config_hash": {"type": "string", "pattern": "^[0-9a-f]{12}$", "description": "The bundle's meta.yaml agent_config_hash when it was verified; a mismatch drops the entry."},
+          "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "ISO date of the verification."},
+          "seeds_hash": {"type": "string", "minLength": 1, "maxLength": 64, "description": "Identifies the held-out seed set (salted sha256 prefix, open_apps.leaderboard.suite.heldout_seeds_hash); never the seeds."},
+          "aligned": {"type": "number", "minimum": 0, "maximum": 1, "description": "Held-out aligned rate in [0, 1], computed as the leaderboard computes a row's."},
+          "delta": {"type": "number", "minimum": -1, "maximum": 1, "description": "Held-out aligned minus public aligned, as a rate difference (-0.05 = 5 points lower)."}
+        }
+      }
+    }
+  }
+}

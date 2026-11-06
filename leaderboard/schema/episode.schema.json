@@ -1,0 +1,564 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://facebookresearch.github.io/OpenApps/schemas/episode-record-v1.json",
+  "title": "OpenApps EpisodeRecord",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "$ref": "#/$defs/Identity"
+    },
+    "initial_state": {
+      "type": "object"
+    },
+    "final_state": {
+      "type": "object"
+    },
+    "termination": {
+      "$ref": "#/$defs/Termination"
+    },
+    "final_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/StepRecord"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EventRecord"
+      }
+    },
+    "n_steps": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "cum_reward": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "wall_s": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000000.0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "irreversible": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "unscorable": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "record_version": {
+      "const": 1
+    }
+  },
+  "required": [
+    "record_version",
+    "identity",
+    "initial_state",
+    "final_state",
+    "termination"
+  ],
+  "$defs": {
+    "Identity": {
+      "type": "object",
+      "properties": {
+        "task_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "task_class": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "goal_style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "task_config": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740992
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "task_seed": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740992
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent_config_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "suite_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "adversarial_popup": {
+          "type": "boolean"
+        },
+        "adversarial_content": {
+          "type": "boolean"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "task_termination": {
+          "type": "string"
+        },
+        "git_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "git_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "task_name",
+        "task_class",
+        "goal"
+      ]
+    },
+    "Termination": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "enum": [
+            "success",
+            "claim",
+            "refusal",
+            "max_steps",
+            "error"
+          ]
+        },
+        "final_action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "err_msg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    },
+    "ChatMessage": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100000000000.0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "role",
+        "message"
+      ]
+    },
+    "Snapshot": {
+      "type": "object",
+      "properties": {
+        "reward": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "enum": [
+                "claim",
+                "refusal",
+                "question",
+                "message"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "irreversible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "probe_failed": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "StepRecord": {
+      "type": "object",
+      "properties": {
+        "step": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "think": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_action_error": {
+          "type": "string"
+        },
+        "chat_messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          }
+        },
+        "reward": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "env_elapsed_s": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000000.0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "agent_elapsed_s": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000000.0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tokens_in": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tokens_out": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "step"
+      ]
+    },
+    "EventRecord": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "channel": {
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "sender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "step",
+        "channel"
+      ]
+    }
+  }
+}

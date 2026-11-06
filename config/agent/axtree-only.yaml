@@ -1,6 +1,6 @@
 # Custom actions to be used by the agent
 # ax-tree options
-custom_actions: ["click", "fill", "dblclick", "clear", "select_option", "drag_and_drop", "hover", "go_back", "go_forward", "goto", "scroll"]
+custom_actions: ["click", "fill", "dblclick", "clear", "select_option", "drag_and_drop", "hover", "go_back", "go_forward", "goto", "scroll", "send_msg_to_user", "report_infeasible"]
 
 # --- observation flags ---
 use_axtree: True # enable AXTREE observation
