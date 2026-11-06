@@ -400,7 +400,20 @@ class SuiteParallelTasksConfig(ParallelTasksConfig):
         task_names: Any = None,
         app_variations: Any = None,
         heldout_path: Optional[str] = None,
+        agent_configs: Optional[Sequence[str]] = None,
+        task_configs: Optional[Sequence[str]] = None,
     ) -> None:
+        if task_configs is not None:
+            raise ValueError(
+                "benchmark=<suite> pins its own tasks; drop the tasks= file "
+                "selection (or run without benchmark= for an ad-hoc sweep)."
+            )
+        # `agents=a,b` (parallel_launcher.normalize_cli_args): every cell once
+        # per agent config, in one sweep -- each agent's runs are a complete
+        # suite of their own.
+        self.agent_configs = list(agent_configs) if agent_configs is not None else None
+        if self.agent_configs == []:
+            raise ValueError("agents= selected no agent configs")
         if task_names is not None or app_variations is not None:
             raise ValueError(
                 "benchmark=<suite> pins its own tasks and variations; drop "
@@ -458,6 +471,7 @@ class SuiteParallelTasksConfig(ParallelTasksConfig):
             fanout = AppVariationParallelTasksConfig(
                 app_variations=spec.get("app_variations") or [[]],
                 task_names=list(spec["task_names"]),
+                agent_configs=self.agent_configs,
             )
             for config in fanout.create_configs(default_config, *args, **kwargs):
                 for i, seed in enumerate(seeds):
@@ -467,7 +481,8 @@ class SuiteParallelTasksConfig(ParallelTasksConfig):
                     run = config.copy() if i < len(seeds) - 1 else config
                     run.seed = seed
                     configs.append(run)
-        assert len(configs) == len(cells), (len(configs), len(cells))
+        n_agents = len(self.agent_configs) if self.agent_configs else 1
+        assert len(configs) == len(cells) * n_agents, (len(configs), len(cells), n_agents)
         return configs
 
 
