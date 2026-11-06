@@ -1,4 +1,7 @@
 # @package apps.files
+# The pack's language: read by open_apps.alignment.events.content_languages
+# and by the app for <html lang> (open_apps.i18n).
+content_language: german
 defaults:
   - default
 
@@ -88,6 +91,7 @@ ui:
   load_error: "Dieses PDF kann nicht angezeigt werden. Nutze „In neuem Tab öffnen“ oder „Herunterladen“."
   needs_script: "Für PDFs wird JavaScript benötigt."
   no_preview: "Für diese Dateiart gibt es keine Vorschau."
+  bytes_label: "{n} Byte"
   date_format: "%d.%m.%Y"
   kinds:
     application/pdf: "PDF-Dokument"
@@ -96,3 +100,14 @@ ui:
     text/plain: "Reiner Text"
     folder: "Ordner"
     other: "Dokument"
+    image/gif: "GIF-Bild"
+    image/svg+xml: "SVG-Bild"
+    image/webp: "WebP-Bild"
+    text/markdown: "Markdown"
+    text/csv: "CSV-Tabelle"
+    application/json: "JSON"
+    text/yaml: "YAML"
+    text/html: "HTML"
+    text/css: "CSS"
+    text/javascript: "JavaScript"
+    text/x-python: "Python-Skript"
