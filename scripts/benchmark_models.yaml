@@ -1,0 +1,104 @@
+# Model registry for multi-model align_v1 sweeps.
+#
+# Read by scripts/benchmark_sweep.py (and, through it, by
+# scripts/benchmark_one.sbatch). One entry per runnable config/agent/<name>.yaml;
+# fragments (axtree-only, screenshot-only) and family bases
+# (Qwen3.6-VL-computer-use) are not runnable on their own and are left out.
+#
+#   uv run scripts/benchmark_sweep.py list             # this table, resolved
+#
+# kind:
+#   none  -- needs nothing (the random dummy agent; pipeline smoke tests)
+#   api   -- a hosted endpoint; `env` lists the variables that must be set
+#            (in the shell or in .env) before anything is launched
+#   vllm  -- self-hosted: served by vLLM from `hf_model`, which must equal the
+#            agent config's `model_name` (tests/test_benchmark_sweep.py checks)
+#
+# gpus: tensor-parallel size per GPU type, bf16 weights. Sizing rule: weights
+# (2 bytes/param, *all* experts for a MoE) must leave room for the KV cache of
+# ~8 concurrent episodes (one screenshot + text history each, well under
+# max_model_len). An 80 GB H100 at gpu_memory_utilization 0.90 holds 72 GB:
+#   - E2B / 7B (10-16 GB of weights)       -> 1 GPU on either
+#   - 27B / 31B dense (54-62 GB)           -> fits one H100 with ~10-18 GB of
+#     KV, which caps concurrency and risks OOM on long contexts: 2x H100, or
+#     1x H200 (141 GB: ~65 GB of KV)
+#   - 35B-A3B MoE (~70 GB, every expert is resident even though 3B are active)
+#                                          -> 2x H100 or 1x H200; it decodes
+#     like a 3B model, so it is the fastest of the large ones
+# Use more GPUs than listed only to raise throughput (benchmark_one.sbatch uses
+# every GPU it is given as tensor parallel).
+#
+# max_model_len caps the context vLLM reserves KV for. The suite's prompts are
+# one screenshot plus a text history (a few thousand tokens over 30 steps), so
+# 32k is generous and keeps the KV pool large; raise it if vLLM reports a
+# prompt longer than the limit.
+#
+# vllm_args: extra flags for `vllm serve`, appended verbatim.
+
+defaults:
+  max_model_len: 32768
+  gpu_memory_utilization: 0.90
+  # Concurrent episodes against one server (local shards in benchmark_one.sbatch
+  # and in `benchmark_sweep.py run --mode local`).
+  shards: 8
+
+models:
+  dummy:
+    kind: none
+    shards: 4
+
+  # --- hosted APIs -------------------------------------------------------------
+  GPT-5.5-computer-use:
+    kind: api
+    env: [GPT55_API_KEY]
+  GPT-5.5-computer-use-abstention:
+    kind: api
+    env: [GPT55_API_KEY]
+  GPT-5.5-screen-and-text:
+    kind: api
+    env: [GPT55_API_KEY]
+  GPT-5.5-text-only:
+    kind: api
+    env: [GPT55_API_KEY]
+  claude_4_sonnet:
+    kind: api
+    # Bedrock. The SDK also accepts AWS_PROFILE / an instance role; pass
+    # --skip-env-check when you authenticate that way.
+    env: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY]
+  gemini-2.5-flash:
+    kind: api
+    # client_type gemini talks to an OpenAI-compatible proxy at
+    # http://$GEMINI_HOSTNAME:<agent.port>/ (config/agent/gemini-2.5-flash.yaml).
+    env: [GEMINI_API_KEY, GEMINI_HOSTNAME]
+
+  # --- self-hosted (vLLM) ------------------------------------------------------
+  gemma-4-2B-computer-use:
+    kind: vllm
+    hf_model: google/gemma-4-E2B-it
+    params_b: 5        # E2B: ~2B effective, ~5B stored (per-layer embeddings)
+    gpus: {h100: 1, h200: 1}
+  UI-TARS-1.5-7B:
+    kind: vllm
+    hf_model: ByteDance-Seed/UI-TARS-1.5-7B
+    params_b: 8
+    gpus: {h100: 1, h200: 1}
+  Qwen3.6-27B-computer-use:
+    kind: vllm
+    hf_model: Qwen/Qwen3.6-27B
+    params_b: 27
+    gpus: {h100: 2, h200: 1}
+  Qwen3.6-35B-A3B-computer-use:
+    kind: vllm
+    hf_model: Qwen/Qwen3.6-35B-A3B
+    params_b: 35
+    gpus: {h100: 2, h200: 1}
+  gemma-4-31B-computer-use:
+    kind: vllm
+    hf_model: google/gemma-4-31B-it
+    params_b: 31
+    gpus: {h100: 2, h200: 1}
+  gemma-4-31B-coords:
+    kind: vllm
+    hf_model: google/gemma-4-31B-it
+    params_b: 31
+    gpus: {h100: 2, h200: 1}
