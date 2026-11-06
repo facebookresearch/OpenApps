@@ -248,23 +248,54 @@ def test_the_page_renders_from_disk(logs, tmp_path):
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(out.resolve().as_uri())
         page.wait_for_selector("openapps-leaderboard >> table.board")
-        eyebrow = page.locator("openapps-leaderboard >> .eyebrow").inner_text()
-        assert "local preview" in eyebrow.lower()
+        head = page.locator("openapps-leaderboard >> .head").inner_text()
+        assert "OpenApps" in head and "Leaderboard" in head
         assert (
             page.locator("openapps-leaderboard >> .agent-name").inner_text() == "dummy"
         )
         sub = page.locator("openapps-leaderboard >> .agent-sub").inner_text()
         assert "6/6 cells" in sub
-        # The preview's palette, not the docs site's yellow.
+        # The preview's translucent sheet over the halftone.
         bg = page.locator("openapps-leaderboard >> .olb").evaluate(
             "el => getComputedStyle(el).backgroundColor"
         )
-        assert bg == "rgba(255, 255, 255, 0.8)"
-        page.click("openapps-leaderboard >> button.expand")
-        links = page.locator("openapps-leaderboard >> .links").inner_text()
-        assert str(logs) in links and "not validated" in links
+        assert bg == "rgba(251, 250, 247, 0.82)"
+        page.click("openapps-leaderboard >> a.model-link")
+        shown = page.locator("openapps-leaderboard >> .logs").inner_text()
+        assert str(logs) in shown and "not validated" in shown
+        assert page.locator("openapps-leaderboard >> .episode").count() == 1
         browser.close()
     assert errors == []
+
+
+def test_light_by_default_with_a_remembered_dark_toggle(logs, tmp_path):
+    """Light even when the system prefers dark; the toggle flips the page
+    and the element, and the choice survives a reload."""
+    sync_api = pytest.importorskip("playwright.sync_api")
+    out = P.Page(_preview([logs.parent]).doc).write(tmp_path / "page.html")
+    el = "openapps-leaderboard"
+    with sync_api.sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page(color_scheme="dark")
+        page.goto(out.resolve().as_uri())
+        page.wait_for_selector(f"{el} >> table.board")
+        assert page.locator(el).get_attribute("data-scheme") == "light"
+        toggle = page.locator("button.scheme")
+        assert toggle.inner_text() == "Dark"
+        toggle.click()
+        page.wait_for_function(
+            f"document.querySelector('{el}').dataset.scheme === 'dark'"
+        )
+        assert toggle.inner_text() == "Light"
+        assert toggle.get_attribute("aria-pressed") == "true"
+        page.reload()
+        page.wait_for_selector(f"{el} >> table.board")
+        assert page.locator(el).get_attribute("data-scheme") == "dark"
+        page.locator("button.scheme").click()
+        page.wait_for_function(
+            f"document.querySelector('{el}').dataset.scheme === 'light'"
+        )
+        browser.close()
 
 
 @pytest.mark.slow

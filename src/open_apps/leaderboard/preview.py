@@ -55,12 +55,15 @@ from typing import Any, Optional, Sequence
 
 from open_apps.leaderboard import build as LB
 from open_apps.leaderboard import bundle as B
+from open_apps.leaderboard.details import model_details
 
 DEFAULT_LOGS = Path("log_outputs")
 DEFAULT_PORT = 8765
+# Where the page remembers a picked light/dark scheme (light by default).
+SCHEME_KEY = "openapps-leaderboard-scheme"
 # The tab for runs that were not launched with ``benchmark=<suite>``.
 LOCAL_SUITE = "local"
-TITLE = "OpenApps leaderboard · local preview"
+TITLE = "OpenApps Leaderboard · local preview"
 # Unfinished runs pile up in a logs dir; list a few, count the rest.
 _SHOW_SKIPPED = 5
 
@@ -84,6 +87,9 @@ class Preview:
     n_episodes: int
     skipped: list[tuple[str, str]]
     duplicates: int
+    # (row id, episode id) -> its exp dir: where the served page reads
+    # screenshots and recordings from (a saved file has none).
+    media: dict[tuple[str, int], Path] = field(default_factory=dict)
 
 
 # --- discovery -------------------------------------------------------------------
@@ -198,13 +204,15 @@ def _suite_blocks(
 
 def _scored(
     group: _Group, blocks: Optional[dict[tuple, str]]
-) -> tuple[list[dict], int, int, list[tuple[str, str]]]:
-    """``(rows, cells covered, duplicates dropped, skipped)`` for a group."""
+) -> tuple[list[dict], list, int, int, list[tuple[str, str]]]:
+    """``(rows, kept, cells covered, duplicates dropped, skipped)`` for a
+    group; ``kept`` is the ``pack.Collected`` behind each scored row, in
+    order (an aggregate table's pre-scored rows have none)."""
     from open_apps.alignment.aggregate import row_from_record
     from open_apps.leaderboard.pack import dedupe
 
     by_key, dupes = dedupe(group.collected)
-    rows, skipped = list(group.rows), []
+    rows, kept, skipped = [], [], []
     for key, c in sorted(by_key.items()):
         try:
             row = row_from_record(c.record)
@@ -216,8 +224,11 @@ def _scored(
             continue
         row["block"] = blocks.get(key) if blocks else None
         rows.append(row)
-    covered = len(set(by_key) & set(blocks)) if blocks else len(rows)
-    return rows, covered, len(dupes), skipped
+        kept.append(c)
+    # Cells with a scored episode: one the scorer rejected covers nothing.
+    scored_keys = {c.key for c in kept}
+    covered = len(scored_keys & set(blocks)) if blocks else len(rows) + len(group.rows)
+    return [*group.rows, *rows], kept, covered, len(dupes), skipped
 
 
 def _date(group: _Group) -> Optional[str]:
@@ -249,10 +260,11 @@ def preview(
         modes[(name, agent)].add(mode)
 
     tabs: dict[str, dict] = {}
+    media: dict[tuple[str, int], Path] = {}
     n_episodes = duplicates = 0
     for (name, agent, mode), group in sorted(groups.items()):
         blocks = _suite_blocks(name, str(suite) if suite else None)
-        rows, covered, dupes, bad = _scored(group, blocks)
+        rows, kept, covered, dupes, bad = _scored(group, blocks)
         skipped += bad
         duplicates += dupes
         if not rows:
@@ -280,7 +292,17 @@ def preview(
             "logs": sorted(group.origins),
             "duplicates_dropped": dupes,
             **LB.scored_columns(rows, label, n_boot, seed),
+            # The model page. Pre-scored aggregate rows have no record
+            # behind them, so it covers the episodes that do.
+            "details": model_details(
+                [c.record for c in kept],
+                rows[len(rows) - len(kept) :],
+                config_paths=[c.config_path for c in kept],
+                exp_dirs=[Path(c.origin) for c in kept],
+            ),
         }
+        for e, c in zip(row["details"]["episodes"], kept):
+            media[(row["id"], e["id"])] = Path(c.origin)
         n_episodes += len(rows)
         tabs.setdefault(
             name,
@@ -297,49 +319,22 @@ def preview(
     doc = LB.document(tabs, when or LB.generated_at(), n_boot, seed)
     doc["title"] = TITLE
     doc["local"] = True
-    return Preview(doc, n_episodes, skipped, duplicates)
+    return Preview(doc, n_episodes, skipped, duplicates, media)
 
 
 # --- the page ----------------------------------------------------------------------
 
 #: Appended to the element's stylesheet, in the preview only: Meta's
-#: Optimistic Display where it is installed (system fonts otherwise), a
-#: neutral palette over the docs site's yellow, and a translucent sheet so the halftone shows
-#: around the table. The docs page itself is unchanged.
+#: Optimistic Display where it is installed (system fonts otherwise) and a
+#: translucent sheet so the halftone shows around the dashboard. The docs
+#: page itself is unchanged.
 PREVIEW_CSS = """
 :host {
   --sans: "Optimistic Display", -apple-system, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --page: rgba(255, 255, 255, 0.8);
-  --ink: #15171a;
-  --ink-2: #33373d;
-  --muted: #5f646c;
-  --eyebrow: #2f5e4e;
-  --control: #ffffff;
-  --control-hover: #f2f3f4;
-  --line: #15171a;
-  --line-soft: rgba(21, 23, 26, 0.16);
-  --sel-bg: #15171a;
-  --sel-ink: #ffffff;
-  --chip: #f3f4f5;
-  --row-hover: rgba(21, 23, 26, 0.03);
-  --detail: rgba(247, 248, 249, 0.94);
+  --page: rgba(251, 250, 247, 0.82);
 }
 :host([data-scheme="dark"]) {
-  --page: rgba(17, 18, 20, 0.82);
-  --ink: #eceef1;
-  --ink-2: #cdd1d6;
-  --muted: #9aa0a8;
-  --eyebrow: #86c9ae;
-  --control: #16181b;
-  --control-hover: #1f2226;
-  --line: #4b5058;
-  --line-soft: rgba(236, 238, 241, 0.14);
-  --sel-bg: #eceef1;
-  --sel-ink: #111214;
-  --chip: #1c1f23;
-  --row-hover: rgba(236, 238, 241, 0.04);
-  --detail: rgba(22, 24, 27, 0.94);
-  --whisker: rgba(236, 238, 241, 0.35);
+  --page: rgba(18, 19, 21, 0.84);
 }
 .olb {
   border: 1px solid var(--line-soft);
@@ -358,10 +353,12 @@ _PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <script>
-  if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
+  // Light unless dark was picked with the toggle (remembered per browser).
+  try {{ if (localStorage.getItem("{scheme_key}") === "dark") document.documentElement.classList.add("dark"); }} catch (e) {{}}
 </script>
 <style>
-  :root {{ color-scheme: light dark; }}
+  :root {{ color-scheme: light; }}
+  html.dark {{ color-scheme: dark; }}
   html {{ min-height: 100%; background: #f6f6f4 url("{tile_light}") repeat; image-rendering: pixelated; }}
   html.dark {{ background: #0f1012 url("{tile_dark}") repeat; }}
   body {{
@@ -379,20 +376,40 @@ _PAGE = """<!doctype html>
     background-attachment: fixed;
   }}
   openapps-leaderboard {{ display: block; max-width: 1440px; margin: 0 auto; }}
-  .save {{
-    max-width: 1440px; margin: 0 auto 0.5rem; display: flex; justify-content: flex-end; gap: 1rem;
+  .bar {{
+    max-width: 1440px; margin: 0 auto 0.5rem; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;
     font: 13px/1.4 "Optimistic Display", -apple-system, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   }}
-  .save a {{ color: #5f646c; text-decoration: none; border-bottom: 1px dotted currentColor; }}
-  .save a:hover, .save a:focus-visible {{ color: #15171a; }}
-  html.dark .save a {{ color: #9aa0a8; }}
-  html.dark .save a:hover, html.dark .save a:focus-visible {{ color: #eceef1; }}
-  @media print {{ .save {{ display: none; }} }}
+  .save {{ display: flex; gap: 1rem; }}
+  .bar a, .scheme {{ color: #5f646c; text-decoration: none; border: 0; border-bottom: 1px dotted currentColor; background: none; padding: 0; font: inherit; cursor: pointer; }}
+  .bar a:hover, .bar a:focus-visible, .scheme:hover, .scheme:focus-visible {{ color: #15171a; }}
+  html.dark .bar a, html.dark .scheme {{ color: #9aa0a8; }}
+  html.dark .bar a:hover, html.dark .bar a:focus-visible, html.dark .scheme:hover, html.dark .scheme:focus-visible {{ color: #eceef1; }}
+  @media print {{ .bar {{ display: none; }} }}
 </style>
 </head>
 <body>
-{toolbar}<openapps-leaderboard
-  src="{data}"
+<div class="bar">{toolbar}<button type="button" class="scheme" aria-pressed="false">Dark</button></div>
+<script>
+  // The element mirrors <html class="dark">, so toggling the class is enough.
+  (() => {{
+    const button = document.querySelector(".scheme"), root = document.documentElement;
+    const sync = () => {{
+      const dark = root.classList.contains("dark");
+      button.textContent = dark ? "Light" : "Dark";
+      button.setAttribute("aria-pressed", String(dark));
+      button.setAttribute("aria-label", dark ? "Switch to light" : "Switch to dark");
+    }};
+    button.addEventListener("click", () => {{
+      root.classList.toggle("dark");
+      try {{ localStorage.setItem("{scheme_key}", root.classList.contains("dark") ? "dark" : "light"); }} catch (e) {{}}
+      sync();
+    }});
+    sync();
+  }})();
+</script>
+<openapps-leaderboard
+  src="{data}"{media}
   stylesheet="{css}"></openapps-leaderboard>
 <script src="{js}"></script>
 </body>
@@ -439,10 +456,17 @@ class Page:
     look the same. ``background_seed=None`` draws a new one each run.
     """
 
-    def __init__(self, doc: dict, background_seed: Optional[int] = None):
+    def __init__(
+        self,
+        doc: dict,
+        background_seed: Optional[int] = None,
+        media: Optional[dict[tuple[str, int], Path]] = None,
+    ):
         from open_apps.leaderboard.halftone import tile_png
 
         self.doc = doc
+        # (row id, episode id) -> exp dir; only the served page reads it.
+        self.media = media or {}
         assets = B.repo_root() / "docs" / "assets" / "leaderboard"
         self._js = (assets / "leaderboard.js").read_bytes()
         self._css = (assets / "leaderboard.css").read_bytes() + PREVIEW_CSS.encode()
@@ -455,17 +479,50 @@ class Page:
 
     def html(self, toolbar: bool = False) -> str:
         """Self-contained: script, styles, data and texture are data: URLs,
-        so it opens from disk (``file://``) and fetches nothing."""
+        so it opens from disk (``file://``) and fetches nothing. The served
+        page (``toolbar``) also loads screenshots and recordings from
+        ``/media/``; a saved file says where to see them instead."""
         data = json.dumps(self.doc, default=str, allow_nan=False).encode()
         return _PAGE.format(
             title=TITLE,
             tile_light=self._tiles["light"],
             tile_dark=self._tiles["dark"],
             toolbar=_TOOLBAR.format(name=self.name) if toolbar else "",
+            scheme_key=SCHEME_KEY,
+            media='\n  media-base="/media/"' if toolbar and self.media else "",
             data=_data_url("application/json", data),
             css=_data_url("text/css", self._css),
             js=_data_url("text/javascript", self._js),
         )
+
+    def media_file(self, route: str) -> Optional[tuple[Path, str]]:
+        """``(file, mime)`` for ``/media/<row id>/<episode>/<name>``, where
+        name is ``screenshot/<step>.png`` or ``video.webm``; None for
+        anything else. Only those two shapes inside a known exp dir are
+        ever served, so a crafted path cannot read outside it."""
+        from urllib.parse import unquote
+
+        parts = route.split("/")
+        if len(parts) < 5 or parts[1] != "media":
+            return None
+        try:
+            exp_dir = self.media.get((unquote(parts[2]), int(parts[3])))
+        except ValueError:
+            return None
+        if exp_dir is None:
+            return None
+        rest = parts[4:]
+        if rest == ["video.webm"]:
+            videos = sorted((exp_dir / "task_video").glob("*.webm"))
+            return (videos[-1], "video/webm") if videos else None
+        if len(rest) == 2 and rest[0] == "screenshot" and rest[1].endswith(".png"):
+            try:
+                step = int(rest[1][: -len(".png")])
+            except ValueError:
+                return None
+            png = exp_dir / f"screenshot_step_{step}.png"
+            return (png, "image/png") if png.is_file() else None
+        return None
 
     def pdf(self) -> bytes:
         """One tall PDF page as wide as the screen layout, rendered by
@@ -580,6 +637,12 @@ def make_server(page: Page, host: str = "127.0.0.1", port: int = DEFAULT_PORT):
                     200, page.html().encode(), "text/html; charset=utf-8",
                     f"{page.name}.html",
                 )  # fmt: skip
+            elif route.startswith("/media/"):
+                found = page.media_file(route)
+                if found is None:
+                    self._send(404, b"not found", "text/plain")
+                    return
+                self._send(200, found[0].read_bytes(), found[1])
             elif route == "/leaderboard.pdf":
                 try:
                     with lock:
@@ -679,7 +742,7 @@ def launch(paths: Sequence[str | Path], open_browser: bool = True) -> None:
             print(_no_runs(paths))
             return
         print(summary(result))
-        serve(Page(result.doc), open_browser=open_browser)
+        serve(Page(result.doc, media=result.media), open_browser=open_browser)
     except Exception as exc:  # noqa: BLE001
         print(
             f"Leaderboard preview failed: {type(exc).__name__}: {exc}\n"
@@ -754,7 +817,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     print(summary(result))
     if args.json:
         LB.write(result.doc, args.json)
-    page = Page(result.doc, args.background_seed)
+    page = Page(result.doc, args.background_seed, media=result.media)
     if args.out:
         print(f"wrote {page.write(args.out)}")
         return 0

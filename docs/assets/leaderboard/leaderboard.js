@@ -6,97 +6,98 @@
  */
 
 /*
- * <openapps-leaderboard src="leaderboard.json"> -- the OpenApps-Align table.
+ * <openapps-leaderboard src="leaderboard.json"> -- the OpenApps leaderboard.
  *
- * Renders the document `uv run -m open_apps.leaderboard.build` writes: one
- * tab per frozen suite, ranked rows sortable on every column, partial
- * submissions listed apart, and a per-row drill-down. Every number comes from
- * that file; nothing is computed here except sort order and formatting.
+ * Renders the document `uv run -m open_apps.leaderboard.build` (submission
+ * bundles) or `uv run -m open_apps.leaderboard.preview` (your own logs)
+ * writes: one tab per suite, a table of models ranked by success with steps,
+ * task and token totals, and a page per model (click its name) with absolute
+ * numbers, the launch config, breakdowns by app and layout, theme and
+ * device, and every episode's outcome and action log. Every number comes
+ * from that file; nothing is computed here except sort order and formatting.
  *
  * Framework-free and build-free, like the config composer next to it
  * (docs/assets/composer/): a shadow root with one stylesheet, light/dark
  * mirrored from the docs theme toggle, and the view state (suite, sort,
- * expanded row) in the URL hash so a link reproduces it.
+ * success format, token columns, open model and episode) in the URL hash so
+ * a link reproduces it.
  *
  * Attributes (all optional):
- *   src              leaderboard.json URL (default: next to this script)
- *   composer-href    the config composer page, for Reproduce. No default: the
- *                    Reproduce link is only shown when the site has a composer
- *                    page (docs/leaderboard.md sets it once that page exists),
- *                    so it never points at a 404. A relative path or https URL.
- *   repo             GitHub repo URL for bundle links
- *   branch           branch for bundle links (default main)
- *   suite            the tab to open when the URL does not pick one
- *   delta-threshold  |held-out - public| aligned rate that flags a verified
- *                    row as a possible overfit (default 0.1 = 10 points)
- *   scheme           light | dark (default: follow <html class="dark">)
+ *   src         leaderboard.json URL (default: next to this script)
+ *   suite       the tab to open when the URL does not pick one
+ *   media-base  where screenshots and recordings are served (the preview
+ *               server sets it; a relative path or same-origin URL). Without
+ *               it the model page says how many there are and where to look.
+ *   scheme      light | dark (default: follow <html class="dark">)
  *
- * The data is from reviewed bundles, but it is still treated as data: text
- * only ever goes through textContent, and links are https or repo paths.
+ * The data is still treated as data: text only ever goes through
+ * textContent, and the only links are in-page hash links and media URLs
+ * under media-base.
  */
 (function () {
   "use strict";
 
   const SCRIPT_URL = (document.currentScript && document.currentScript.src) || location.href;
-  const DEFAULT_REPO = "https://github.com/facebookresearch/OpenApps";
-  // The composer reads `#agent=<option>` today. Its catalog does not offer
-  // the `benchmark` group yet (config/benchmark is newer than the composer),
-  // and it drops hash keys it does not know -- so a `benchmark=` here would be
-  // silently ignored. Flip this once the composer lists benchmark=align_v1.
-  const COMPOSER_KNOWS_BENCHMARK = false;
+  const SVG_NS = "http://www.w3.org/2000/svg";
 
-  // Table columns, in order. `metric` reads row[metric].rate; `better` is the
-  // direction a first click sorts (best first). Labels and descriptions are
-  // taken from the document's `columns` when it has them.
+  // Table columns, in order. `better` is the direction a first click sorts
+  // (best first). `total` reads row.details.totals[total]; `group: tokens`
+  // columns hide with the Tokens toggle.
   const COLUMNS = [
     { key: "rank", label: "Rank", kind: "rank", better: "asc" },
-    { key: "agent", label: "Agent", kind: "agent", better: "asc" },
-    { key: "aligned", label: "Aligned", kind: "rate", better: "desc" },
-    { key: "success", label: "Success", kind: "rate", better: "desc" },
+    { key: "agent", label: "Model", kind: "agent", better: "asc" },
     {
-      key: "worst", label: "Worst variation", kind: "worst", better: "desc",
-      description: "aligned rate in the agent's worst variation cell of the core block (the same tasks in every cell)",
+      key: "success", label: "Success", kind: "rate", better: "desc",
+      description: "share of episodes whose task check passed, with a 95% CI",
     },
-    { key: "fooled", label: "Fooled", kind: "rate", better: "asc", note: "exposed only" },
-    { key: "harm", label: "Harm", kind: "rate", better: "asc" },
-    { key: "honest", label: "Honest", kind: "rate", better: "desc" },
-    { key: "reported", label: "Reported", kind: "rate", better: "desc" },
-    { key: "ask_at_ambiguous", label: "Ask@ambiguous", kind: "rate", better: "desc" },
-    { key: "steps", label: "Steps", kind: "mean", better: "asc" },
-    { key: "tokens", label: "Tokens", kind: "count", better: "asc" },
+    {
+      key: "steps", label: "Avg steps", kind: "mean", better: "asc",
+      description: "mean steps per episode, over every run: successes and failures (a run that hits the step limit counts its full budget)",
+    },
+    { key: "total_steps", label: "Total steps", kind: "total", total: "steps", better: "asc", description: "steps summed across every run" },
+    { key: "tasks", label: "Tasks", kind: "total", total: "tasks", better: "desc", description: "episodes run (re-runs of a cell count once)" },
+    { key: "tokens_in", label: "Input tokens", kind: "total", total: "tokens_in", better: "asc", group: "tokens", description: "prompt tokens summed across every run, where the client reported them" },
+    { key: "tokens_out", label: "Output tokens", kind: "total", total: "tokens_out", better: "asc", group: "tokens", description: "completion tokens summed across every run, where the client reported them" },
   ];
-  const DEFAULT_SORT = { key: "aligned", dir: "desc" };
+  const DEFAULT_SORT = { key: "success", dir: "desc" };
 
-  // Drill-down axes (aggregate's by_axis keys), in reading order; any other
-  // axis the data has is shown after these under its own name. A per-app
-  // axis is keyed "<app>.<axis>" (e.g. "todo.content") and shown in place of
-  // its app-less "<axis>" key, which only holds the cell's combination of
-  // apps; the app-less key is the fallback for rows built before per-app keys.
-  const AXES = [
-    ["theme", "Appearance"],
-    ["content", "Content"],
-    ["layout", "Layout"],
-    ["device", "Device"],
-    ["phrasing", "Goal phrasing"],
-    ["event", "Event category"],
-    ["pop_ups", "Pop-ups"],
+  // The model page's breakdowns: [hash value, tab label, details.breakdowns key].
+  const BREAKDOWNS = [
+    ["app", "App & layout", "app"],
+    ["theme", "Theme", "theme"],
+    ["device", "Device", "device"],
   ];
 
-  // Config-group names (the "<app>" of a per-app axis) as people say them.
+  // Config-group names (an episode's app) as people say them.
   const APP_LABELS = {
     start_page: "Start page",
     todo: "Todo",
     calendar: "Calendar",
     messenger: "Messenger",
+    contacts: "Contacts",
     maps: "Maps",
     code_editor: "Code editor",
+    files: "Files",
     openbanking: "Open banking",
     onlineshop: "Online shop",
     ui_library: "UI library",
+    "multi-app": "Multi-app",
+    other: "Other",
   };
 
+  // Why an episode ended (the record's termination reason), as a tag.
+  const ENDINGS = {
+    success: "Reached the goal",
+    claim: "Claimed done",
+    refusal: "Refused",
+    max_steps: "Ran out of steps",
+    error: "Error",
+  };
+
+  // Episodes listed before "Show all".
+  const LIST_PAGE = 40;
+
   const DASH = "—";
-  const MINUS = "−";
 
   function h(tag, props, ...kids) {
     const el = document.createElement(tag);
@@ -115,11 +116,36 @@
     return el;
   }
 
+  function svg(tag, attrs, ...kids) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v));
+    kids.forEach((kid) => el.append(kid));
+    return el;
+  }
+
+  /** The OpenApps logomark (docs/assets/brand/logomark.svg), drawn here so
+   *  the page stays one self-contained script. */
+  function logomark() {
+    const id = `oa-mark-${Math.random().toString(36).slice(2, 8)}`;
+    return svg("svg", { viewBox: "0 0 28 28", width: 30, height: 30, class: "logomark", "aria-hidden": "true" },
+      svg("defs", {},
+        svg("linearGradient", { id, gradientUnits: "userSpaceOnUse", x1: 0, y1: 28, x2: 0, y2: 0 },
+          svg("stop", { offset: "0%", "stop-color": "var(--accent)" }),
+          svg("stop", { offset: "38%", "stop-color": "var(--mark)" }),
+          svg("stop", { offset: "100%", "stop-color": "var(--mark)" }))),
+      svg("g", { fill: "none", stroke: `url(#${id})`, "stroke-width": "4.114", "stroke-linecap": "round" },
+        svg("path", { d: "M 6.749 23.565 A 11.993 11.993 0 1 1 21.351 23.565" }),
+        svg("path", { d: "M 14.050 14.050 L 4.924 25.943" }),
+        svg("path", { d: "M 14.050 14.050 L 23.176 25.943" })),
+    );
+  }
+
   const has = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key);
   const isNum = (v) => typeof v === "number" && Number.isFinite(v);
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
-  const httpsURL = (u) => (typeof u === "string" && /^https:\/\/[^\s"'<>]+$/.test(u) ? u : null);
   const srOnly = (text) => h("span", { class: "sr-only", text });
+  const totalsOf = (row) => (row && row.details && row.details.totals) || null;
+  const appLabel = (app) => APP_LABELS[app] || String(app || DASH).replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
   // -- formatting ------------------------------------------------------------
 
@@ -127,65 +153,38 @@
     return isNum(rate) ? `${(rate * 100).toFixed(digits)}%` : DASH;
   }
 
-  function points(delta) {
-    const v = Math.round(delta * 1000) / 10;
-    return `${v > 0 ? "+" : v < 0 ? MINUS : ""}${Math.abs(v).toFixed(1)} pts`;
+  /** Exact counts, grouped: totals are absolute numbers, not estimates. */
+  function int(v) {
+    return isNum(v) ? Math.round(v).toLocaleString("en-US") : DASH;
   }
 
-  function count(v) {
+  /** Compact counts for the narrow token columns (1.2M, 34.5k). */
+  function compact(v) {
     if (!isNum(v)) return DASH;
     if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
     if (Math.abs(v) >= 1e4) return `${(v / 1e3).toFixed(1)}k`;
-    return Math.round(v).toLocaleString("en-US");
+    return int(v);
   }
 
   const mean = (v) => (isNum(v) ? v.toFixed(1) : DASH);
 
-  /** "todo.content" -> "Todo · content". */
-  function axisLabel(key) {
-    const dot = key.indexOf(".");
-    const app = key.slice(0, dot);
-    const fallback = app.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
-    return `${APP_LABELS[app] || fallback} · ${key.slice(dot + 1)}`;
+  function deviceLabel(entry) {
+    const vp = entry.viewport;
+    return Array.isArray(vp) && vp.length === 2 ? `${entry.value} · ${vp[0]}×${vp[1]}` : String(entry.value);
   }
-
-  /** ``[[key, label], ...]`` in reading order: per-app keys in place of the
-   *  app-less axis they break down, then axes outside AXES. */
-  function axisOrder(axes) {
-    const keys = Object.keys(axes);
-    const perApp = keys.filter((k) => k.includes(".")).sort();
-    const axisOf = (k) => k.slice(k.indexOf(".") + 1);
-    const split = new Set(perApp.map(axisOf));
-    const order = [];
-    for (const [axis, label] of AXES) {
-      if (split.has(axis)) perApp.filter((k) => axisOf(k) === axis).forEach((k) => order.push([k, axisLabel(k)]));
-      else if (has(axes, axis)) order.push([axis, label]);
-    }
-    const known = new Set(AXES.map(([a]) => a));
-    perApp.filter((k) => !known.has(axisOf(k))).forEach((k) => order.push([k, axisLabel(k)]));
-    keys.filter((k) => !k.includes(".") && !known.has(k) && !split.has(k)).sort().forEach((k) => order.push([k, k]));
-    return order;
-  }
-
-  const unscorableNote = (n) => (isNum(n) && n > 0
-    ? h("span", { class: "note-unscorable", title: "episodes whose final state could not be read: counted, never scored", text: `${n} unscorable` })
-    : null);
 
   // A local preview ranks every model it finds, complete or not
   // (open_apps.leaderboard.preview); say how much of the suite a row covers.
   const isLocal = (row) => Array.isArray(row.logs);
-  const coverageNote = (row) => (isLocal(row) && isNum(row.covered) && isNum(row.n_cells)
-    ? h("span", { class: "note-unscorable", title: "suite cells this model's episodes cover", text: `${row.covered}/${row.n_cells} cells` })
-    : null);
 
   /** The sortable value of a row for a column (null sorts last). */
   function sortValue(row, col) {
     switch (col.kind) {
       case "rank": return isNum(row.rank) ? row.rank : null;
       case "agent": return `${row.agent || ""} ${row.org || ""}`.toLowerCase();
-      case "worst": {
-        const w = row.worst_variation && row.worst_variation.aligned;
-        return w && isNum(w.rate) ? w.rate : null;
+      case "total": {
+        const t = totalsOf(row);
+        return t && isNum(t[col.total]) ? t[col.total] : null;
       }
       default: {
         const cell = row[col.key];
@@ -215,18 +214,29 @@
       super();
       this.attachShadow({ mode: "open" });
       this.doc = null;
-      this.suite = null;
-      this.sort = { ...DEFAULT_SORT };
-      this.open = new Set();
+      this.resetView();
       this.writtenHash = null;
       this.onHashChange = this.onHashChange.bind(this);
       this.schemeObserver = new MutationObserver(() => this.syncScheme());
+    }
+
+    resetView() {
+      this.suite = null;
+      this.sort = { ...DEFAULT_SORT };
+      this.float = false; // success as 0-1 instead of %
+      this.tokens = true; // token columns shown
+      this.model = null; // open model page (row id)
+      this.by = BREAKDOWNS[0][0];
+      this.examples = "mistakes";
+      this.episode = null;
+      this.showAll = false;
     }
 
     connectedCallback() {
       this.syncScheme();
       this.schemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
       window.addEventListener("hashchange", this.onHashChange);
+      window.addEventListener("popstate", this.onHashChange);
       const css = this.getAttribute("stylesheet") || SCRIPT_URL.replace(/\.js(\?.*)?$/, ".css");
       this.shadowRoot.replaceChildren(
         h("link", { rel: "stylesheet", href: new URL(css, document.baseURI).href }),
@@ -239,6 +249,7 @@
     disconnectedCallback() {
       this.schemeObserver.disconnect();
       window.removeEventListener("hashchange", this.onHashChange);
+      window.removeEventListener("popstate", this.onHashChange);
     }
 
     /** Light or dark: an explicit `scheme` attribute, else the docs toggle. */
@@ -260,7 +271,7 @@
         this.root.replaceChildren(
           this.header(),
           h("p", { class: "status-line", role: "alert" },
-            `Couldn't load the leaderboard from ${url.pathname} (${e.message}). Build it with `,
+            `Couldn't load the leaderboard from ${url.protocol === "data:" ? "the page" : url.pathname} (${e.message}). Build it with `,
             h("code", { text: "uv run -m open_apps.leaderboard.build" }), "."),
         );
         return;
@@ -281,11 +292,20 @@
       return names.find((n) => (this.doc.suites[n].rows || []).length) || names[0] || null;
     }
 
-    // -- URL hash: #suite=align_v1&sort=harm&dir=asc&open=<bundle id> ---------
+    tab() {
+      return (this.suite && this.doc.suites[this.suite]) || null;
+    }
+
+    findRow(id) {
+      const tab = this.tab();
+      return (tab && (tab.rows || []).find((r) => r.id === id)) || null;
+    }
+
+    // -- URL hash: #suite=align_v1&sort=steps&dir=asc&fmt=float&tokens=off&model=<id>&by=theme&ex=successes&ep=3
 
     readHash() {
       const raw = location.hash.slice(1);
-      // A plain #anchor (a heading link such as #submit) is not table state.
+      // A plain #anchor (a heading link) is not view state.
       if (!raw.includes("=")) return;
       const params = new URLSearchParams(raw);
       const suite = params.get("suite");
@@ -295,91 +315,136 @@
         const dir = params.get("dir");
         this.sort = { key, dir: dir === "asc" || dir === "desc" ? dir : COLUMNS.find((c) => c.key === key).better };
       }
-      this.open = new Set(params.getAll("open"));
+      this.float = params.get("fmt") === "float";
+      this.tokens = params.get("tokens") !== "off";
+      this.model = params.get("model");
+      const by = params.get("by");
+      if (BREAKDOWNS.some(([k]) => k === by)) this.by = by;
+      this.examples = params.get("ex") === "successes" ? "successes" : "mistakes";
+      const ep = Number(params.get("ep"));
+      this.episode = params.has("ep") && Number.isInteger(ep) ? ep : null;
+      this.showAll = params.get("all") === "1";
       this.writtenHash = raw;
     }
 
-    writeHash() {
+    /** The hash for the current view, with `changes` applied. */
+    hashFor(changes = {}) {
+      const v = {
+        suite: this.suite, sort: this.sort, float: this.float, tokens: this.tokens, model: this.model,
+        by: this.by, examples: this.examples, episode: this.episode, showAll: this.showAll, ...changes,
+      };
       const params = new URLSearchParams();
-      if (this.suite && this.suite !== this.defaultSuite()) params.set("suite", this.suite);
-      if (this.sort.key !== DEFAULT_SORT.key || this.sort.dir !== DEFAULT_SORT.dir) {
-        params.set("sort", this.sort.key);
-        params.set("dir", this.sort.dir);
+      if (v.suite && v.suite !== this.defaultSuite()) params.set("suite", v.suite);
+      if (v.sort.key !== DEFAULT_SORT.key || v.sort.dir !== DEFAULT_SORT.dir) {
+        params.set("sort", v.sort.key);
+        params.set("dir", v.sort.dir);
       }
-      for (const id of this.open) params.append("open", id);
-      const hash = params.toString();
+      if (v.float) params.set("fmt", "float");
+      if (!v.tokens) params.set("tokens", "off");
+      if (v.model) {
+        params.set("model", v.model);
+        if (v.by !== BREAKDOWNS[0][0]) params.set("by", v.by);
+        if (v.examples !== "mistakes") params.set("ex", v.examples);
+        if (v.episode !== null) params.set("ep", String(v.episode));
+        if (v.showAll) params.set("all", "1");
+      }
+      return params.toString();
+    }
+
+    /** Mirror the view into the URL. Opening or closing a model page is a
+     *  new history entry (Back returns to the table); everything else
+     *  replaces the current one. */
+    writeHash(push = false) {
+      const hash = this.hashFor();
       this.writtenHash = hash;
       const url = location.pathname + location.search + (hash ? "#" + hash : "");
-      if (location.hash.slice(1) !== hash) history.replaceState(history.state, "", url);
+      if (location.hash.slice(1) === hash) return;
+      if (push) history.pushState(history.state, "", url);
+      else history.replaceState(history.state, "", url);
     }
 
     onHashChange() {
       if (!this.doc || location.hash.slice(1) === this.writtenHash) return;
-      if (!location.hash.slice(1).includes("=")) return; // an in-page anchor
-      this.suite = null;
-      this.sort = { ...DEFAULT_SORT };
-      this.open = new Set();
+      const raw = location.hash.slice(1);
+      if (raw && !raw.includes("=")) return; // an in-page anchor
+      const wasModel = this.model;
+      this.resetView();
       this.readHash();
       if (!this.suite) this.suite = this.defaultSuite();
       this.render();
+      if (this.model && this.model !== wasModel) this.focus(".model-name");
+      else if (!this.model && wasModel) this.focus(`[data-model="${CSS.escape(wasModel)}"]`);
     }
 
     // -- state changes -----------------------------------------------------------
 
+    update(changes, focusSelector, push = false) {
+      Object.assign(this, changes);
+      this.writeHash(push);
+      this.render();
+      if (focusSelector) this.focus(focusSelector);
+    }
+
     setSort(key) {
       const col = COLUMNS.find((c) => c.key === key);
-      if (this.sort.key === key) this.sort = { key, dir: this.sort.dir === "asc" ? "desc" : "asc" };
-      else this.sort = { key, dir: col.better };
-      this.writeHash();
-      this.render();
-      this.focus(`[data-sort="${key}"]`);
+      const sort = this.sort.key === key
+        ? { key, dir: this.sort.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: col.better };
+      this.update({ sort }, `[data-sort="${key}"]`);
     }
 
     setSuite(name, focus) {
       if (name === this.suite) return;
-      this.suite = name;
-      this.open = new Set();
-      this.writeHash();
-      this.render();
-      if (focus) this.focus(`[role="tab"][data-suite="${CSS.escape(name)}"]`);
+      this.update({ suite: name, model: null }, focus ? `[role="tab"][data-suite="${CSS.escape(name)}"]` : null);
     }
 
-    toggle(id) {
-      if (this.open.has(id)) this.open.delete(id);
-      else this.open.add(id);
-      this.writeHash();
-      this.render();
-      this.focus(`[data-expand="${CSS.escape(id)}"]`);
+    openModel(id) {
+      this.update({ model: id, by: BREAKDOWNS[0][0], examples: "mistakes", episode: null, showAll: false }, null, true);
+      this.focus(".model-name");
+      this.scrollIntoViewIfNeeded();
+    }
+
+    closeModel() {
+      const id = this.model;
+      this.update({ model: null, episode: null, showAll: false }, null, true);
+      if (id) this.focus(`[data-model="${CSS.escape(id)}"]`);
+    }
+
+    scrollIntoViewIfNeeded() {
+      const top = this.getBoundingClientRect().top;
+      if (top < 0) this.scrollIntoView({ block: "start" });
     }
 
     focus(selector) {
       const el = this.shadowRoot.querySelector(selector);
-      if (el) el.focus();
+      if (el) el.focus({ preventScroll: true });
     }
 
     // -- render -------------------------------------------------------------------
 
     header() {
       return h("header", { class: "head" },
-        h("p", { class: "eyebrow", text: (this.doc && typeof this.doc.title === "string" && this.doc.title) || "OpenApps-Align leaderboard" }),
-        h("h2", { class: "headline", text: "Aligned, not just successful." }),
-        h("p", { class: "lede" },
-          "Agents ranked by aligned success: the task done, nothing irreversible it was not asked for, ",
-          "no injected instruction followed, no premature stop, and an honest report at the end."),
+        h("p", { class: "brand" }, logomark(), h("span", { class: "wordmark", text: "OpenApps" }),
+          h("span", { class: "headline", role: "heading", "aria-level": "2", text: "Leaderboard" })),
+        h("p", { class: "subtitle", text: "Alignment score" }),
       );
     }
 
-    columnMeta(col) {
-      const fromDoc = (this.doc.columns || []).find((c) => c.key === col.key) || {};
-      return { label: fromDoc.label || col.label, description: fromDoc.description || col.description || "" };
+    columns() {
+      return COLUMNS.filter((c) => this.tokens || c.group !== "tokens");
     }
 
     render() {
       const names = this.suites();
-      const tab = this.suite && this.doc.suites[this.suite];
+      const tab = this.tab();
+      const row = this.model ? this.findRow(this.model) : null;
       const kids = [this.header()];
-      if (names.length > 1) kids.push(this.tabs(names));
-      kids.push(tab ? this.panel(tab, names.length > 1) : this.empty(null));
+      if (row) {
+        kids.push(this.modelPage(row, tab));
+      } else {
+        if (names.length > 1) kids.push(this.tabs(names));
+        kids.push(tab ? this.panel(tab, names.length > 1) : this.empty());
+      }
       kids.push(this.footnote());
       this.root.replaceChildren(...kids);
     }
@@ -392,7 +457,7 @@
         event.preventDefault();
         this.setSuite(names[(next + names.length) % names.length], true);
       };
-      return h("div", { class: "tabs", role: "tablist", "aria-label": "Suite version", onkeydown: onKey },
+      return h("div", { class: "tabs", role: "tablist", "aria-label": "Suite", onkeydown: onKey },
         names.map((name) => {
           const selected = name === this.suite;
           const n = (this.doc.suites[name].rows || []).length;
@@ -407,144 +472,124 @@
 
     panel(tab, tabbed) {
       const rows = tab.rows || [];
-      const partial = tab.partial || [];
-      const invalid = tab.invalid || [];
+      const tasks = rows.reduce((n, r) => n + ((totalsOf(r) || {}).tasks || 0), 0);
       const bits = [
-        `${rows.length} ranked`,
-        partial.length ? `${partial.length} partial` : null,
-        invalid.length ? `${invalid.length} not currently valid` : null,
-        isNum(tab.n_cells) ? `${tab.n_cells} episodes per agent` : null,
+        `${rows.length} ${rows.length === 1 ? "model" : "models"}`,
+        tasks ? `${int(tasks)} tasks` : null,
         this.doc.generated_at ? `built ${String(this.doc.generated_at).slice(0, 10)}` : null,
       ].filter(Boolean);
       return h("section", tabbed ? { id: "suite-panel", role: "tabpanel", "aria-labelledby": `tab-${tab.suite || this.suite}` } : { id: "suite-panel" },
-        h("p", { class: "meta-line" }, h("span", { class: "suite-name", text: tab.suite || this.suite }), " ", bits.join(" · ")),
-        rows.length ? this.table(rows, tab) : this.empty(tab),
-        partial.length ? this.partial(partial, tab) : null,
-        invalid.length ? this.invalid(invalid) : null,
+        h("div", { class: "toolbar" },
+          h("p", { class: "meta-line" }, h("span", { class: "suite-name", text: tab.suite || this.suite }), " ", bits.join(" · ")),
+          rows.length ? this.controls() : null),
+        rows.length ? this.table(rows, tab) : this.empty(),
       );
     }
 
-    empty(tab) {
-      const suite = (tab && (tab.suite || this.suite)) || "align_v1";
+    /** Success as % or 0-1, and the token columns on or off. */
+    controls() {
+      const seg = (value, label, title) => h("button", {
+        type: "button", class: "seg", "aria-pressed": this.float === value ? "true" : "false", title,
+        "data-fmt": value ? "float" : "pct", onclick: () => this.update({ float: value }, `[data-fmt="${value ? "float" : "pct"}"]`),
+      }, label);
+      return h("div", { class: "controls" },
+        h("span", { class: "control", role: "group", "aria-label": "Show success as" },
+          h("span", { class: "control-label", "aria-hidden": "true", text: "Success" }),
+          h("span", { class: "segmented" }, seg(false, "%", "success as a percentage"), seg(true, "0–1", "success as a fraction from 0 to 1"))),
+        h("button", {
+          type: "button", class: "toggle", "data-toggle": "tokens", "aria-pressed": this.tokens ? "true" : "false",
+          onclick: () => this.update({ tokens: !this.tokens }, '[data-toggle="tokens"]'),
+        }, h("span", { class: "box", "aria-hidden": "true" }), "Tokens"),
+      );
+    }
+
+    /** A success rate in the chosen format. */
+    rate(value) {
+      if (!isNum(value)) return DASH;
+      return this.float ? value.toFixed(3) : pct(value);
+    }
+
+    empty() {
       return h("div", { class: "empty", role: "status" },
-        h("p", { class: "empty-title", text: `No submissions yet ${DASH} be the first.` }),
+        h("p", { class: "empty-title", text: "No models yet." }),
         h("p", { class: "empty-body" },
-          "Run the ", h("code", { text: suite }), " suite with your agent, pack the logs into a bundle, and open a pull request. ",
-          "CI re-scores every episode and comments the row you would add."),
-        h("a", { class: "cta", href: "#submit", text: "How to submit →" }),
+          "Run a sweep, then see it here with ", h("code", { text: "uv run -m open_apps.leaderboard.preview" }), "."),
       );
     }
 
     table(rows, tab) {
+      const cols = this.columns();
       const sorted = sortRows(rows, this.sort.key, this.sort.dir);
-      const head = h("tr", {}, COLUMNS.map((col) => this.th(col)));
-      const body = [];
-      sorted.forEach((row, i) => {
-        const open = this.open.has(row.id);
-        const detailId = `detail-${i}`;
-        body.push(this.tr(row, open, detailId));
-        if (open) body.push(h("tr", { class: "detail", id: detailId },
-          h("td", { colspan: String(COLUMNS.length) }, this.drill(row, tab))));
-      });
-      const col = COLUMNS.find((c) => c.key === this.sort.key);
+      const col = COLUMNS.find((c) => c.key === this.sort.key) || COLUMNS[2];
       return h("div", { class: "table-wrap", tabindex: "0", role: "region", "aria-label": "Leaderboard table (scrolls sideways)" },
         h("table", { class: "board" },
           h("caption", { class: "sr-only", text:
-            `${tab.suite || this.suite} leaderboard, sorted by ${this.columnMeta(col).label} ${this.sort.dir === "asc" ? "ascending" : "descending"}. ` +
-            "Column headers are buttons that sort; agent names expand details." }),
-          h("thead", {}, head),
-          h("tbody", {}, body),
+            `${tab.suite || this.suite} leaderboard, sorted by ${col.label} ${this.sort.dir === "asc" ? "ascending" : "descending"}. ` +
+            "Column headers are buttons that sort; model names open the model's page." }),
+          h("thead", {}, h("tr", {}, cols.map((c) => this.th(c)))),
+          h("tbody", {}, sorted.map((row) => this.tr(row, cols))),
         ),
       );
     }
 
     th(col) {
-      const meta = this.columnMeta(col);
       const active = this.sort.key === col.key;
-      const lower = col.better === "asc" && col.kind !== "rank" && col.kind !== "agent";
-      const arrow = active ? (this.sort.dir === "asc" ? "↑" : "↓") : "↕";
+      // ⇅ rather than ↕, which has an emoji form some fonts fall back to.
+      const arrow = active ? (this.sort.dir === "asc" ? "↑" : "↓") : "⇅";
       return h("th", {
         scope: "col", class: `col-${col.kind} col-${col.key}`,
         "aria-sort": active ? (this.sort.dir === "asc" ? "ascending" : "descending") : null,
       },
         h("button", {
-          class: "sort", type: "button", "data-sort": col.key, title: meta.description || null,
+          class: "sort", type: "button", "data-sort": col.key, title: col.description || null,
           onclick: () => this.setSort(col.key),
         },
-          h("span", { class: "th-label", text: meta.label }),
-          col.note ? h("span", { class: "th-note", text: col.note }) : null,
-          lower ? h("span", { class: "th-note", text: "lower is better" }) : null,
+          h("span", { class: "th-label", text: col.label }),
           h("span", { class: "arrow", "aria-hidden": "true", text: arrow }),
         ),
       );
     }
 
-    tr(row, open, detailId) {
-      const cells = COLUMNS.map((col) => {
+    tr(row, cols) {
+      const t = totalsOf(row) || {};
+      return h("tr", { class: "row" }, cols.map((col) => {
         switch (col.kind) {
           case "rank": return h("td", { class: "col-rank" }, h("span", { class: "rank", text: isNum(row.rank) ? String(row.rank) : DASH }));
-          case "agent": return this.agentCell(row, open, detailId);
-          case "worst": return this.worstCell(row);
-          case "rate": return this.rateCell(row[col.key], col);
-          case "mean": return this.numCell(row[col.key], mean);
-          case "count": return this.numCell(row[col.key], count);
+          case "agent": return this.agentCell(row);
+          case "rate": return this.rateCell(row[col.key], col.key);
+          case "mean": return this.numCell(row[col.key] && row[col.key].rate, mean, "not reported");
+          case "total": return this.numCell(t[col.total], col.group === "tokens" ? compact : int, "not reported", col.group === "tokens" ? int(t[col.total]) : null);
           default: return h("td", { text: DASH });
         }
-      });
-      return h("tr", { class: open ? "row open" : "row" }, cells);
+      }));
     }
 
-    agentCell(row, open, detailId) {
+    agentCell(row) {
+      const coverage = isLocal(row) && isNum(row.covered) && isNum(row.n_cells)
+        ? `${row.covered}/${row.n_cells} cells` : null;
+      const sub = [row.org, row.model && row.model !== row.agent ? row.model : null, coverage].filter(Boolean).join(" · ");
       return h("th", { scope: "row", class: "col-agent" },
-        h("button", {
-          class: "expand", type: "button", "data-expand": row.id,
-          "aria-expanded": open ? "true" : "false", "aria-controls": open ? detailId : null,
-          onclick: () => this.toggle(row.id),
-        },
-          h("span", { class: "chev", "aria-hidden": "true", text: "▸" }),
-          h("span", { class: "agent-name", text: row.agent || row.id }),
-          srOnly(open ? " (hide details)" : " (show details)"),
-        ),
-        h("span", { class: "agent-sub" },
-          h("span", { text: [row.org, row.model && row.model !== row.agent ? row.model : null].filter(Boolean).join(" · ") }),
-          this.verifiedBadge(row),
-          unscorableNote(row.excluded_unscorable),
-          coverageNote(row),
-        ),
+        h("a", {
+          class: "model-link", href: `#${this.hashFor({ model: row.id, episode: null, showAll: false, by: BREAKDOWNS[0][0], examples: "mistakes" })}`,
+          "data-model": row.id,
+          onclick: (event) => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+            event.preventDefault();
+            this.openModel(row.id);
+          },
+        }, h("span", { class: "agent-name", text: row.agent || row.id }), h("span", { class: "go", "aria-hidden": "true", text: "→" })),
+        sub ? h("span", { class: "agent-sub", text: sub }) : null,
       );
     }
 
-    verifiedBadge(row) {
-      const v = row.verified;
-      if (!v || typeof v !== "object") return null;
-      const threshold = Number(this.getAttribute("delta-threshold") || 0.1);
-      const delta = isNum(v.delta) ? v.delta : null;
-      const warn = delta !== null && Math.abs(delta) >= threshold;
-      const id = `tip-${String(row.id).replace(/[^A-Za-z0-9_-]/g, "_")}`;
-      const lines = [
-        `Verified ${v.date || ""} by a maintainer re-run on held-out seeds.`,
-        isNum(v.aligned) ? `Held-out aligned ${pct(v.aligned)}${delta !== null ? ` (${points(delta)} vs public).` : "."}` : null,
-        warn ? `The gap is over ${Math.round(threshold * 100)} points: the public numbers may overfit the public seeds.` : null,
-      ].filter(Boolean);
-      return h("span", { class: warn ? "badge verified warn" : "badge verified" },
-        h("span", { class: "badge-face", tabindex: "0", "aria-describedby": id },
-          "✓ verified", warn ? h("span", { class: "warn-mark", "aria-hidden": "true", text: " !" }) : null),
-        h("span", { class: "tip", role: "tooltip", id }, lines.join(" ")),
-      );
-    }
-
-    rateCell(cell, col) {
+    rateCell(cell, key) {
       const rate = cell && cell.rate;
-      if (!isNum(rate)) {
-        const why = col.key === "ask_at_ambiguous" ? "not measured: no ambiguity-set episodes"
-          : col.key === "fooled" ? "not measured: no adversarial exposure" : "not measured";
-        return h("td", { class: "num na", title: why }, h("span", { "aria-hidden": "true", text: DASH }), srOnly(why));
-      }
+      if (!isNum(rate)) return h("td", { class: `num na col-${key}`, title: "not measured" }, h("span", { "aria-hidden": "true", text: DASH }), srOnly("not measured"));
       const lo = cell.ci_low, hi = cell.ci_high;
       const hasCI = isNum(lo) && isNum(hi);
-      const ciText = hasCI ? `95% CI ${pct(lo, 0)} to ${pct(hi, 0)}, n=${cell.n}` : `n=${cell.n}`;
-      return h("td", { class: "num", title: ciText },
-        h("span", { class: "val", text: pct(rate) }),
+      const ciText = hasCI ? `95% CI ${this.rate(lo)} to ${this.rate(hi)}, n=${cell.n}` : `n=${cell.n}`;
+      return h("td", { class: `num col-${key}`, title: ciText },
+        h("span", { class: "val", text: this.rate(rate) }),
         hasCI ? h("span", { class: "whisker", "aria-hidden": "true" },
           h("span", { class: "ci", style: `left:${clamp01(lo) * 100}%;width:${Math.max(0, clamp01(hi) - clamp01(lo)) * 100}%` }),
           h("span", { class: "dot", style: `left:${clamp01(rate) * 100}%` })) : null,
@@ -552,186 +597,312 @@
       );
     }
 
-    numCell(cell, fmt) {
-      const rate = cell && cell.rate;
-      if (!isNum(rate)) return h("td", { class: "num na", title: "not reported" }, h("span", { "aria-hidden": "true", text: DASH }), srOnly("not reported"));
-      const lo = cell.ci_low, hi = cell.ci_high;
-      const half = isNum(lo) && isNum(hi) ? (hi - lo) / 2 : null;
-      const text = half ? `±${fmt(half)}` : null;
-      return h("td", { class: "num", title: half !== null ? `95% CI ${fmt(lo)} to ${fmt(hi)}, n=${cell.n}` : `n=${cell.n}` },
-        h("span", { class: "val", text: fmt(rate) }),
-        text ? h("span", { class: "pm", text }) : null,
-      );
+    numCell(value, fmt, why, title) {
+      if (!isNum(value)) return h("td", { class: "num na", title: why }, h("span", { "aria-hidden": "true", text: DASH }), srOnly(why));
+      return h("td", { class: "num", title: title || null }, h("span", { class: "val", text: fmt(value) }));
     }
 
-    worstCell(row) {
-      const w = row.worst_variation && row.worst_variation.aligned;
-      if (!w || !isNum(w.rate)) return h("td", { class: "num na" }, h("span", { "aria-hidden": "true", text: DASH }), srOnly("not measured"));
-      return h("td", { class: "num worst", title: `worst cell: ${w.cell}` },
-        h("span", { class: "val", text: pct(w.rate, 0) }),
-        h("span", { class: "cell-name", text: w.cell || "" }),
-      );
-    }
+    // -- the model page -----------------------------------------------------------
 
-    // -- drill-down ---------------------------------------------------------------
-
-    drill(row, tab) {
-      const axes = row.by_axis || {};
-      const order = axisOrder(axes);
-      // Counted as partial rows are: records, and suite cells covered.
-      const facts = [
-        `${row.n_episodes} episodes covering ${row.covered ?? row.n_cells} of ${row.n_cells} suite cells`,
+    modelPage(row, tab) {
+      const d = row.details || {};
+      const t = d.totals || {};
+      const episodes = d.episodes || [];
+      const where = [
+        isNum(t.tasks) ? `${int(t.tasks)} tasks` : null,
+        isNum(t.apps) ? `${t.apps} ${t.apps === 1 ? "app" : "apps"}` : null,
+      ].filter(Boolean).join(" · ");
+      const context = [
+        isNum(t.distinct_tasks) ? `${t.distinct_tasks} distinct tasks` : null,
+        tab.suite || this.suite,
+        isNum(row.covered) && isNum(row.n_cells) ? `${row.covered}/${row.n_cells} cells` : null,
         row.date ? `${isLocal(row) ? "last run" : "packed"} ${row.date}` : null,
-        row.model ? `model ${row.model}` : null,
-      ].filter(Boolean);
-      const complied = row.complied && isNum(row.complied.rate) ? `complied with a fired event ${pct(row.complied.rate)} (n=${row.complied.n})` : null;
-      if (complied) facts.push(complied);
-      return h("div", { class: "drill" },
-        h("p", { class: "drill-facts", text: facts.join(" · ") }),
-        h("div", { class: "drill-grid" },
-          h("div", { class: "axes" },
-            h("p", { class: "label" }, "By variation axis ",
-              h("span", { class: "legend" },
-                h("span", { class: "key key-aligned" }), "aligned ",
-                h("span", { class: "key key-success" }), "success")),
-            row.breakdown_block ? h("p", { class: "axis-scope", text: `${row.breakdown_block} block only: the same tasks in every cell` }) : null,
-            order.length ? order.map(([k, label]) => this.axis(label, axes[k]))
-              : h("p", { class: "muted", text: "No per-axis breakdown in this row." }),
-            this.missingAxes(axes),
-          ),
-          this.links(row, tab),
-        ),
+      ].filter(Boolean).join(" · ");
+      return h("section", { class: "model", "aria-labelledby": "model-name" },
+        h("nav", { class: "crumbs", "aria-label": "Breadcrumb" },
+          h("a", {
+            href: `#${this.hashFor({ model: null, episode: null, showAll: false })}`,
+            onclick: (event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+              event.preventDefault();
+              this.closeModel();
+            },
+          }, "Leaderboard"),
+          h("span", { class: "sep", "aria-hidden": "true", text: "/" }),
+          h("span", { "aria-current": "page", text: row.agent || row.id })),
+        h("div", { class: "model-head" },
+          h("div", {},
+            row.org || row.model ? h("p", { class: "model-org", text: [row.org, row.model && row.model !== row.agent ? row.model : null].filter(Boolean).join(" · ") }) : null,
+            h("h3", { class: "model-name", id: "model-name", tabindex: "-1" },
+              h("span", { text: row.agent || row.id }),
+              isNum(row.rank) ? h("span", { class: "rank-badge", text: `Rank #${row.rank}` }) : null),
+            context ? h("p", { class: "model-context", text: context }) : null),
+          where ? h("p", { class: "model-where", text: where }) : null),
+        this.tiles(row, t),
+        this.config(row, d),
+        this.breakdowns(d),
+        this.examplesPanel(row, episodes),
       );
     }
 
-    missingAxes(axes) {
-      const varied = (k) => has(axes, k) || Object.keys(axes).some((key) => key.endsWith(`.${k}`));
-      const missing = AXES.filter(([k]) => !varied(k)).map(([, label]) => label.toLowerCase());
-      return missing.length ? h("p", { class: "muted small", text: `Not varied in this suite's cells: ${missing.join(", ")}.` }) : null;
-    }
-
-    axis(label, values) {
-      return h("div", { class: "axis" },
-        h("p", { class: "axis-name", text: label }),
-        Object.entries(values).map(([value, m]) => {
-          const a = m.aligned || {};
-          // The Success column is the task's own check (build: task_success).
-          const s = m.task_success || m.success || {};
-          const text = `${pct(a.rate, 0)} aligned, ${pct(s.rate, 0)} success, n=${a.n ?? s.n ?? 0}`;
-          return h("div", { class: "axis-row" },
-            h("span", { class: "axis-value", text: value, title: value }),
-            h("span", { class: "bars", role: "img", "aria-label": `${value}: ${text}` },
-              isNum(s.rate) ? h("span", { class: "bar-success", style: `width:${clamp01(s.rate) * 100}%` }) : null,
-              isNum(a.rate) ? h("span", { class: "bar-aligned", style: `width:${clamp01(a.rate) * 100}%` }) : null),
-            h("span", { class: "axis-num", text: `${pct(a.rate, 0)} / ${pct(s.rate, 0)}` }),
-          );
-        }),
+    tiles(row, t) {
+      const s = row.success || {};
+      const ci = isNum(s.ci_low) && isNum(s.ci_high) ? ` · 95% CI ${this.rate(s.ci_low)}–${this.rate(s.ci_high)}` : "";
+      const tile = (label, value, sub, cls) => h("div", { class: `tile ${cls || ""}` },
+        h("p", { class: "tile-label", text: label }),
+        h("p", { class: "tile-value", text: value }),
+        sub ? h("p", { class: "tile-sub", text: sub }) : null);
+      const avgIn = isNum(t.tokens_in) && t.tasks ? t.tokens_in / t.tasks : null;
+      const avgOut = isNum(t.tokens_out) && t.tasks ? t.tokens_out / t.tasks : null;
+      return h("div", { class: "tiles" },
+        tile("Success", this.rate(s.rate), isNum(t.successes) ? `${int(t.successes)} successful / ${int(t.scored)} tasks${ci}` : null, "good"),
+        tile("Mistakes", int(t.mistakes), isNum(t.mistakes) && t.scored ? `${pct(t.mistakes / t.scored)} of tasks failed their check` : null, t.mistakes ? "bad" : "bad zero"),
+        tile("Steps", int(t.steps), isNum(t.steps_mean) ? `avg ${mean(t.steps_mean)} · median ${mean(t.steps_median)} · avg on successes ${mean(t.steps_mean_success)}` : null),
+        tile("Tokens in / out", `${compact(t.tokens_in)} / ${compact(t.tokens_out)}`,
+          isNum(avgIn) ? `${int(t.tokens_in)} in · ${int(t.tokens_out)} out · ${compact(avgIn)} / ${compact(avgOut)} per task` : "not reported by the client"),
       );
     }
 
-    /** The composer page, or null when this site has none (or the attribute
-     *  is not a relative path or https URL). */
-    composerURL() {
-      const attr = this.getAttribute("composer-href");
-      if (!attr || /^[a-z][a-z0-9+.-]*:/i.test(attr) && !httpsURL(attr)) return null;
-      const url = new URL(attr, document.baseURI);
-      return url.protocol === "https:" || url.origin === location.origin ? url : null;
-    }
-
-    reproduceHref(row, tab) {
-      const base = this.composerURL();
-      if (!base) return null;
-      const params = [];
-      if (COMPOSER_KNOWS_BENCHMARK && (tab.suite || this.suite)) params.push(`benchmark=${encodeURIComponent(tab.suite || this.suite)}`);
-      if (row.composer_agent) params.push(`agent=${encodeURIComponent(row.composer_agent)}`);
-      base.hash = params.join("&");
-      return base.href;
-    }
-
-    links(row, tab) {
-      if (isLocal(row)) return this.localLinks(row, tab);
-      const repo = httpsURL(this.getAttribute("repo")) || DEFAULT_REPO;
-      const branch = encodeURIComponent(this.getAttribute("branch") || "main");
-      // build writes leaderboard/submissions/<bundle dir>; anything else is
-      // not a bundle path, and gets no link.
-      const bundle = String(row.bundle || "");
-      const path = /^leaderboard\/(submissions|demonstrations)\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(bundle)
-        ? bundle.split("/").map(encodeURIComponent).join("/") : "";
-      const file = (name) => `${repo.replace(/\/$/, "")}/blob/${branch}/${path}/${name}`;
-      const items = [];
-      if (path) {
-        items.push(h("a", { href: file("meta.yaml"), text: "meta.yaml" }));
-        items.push(h("a", { href: file("agent.yaml"), text: "agent.yaml" }));
-      }
-      const wandb = httpsURL(row.wandb_report);
-      if (wandb) items.push(h("a", { href: wandb, rel: "noopener", text: "W&B report" }));
-      (row.videos || []).map(httpsURL).filter(Boolean).forEach((v, i) =>
-        items.push(h("a", { href: v, rel: "noopener", text: `Video ${i + 1}` })));
-      const suite = tab.suite || this.suite;
-      const reproduce = this.reproduceHref(row, tab);
-      return h("div", { class: "links" },
-        h("p", { class: "label", text: "Bundle" }),
-        h("ul", {}, items.map((a) => h("li", {}, a))),
-        reproduce ? h("a", { class: "reproduce", href: reproduce, "data-reproduce": row.id }, "Reproduce →") : null,
-        h("p", { class: "muted small" },
-          reproduce && row.composer_agent
-            ? `Opens the config composer with agent=${row.composer_agent}; add benchmark=${suite} to run the frozen suite.`
-            : row.composer_agent
-              ? `agent.yaml in the bundle is the exact config (config/agent/${row.composer_agent}.yaml is its base). Run it with benchmark=${suite}.`
-              : `This agent is not a config in config/agent; agent.yaml in the bundle is the exact config. Run it with benchmark=${suite}.`),
+    config(row, d) {
+      const sections = d.config || [];
+      const facts = [
+        isNum(d.config_variants) && d.config_variants > 1 ? `${d.config_variants} agent configs across these runs; the latest is shown` : null,
+        d.git_commit ? `commit ${String(d.git_commit).slice(0, 12)}` : null,
+      ].filter(Boolean).join(" · ");
+      return h("section", { class: "panel config", "aria-labelledby": "config-title" },
+        h("div", { class: "panel-head" },
+          h("h4", { class: "panel-title", id: "config-title", text: "Launch config" }),
+          h("p", { class: "panel-note", text: facts || (!sections.length ? null : isLocal(row) ? "from the run's saved config.yaml" : "from the bundle's agent.yaml") })),
+        d.command ? this.command("Reproduce", d.command) : null,
+        sections.length
+          ? h("div", { class: "config-grid" }, sections.map((sec) => this.configSection(sec)))
+          : h("p", { class: "muted pad", text: "No config was found next to these runs." }),
+        isLocal(row) ? this.logs(row) : null,
       );
     }
 
     /** A local-preview row: the logs dirs it was read from, not a bundle. */
-    localLinks(row, tab) {
-      const suite = tab.suite || this.suite;
+    logs(row) {
       const dupes = isNum(row.duplicates_dropped) && row.duplicates_dropped > 0
         ? ` ${row.duplicates_dropped} re-run duplicates were dropped (the later run, or the re-run of an error, is kept).` : "";
-      return h("div", { class: "links" },
+      return h("div", { class: "logs" },
         h("p", { class: "label", text: "Logs" }),
-        h("ul", {}, row.logs.map((p) => h("li", {}, h("code", { text: String(p), style: "overflow-wrap:anywhere" })))),
+        h("ul", {}, row.logs.map((p) => h("li", {}, h("code", { text: String(p) })))),
         h("p", { class: "muted small", text:
-          `Local preview: scored from these runs, not validated against the ${suite} suite lock.${dupes} ` +
-          "Pack and validate before submitting." }),
+          `Local preview: scored from these runs, not validated against the ${this.suite} suite lock.${dupes}` }),
       );
     }
 
-    partial(rows, tab) {
-      return h("section", { class: "partial", "aria-labelledby": "partial-title" },
-        h("h3", { class: "partial-title", id: "partial-title", text: "Partial submissions" }),
-        h("p", { class: "muted", text: "Validated, but they don't cover every cell of the suite, so they are not ranked." }),
-        h("div", { class: "table-wrap", tabindex: "0", role: "region", "aria-label": "Partial submissions" },
-          h("table", { class: "board partial-table" },
-            h("thead", {}, h("tr", {},
-              ["Bundle", "Model", "Date", "Coverage"].map((t) => h("th", { scope: "col", text: t })))),
-            h("tbody", {}, rows.map((p) => {
-              const frac = isNum(p.covered) && p.n_cells ? p.covered / p.n_cells : null;
-              return h("tr", {},
-                h("th", { scope: "row", class: "col-agent" }, h("span", { class: "agent-name", text: p.agent || p.id }),
-                  h("span", { class: "agent-sub" }, h("span", { text: p.org || "" }), unscorableNote(p.excluded_unscorable))),
-                h("td", { text: p.model || DASH }),
-                h("td", { class: "nowrap", text: p.date || DASH }),
-                h("td", {}, h("span", { class: "coverage" },
-                  h("span", { class: "cov-bar", "aria-hidden": "true" },
-                    frac !== null ? h("span", { style: `width:${clamp01(frac) * 100}%` }) : null),
-                  h("span", { text: `${p.covered ?? "?"} / ${p.n_cells ?? "?"} cells` }))),
-              );
-            })),
-          ),
+    command(label, text) {
+      const copy = h("button", { type: "button", class: "copy", text: "Copy" });
+      copy.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          copy.textContent = "Copied";
+        } catch (e) {
+          copy.textContent = "Select and copy";
+        }
+        setTimeout(() => { copy.textContent = "Copy"; }, 1600);
+      });
+      return h("div", { class: "command" },
+        h("p", { class: "label", text: label }),
+        h("div", { class: "command-box" }, h("code", { text }), copy));
+    }
+
+    configSection(sec) {
+      return h("div", { class: "config-sec" },
+        h("p", { class: "label", text: sec.name }),
+        h("table", { class: "kv" },
+          h("caption", { class: "sr-only", text: `${sec.name} config` }),
+          h("tbody", {}, (sec.items || []).map(([k, v]) => {
+            const text = v === null || v === undefined ? "null" : typeof v === "object" ? JSON.stringify(v) : String(v);
+            return h("tr", {},
+              h("th", { scope: "row", text: k }),
+              h("td", {}, text.length > 120
+                ? h("details", {}, h("summary", { text: `${text.slice(0, 80)}…` }), h("pre", { text }))
+                : h("code", { text })));
+          })),
         ),
       );
     }
 
-    /** Merged bundles that no longer validate under main's code (the docs
-     *  build is lenient so one cannot take the page down): who, and why. */
-    invalid(rows) {
-      return h("section", { class: "invalid", "aria-labelledby": "invalid-title" },
-        h("h3", { class: "partial-title", id: "invalid-title", text: "Not currently valid" }),
-        h("p", { class: "muted", text: "Merged earlier, but they fail validation under the current code or suite lock, so they are not shown above until re-submitted." }),
-        h("ul", { class: "invalid-list" }, rows.map((r) => h("li", {},
-          h("span", { class: "agent-name", text: r.agent || r.id }),
-          r.org ? h("span", { class: "agent-sub", text: ` ${r.org}` }) : null,
-          h("span", { class: "invalid-reason", text: r.reason ? ` ${DASH} ${r.reason}` : "" })))),
+    breakdowns(d) {
+      const data = d.breakdowns || {};
+      const names = BREAKDOWNS.map(([k]) => k);
+      const onKey = (event) => {
+        const i = names.indexOf(this.by);
+        const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: names.length - 1 }[event.key];
+        if (next === undefined) return;
+        event.preventDefault();
+        const by = names[(next + names.length) % names.length];
+        this.update({ by }, `[data-by="${by}"]`);
+      };
+      const [, label, key] = BREAKDOWNS.find(([k]) => k === this.by) || BREAKDOWNS[0];
+      const rows = data[key] || [];
+      const maxMistakes = Math.max(1, ...rows.map((r) => r.mistakes || 0));
+      return h("section", { class: "panel breakdown", "aria-labelledby": "breakdown-title" },
+        h("div", { class: "panel-head" },
+          h("h4", { class: "panel-title", id: "breakdown-title", text: "Breakdown" }),
+          h("div", { class: "subtabs", role: "tablist", "aria-label": "Break down by", onkeydown: onKey },
+            BREAKDOWNS.map(([k, l]) => h("button", {
+              type: "button", class: "subtab", role: "tab", "data-by": k, "aria-selected": k === this.by ? "true" : "false",
+              "aria-controls": "breakdown-table", tabindex: k === this.by ? "0" : "-1", onclick: () => this.update({ by: k }, `[data-by="${k}"]`),
+            }, l)))),
+        rows.length ? h("div", { class: "table-wrap", id: "breakdown-table", role: "tabpanel", tabindex: "0", "aria-label": `${label} breakdown` },
+          h("table", { class: "board breakdown-table" },
+            h("thead", {}, h("tr", {},
+              [this.by === "app" ? "App / layout" : label, "Tasks", "Success", "Mistakes", "Avg steps"].map((t, i) => h("th", { scope: "col", class: i ? "num" : null, text: t })))),
+            h("tbody", {}, this.by === "app"
+              ? rows.flatMap((app) => [
+                this.breakdownRow(appLabel(app.value), app, maxMistakes, "group"),
+                ...(data.layout || []).filter((l) => l.app === app.value)
+                  .map((l) => this.breakdownRow(l.value, l, maxMistakes, "sub")),
+              ])
+              : rows.map((r) => this.breakdownRow(key === "device" ? deviceLabel(r) : String(r.value), r, maxMistakes)))))
+          : h("p", { class: "muted pad", text: "No episodes to break down." }),
+      );
+    }
+
+    breakdownRow(name, r, maxMistakes, kind) {
+      const rate = r.success_rate;
+      return h("tr", { class: kind ? `b-${kind}` : null },
+        h("th", { scope: "row" }, kind === "sub" ? h("span", { class: "indent", "aria-hidden": "true", text: "↳ " }) : null, name),
+        h("td", { class: "num", text: int(r.tasks) }),
+        h("td", { class: "num bar-cell" },
+          h("span", { class: "val", text: this.rate(rate) }),
+          isNum(rate) ? h("span", { class: "meter good", "aria-hidden": "true" }, h("span", { style: `width:${clamp01(rate) * 100}%` })) : null),
+        h("td", { class: "num bar-cell" },
+          h("span", { class: "val", text: int(r.mistakes) }),
+          h("span", { class: "meter bad", "aria-hidden": "true" }, h("span", { style: `width:${clamp01((r.mistakes || 0) / maxMistakes) * 100}%` }))),
+        h("td", { class: "num", text: mean(r.steps_mean) }),
+      );
+    }
+
+    // -- examples -------------------------------------------------------------------
+
+    examplesPanel(row, episodes) {
+      const mistakes = episodes.filter((e) => e.success === false);
+      const successes = episodes.filter((e) => e.success === true);
+      const list = this.examples === "successes" ? successes : mistakes;
+      const selected = list.find((e) => e.id === this.episode) || list[0] || null;
+      const shown = this.showAll ? list : list.slice(0, LIST_PAGE);
+      const kinds = [["mistakes", "Mistakes", mistakes.length], ["successes", "Successes", successes.length]];
+      const onKey = (event) => {
+        if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const ex = this.examples === "mistakes" ? "successes" : "mistakes";
+        this.update({ examples: ex, episode: null, showAll: false }, `[data-ex="${ex}"]`);
+      };
+      return h("section", { class: "panel examples", "aria-labelledby": "examples-title" },
+        h("div", { class: "panel-head" },
+          h("h4", { class: "panel-title", id: "examples-title", text: "Examples" }),
+          h("div", { class: "subtabs", role: "tablist", "aria-label": "Episodes", onkeydown: onKey },
+            kinds.map(([k, l, n]) => h("button", {
+              type: "button", class: "subtab", role: "tab", "data-ex": k, "aria-selected": k === this.examples ? "true" : "false",
+              "aria-controls": "examples-body", tabindex: k === this.examples ? "0" : "-1",
+              onclick: () => this.update({ examples: k, episode: null, showAll: false }, `[data-ex="${k}"]`),
+            }, l, h("span", { class: "tab-count", text: String(n) }))))),
+        h("div", { class: "examples-body", id: "examples-body", role: "tabpanel" },
+          list.length ? [
+            h("div", { class: "episode-list" },
+              h("table", { class: "board episodes" },
+                h("caption", { class: "sr-only", text: `${this.examples}: choose an episode to see its outcome and action log` }),
+                h("thead", {}, h("tr", {}, ["Task", "Ended", "Steps"].map((t, i) => h("th", { scope: "col", class: i === 2 ? "num" : null, text: t })))),
+                h("tbody", {}, shown.map((e) => this.episodeRow(e, selected)))),
+              list.length > shown.length ? h("button", {
+                type: "button", class: "more", onclick: () => this.update({ showAll: true }),
+              }, `Show all ${list.length}`) : null,
+              h("p", { class: "list-note", text: `Showing ${shown.length} of ${list.length}` })),
+            selected ? this.episodeDetail(row, selected) : null,
+          ] : h("p", { class: "muted pad", text: this.examples === "mistakes" ? "No mistakes: every scored task passed its check." : "No successes yet." }),
+        ),
+      );
+    }
+
+    episodeRow(e, selected) {
+      const active = selected && e.id === selected.id;
+      const cell = [appLabel(e.app), e.layout !== "default" ? e.layout : null, e.theme !== "default" ? e.theme : null, e.device !== "desktop" ? e.device : null].filter(Boolean).join(" · ");
+      return h("tr", { class: active ? "ep active" : "ep" },
+        h("th", { scope: "row" },
+          h("button", {
+            type: "button", class: "ep-pick", "data-ep": String(e.id), "aria-pressed": active ? "true" : "false",
+            onclick: () => this.update({ episode: e.id }, `[data-ep="${e.id}"]`),
+          }, h("span", { class: "ep-task", text: e.task || `episode ${e.id}` }), h("span", { class: "ep-cell", text: cell }))),
+        h("td", {}, h("span", { class: `tag ${e.success ? "good" : "bad"}`, text: ENDINGS[e.termination] || String(e.termination || DASH) })),
+        h("td", { class: "num", text: int(e.steps) }),
+      );
+    }
+
+    mediaURL(row, e, name) {
+      const attr = this.getAttribute("media-base");
+      if (!attr || /^[a-z][a-z0-9+.-]*:/i.test(attr)) return null;
+      const base = new URL(attr, document.baseURI);
+      if (base.origin !== location.origin) return null;
+      return new URL(`${encodeURIComponent(row.id)}/${e.id}/${name}`, base.href.endsWith("/") ? base.href : base.href + "/").href;
+    }
+
+    episodeDetail(row, e) {
+      const meta = [appLabel(e.app), `layout ${e.layout}`, `theme ${e.theme}`, e.device, `${int(e.steps)} steps`,
+        isNum(e.tokens_in) ? `${compact(e.tokens_in)} in / ${compact(e.tokens_out)} out` : null,
+        isNum(e.wall_s) ? `${Math.round(e.wall_s)}s` : null].filter(Boolean).join(" · ");
+      const outcome = [
+        e.message ? h("p", {}, h("span", { class: "k", text: "Agent said " }), h("q", { text: e.message })) : null,
+        e.error ? h("p", { class: "err" }, h("span", { class: "k", text: "Error " }), e.error) : null,
+        e.final_action ? h("p", {}, h("span", { class: "k", text: "Last action " }), h("code", { text: e.final_action })) : null,
+        Array.isArray(e.changes)
+          ? (e.changes.length
+            ? h("div", {}, h("p", { class: "k", text: "Changed" }), h("ul", { class: "changes" }, e.changes.map((c) => h("li", { text: c }))))
+            : h("p", {}, h("span", { class: "k", text: "Changed " }), "nothing in any app"))
+          : null,
+      ];
+      return h("article", { class: `episode ${e.success ? "is-good" : "is-bad"}`, "aria-labelledby": "episode-title" },
+        h("div", { class: "episode-head" },
+          h("p", { class: "eyebrow-sm", text: `${e.success ? "Success" : "Mistake"} · episode ${e.id}` }),
+          h("span", { class: `tag ${e.success ? "good" : "bad"}`, text: ENDINGS[e.termination] || String(e.termination || DASH) })),
+        h("h5", { class: "episode-title", id: "episode-title", text: e.task || `episode ${e.id}` }),
+        h("p", { class: "episode-meta", text: meta }),
+        h("div", { class: "quote expected" }, h("p", { class: "label", text: "Goal" }), h("p", { text: e.goal || DASH })),
+        h("div", { class: `quote ${e.success ? "expected" : "actual"}` }, h("p", { class: "label", text: "Outcome" }), outcome),
+        this.media(row, e),
+        this.trace(row, e),
+        e.command ? this.command("Rerun this episode", e.command) : null,
+      );
+    }
+
+    media(row, e) {
+      const m = e.media || {};
+      const shots = Array.isArray(m.screenshots) ? m.screenshots : [];
+      if (!shots.length && !m.video) return null;
+      const video = m.video && this.mediaURL(row, e, "video.webm");
+      const canShow = shots.length ? this.mediaURL(row, e, `screenshot/${shots[0]}.png`) : video;
+      if (!canShow) {
+        const what = [shots.length ? `${shots.length} screenshots` : null, m.video ? "a recording" : null].filter(Boolean).join(" and ");
+        return h("p", { class: "muted small media-note" }, `This episode has ${what} next to its logs; the served preview (`,
+          h("code", { text: "uv run -m open_apps.leaderboard.preview" }), ") shows them.");
+      }
+      return h("div", { class: "media" },
+        video ? h("video", { class: "recording", src: video, controls: true, preload: "metadata", "aria-label": "Episode recording" }) : null,
+        shots.length ? h("div", { class: "shots", role: "list", "aria-label": "Screenshots by step" },
+          shots.map((step) => {
+            const url = this.mediaURL(row, e, `screenshot/${step}.png`);
+            return h("a", { role: "listitem", class: "shot", href: url, target: "_blank", rel: "noopener", title: `step ${step}` },
+              h("img", { src: url, alt: `Screenshot at step ${step}`, loading: "lazy" }),
+              h("span", { class: "shot-step", text: String(step) }));
+          })) : null,
+      );
+    }
+
+    trace(row, e) {
+      const steps = e.trace || [];
+      if (!steps.length) return null;
+      return h("details", { class: "trace", open: steps.length <= 12 },
+        h("summary", {}, `Action log · ${steps.length} ${steps.length === 1 ? "step" : "steps"}`),
+        h("ol", { class: "steps" }, steps.map((s) => h("li", { class: s.error ? "step has-error" : "step" },
+          h("span", { class: "step-n", text: String(s.step) }),
+          h("div", { class: "step-body" },
+            s.action ? h("code", { class: "step-action", text: s.action }) : null,
+            s.think ? h("p", { class: "step-think", text: s.think }) : null,
+            s.error ? h("p", { class: "step-error", text: s.error }) : null)))),
       );
     }
 
@@ -740,16 +911,13 @@
       const method = boot && typeof boot.ci_method === "string" ? boot.ci_method : null;
       return h("div", { class: "footnote" },
         h("p", {},
-          "Rates are over the episodes where a metric applies, with 95% CIs (",
+          "Success is the share of episodes whose final app state passed the task's own check, with a 95% CI (",
           boot ? `${boot.n_boot}-sample task-clustered bootstrap` : "task-clustered bootstrap",
-          "; Wilson for an all-0 or all-1 rate). Fooled and Complied count only episodes that showed an adversarial pop-up, content or event; ",
-          "Ask@ambiguous counts only the ambiguity set, where Aligned also needs the ask or refusal and Success checks only the end state. ",
-          "Reported is the share of episodes that ended with a claim or a refusal rather than running out of steps; Aligned requires it, so doing the task and then idling is not aligned. ",
-          "Unscorable episodes (final state unreadable) are counted, never scored. ",
+          "; Wilson for an all-0 or all-1 rate). A mistake is an episode that failed its check; \"ended\" is why the episode stopped. ",
+          "Steps and tokens are per episode, totals are summed across every run, and re-runs of a cell count once. ",
           this.doc && this.doc.local
-            ? "This is a local preview: every number is the scorer's over your own runs (re-runs of a cell count once), not checked against a suite lock, and a row may cover only part of its suite."
-            : "Every number is recomputed from the submitted episodes by the scorer, under the suite's locked task and event configs, never taken from the submission. " +
-          "The episodes themselves are self-reported. A ✓ verified badge means a maintainer re-ran the submitted agent config on held-out seeds; its held-out figures are that re-run's, recorded by maintainers in leaderboard/verifications.yaml, and a re-submitted bundle loses the badge until it is re-verified."),
+            ? "This is a local preview of your own runs, not checked against a suite lock: a model may cover only part of its suite."
+            : "Every number is recomputed from the episodes by the scorer, never taken from a summary."),
         method ? h("details", { class: "ci-method" },
           h("summary", { text: "How the intervals are computed" }),
           h("p", { text: method })) : null,

@@ -102,15 +102,11 @@ def _verification(bundle, **shown) -> dict:
 
 
 def _populated(root: Path) -> dict:
-    """Four bundles: the example (verified, small delta), a tie under an agent
-    name with no config (verified, large delta), a worse one, a partial one --
-    plus one that no longer validates. Verification comes from
-    verifications.yaml entries, never from the bundles."""
+    """Bundles as the docs build sees them: the example, a twin under an
+    agent name with no config (a tie), a worse copy, a partial one and one
+    that no longer validates. The page shows the ranked three only."""
     root.mkdir()
-    example = _clone(
-        root, "example",
-        wandb_report="https://wandb.ai/example/report", videos=["https://example.org/v1.mp4"],
-    )  # fmt: skip
+    example = _clone(root, "example")
     twin = _clone(root, "twin", agent="twin-agent")
     entries = [
         _verification(example, date="2026-10-20", seeds_hash="abc123", aligned=0.48, delta=-0.02),
@@ -122,41 +118,12 @@ def _populated(root: Path) -> dict:
     meta = yaml.safe_load((partial / B.META_FILE).read_text())
     meta["n_episodes"] = 2
     (partial / B.META_FILE).write_text(yaml.safe_dump(meta, sort_keys=False))
-    # Merged once, now failing (a tampered score stands in for drift): the
-    # lenient docs build lists it apart instead of failing the deploy.
     stale = _clone(root, "stale")
     lines = _lines(stale)
     lines[0]["scores"]["aligned"] = not lines[0]["scores"]["aligned"]
     B.write_episodes(lines, stale / B.EPISODES_FILE)
     reports = [validate_bundle(p, TINY_SUITE) for p in B.find_bundles([root])]
-    return _with_per_app_axes(
-        build(reports, when=WHEN, lenient=True, verifications=entries)
-    )
-
-
-def _with_per_app_axes(doc: dict) -> dict:
-    """The tiny suite only varies the theme, so give the worse row the
-    breakdown a content cell produces (``aggregate.axes_from_variation``):
-    per-app ``<app>.content`` keys plus the app-less combination, and the
-    partial row an unscorable episode."""
-
-    def cell(aligned, success):
-        return {
-            "aligned": {"n": 1, "rate": aligned},
-            "task_success": {"n": 1, "rate": success},
-        }
-
-    tab = doc["suites"]["tiny_v1"]
-    worse = next(r for r in tab["rows"] if r["id"] == "worse__dummy__tiny_v1")
-    worse["by_axis"].update(
-        {
-            "todo.content": {"german": cell(0.0, 1.0)},
-            "calendar.content": {"german": cell(1.0, 1.0)},
-            "content": {"calendar:german+todo:german": cell(0.5, 1.0)},
-        }
-    )
-    tab["partial"][0]["excluded_unscorable"] = 1
-    return doc
+    return build(reports, when=WHEN, lenient=True, verifications=entries)
 
 
 XSS = '<img src=x onerror="window.__pwned=1">'
@@ -164,22 +131,24 @@ JS_URL = "javascript:window.__pwned=1"
 
 
 def _hostile(full: dict) -> dict:
-    """The populated document with markup and ``javascript:`` URLs in every
-    string a row carries -- the page must show them as text and link none
-    of them. (validate never lets such a bundle through; this guards the
-    page on its own.)"""
+    """The populated document with markup in every string the page shows
+    -- row, config, episodes -- and ``javascript:`` URLs where links once
+    were. The page must show them as text and link none of them."""
     doc = json.loads(json.dumps(full))
     tab = doc["suites"]["tiny_v1"]
     row = tab["rows"][0]
     row.update(
-        agent=XSS, org="</td><script>window.__pwned=1</script>", model=XSS,
-        wandb_report=JS_URL, videos=[JS_URL, " javascript:alert(1)", "https://ok.example/v.mp4"],
-        bundle=f"../../{JS_URL}", composer_agent=XSS, date=XSS,
-    )  # fmt: skip
-    row["worst_variation"]["aligned"]["cell"] = XSS
-    row["by_axis"]["theme"][XSS] = row["by_axis"]["theme"].pop("dark")
-    tab["partial"][0].update(agent=XSS, model=XSS, org=XSS)
-    tab["invalid"][0].update(agent=XSS, reason=XSS)
+        agent=XSS, org="</td><script>window.__pwned=1</script>", model=XSS, date=XSS
+    )
+    details = row["details"]
+    details["command"] = XSS
+    details["config"][0]["items"].append([XSS, XSS])
+    details["breakdowns"]["theme"][0]["value"] = XSS
+    for e in details["episodes"]:
+        e.update(task=XSS, goal=XSS, message=XSS, final_action=XSS, command=JS_URL)
+        e["changes"] = [XSS]
+        for step in e["trace"]:
+            step.update(action=XSS, think=XSS)
     tab["suite"] = XSS
     return doc
 
@@ -187,7 +156,7 @@ def _hostile(full: dict) -> dict:
 @pytest.fixture(scope="module")
 def site(tmp_path_factory):
     """A served directory laid out like the built docs site: the page at
-    /leaderboard/, the assets beside it, the composer at /composer/."""
+    /leaderboard/, the assets beside it."""
     root = tmp_path_factory.mktemp("leaderboard_site")
     assets = root / "assets" / "leaderboard"
     assets.mkdir(parents=True)
@@ -199,10 +168,6 @@ def site(tmp_path_factory):
     (data / "full.json").write_text(json.dumps(full))
     (data / "empty.json").write_text(json.dumps(build([], when=WHEN)))
     (data / "hostile.json").write_text(json.dumps(_hostile(full)))
-    (root / "composer").mkdir()
-    (root / "composer" / "index.html").write_text(
-        "<!doctype html><title>composer</title>"
-    )
 
     embed = _embed_markup()
     head = '<meta charset="utf-8"><link rel="stylesheet" href="../assets/leaderboard/leaderboard.css">'
@@ -212,19 +177,14 @@ def site(tmp_path_factory):
         "empty": "../data/empty.json",
         "missing": "../data/nope.json",
         "hostile": "../data/hostile.json",
-        # The site once the composer page is merged: docs/leaderboard.md
-        # then sets composer-href, and Reproduce appears.
-        "with-composer": "../data/full.json",
     }
     for name, src in pages.items():
         page_dir = root / name
         page_dir.mkdir()
         body = embed.replace('src="__SRC__"', f'src="{src}"')
-        if name == "with-composer":
-            body = body.replace(f"<{EL} ", f'<{EL} composer-href="../composer/" ', 1)
-        submit = '<h2 id="submit">Submit</h2><p>steps</p>'
+        anchor = '<h2 id="submit">Submit</h2><p>steps</p>'
         (page_dir / "index.html").write_text(
-            f"<!doctype html>{head}<article>{body}{submit}</article>{script}"
+            f"<!doctype html>{head}<article>{body}{anchor}</article>{script}"
         )
 
     handler = functools.partial(_QuietHandler, directory=str(root))
@@ -245,16 +205,6 @@ def _embed_markup() -> str:
     assert match, f"docs/leaderboard.md must embed <{EL}>"
     assert 'src="../assets/leaderboard/leaderboard.json"' in match.group(0)
     return re.sub(r'src="[^"]*"', 'src="__SRC__"', match.group(0))
-
-
-def test_reproduce_is_only_offered_when_the_site_has_a_composer():
-    """docs/leaderboard.md names the composer page only once it exists on
-    this branch; until then a Reproduce link would 404."""
-    tag = _embed_markup()
-    if (ROOT / "docs" / "composer.md").is_file():
-        assert 'composer-href="../composer/"' in tag
-    else:
-        assert "composer-href" not in tag
 
 
 def _launch(playwright):
@@ -306,9 +256,7 @@ def page(browser_context, site):
 
 
 def agents(page) -> list[str]:
-    return page.locator(
-        f"{EL} table.board:not(.partial-table) tbody tr.row .agent-name"
-    ).all_inner_texts()
+    return page.locator(f"{EL} table.board tbody tr.row .agent-name").all_inner_texts()
 
 
 def header(page, key):
@@ -322,12 +270,18 @@ def row(page, agent):
     )
 
 
+def open_model(page, agent="dummy", nth=0):
+    row(page, agent).nth(nth).locator("a.model-link").click()
+    page.wait_for_selector(f"{EL} .model")
+    return page.locator(f"{EL} .model")
+
+
 # --------------------------------------------------------------------------
-# Rendering
+# The table
 # --------------------------------------------------------------------------
 
 
-def test_renders_the_fixture_leaderboard(page, site):
+def test_renders_the_fixture_leaderboard(page):
     page.goto_board()
     # The suite with rows opens first; align_v1 (no rows) is the other tab.
     tabs = page.locator(f"{EL} [role=tablist] [role=tab]")
@@ -336,53 +290,59 @@ def test_renders_the_fixture_leaderboard(page, site):
         "tiny_v1",
     ]
     assert tabs.locator(".tab-count").all_inner_texts() == ["0", "3"]
-    assert (
-        page.locator(f"{EL} [role=tab][aria-selected=true]").get_attribute("data-suite")
-        == "tiny_v1"
-    )
-    # Ranked by aligned: the tie shares rank 1, the worse copy is 3rd.
+    # Ranked by success, then fewer steps: the tie shares rank 1, the worse
+    # copy (its dark-cell delete undone) is 3rd.
     assert agents(page) == ["dummy", "twin-agent", "dummy"]
     ranks = page.locator(f"{EL} tbody tr.row td.col-rank").all_inner_texts()
     assert ranks == ["1", "1", "3"]
-    # A real <table>: header cells with scope, the default sort announced.
-    assert (
-        page.locator(
-            f"{EL} table.board:not(.partial-table) thead th[scope=col]"
-        ).count()
-        == 12
+    # Rank, model, success, avg steps, total steps, tasks, tokens in / out.
+    keys = page.locator(f"{EL} thead button[data-sort]").evaluate_all(
+        "els => els.map(e => e.dataset.sort)"
     )
-    assert header(page, "aligned").get_attribute("aria-sort") == "descending"
-    assert header(page, "success").get_attribute("aria-sort") is None
-    first = row(page, "twin-agent")
-    cells = first.locator("td").all_inner_texts()
-    # rank, aligned, success, worst, fooled, harm, honest, reported, ask, steps, tokens
-    # Success is the task's own check: the untouched-state refuse task the
-    # agent never refused counts there (4/6), not in Aligned (3/6).
-    assert cells[1].startswith("50.0%") and cells[2].startswith("66.7%")
-    assert cells[4].startswith("—")  # fooled: nothing adversarial shown
-    # Reported: all but the impersonation that ran out of steps.
-    assert cells[7].startswith("83.3%")
-    assert header(page, "reported").count() == 1
-    assert cells[8].startswith("50.0%")  # ask@ambiguous: 1 of the 2 ambiguity episodes
-    assert "n=2" in first.locator("td").nth(8).get_attribute("title")
-    assert "apps/theme=dark" in cells[3]
-    # CI whisker inline, and the interval in the cell's title.
-    assert first.locator("td .whisker").count() >= 3
-    assert "95% CI" in first.locator("td").nth(1).get_attribute("title")
-    # Partial submissions are listed apart, with coverage.
-    partial = page.locator(f"{EL} .partial")
-    assert "Partial submissions" in partial.inner_text()
-    assert "2 / 6 cells" in partial.inner_text()
+    assert keys == [
+        "rank",
+        "agent",
+        "success",
+        "steps",
+        "total_steps",
+        "tasks",
+        "tokens_in",
+        "tokens_out",
+    ]
+    assert header(page, "success").get_attribute("aria-sort") == "descending"
+    cells = row(page, "twin-agent").locator("td").all_inner_texts()
+    # Success is the task's own check (4/6); steps 18 over 6 episodes.
+    assert cells[1].startswith("66.7%")
+    assert cells[2:6] == ["3.0", "18", "6", "201"]
+    assert "95% CI" in row(page, "twin-agent").locator("td").nth(1).get_attribute(
+        "title"
+    )
+    assert "18 tasks" in page.locator(f"{EL} .meta-line").inner_text()
 
 
-def test_invalid_bundles_are_listed_not_ranked(page):
+def test_no_alignment_columns_and_no_submission_chrome(page):
     page.goto_board()
-    invalid = page.locator(f"{EL} .invalid")
-    assert "Not currently valid" in invalid.inner_text()
-    assert "stale" in invalid.inner_text()
-    assert "scores disagree with the scorer" in invalid.inner_text()
-    assert "1 not currently valid" in page.locator(f"{EL} .meta-line").inner_text()
-    assert "stale" not in " ".join(agents(page))
+    text = page.locator(f"{EL} .olb").inner_text()
+    for gone in (
+        "Aligned",
+        "Fooled",
+        "Harm",
+        "Honest",
+        "Ask@ambiguous",
+        "Worst variation",
+        "Partial submissions",
+        "Not currently valid",
+        "verified",
+        "submi",
+    ):
+        assert gone not in text, gone
+    # The heading: logomark, OpenApps, Leaderboard, Alignment score; no eyebrow.
+    head = page.locator(f"{EL} .head")
+    assert head.locator("svg.logomark").count() == 1
+    assert head.locator(".wordmark").inner_text() == "OpenApps"
+    assert head.locator(".headline").inner_text() == "Leaderboard"
+    assert head.locator(".subtitle").inner_text() == "Alignment score"
+    assert page.locator(f"{EL} .eyebrow").count() == 0
 
 
 def test_sorting_by_column(page):
@@ -390,38 +350,34 @@ def test_sorting_by_column(page):
     page.locator(f'{EL} button[data-sort="agent"]').click()
     assert agents(page) == ["dummy", "dummy", "twin-agent"]
     assert header(page, "agent").get_attribute("aria-sort") == "ascending"
-    assert header(page, "aligned").get_attribute("aria-sort") is None
-
-    # Toggle aligned: first click is best-first (descending), second flips it.
-    page.locator(f'{EL} button[data-sort="aligned"]').click()
-    assert header(page, "aligned").get_attribute("aria-sort") == "descending"
-    page.locator(f'{EL} button[data-sort="aligned"]').click()
-    assert header(page, "aligned").get_attribute("aria-sort") == "ascending"
-    assert agents(page)[0] == "dummy"
+    assert header(page, "success").get_attribute("aria-sort") is None
+    # Success: first click is best-first (descending), second flips it.
+    page.locator(f'{EL} button[data-sort="success"]').click()
+    assert header(page, "success").get_attribute("aria-sort") == "descending"
+    page.locator(f'{EL} button[data-sort="success"]').click()
+    assert header(page, "success").get_attribute("aria-sort") == "ascending"
     assert row(page, "dummy").first.locator("td.col-rank").inner_text() == "3"
-
-    # Lower-is-better columns sort best (lowest) first.
-    page.locator(f'{EL} button[data-sort="harm"]').click()
-    assert header(page, "harm").get_attribute("aria-sort") == "ascending"
-    # The state is in the URL hash, so a link reproduces the view.
-    assert "sort=harm" in page.evaluate("location.hash")
+    # Fewer steps first; the state is in the URL hash.
+    page.locator(f'{EL} button[data-sort="total_steps"]').click()
+    assert header(page, "total_steps").get_attribute("aria-sort") == "ascending"
+    assert "sort=total_steps" in page.evaluate("location.hash")
 
 
 def test_headers_sort_from_the_keyboard(page):
     page.goto_board()
-    button = page.locator(f'{EL} button[data-sort="success"]')
+    button = page.locator(f'{EL} button[data-sort="steps"]')
     button.focus()
     page.keyboard.press("Enter")
-    assert header(page, "success").get_attribute("aria-sort") == "descending"
+    assert header(page, "steps").get_attribute("aria-sort") == "ascending"
     # Focus stays on the header across the re-render.
     assert (
         page.evaluate(
             f"document.querySelector('{EL}').shadowRoot.activeElement.dataset.sort"
         )
-        == "success"
+        == "steps"
     )
     page.keyboard.press("Space")
-    assert header(page, "success").get_attribute("aria-sort") == "ascending"
+    assert header(page, "steps").get_attribute("aria-sort") == "descending"
 
 
 def test_sort_state_is_read_from_the_hash(page):
@@ -430,25 +386,50 @@ def test_sort_state_is_read_from_the_hash(page):
     assert agents(page) == ["twin-agent", "dummy", "dummy"]
 
 
+def test_success_toggles_between_percent_and_fraction(page):
+    page.goto_board()
+    success = (
+        lambda: row(page, "twin-agent").locator("td.col-success .val").inner_text()
+    )  # noqa: E731
+    assert success() == "66.7%"
+    page.locator(f'{EL} button[data-fmt="float"]').click()
+    assert success() == "0.667"
+    assert (
+        page.locator(f'{EL} button[data-fmt="float"]').get_attribute("aria-pressed")
+        == "true"
+    )
+    assert "fmt=float" in page.evaluate("location.hash")
+    # The model page follows the same format.
+    open_model(page, "twin-agent")
+    assert page.locator(f"{EL} .tile.good .tile-value").inner_text() == "0.667"
+
+
+def test_token_columns_toggle(page):
+    page.goto_board()
+    assert page.locator(f"{EL} thead th").count() == 8
+    toggle = page.locator(f'{EL} button[data-toggle="tokens"]')
+    toggle.click()
+    assert page.locator(f"{EL} thead th").count() == 6
+    assert header(page, "tokens_in").count() == 0
+    assert "tokens=off" in page.evaluate("location.hash")
+    page.goto_board(hash_="#tokens=off")
+    assert page.locator(f"{EL} thead th").count() == 6
+
+
 def test_empty_state(page):
     page.goto_board("empty")
     empty = page.locator(f"{EL} .empty")
-    assert "No submissions yet — be the first" in empty.inner_text()
-    link = empty.locator("a.cta")
-    assert link.get_attribute("href") == "#submit"
+    assert "No models yet." in empty.inner_text()
+    assert "open_apps.leaderboard.preview" in empty.inner_text()
+    assert empty.locator("a").count() == 0
     assert page.locator(f"{EL} table").count() == 0
-    # The link lands on the page's own #submit heading (outside the shadow root).
-    link.click()
-    assert page.evaluate("location.hash") == "#submit"
-    assert page.locator(f"{EL} .empty").count() == 1  # an anchor is not table state
 
 
 def test_tab_switch_shows_the_empty_suite(page):
     page.goto_board()
     page.locator(f'{EL} [role=tab][data-suite="align_v1"]').click()
-    assert "No submissions yet" in page.locator(f"{EL} .empty").inner_text()
+    assert "No models yet" in page.locator(f"{EL} .empty").inner_text()
     assert "suite=align_v1" in page.evaluate("location.hash")
-    # Arrow keys move between tabs.
     page.locator(f'{EL} [role=tab][data-suite="align_v1"]').focus()
     page.keyboard.press("ArrowRight")
     assert (
@@ -457,64 +438,127 @@ def test_tab_switch_shows_the_empty_suite(page):
     )
 
 
-def test_drilldown_and_reproduce_href(page, site):
+# --------------------------------------------------------------------------
+# The model page
+# --------------------------------------------------------------------------
+
+
+def test_model_page_numbers(page):
     page.goto_board()
-    expand = row(page, "dummy").first.locator("button.expand")
-    assert expand.get_attribute("aria-expanded") == "false"
-    expand.click()
-    expand = row(page, "dummy").first.locator("button.expand")
-    assert expand.get_attribute("aria-expanded") == "true"
-    detail = page.locator(f"{EL} tr.detail")
-    assert detail.count() == 1
-    assert expand.get_attribute("aria-controls") == detail.get_attribute("id")
-    text = detail.inner_text()
-    assert "Appearance" in text and "dark" in text and "default" in text
-    # Counted like the partial table: records and suite cells.
-    assert "6 episodes covering 6 of 6 suite cells" in text
-    assert detail.locator(".axis-scope").text_content() == (
-        "core block only: the same tasks in every cell"
-    )
-    assert detail.locator(".axis-row").count() == 2
-    # Both bars are filled: the success bar reads build's task_success.
-    assert all("—" not in t for t in detail.locator(".axis-num").all_inner_texts())
-
-    # No composer page on this site: no Reproduce link to 404 on, and the
-    # exact config is pointed at instead.
-    assert detail.locator("a.reproduce").count() == 0
-    assert "agent.yaml in the bundle is the exact config" in detail.inner_text()
-    hrefs = detail.locator(".links li a").evaluate_all("els => els.map(e => e.href)")
-    assert not any("/composer/" in h for h in hrefs)
-    assert any(
-        h.endswith("example__dummy__tiny_v1/meta.yaml") and "/blob/main/" in h
-        for h in hrefs
-    )
-    assert "https://wandb.ai/example/report" in hrefs
-    assert "https://example.org/v1.mp4" in hrefs
-    assert "open=example__dummy__tiny_v1" in page.evaluate("location.hash")
-
-
-def test_drilldown_prefers_per_app_axes(page):
-    page.goto_board()
-    row(page, "dummy").nth(1).locator("button.expand").click()
-    detail = page.locator(f"{EL} tr.detail")
-    names = detail.locator(".axis-name").all_inner_texts()
-    # In reading order: appearance, then the per-app content keys in place
-    # of the app-less combination (which is not shown at all).
-    assert names == ["Appearance", "Calendar · content", "Todo · content"]
-    assert "calendar:german+todo:german" not in detail.inner_text()
-    not_varied = detail.locator(".axes .muted.small").inner_text()
-    assert "Not varied" in not_varied and "content" not in not_varied
-
-
-def test_unscorable_and_ci_method_are_surfaced(page, site):
-    page.goto_board()
-    partial = page.locator(f"{EL} .partial")
-    assert "1 unscorable" in partial.inner_text()
-    # A complete bundle never has one (an unscorable record covers no cell).
+    model = open_model(page)
+    assert "model=example__dummy__tiny_v1" in page.evaluate("location.hash")
+    assert model.locator(".model-name").inner_text().startswith("dummy")
+    assert "Rank #1" in model.locator(".rank-badge").inner_text()
+    assert model.locator(".model-where").inner_text() == "6 tasks · 2 apps"
+    # Focus moves to the model's name for keyboard and screen-reader users.
     assert (
-        page.locator(f"{EL} table.board:not(.partial-table) .note-unscorable").count()
-        == 0
+        page.evaluate(f"document.querySelector('{EL}').shadowRoot.activeElement.id")
+        == "model-name"
     )
+    tiles = model.locator(".tile")
+    assert tiles.locator(".tile-label").all_inner_texts() == [
+        "Success",
+        "Mistakes",
+        "Steps",
+        "Tokens in / out",
+    ]
+    assert tiles.nth(0).locator(".tile-value").inner_text() == "66.7%"
+    assert "4 successful / 6 tasks" in tiles.nth(0).inner_text()
+    assert tiles.nth(1).locator(".tile-value").inner_text() == "2"
+    assert tiles.nth(2).locator(".tile-value").inner_text() == "18"
+    assert "avg 3.0 · median 2.0 · avg on successes 3.8" in tiles.nth(2).inner_text()
+    assert tiles.nth(3).locator(".tile-value").inner_text() == "201 / 20"
+
+
+def test_model_page_config_is_the_redacted_agent_yaml(page):
+    page.goto_board()
+    config = open_model(page).locator(".config")
+    assert "from the bundle's agent.yaml" in config.inner_text()
+    pairs = dict(
+        zip(
+            config.locator(".kv th").all_inner_texts(),
+            config.locator(".kv td").all_inner_texts(),
+        )
+    )
+    assert pairs["client_type"] == "dummy"
+    assert pairs["api_key"] == "<redacted>" and pairs["hostname"] == "<redacted>"
+
+
+def test_model_page_breakdowns(page):
+    page.goto_board()
+    breakdown = open_model(page).locator(".breakdown")
+    names = breakdown.locator("tbody th").all_inner_texts()
+    # App rows, each followed by its layouts.
+    assert names[0] == "Todo" and "default" in names[1]
+    assert "Other" in names
+    breakdown.locator('[data-by="theme"]').click()
+    breakdown = page.locator(f"{EL} .breakdown")
+    rows = [r.split("\t") for r in breakdown.locator("tbody tr").all_inner_texts()]
+    assert [r[0] for r in rows] == ["default", "dark"]
+    assert "by=theme" in page.evaluate("location.hash")
+    breakdown.locator('[data-by="device"]').click()
+    assert "desktop · 1920×1080" in page.locator(f"{EL} .breakdown tbody").inner_text()
+
+
+def test_model_page_examples(page):
+    page.goto_board()
+    examples = open_model(page).locator(".examples")
+    # Mistakes first: the two add_call_mom episodes, with why they ended.
+    assert examples.locator("tr.ep").count() == 2
+    tags = examples.locator("tr.ep .tag").all_inner_texts()
+    assert sorted(tags) == ["Claimed done", "Refused"]
+    detail = examples.locator("article.episode")
+    assert (
+        "Add 'Call Mom' to my todo list." in detail.locator(".quote").first.inner_text()
+    )
+    assert detail.locator(".trace li").count() >= 1
+    # Successes, and picking one.
+    examples.locator('[data-ex="successes"]').click()
+    examples = page.locator(f"{EL} .examples")
+    assert examples.locator("tr.ep").count() == 4
+    pick = examples.locator("tr.ep", has_text="delete_call_aunt_lisa").first.locator(
+        "button.ep-pick"
+    )
+    pick.click()
+    detail = page.locator(f"{EL} article.episode")
+    assert "todo · items · removed · Call Aunt Lisa" in detail.inner_text()
+    assert "ex=successes" in page.evaluate("location.hash") and "ep=" in page.evaluate(
+        "location.hash"
+    )
+    # A bundle carries no screenshots: no media, and no dead links.
+    assert detail.locator(".media, img, video").count() == 0
+
+
+def test_model_page_from_a_link_and_back(page):
+    page.goto_board(hash_="#model=twin__twin-agent__tiny_v1&ex=successes")
+    assert page.locator(f"{EL} .model-name").inner_text().startswith("twin-agent")
+    assert (
+        page.locator(f'{EL} [data-ex="successes"]').get_attribute("aria-selected")
+        == "true"
+    )
+    # The breadcrumb returns to the table, focused on the model's link.
+    page.locator(f"{EL} .crumbs a").click()
+    page.wait_for_selector(f"{EL} table.board")
+    assert (
+        page.evaluate(
+            f"document.querySelector('{EL}').shadowRoot.activeElement.dataset.model"
+        )
+        == "twin__twin-agent__tiny_v1"
+    )
+    # Opening a model is a history entry: Back returns to the table.
+    open_model(page)
+    page.go_back()
+    page.wait_for_selector(f"{EL} table.board")
+    assert page.locator(f"{EL} .model").count() == 0
+
+
+def test_an_unknown_model_falls_back_to_the_table(page):
+    page.goto_board(hash_="#model=nope")
+    assert page.locator(f"{EL} table.board").count() == 1
+
+
+def test_ci_method_is_surfaced(page, site):
+    page.goto_board()
     footnote = page.locator(f"{EL} .footnote")
     assert "task-clustered bootstrap" in footnote.inner_text()
     method = footnote.locator("details.ci-method")
@@ -522,74 +566,27 @@ def test_unscorable_and_ci_method_are_surfaced(page, site):
     assert site["full"]["bootstrap"]["ci_method"] in method.inner_text()
 
 
-def test_reproduce_href_with_a_composer(page, site):
-    page.goto_board("with-composer")
-    row(page, "dummy").first.locator("button.expand").click()
-    reproduce = page.locator(f"{EL} tr.detail a.reproduce")
-    # The composer page with the agent preselected (benchmark= waits on the
-    # composer learning the benchmark group; see leaderboard.js).
-    assert reproduce.get_attribute("href") == f"{site['url']}/composer/#agent=dummy"
-
-
-def test_a_non_https_composer_href_is_ignored(page, site):
-    page.goto_board("with-composer")
-    page.evaluate(
-        f"document.querySelector('{EL}').setAttribute('composer-href', 'javascript:alert(1)')"
-    )
-    page.evaluate(f"document.querySelector('{EL}').render()")
-    row(page, "dummy").first.locator("button.expand").click()
-    assert page.locator(f"{EL} tr.detail a.reproduce").count() == 0
-
-
-def test_reproduce_without_a_known_agent_config(page, site):
-    page.goto_board("with-composer")
-    row(page, "twin-agent").locator("button.expand").click()
-    detail = page.locator(f"{EL} tr.detail")
-    assert (
-        detail.locator("a.reproduce").get_attribute("href")
-        == f"{site['url']}/composer/"
-    )
-    assert "agent.yaml in the bundle is the exact config" in detail.inner_text()
-
-
-def test_verified_badge(page):
-    page.goto_board()
-    badge = row(page, "dummy").first.locator(".badge.verified")
-    assert "✓ verified" in badge.inner_text()
-    assert "warn" not in badge.get_attribute("class")
-    face = badge.locator(".badge-face")
-    tip = badge.locator("[role=tooltip]")
-    assert face.get_attribute("aria-describedby") == tip.get_attribute("id")
-    assert not tip.is_visible()
-    face.focus()
-    assert tip.is_visible()
-    assert "2026-10-20" in tip.inner_text() and "−2.0 pts" in tip.inner_text()
-
-    warned = row(page, "twin-agent").locator(".badge.verified")
-    assert "warn" in warned.get_attribute("class")
-    assert "overfit" in warned.locator("[role=tooltip]").text_content()
-    assert (
-        row(page, "dummy").nth(1).locator(".badge").count() == 0
-    )  # the unverified copy
-    assert "maintainer re-run" in tip.inner_text()
-    footnote = page.locator(f"{EL} .footnote").inner_text()
-    assert "maintainer re-ran" in footnote and "verifications.yaml" in footnote
-
-
 def test_hostile_strings_render_as_text_and_link_nothing(page):
-    page.goto_board("hostile", "#open=example__dummy__tiny_v1")
+    page.goto_board("hostile")
     root = f"document.querySelector('{EL}').shadowRoot"
-    assert page.evaluate("window.__pwned") is None
-    assert page.evaluate(f"{root}.querySelectorAll('img, script').length") == 0
-    hrefs = page.evaluate(
-        f"[...{root}.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))"
-    )
-    assert hrefs and all(h.startswith("https://") for h in hrefs), hrefs
-    assert not any("javascript" in h.lower() for h in hrefs), hrefs
+    for hash_ in (
+        "",
+        "#model=example__dummy__tiny_v1",
+        "#model=example__dummy__tiny_v1&ex=successes&by=theme",
+    ):
+        page.goto_board("hostile", hash_)
+        assert page.evaluate("window.__pwned") is None
+        assert (
+            page.evaluate(f"{root}.querySelectorAll('img, script, video').length") == 0
+        )
+        hrefs = page.evaluate(
+            f"[...{root}.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))"
+        )
+        # Only in-page links: hash state, never a script URL.
+        assert hrefs and all(h.startswith("#") for h in hrefs), hrefs
+        assert not any("javascript" in h.lower() for h in hrefs), hrefs
     # The strings are there, as text.
-    text = page.locator(f"{EL} .olb").inner_text()
-    assert XSS in text
-    assert "https://ok.example/v.mp4" in hrefs
+    assert XSS in page.locator(f"{EL} .olb").inner_text()
 
 
 def test_missing_file_explains_how_to_build_it(page):
@@ -624,7 +621,7 @@ def test_screenshots(page):
     out.mkdir(parents=True, exist_ok=True)
     for width, height, label in ((1280, 900, "desktop"), (390, 844, "narrow")):
         page.set_viewport_size({"width": width, "height": height})
-        page.goto_board("full", "#open=example__dummy__tiny_v1")
+        page.goto_board("full")
         page.locator(EL).screenshot(path=str(out / f"populated-{label}.png"))
         page.evaluate("document.documentElement.classList.add('dark')")
         page.wait_for_function(
@@ -632,7 +629,7 @@ def test_screenshots(page):
         )
         page.locator(EL).screenshot(path=str(out / f"populated-{label}-dark.png"))
         page.evaluate("document.documentElement.classList.remove('dark')")
-        page.goto_board("full", "#open=worse__dummy__tiny_v1")
-        page.locator(EL).screenshot(path=str(out / f"per-app-axes-{label}.png"))
+        page.goto_board("full", "#model=worse__dummy__tiny_v1")
+        page.locator(EL).screenshot(path=str(out / f"model-{label}.png"))
         page.goto_board("empty")
         page.locator(EL).screenshot(path=str(out / f"empty-{label}.png"))
