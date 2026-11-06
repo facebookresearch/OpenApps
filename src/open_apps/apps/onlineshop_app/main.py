@@ -55,7 +55,7 @@ from open_apps.apps.availability import require_files
 from open_apps.apps.onlineshop_app import receipts
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
-from open_apps.theme import theme_style
+from open_apps.theme import theme_asset, theme_style
 
 
 # --------------------------------------------------------------------------
@@ -794,6 +794,16 @@ def _set_html_lang(req):
 app.before.append(Beforeware(_set_html_lang))
 
 
+def _thumb_tone() -> str:
+    """``light`` | ``dark`` | ``mono``: the active theme's tone, which picks
+    the placeholder thumbnails' palette (see ``_glyph_svg``)."""
+    config = getattr(app, "config", None)
+    if config is None:
+        return "light"
+    tone = str(theme_asset(config, "onlineshop", "tone", "light"))
+    return tone if tone in ("dark", "mono") else "light"
+
+
 def _currency():
     return getattr(_cfg(), "currency_symbol", "$")
 
@@ -1346,6 +1356,26 @@ def _glyph_for(product) -> list:
     return _GLYPHS[_CATEGORY_GLYPHS.get(product.category, "notebook")]
 
 
+def _swatch_colors(hue: int) -> tuple[str, str]:
+    """(tile fill, line colour) for a thumbnail, by the theme's ``tone``.
+
+    The swatch is painted in the SVG itself, not through a CSS token, so it
+    has to ask the theme which way to go: a pale pastel tile on a dark page
+    is the brightest thing on screen and reads as a hole in the theme.
+
+    * ``light`` -- pale tile, dark line (the reference rendering)
+    * ``dark``  -- deep tile, light line, same hue
+    * ``mono``  -- white tile, black line, no hue at all, matching a theme
+      whose point is that colour carries no information
+    """
+    tone = _thumb_tone()
+    if tone == "dark":
+        return f"hsl({hue}, 28%, 22%)", f"hsl({hue}, 60%, 78%)"
+    if tone == "mono":
+        return "#ffffff", "#000000"
+    return f"hsl({hue}, 42%, 88%)", f"hsl({hue}, 55%, 28%)"
+
+
 def _glyph_svg(product, size: int = 120):
     """A deterministic line-art thumbnail for a product.
 
@@ -1360,7 +1390,7 @@ def _glyph_svg(product, size: int = 120):
     two products in the same category still look distinct.
     """
     hue = _SWATCH_HUES[sum(product.sku.encode()) % len(_SWATCH_HUES)]
-    stroke = f"hsl({hue}, 55%, 28%)"
+    fill, stroke = _swatch_colors(hue)
     marks = []
     for item in _glyph_for(product):
         if isinstance(item, tuple):
@@ -1371,7 +1401,10 @@ def _glyph_svg(product, size: int = 120):
             marks.append(Path(d=item, fill="none", stroke=stroke, stroke_width=5,
                               stroke_linecap="round", stroke_linejoin="round"))
     return Svg(
-        Rect(x=0, y=0, width=100, height=100, rx=10, fill=f"hsl({hue}, 42%, 88%)"),
+        Rect(x=0, y=0, width=100, height=100, rx=10, fill=fill,
+             # mono's tile is the page colour, so it needs an edge to exist.
+             stroke=stroke if _thumb_tone() == "mono" else None,
+             stroke_width=2 if _thumb_tone() == "mono" else None),
         G(*marks),
         width=size, height=size,
         viewBox="0 0 100 100",
