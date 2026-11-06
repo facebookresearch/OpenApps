@@ -3,7 +3,10 @@
 import json
 from pathlib import Path
 import tempfile
+import time
 from typing import Sequence
+import urllib.error
+import urllib.request
 import warnings
 
 import hydra
@@ -124,16 +127,88 @@ def run_task(
     launcher_class(config).launch()
 
 
+def shard_indices(num_jobs: int, shard_index: int = 0, num_shards: int = 1) -> list[int]:
+    """The job ids one local process runs when a sweep is split ``num_shards``
+    ways: every ``num_shards``-th id from ``shard_index`` (round-robin, so each
+    shard gets a mix of blocks rather than all the long ones)."""
+    if num_shards < 1 or not 0 <= shard_index < num_shards:
+        raise ValueError(
+            f"need 0 <= shard_index < num_shards, got {shard_index}/{num_shards}"
+        )
+    return list(range(shard_index, num_jobs, num_shards))
+
+
+def wait_for_url(url: str, timeout_s: float, poll_s: float = 10.0) -> None:
+    """Block until ``url`` answers 200 (e.g. a vLLM server's ``/health``).
+
+    Composing a suite takes minutes, so benchmark_one.sbatch starts its shards
+    alongside the server and has them wait here, after composing and before
+    the first episode, rather than idling the GPU through both in turn.
+    """
+    # The server is local or cluster-internal; an inherited proxy would only
+    # turn every probe into a timeout.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            with opener.open(url, timeout=5) as response:
+                if response.status == 200:
+                    print(f"{url} is up.")
+                    return
+        except (urllib.error.URLError, OSError, ValueError):
+            pass
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"{url} did not answer within {timeout_s:.0f}s")
+        print(f"Waiting for {url} ...")
+        time.sleep(poll_s)
+
+
+def local_shard(config: DictConfig) -> tuple[int, int]:
+    """``(shard_index, num_shards)`` from config/mode/local.yaml (``(0, 1)``
+    when the mode does not define them)."""
+    return int(config.get("shard_index", 0) or 0), int(config.get("num_shards", 1) or 1)
+
+
 def run_locally(
     config: DictConfig,
     parallel_configs: list[DictConfig],
     num_jobs: int,
     launcher_class: type[AgentLauncher] = AgentLauncher,
 ) -> None:
-    for job_config in parallel_configs:
+    """Run the jobs one after another in this process.
+
+    ``shard_index``/``num_shards`` (config/mode/local.yaml) split one sweep
+    across several processes on the same machine -- scripts/benchmark_one.sbatch
+    runs eight against one vLLM server, which batches their requests. Job ids
+    stay global, so the shards' job directories and web-app port windows never
+    collide; give every shard the same ``logs_dir`` root.
+    ``continue_on_error`` keeps going past a job that raises, lists the failed
+    ids at the end and exits non-zero.
+    """
+    shard_index, num_shards = local_shard(config)
+    selected = set(shard_indices(num_jobs, shard_index, num_shards))
+    jobs = [job for job in parallel_configs if job.job_id in selected]
+    if num_shards > 1:
+        print(f"Shard {shard_index}/{num_shards}: {len(jobs)} of {num_jobs} jobs.")
+    if config.get("wait_for_url"):
+        wait_for_url(
+            str(config.wait_for_url), int(config.get("wait_for_url_timeout_s", 5400))
+        )
+    continue_on_error = bool(config.get("continue_on_error", False))
+    failed: list[int] = []
+    for job_config in jobs:
         print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
-        run_task(job_config, launcher_class)
-    print(f"\nFinished {num_jobs} local jobs.")
+        try:
+            run_task(job_config, launcher_class)
+        except Exception as exc:  # noqa: BLE001 -- opt-in, for unattended sweeps
+            if not continue_on_error:
+                raise
+            print(f"Local job {job_config.job_id} failed, continuing: {exc!r}")
+            failed.append(job_config.job_id)
+    print(f"\nFinished {len(jobs) - len(failed)}/{len(jobs)} local jobs.")
+    if failed:
+        print(f"Failed job ids: {failed}. Re-run them; pack takes several logs dirs.")
+        raise SystemExit(1)
 
 
 def run_via_slurm(
@@ -197,7 +272,8 @@ def launch_parallel(
     leaderboard_root = logs_root.parent
     if cluster == "local":
         run_locally(config, jobs, len(jobs), launcher_class)
-        if config.get("open_leaderboard", True):
+        # One shard of several finishing says nothing about the others.
+        if config.get("open_leaderboard", True) and local_shard(config)[1] == 1:
             from open_apps.leaderboard.preview import launch
 
             launch([leaderboard_root])
