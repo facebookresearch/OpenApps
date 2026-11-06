@@ -1,5 +1,45 @@
 # @package apps.messenger
 title: ${apps.start_page.apps.messages.title}
+
+# UI strings (the openbanking pattern): flat keys, English here, overridden by
+# german.yaml / mandarin.yaml; the app falls back to this same English for any
+# key a pack leaves out. "Return to List of Apps" and "Search" are shared by
+# every app and live in open_apps/i18n.py instead.
+type_message_label: "Type a message"
+search_messages_label: "Search messages..."
+clear_search_label: "Clear search"
+search_no_results_label: 'No results for "{q}"'
+search_one_result_label: '{n} result for "{q}"'
+search_results_label: '{n} results for "{q}"'
+no_messages_label: "No messages yet"
+# Chat-list preview of your own last message.
+you_prefix_label: "You: {message}"
+# Sender of your own messages: in the search results, and (visually hidden)
+# above your own bubbles.
+you_label: "You"
+you_sender_label: "you"
+chats_label: "Chats"
+conversations_label: "Conversations"
+select_conversation_label: "Select a conversation to start messaging"
+not_in_contacts_label: "Not in your contacts"
+add_to_contacts_label: "Add to contacts"
+view_contact_label: "View contact: {name}"
+back_label: "Back"
+send_label: "Send"
+# Timestamps are stored as "Sep 17, 09:32AM" in every pack (the state the
+# rewards read); only their display follows these. Fields: {month} (from
+# month_abbr), {day}, {hour} (12h), {hour24}, {minute}, {meridiem} (from
+# meridiem_labels).
+time_format: "{month} {day}, {hour}:{minute} {meridiem}"
+date_format: "{month} {day}"
+month_abbr: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+meridiem_labels: {AM: AM, PM: PM}
+# Auto-replies. Never part of a task's target state (one reply per sent
+# message is ignored when scoring), so a pack may translate them freely.
+fixed_replies:
+  "+15550100002": "Yes, let's play on Saturday!"  # Bob
+  "+15550100001": "Yes, I want to play badminton!"  # Alice
+bot_replies: ["I'm a bot!", "I'm a human!", "What's up?", "The stock market is crazy today!"]
 # you: YannLeCun the computer scientist
 
 # threads: handle -> [[message, sender, timestamp], ...]. `sender` is "you"
