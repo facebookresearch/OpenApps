@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
+import functools
 import hashlib
 import json
 import math
@@ -845,6 +846,42 @@ class RemoveEventTask(Task):
         return app_state_comparison.compare()
 
 
+@functools.lru_cache(maxsize=1)
+def _todo_translations() -> dict[str, tuple[str, ...]]:
+    """English todo title -> its rendering in every translated todo pack.
+
+    Read from the packs' ``todo_translations`` maps
+    (``config/apps/todo/content/*.yaml``). Tasks name todos in English; under
+    ``apps/todo/content=german`` the app renders "Oma besuchen" where the goal
+    says "Visit grandma", and the task has to target that row.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "todo" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("todo_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_todo(todos: list, name: str) -> Optional[int]:
+    """Index of the todo ``name`` refers to: an exact title match, else the
+    row carrying one of its translations (see :func:`_todo_translations`).
+    The last match wins, as the classes below always did."""
+    found = None
+    for i, item in enumerate(todos):
+        if item["title"] == name:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_todo_translations().get(name, ()))
+    for i, item in enumerate(todos):
+        if item["title"] in aliases:
+            found = i
+    return found
+
+
 @dataclass
 class AddToDoTask(Task):
     """
@@ -887,14 +924,13 @@ class MarkToDoDoneTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        target_idx = None
-        for i, todo_item in enumerate(target_state["todo"]):
-            if self.todo_name == todo_item["title"]:
-                new_todo_item = {"title": self.todo_name, "done": 1}
-                target_idx = i
+        # Under a translated todo pack the row carries the translated title;
+        # it keeps that title and only its done flag changes.
+        target_idx = _find_todo(target_state["todo"], self.todo_name)
         if target_idx is None:
             raise ValueError(f"Todo item {self.todo_name} not found")
-        target_state["todo"][target_idx] = new_todo_item
+        title = target_state["todo"][target_idx]["title"]
+        target_state["todo"][target_idx] = {"title": title, "done": 1}
         return target_state
 
     def check_if_task_is_complete(
@@ -1102,10 +1138,7 @@ class DeleteToDoTask(Task):
 
     def get_target_state(self, initial_state: dict) -> dict:
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, item in enumerate(target_state["todo"]):
-            if item["title"] == self.todo_name:
-                idx_to_remove = i
+        idx_to_remove = _find_todo(target_state["todo"], self.todo_name)
         if idx_to_remove is not None:
             target_state["todo"].pop(idx_to_remove)
         return target_state

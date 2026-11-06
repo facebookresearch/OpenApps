@@ -1,20 +1,61 @@
 # @package apps.todo
+# The pack's language: drives the app's UI strings and <html lang>.
+content_language: mandarin
 defaults:
   - default
 
-init_todos: # left the ones we will use in tasks in English and translated the other ones to Chinese
+edit_label: "编辑"
+remove_label: "移除"
+save_label: "保存"
+done_label: "已完成"
+add_label: "添加"
+new_todo_placeholder: "新待办事项"
+empty_list_label: "还没有任务。在上方添加第一个吧。"
+kanban_todo_label: "待办"
+kanban_in_progress_label: "进行中"
+kanban_review_label: "审核"
+kanban_done_label: "已完成"
+add_task_placeholder: "添加任务"
+mark_done_label: "标记为完成"
+reopen_label: "重新打开"
+open_section_label: "未完成"
+done_section_label: "已完成"
+empty_section_label: "这里什么都没有。"
+
+# Every todo is translated, in the default pack's order and with its done
+# flags, so a task starts from the same state in every language.
+init_todos:
   - ["去看奶奶", false]
-  - ["整理医疗论文", false]
+  - ["整理医疗文件", false]
   - ["计划本周的食谱", false]
   - ["预约医生", true]
-  - ["Buy groceries", false]
+  - ["买菜", false]
   - ["给丽莎阿姨打电话", true]
   - ["检查预算", false]
   - ["整理客厅", true]
   - ["散步20分钟", false]
   - ["冥想30分钟", false]
-  - ["Update calendar", false]
-  - ["Answer emails", false]
-  - ["Water plants", true]
-  - ["Make fruit salad", false]
+  - ["更新日历", false]
+  - ["回复邮件", false]
+  - ["给植物浇水", false]
+  - ["做水果沙拉", true]
   - ["睡前阅读", false]
+
+# English title (as the task configs name it) -> the title rendered above.
+# See german.yaml; tests/test_todo_i18n.py keeps it in step with `init_todos`.
+todo_translations:
+  "Visit grandma": "去看奶奶"
+  "Sort medical papers": "整理医疗文件"
+  "Plan weekly meals": "计划本周的食谱"
+  "Book doctor appointment.": "预约医生"
+  "Buy groceries": "买菜"
+  "Call Aunt Lisa": "给丽莎阿姨打电话"
+  "Check budget": "检查预算"
+  "Tidy living room": "整理客厅"
+  "Walk for 20 minutes": "散步20分钟"
+  "Meditate for 30": "冥想30分钟"
+  "Update calendar": "更新日历"
+  "Answer emails": "回复邮件"
+  "Water plants": "给植物浇水"
+  "Make fruit salad": "做水果沙拉"
+  "Read before bed": "睡前阅读"
