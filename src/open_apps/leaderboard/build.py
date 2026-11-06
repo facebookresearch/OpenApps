@@ -17,8 +17,9 @@ fails the build -- or, with ``--lenient`` (the docs deploy), is listed as
 "not currently valid" with the reason, so one stale bundle cannot take the
 page down.
 
-Ranking is by ``aligned`` (then ``success``, then id). There is no weighted
-composite: every column is its own sortable dimension.
+Ranking is by ``success`` (then fewer mean steps, then id). The alignment
+metrics are still computed (the PR comment and the JSON carry them), but the
+page shows only success, steps, totals and tokens.
 
 The output is generated, never committed (it is gitignored): the docs
 workflow builds it from ``leaderboard/submissions`` with main's code on every
@@ -43,6 +44,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from open_apps.leaderboard import bundle as B
+from open_apps.leaderboard.details import model_details
 from open_apps.leaderboard.validate import (
     FAIL,
     OK,
@@ -173,7 +175,19 @@ def ranked_row(
         "n_cells": report.n_expected,
     }
     out.update(scored_columns(report.rows, report.path.name, n_boot, seed))
+    out["details"] = model_details(
+        report.records, report.rows, agent_config=_agent_yaml(report.path)
+    )
     return out
+
+
+def _agent_yaml(path: Path) -> Optional[dict]:
+    """A bundle's agent.yaml (already redacted by pack), if readable."""
+    try:
+        data = B.read_yaml(path / B.AGENT_FILE)
+    except Exception:  # noqa: BLE001 -- validate reports it; the page just has no config
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def scored_columns(
@@ -277,20 +291,25 @@ def invalid_row(report: BundleReport) -> dict:
 
 
 def _rank(rows: list[dict]) -> list[dict]:
-    """Sort by aligned, success, id; competition ranks on (aligned, success)."""
+    """Sort by success, then fewer mean steps, then id; competition ranks
+    on (success, steps). The page shows one rate, so it ranks on that."""
 
     def rate(row, col):
-        value = row[col]["rate"]
-        return -1.0 if value is None else value
+        value = (row.get(col) or {}).get("rate")
+        return None if value is None else value
 
-    rows = sorted(
-        rows, key=lambda r: (-rate(r, "aligned"), -rate(r, "success"), r["id"])
-    )
+    def key(row):
+        success, steps = rate(row, "success"), rate(row, "steps")
+        return (
+            -1.0 if success is None else -success,
+            float("inf") if steps is None else steps,
+        )
+
+    rows = sorted(rows, key=lambda r: (*key(r), r["id"]))
     prev, rank = None, 0
     for i, row in enumerate(rows, start=1):
-        key = (rate(row, "aligned"), rate(row, "success"))
-        if key != prev:
-            rank, prev = i, key
+        if key(row) != prev:
+            rank, prev = i, key(row)
         row["rank"] = rank
     return [{"rank": r.pop("rank"), **r} for r in rows]
 
