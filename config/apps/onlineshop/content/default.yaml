@@ -57,3 +57,118 @@ products: []
 cart: []
 
 orders: []
+
+# --- UI strings ----------------------------------------------------------
+#
+# Every piece of text the shop renders itself, as flat `*_label` keys -- the
+# pattern openbanking set. These are the English reference; `german.yaml` and
+# `mandarin.yaml` override them. Every pack composes on top of this one, so
+# the English is always present, and `main.py` carries the same text as each
+# key's fallback (tests/test_onlineshop_i18n.py checks the two agree).
+#
+# `{name}` placeholders are filled in by the app after lookup, so a
+# translation may move them. A `*_one_label` / `*_label` pair is a counted
+# phrase: the first is used for exactly one, the second otherwise.
+#
+# Not here: product titles, bullets, descriptions, breadcrumbs and option
+# names/values (catalog data -- see `german.yaml`), prices (always
+# `currency_symbol` + `1,234.56`, so a task can parse them), the stored order
+# status (`/onlineshop_all` reports it verbatim; only its pill is translated),
+# the PDF receipts (Helvetica, Latin-1 only) and the shared "Return to List
+# of Apps" / "Search" strings (open_apps/i18n.py).
+
+# Store bar, departments, breadcrumb
+shop_label: 'Shop'
+orders_label: 'Orders'
+cart_label: 'Cart'
+cart_items_one_label: 'Cart, {count} item'
+cart_items_label: 'Cart, {count} items'
+search_placeholder_label: 'Search products'
+departments_label: 'Departments'
+home_label: 'Home'
+
+# Listings and search
+featured_label: 'Featured products'
+results_for_label: 'Results for "{terms}"'
+search_results_for_label: 'Search results for "{terms}"'
+product_count_one_label: '{count} product'
+product_count_label: '{count} products'
+view_details_label: 'View details'
+view_label: 'View'
+product_column_label: 'Product'
+department_column_label: 'Department'
+rating_column_label: 'Rating'
+price_column_label: 'Price'
+rating_title_label: '{rating} out of 5 stars'
+no_results_label: 'No products matched. Try fewer or more general words.'
+browse_all_label: 'Browse all products'
+previous_label: 'Previous'
+next_label: 'Next'
+page_of_label: 'Page {page} of {last}'
+pages_label: 'Pages'
+
+# Product page and imagery
+not_found_label: 'Product not found. It may have been removed from the catalog.'
+back_to_shop_label: 'Back to shop'
+quantity_label: 'Quantity'
+add_to_cart_label: 'Add to Cart'
+about_item_label: 'About this item'
+image_label: 'Image {n}'
+show_image_label: 'Show image {n} of {total}'
+image_alt_label: '{title} (image {n} of {total})'
+
+# Cart
+your_cart_label: 'Your cart'
+cart_empty_label: 'Your cart is empty.'
+browse_products_label: 'Browse products'
+each_label: '{price} each'
+not_selected_label: 'Not selected for checkout'
+quantity_for_label: 'Quantity for {title}'
+update_label: 'Update'
+select_label: 'Select'
+deselect_label: 'Deselect'
+remove_label: 'Remove'
+order_summary_label: 'Order summary'
+items_count_label: 'Items ({count})'
+lines_not_selected_one_label: '{count} line not selected'
+lines_not_selected_label: '{count} lines not selected'
+selected_total_label: 'Selected total'
+proceed_to_checkout_label: 'Proceed to Checkout'
+
+# Checkout and payment
+checkout_label: 'Checkout'
+nothing_selected_label: 'No items are selected for checkout.'
+back_to_cart_label: 'Back to cart'
+shipping_heading_label: 'Shipping address'
+full_name_label: 'Full Name'
+shipping_address_label: 'Shipping Address'
+payment_label: 'Payment'
+card_number_label: 'Card Number'
+card_expiry_label: 'Expiry (MM/YY)'
+card_expiry_placeholder_label: 'MM/YY'
+card_cvv_label: 'CVV'
+card_name_label: 'Name on Card'
+place_order_label: 'Place Order'
+order_total_label: 'Order total'
+edit_cart_label: 'Edit cart'
+card_unavailable_label: 'Card payments are unavailable right now.'
+card_brand_refused_label: '{brand} is not accepted. Allowed: {allowed}.'
+expiry_format_label: 'Enter the card''s expiry date as MM/YY.'
+expiry_passed_label: 'That expiry date has passed. Check the card and try again.'
+
+# Orders
+your_orders_label: 'Your orders'
+no_orders_label: 'You have no orders yet.'
+order_placed_label: 'Order placed'
+total_label: 'Total'
+ship_to_label: 'Ship to'
+paid_with_label: 'Paid with'
+card_ending_label: 'Card ending {last4}'
+order_heading_label: 'Order {order_id}'
+receipt_label: 'Receipt'
+receipt_for_label: 'Receipt for order {order_id}'
+# Display text for a stored status, keyed `status_<lowercased status>_label`.
+# A status without a key is shown as stored.
+status_processing_label: 'Processing'
+status_shipping_label: 'Shipping'
+status_delivered_label: 'Delivered'
