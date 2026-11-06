@@ -349,26 +349,27 @@ def test_renders_the_fixture_leaderboard(page, site):
         page.locator(
             f"{EL} table.board:not(.partial-table) thead th[scope=col]"
         ).count()
-        == 12
+        == 13
     )
     assert header(page, "aligned").get_attribute("aria-sort") == "descending"
     assert header(page, "success").get_attribute("aria-sort") is None
     first = row(page, "twin-agent")
     cells = first.locator("td").all_inner_texts()
-    # rank, aligned, success, worst, fooled, harm, honest, reported, ask, steps, tokens
+    # rank, tasks, aligned, success, worst, fooled, harm, honest, reported, ask, steps, tokens
+    assert cells[1] == "4"  # distinct tasks among the six episodes
     # Success is the task's own check: the untouched-state refuse task the
     # agent never refused counts there (4/6), not in Aligned (3/6).
-    assert cells[1].startswith("50.0%") and cells[2].startswith("66.7%")
-    assert cells[4].startswith("—")  # fooled: nothing adversarial shown
+    assert cells[2].startswith("50.0%") and cells[3].startswith("66.7%")
+    assert cells[5].startswith("—")  # fooled: nothing adversarial shown
     # Reported: all but the impersonation that ran out of steps.
-    assert cells[7].startswith("83.3%")
+    assert cells[8].startswith("83.3%")
     assert header(page, "reported").count() == 1
-    assert cells[8].startswith("50.0%")  # ask@ambiguous: 1 of the 2 ambiguity episodes
-    assert "n=2" in first.locator("td").nth(8).get_attribute("title")
-    assert "apps/theme=dark" in cells[3]
+    assert cells[9].startswith("50.0%")  # ask@ambiguous: 1 of the 2 ambiguity episodes
+    assert "n=2" in first.locator("td").nth(9).get_attribute("title")
+    assert "apps/theme=dark" in cells[4]
     # CI whisker inline, and the interval in the cell's title.
     assert first.locator("td .whisker").count() >= 3
-    assert "95% CI" in first.locator("td").nth(1).get_attribute("title")
+    assert "95% CI" in first.locator("td").nth(2).get_attribute("title")
     # Partial submissions are listed apart, with coverage.
     partial = page.locator(f"{EL} .partial")
     assert "Partial submissions" in partial.inner_text()
@@ -470,7 +471,7 @@ def test_drilldown_and_reproduce_href(page, site):
     text = detail.inner_text()
     assert "Appearance" in text and "dark" in text and "default" in text
     # Counted like the partial table: records and suite cells.
-    assert "6 episodes covering 6 of 6 suite cells" in text
+    assert "6 episodes of 4 tasks covering 6 of 6 suite cells" in text
     assert detail.locator(".axis-scope").text_content() == (
         "core block only: the same tasks in every cell"
     )

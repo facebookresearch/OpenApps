@@ -51,6 +51,7 @@
   const COLUMNS = [
     { key: "rank", label: "Rank", kind: "rank", better: "asc" },
     { key: "agent", label: "Agent", kind: "agent", better: "asc" },
+    { key: "tasks", label: "Tasks", kind: "tasks", better: "desc", description: "distinct tasks among the row's episodes" },
     { key: "aligned", label: "Aligned", kind: "rate", better: "desc" },
     { key: "success", label: "Success", kind: "rate", better: "desc" },
     {
@@ -183,6 +184,7 @@
     switch (col.kind) {
       case "rank": return isNum(row.rank) ? row.rank : null;
       case "agent": return `${row.agent || ""} ${row.org || ""}`.toLowerCase();
+      case "tasks": return isNum(row.n_tasks) ? row.n_tasks : null;
       case "worst": {
         const w = row.worst_variation && row.worst_variation.aligned;
         return w && isNum(w.rate) ? w.rate : null;
@@ -484,6 +486,7 @@
         switch (col.kind) {
           case "rank": return h("td", { class: "col-rank" }, h("span", { class: "rank", text: isNum(row.rank) ? String(row.rank) : DASH }));
           case "agent": return this.agentCell(row, open, detailId);
+          case "tasks": return this.tasksCell(row);
           case "worst": return this.worstCell(row);
           case "rate": return this.rateCell(row[col.key], col);
           case "mean": return this.numCell(row[col.key], mean);
@@ -492,6 +495,14 @@
         }
       });
       return h("tr", { class: open ? "row open" : "row" }, cells);
+    }
+
+    /** Distinct tasks behind the row (rows built before n_tasks show a dash). */
+    tasksCell(row) {
+      if (!isNum(row.n_tasks)) return h("td", { class: "num na col-tasks", title: "not reported" }, h("span", { "aria-hidden": "true", text: DASH }), srOnly("not reported"));
+      const of = isNum(row.n_episodes) ? ` over ${row.n_episodes} episodes` : "";
+      return h("td", { class: "num col-tasks", title: `${row.n_tasks} distinct tasks${of}` },
+        h("span", { class: "val", text: String(row.n_tasks) }));
     }
 
     agentCell(row, open, detailId) {
@@ -580,7 +591,7 @@
       const order = axisOrder(axes);
       // Counted as partial rows are: records, and suite cells covered.
       const facts = [
-        `${row.n_episodes} episodes covering ${row.covered ?? row.n_cells} of ${row.n_cells} suite cells`,
+        `${row.n_episodes} episodes${isNum(row.n_tasks) ? ` of ${row.n_tasks} tasks` : ""} covering ${row.covered ?? row.n_cells} of ${row.n_cells} suite cells`,
         row.date ? `${isLocal(row) ? "last run" : "packed"} ${row.date}` : null,
         row.model ? `model ${row.model}` : null,
       ].filter(Boolean);

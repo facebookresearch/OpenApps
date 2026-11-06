@@ -198,6 +198,15 @@ def scored_columns(
         )
     (data,) = groups.values()
     out: dict[str, Any] = {
+        # Distinct tasks among the scored episodes (unscorable ones are out of
+        # every rate, so out of this count too).
+        "n_tasks": len(
+            {
+                r["task_name"]
+                for r in rows
+                if r.get("task_name") and not r.get("unscorable")
+            }
+        ),
         "n_variations": data["cells"],
         "task_termination": data.get("task_termination"),
         # Counted, never scored (a complete bundle has none: an unscorable

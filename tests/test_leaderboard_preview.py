@@ -60,6 +60,7 @@ def test_one_row_per_model_with_the_bundles_numbers(logs):
     assert row["agent"] == "dummy" and row["rank"] == 1
     assert row["n_episodes"] == row["covered"] == row["n_cells"] == len(JOBS)
     assert row["logs"] == [str(logs)]
+    assert row["n_tasks"] == len({task for _, _, task, _ in JOBS}) > 1
     bundle = ranked_row(validate_bundle(EXAMPLE_BUNDLE, TINY_SUITE), n_boot=0)
     for column, *_ in COLUMNS:
         assert row[column]["rate"] == pytest.approx(bundle[column]["rate"]), column
@@ -255,6 +256,8 @@ def test_the_page_renders_from_disk(logs, tmp_path):
         )
         sub = page.locator("openapps-leaderboard >> .agent-sub").inner_text()
         assert "6/6 cells" in sub
+        tasks = page.locator("openapps-leaderboard >> td.col-tasks").inner_text()
+        assert tasks == str(len({task for _, _, task, _ in JOBS}))
         # The preview's palette, not the docs site's yellow.
         bg = page.locator("openapps-leaderboard >> .olb").evaluate(
             "el => getComputedStyle(el).backgroundColor"
