@@ -1,6 +1,7 @@
 # @package apps.openbanking
 # The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# (adversarial events speak it), and by the app for `<html lang>` and the
+# shared strings (open_apps.i18n).
 content_language: mandarin
 defaults:
   - default
@@ -107,7 +108,7 @@ accounts:
         amount: -323.36
         balance: 470.13
       - date: "2026年8月24日"
-        description: "COOL APPS INC. COOLAPP.COM MD 08/22 (...4321)"
+        description: "酷应用公司 COOLAPP.COM MD 08/22 (...4321)"
         type: "银行卡"
         amount: -1078.81
         balance: 793.49
@@ -189,7 +190,7 @@ accounts:
     payment_due_date: "2026年9月15日"
     transactions:
       - date: "2026年8月23日"
-        description: "CLOUD HOST LLC CLOUDHOST.IO WA 08/22 (...2043)"
+        description: "云主机有限公司 CLOUDHOST.IO WA 08/22 (...2043)"
         type: "银行卡"
         amount: -412.00
         balance: -1284.19

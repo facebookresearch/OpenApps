@@ -1,6 +1,7 @@
 # @package apps.openbanking
 # The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# (adversarial events speak it), and by the app for `<html lang>` and the
+# shared strings (open_apps.i18n).
 content_language: german
 defaults:
   - default

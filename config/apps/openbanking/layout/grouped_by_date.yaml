@@ -1,0 +1,9 @@
+# @package apps.openbanking
+# Structure only -- colors/fonts come from the shared theme. Renders the
+# ledger as a timeline: one heading per posting day (pending rows first, under
+# `pending_label`) with that day's rows beneath it. The date is no longer on
+# the row at all -- it has to be read off the group heading above. Select with
+# `apps/openbanking/layout=grouped_by_date`.
+layout: grouped_by_date
+# Same truncation as `default`: the cut is still four rows, not four days.
+visible_transactions: 4

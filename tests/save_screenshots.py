@@ -49,7 +49,7 @@ class ComparisonResult:
 
 ROUTES = (
     RouteSpec("start_page", "/", "#wrapper"),
-    RouteSpec("todo", "/todo", "#todo-list"),
+    RouteSpec("todo", "/todo", "#todo-list, #todo-board, #todo-sections"),
     RouteSpec("calendar", "/calendar", ".calendar-table, .agenda-list"),
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     # An open conversation, not just the chat list. `split_inbox` and
@@ -105,6 +105,9 @@ CONTENT_APPS = (
 # layout is not, so it has to name its app.
 LAYOUT_VARIATIONS = {
     "layout_kanban_board": ["apps/todo/layout=kanban_board"],
+    "layout_todo_grouped_sections": ["apps/todo/layout=grouped_sections"],
+    "layout_openbanking_card_list": ["apps/openbanking/layout=card_list"],
+    "layout_openbanking_grouped_by_date": ["apps/openbanking/layout=grouped_by_date"],
     "layout_broken_logos": ["apps/start_page/layout=broken_logos"],
     "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
     "layout_shop_grid": ["apps/onlineshop/layout=grid"],

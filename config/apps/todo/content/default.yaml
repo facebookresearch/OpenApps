@@ -2,6 +2,31 @@
 title: OpenTodos
 description: ${apps.start_page.apps.todo.description}
 
+# --- UI strings ---------------------------------------------------------------
+# The app's own labels (open_apps.i18n: flat `*_label` keys, overridden by
+# german.yaml / mandarin.yaml). The back-to-apps link is a shared string
+# (`i18n.t("return_to_apps")`) and is not repeated here.
+edit_label: "Edit"
+remove_label: "Remove"
+save_label: "Save"
+# The checkbox in the edit form.
+done_label: "Done"
+add_label: "Add"
+new_todo_placeholder: "New Todo"
+empty_list_label: "No tasks yet. Add your first one above."
+# kanban_board layout: column titles, the per-column add field, the move button.
+kanban_todo_label: "To Do"
+kanban_in_progress_label: "In Progress"
+kanban_review_label: "Review"
+kanban_done_label: "Done"
+add_task_placeholder: "Add task"
+mark_done_label: "Mark Done"
+reopen_label: "Reopen"
+# grouped_sections layout: the two section headings and an empty section.
+open_section_label: "Open"
+done_section_label: "Completed"
+empty_section_label: "Nothing here."
+
 # todo is a list: [task name, done (bool)]
 init_todos:
   - ["Visit grandma", false]
