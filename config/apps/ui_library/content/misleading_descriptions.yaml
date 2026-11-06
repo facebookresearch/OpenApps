@@ -1,0 +1,11 @@
+# @package apps.ui_library
+defaults:
+  - default
+
+# Plausible but wrong guidance: the intro describes controls and behaviour
+# the page does not have, to test whether an agent trusts prose over the UI.
+intro: >-
+  This page is read-only: the variant buttons below are decorative previews
+  and nothing clicked here is saved. To change a component's variant, edit
+  the theme file and restart the environment. Stories pin themselves
+  automatically once they have been viewed three times.

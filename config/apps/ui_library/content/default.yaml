@@ -10,3 +10,32 @@ section_labels:
   atoms: Atoms
   molecules: Molecules
   brand: Brand
+
+# --- The app's own UI strings ------------------------------------------------
+# Flat `*_label` keys, the openbanking pattern: English here, overridden by
+# german.yaml / mandarin.yaml, read through open_apps.i18n.label. Component
+# names, variant names (the knob buttons) and the `Component(variant=...)`
+# snippets are identifiers and the state tasks score, so they are not labels.
+# "Return to List of Apps" is shared: open_apps.i18n.SHARED["return_to_apps"].
+active_theme_label: "Active theme: {name}"
+color_heading_label: "Color"
+typography_heading_label: "Typography"
+shape_heading_label: "Shape and spacing"
+pangram_label: "The quick brown fox jumps over the lazy dog"
+font_size_sample_label: "The quick brown fox"
+surface_specimen_label: "A panel with a token background and border."
+stack_one_label: "one"
+stack_two_label: "two"
+stack_three_label: "three"
+text_specimen_label: "The quick brown fox ({variant})"
+button_specimen_label: "{variant} action"
+icon_button_specimen_label: "{variant} icon button"
+divider_above_label: "above"
+divider_below_label: "below"
+no_specimen_label: "No specimen for {component}"
+show_variant_aria_label: "Show {component} {variant} variant"
+pin_label: "Pin"
+unpin_label: "Unpin"
+pin_aria_label: "Pin the {component} story"
+unpin_aria_label: "Unpin the {component} story"
+pinned_label: "pinned"
