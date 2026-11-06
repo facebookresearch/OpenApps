@@ -29,6 +29,17 @@ tokens:
   font-size-heading: "2rem"
   radius: "0px"                   # sharp corners: another cue removed
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. Greys only: mono carries no hue, so code is told apart by lightness alone.
+  color-syntax-keyword: "#000000"
+  color-syntax-control: "#000000"
+  color-syntax-string: "#4d4d4d"
+  color-syntax-number: "#333333"
+  color-syntax-comment: "#767676"
+  color-syntax-function: "#1a1a1a"
+  color-syntax-type: "#1a1a1a"
+  color-syntax-property: "#3d3d3d"
+  color-syntax-constant: "#000000"
+  color-syntax-tag: "#000000"
 assets:
   tone: mono
   icon_set: bw

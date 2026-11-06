@@ -1,0 +1,120 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Producer (OpenApps) /Title <FEFF00420055005300200043004F004D0050004C004500540045002000430048004B00200028002E002E002E00350035003500350029002000730074006100740065006D0065006E0074> >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 4732 >>
+stream
+q 0.93 0.94 0.96 rg 0 696 612 96 re f Q
+q 0.16 0.33 0.55 rg BT /F2 17 Tf 54 748 Td (OpenBanking) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 9 Tf 54 730 Td (BUS COMPLETE CHK \(...5555\)) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 9 Tf 483.46 748 Td (Account statement) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 9 Tf 450.93 735 Td (Jun 1, 2026 - Jun 30, 2026) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 54 663 Td (Account holder) Tj ET Q
+q 0.12 0.13 0.15 rg BT /F1 10 Tf 54 650 Td (Acme Industries, Inc) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 222 663 Td (Statement period) Tj ET Q
+q 0.12 0.13 0.15 rg BT /F1 10 Tf 222 650 Td (Jun 1, 2026 - Jun 30, 2026) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 390 663 Td (Opening balance) Tj ET Q
+q 0.12 0.13 0.15 rg BT /F1 10 Tf 390 650 Td ($3,840.12) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 54 633 Td (Deposits and credits) Tj ET Q
+q 0.12 0.13 0.15 rg BT /F1 10 Tf 54 620 Td ($10,550.00) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 222 633 Td (Withdrawals and debits) Tj ET Q
+q 0.12 0.13 0.15 rg BT /F1 10 Tf 222 620 Td (-$11,713.16) Tj ET Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 390 633 Td (Closing balance) Tj ET Q
+q 0.12 0.13 0.15 rg BT /F1 10 Tf 390 620 Td ($2,676.96) Tj ET Q
+q 0.16 0.33 0.55 rg BT /F2 9 Tf 54 589 Td (TRANSACTIONS) Tj ET Q
+q 0.16 0.33 0.55 RG 0.75 w 54 584 m 558 584 l S Q
+q 0 0 0 rg BT /F2 9 Tf 58 562.3 Td (Date) Tj ET Q
+q 0 0 0 rg BT /F2 9 Tf 121 562.3 Td (Description) Tj ET Q
+q 0 0 0 rg BT /F2 9 Tf 433.38 562.3 Td (Amount) Tj ET Q
+q 0 0 0 rg BT /F2 9 Tf 519.49 562.3 Td (Balance) Tj ET Q
+q 0.6 0.6 0.6 RG 0.75 w 54 556.9 m 558 556.9 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 545.2 Td (Jun 01) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 545.2 Td (TRANSFER TO SAV ...8891) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 424.35 545.2 Td (-$2,500.00) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 545.2 Td ($1,340.12) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 539.8 m 558 539.8 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 528.1 Td (Jun 02) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 528.1 Td (ACH CREDIT HARBOR LOGISTICS INV 1041) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 427.34 528.1 Td ($6,200.00) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 528.1 Td ($7,540.12) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 522.7 m 558 522.7 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 511 Td (Jun 05) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 511 Td (PAYROLL ADP ACME INDUSTRIES) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 424.35 511 Td (-$4,380.55) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 511 Td ($3,159.57) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 505.6 m 558 505.6 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 493.9 Td (Jun 09) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 493.9 Td (PRINT SHOP 44 PRINTSHOP44.COM TX) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 431.85 493.9 Td (-$128.40) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 493.9 Td ($3,031.17) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 488.5 m 558 488.5 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 476.8 Td (Jun 12) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 476.8 Td (ACH CREDIT BAYVIEW MARINE INV 1046) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 427.34 476.8 Td ($3,150.00) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 476.8 Td ($6,181.17) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 471.4 m 558 471.4 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 459.7 Td (Jun 18) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 459.7 Td (TRANSFER FROM SAV ...8891) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 427.34 459.7 Td ($1,200.00) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 459.7 Td ($7,381.17) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 454.3 m 558 454.3 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 442.6 Td (Jun 19) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 442.6 Td (PAYROLL ADP ACME INDUSTRIES) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 424.35 442.6 Td (-$4,380.55) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 442.6 Td ($3,000.62) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 437.2 m 558 437.2 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 425.5 Td (Jun 23) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 425.5 Td (CENTRAL MAINE POWER AUTOPAY) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 431.85 425.5 Td (-$212.66) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 425.5 Td ($2,787.96) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 420.1 m 558 420.1 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 408.4 Td (Jun 26) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 408.4 Td (CLOUD HOST LLC CLOUDHOST.IO WA) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 436.86 408.4 Td (-$96.00) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 408.4 Td ($2,691.96) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 403 m 558 403 l S Q
+q 0 0 0 rg BT /F1 9 Tf 58 391.3 Td (Jun 30) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 121 391.3 Td (MONTHLY SERVICE FEE) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 436.86 391.3 Td (-$15.00) Tj ET Q
+q 0 0 0 rg BT /F1 9 Tf 513.97 391.3 Td ($2,676.96) Tj ET Q
+q 0.85 0.85 0.85 RG 0.25 w 54 385.9 m 558 385.9 l S Q
+q 0.6 0.6 0.6 RG 0.25 w 54 44 m 558 44 l S Q
+q 0.42 0.44 0.48 rg BT /F1 7.5 Tf 54 30 Td (OpenBanking ∑ Member FDIC ∑ Questions about this statement? Call 1-800-555-5555.) Tj ET Q
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000321 00000 n 
+0000000418 00000 n 
+0000000520 00000 n 
+0000000615 00000 n 
+0000000761 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 3 0 R >>
+startxref
+5545
+%%EOF

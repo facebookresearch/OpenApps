@@ -31,7 +31,13 @@ LIBRARY = sorted(p.stem for p in EVENTS_DIR.glob("*.yaml") if p.stem != "default
 
 
 def _send(client, to: str, text: str) -> None:
-    response = client.post("/messages/send", data={"msg": text, "interlocutor": to})
+    """Send ``text`` to ``to`` -- a name, as the cases read -- in the thread
+    the messenger keeps for them (threads are keyed by handle)."""
+    from open_apps.apps.messenger_app.main import thread_key_for
+
+    response = client.post(
+        "/messages/send", data={"msg": text, "interlocutor": thread_key_for(to)}
+    )
     assert response.status_code == 200, response.text
 
 

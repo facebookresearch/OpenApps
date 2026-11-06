@@ -78,6 +78,10 @@ STATE_ENDPOINTS: tuple[tuple[str, str], ...] = (
     ("codeeditor", "/codeeditor_all"),
     ("ui_library", "/uilibrary_all"),
     ("openbanking", "/openbanking_all"),
+    ("files", "/files_all"),
+    # Message recipients are resolved through this slice, so it has to be
+    # captured with the rest.
+    ("contacts", "/contacts_all"),
     ("online_shop", "/onlineshop_all"),
 )
 
@@ -97,19 +101,24 @@ def get_current_state(url: str, failed_apps: list[str] | None = None) -> dict:
 
     Returns:
         Dict keyed by app name (todo, calendar, map, messenger,
-        codeeditor, ui_library, openbanking, online_shop) whose values are the
+        codeeditor, ui_library, openbanking, files, contacts, online_shop) whose values are the
         JSON the corresponding ``/<app>_all`` endpoints return.
     """
     state: dict = {}
     for key, endpoint in STATE_ENDPOINTS:
         try:
-            value, ok = _get_json(url + endpoint)
+            if failed_apps is None:
+                # The path every caller took before failed_apps existed --
+                # and the one tests patch to route probes through a client.
+                value, ok = safe_get_json(url + endpoint), True
+            else:
+                value, ok = _get_json(url + endpoint)
         except Exception:  # noqa: BLE001 -- e.g. a body that is not JSON
             if key != "online_shop":
                 raise
             # The shop's probe has always been allowed to fail open.
             value, ok = [], False
-        if key == "openbanking":
+        if key in ("openbanking", "files", "contacts"):
             value = value or {}
         state[key] = value
         if not ok and failed_apps is not None:

@@ -142,21 +142,32 @@
   //
   // Toggles `hidden`, so a closed panel is absent from the accessibility tree
   // and an agent sees one "All apps" button rather than every app twice.
-  function initLauncher(button, panel) {
-    const setOpen = (open) => {
+  //
+  // Delegated, and the button and panel are looked up per event rather than
+  // captured at load: the desktop's pin toggle swaps a fresh #oa-dock in over
+  // htmx, and a listener bound to the old button would leave the new one dead.
+  function initLauncher() {
+    const parts = () => [
+      document.getElementById("oa-dock-launcher-btn"),
+      document.getElementById("oa-dock-panel"),
+    ];
+    const setOpen = (button, panel, open) => {
       panel.hidden = !open;
       button.setAttribute("aria-expanded", String(open));
     };
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      setOpen(panel.hidden);
-    });
     document.addEventListener("click", (event) => {
-      if (!panel.hidden && !panel.contains(event.target)) setOpen(false);
+      const [button, panel] = parts();
+      if (!button || !panel) return;
+      if (button.contains(event.target)) {
+        setOpen(button, panel, panel.hidden);
+      } else if (!panel.hidden && !panel.contains(event.target)) {
+        setOpen(button, panel, false);
+      }
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !panel.hidden) {
-        setOpen(false);
+      const [button, panel] = parts();
+      if (event.key === "Escape" && button && panel && !panel.hidden) {
+        setOpen(button, panel, false);
         button.focus();
       }
     });
@@ -166,15 +177,15 @@
   //
   // Alt+N opens the dock item advertising it in aria-keyshortcuts. Matched on
   // event.code, not event.key: on a Mac, Alt+1 produces "¡" as the key.
-  function initShortcuts(dock) {
-    const targets = new Map();
-    for (const el of dock.querySelectorAll("[aria-keyshortcuts]")) {
-      targets.set(el.getAttribute("aria-keyshortcuts"), el);
-    }
+  // Resolved against the live dock at keypress time, not a map built at load:
+  // pinning renumbers the items, and a stale map would open the wrong app.
+  function initShortcuts() {
     document.addEventListener("keydown", (event) => {
       if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const dock = document.getElementById("oa-dock");
+      if (!dock || dock.dataset.shortcuts !== "true") return;
       const match = /^Digit(\d)$/.exec(event.code);
-      const el = match && targets.get(`Alt+${match[1]}`);
+      const el = match && dock.querySelector(`[aria-keyshortcuts="Alt+${match[1]}"]`);
       if (!el) return;
       event.preventDefault();
       window.location.assign(el.href);
@@ -184,10 +195,9 @@
   const cursor = document.getElementById("oa-cursor");
   if (cursor) initCursor(cursor);
 
-  const launcherButton = document.getElementById("oa-dock-launcher-btn");
-  const launcherPanel = document.getElementById("oa-dock-panel");
-  if (launcherButton && launcherPanel) initLauncher(launcherButton, launcherPanel);
-
-  const dock = document.getElementById("oa-dock");
-  if (dock && dock.dataset.shortcuts === "true") initShortcuts(dock);
+  // Both are delegated and look the dock up per event, so they are bound
+  // unconditionally: a page can gain a dock later, and swapping one in must
+  // not need re-binding.
+  initLauncher();
+  initShortcuts();
 })();

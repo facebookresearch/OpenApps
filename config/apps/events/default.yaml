@@ -12,7 +12,8 @@
 #   trigger:   {after_step: N} | {after_step: [lo, hi]} (drawn from `seed`)
 #              | {on_url_prefix: /path} | {after_seconds: S}
 #   channel:   messenger (a real message in OpenMessages + a toast) | system (toast only)
-#   sender:    the messenger contact it comes from (created if new)
+#   sender:    who it comes from: a handle, a contact's name, or any other name
+#              (a thread is opened under it if new)
 #   body:      the message text
 #   toast:     {title, link}; messenger defaults to "New message · <sender>" and
 #              the conversation's URL

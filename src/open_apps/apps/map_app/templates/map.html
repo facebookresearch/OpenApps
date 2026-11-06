@@ -888,20 +888,16 @@
                 attribution: '© Esri'
             }),
             
-            // Dark Theme
-            'CartoDB Dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors, © CartoDB'
+            // Greyscale canvases -- what the `dark` and `mono` themes select
+            // (see `layer_by_tone` in config/apps/maps/default.yaml), so the
+            // map carries the theme's tone and no hue of its own.
+            'ESRI Dark Gray': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 16,
+                attribution: '© Esri'
             }),
-            'CartoDB Voyager': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors, © CartoDB'
-            }),
-            // Greyscale basemap -- what the `mono` theme selects, so the map
-            // carries no hue either.
-            'CartoDB Positron': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors, © CartoDB'
+            'ESRI Light Gray': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 16,
+                attribution: '© Esri'
             }),
 
             'OpenStreetMap Transport': L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png', {

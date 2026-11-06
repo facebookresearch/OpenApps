@@ -220,3 +220,7 @@ src/open_apps/apps/onlineshop_app/java/
 # leaderboard/submissions under main's scorer, not a file a PR can edit.
 docs/assets/leaderboard/leaderboard.json
 leaderboard/leaderboard.json
+
+# Local outputs of open_apps.alignment.aggregate and open_apps.leaderboard.preview
+alignment_aggregate.json
+leaderboard_preview.html
