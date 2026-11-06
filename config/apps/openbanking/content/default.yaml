@@ -27,6 +27,12 @@ account_number_label: "Account number"
 routing_number_label: "Routing number"
 show_number_label: "Show full number"
 hide_number_label: "Hide number"
+# The Copy button beside each number, and on the card face. It copies the full
+# number whether or not it is revealed; the caption flips to `copied_label`
+# (or `copy_failed_label`) for a moment after a click.
+copy_label: "Copy"
+copied_label: "Copied"
+copy_failed_label: "Couldn't copy"
 
 # --- Credit card summary ----------------------------------------------------
 # A card account renders a different summary from a deposit account: the number
@@ -50,6 +56,17 @@ credit_limit_label: "Credit limit"
 
 # --- Transactions panel -----------------------------------------------------
 transactions_heading: "Transactions"
+# Monthly statements, linked beside the Transactions heading. The statement
+# PDFs and their file names stay English in every pack: tasks address the
+# saved file by name.
+statements_label: "Statements"
+statements_heading: "Statements"
+view_label: "View"
+download_label: "Download"
+saved_to_files_label: "Saved to Files"
+already_in_files_label: "Already in Files"
+open_in_files_label: "Open in Files"
+no_statements_label: "No statements yet."
 showing_label: "Showing"
 # The first entry is the unfiltered default. `filter_*` keys below map the
 # remaining entries onto the predicate the app applies, so a translated

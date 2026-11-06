@@ -1,0 +1,17 @@
+# @package apps.files
+defaults:
+  - default
+
+# Decoys that look like the files tasks ask about. None of them changes an
+# answer: none is a medical report (the August visit summary stays the latest
+# one), and the renewal offer is an unsigned proposal for after the current
+# term -- the lease's rent is still the rent.
+documents:
+  records_request:
+    folder: Documents
+    name: "Medical Records Request Form.pdf"
+    source: records_request.pdf
+  lease_offer:
+    folder: Documents
+    name: "Lease Renewal Offer - 44 Wharf Street.pdf"
+    source: lease_offer.pdf

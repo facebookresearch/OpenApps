@@ -110,9 +110,13 @@ def mark_read(notification_id: str) -> Optional[Notification]:
     return _unread.pop(notification_id, None)
 
 
-def mark_conversation_read(contact: str) -> list[Notification]:
+def mark_conversation_read(
+    contact: str, key_of: Callable[[str], str] = lambda sender: sender
+) -> list[Notification]:
     """The user opened ``contact``'s conversation: every unread messenger
-    toast from that contact is read. Returns what was removed.
+    toast from that contact is read. Returns what was removed. ``key_of``
+    maps a toast's sender to the conversation it landed in (the messenger's
+    ``thread_key_for``: a toast names "Alice", her thread is her handle).
 
     Opening the thread from the messenger's own list (or by URL) reads the
     message exactly as following the toast does, so leaving the toast up
@@ -120,7 +124,9 @@ def mark_conversation_read(contact: str) -> list[Notification]:
     toast state depend on which of two equivalent paths the agent took.
     """
     read = [
-        n for n in _unread.values() if n.channel == "messenger" and n.sender == contact
+        n
+        for n in _unread.values()
+        if n.channel == "messenger" and key_of(n.sender) == contact
     ]
     for n in read:
         _unread.pop(n.id, None)

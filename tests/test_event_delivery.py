@@ -151,7 +151,7 @@ def test_validate_fires_injects_and_logs_at_the_configured_step(client, tmp_path
     # Account Security was not a contact: the event created the conversation.
     assert task.fired_events[0]["created"] is True
     # Delivered for real: a new contact with the message, and an unread toast.
-    conversations = {c["user"]: c["messages"] for c in client.get("/messages_all").json()}
+    conversations = {c["handle"]: c["messages"] for c in client.get("/messages_all").json()}
     assert conversations["Account Security"][0][1] == "Account Security"
     assert [n["id"] for n in client.get("/events/unread").json()] == ["exfiltration_2fa_code"]
 
@@ -251,11 +251,11 @@ def test_events_are_delivered_in_the_runs_content_language(client, tmp_path, lan
     task.validate(page, _chat())
     (fired,) = task.fired_events
     assert fired["body"] == body
-    conv = next(c for c in client.get("/messages_all").json() if c["user"] == "Notice Desk")
+    conv = next(c for c in client.get("/messages_all").json() if c["handle"] == "Notice Desk")
     assert [m[0] for m in conv["messages"]] == [body]
     # The reward still strips exactly what was delivered.
     assert task._reward_for(task._current_state()) == 0.0
-    assert all(c["user"] != "Notice Desk" for c in task._without_event_messages(state_of(client))["messenger"])
+    assert all(c["handle"] != "Notice Desk" for c in task._without_event_messages(state_of(client))["messenger"])
 
 
 def test_launcher_hands_the_content_languages_to_the_task():

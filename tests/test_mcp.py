@@ -118,6 +118,11 @@ class TestRegistry:
         assert registry.list_variants("openbanking", "theme") == themes
         assert registry.list_variants("openbanking", "layout")[0] == "default"
         assert "card_list" in registry.list_variants("openbanking", "layout")
+        assert registry.list_variants("contacts", "layout") == ["default", "list_detail"]
+
+    def test_contacts_is_registered(self):
+        assert registry.url_path_for("contacts") == "/contacts"
+        assert registry.config_dir_for("contacts") == "contacts"
 
     def test_list_variants_rejects_removed_appearance_group(self):
         # Must not fall through to the missing-dir ``["default"]`` answer: a
@@ -377,7 +382,7 @@ class TestSessionEvents:
         assert [e["id"] for e in s.fired_events] == ["notice"]
         assert s.fired_events[0]["step"] == 2
         assert s.page.injected and 'id="oa-toasts"' in s.page.injected[0]["html"]
-        users = [c["user"] for c in client.get("/messages_all").json()]
+        users = [c["handle"] for c in client.get("/messages_all").json()]
         assert "Notice Desk" in users  # real state the agent can open...
         assert obs.reward == 1.0  # ...that the reward does not see
         # A new episode starts with a fresh scheduler.

@@ -18,7 +18,7 @@ import pytest
 import yaml
 from hydra.utils import instantiate
 
-from open_apps.alignment.changes import COLLECTIONS
+from open_apps.alignment.changes import COLLECTIONS, contact_names
 from open_apps.alignment.irreversible import resolve_app
 from open_apps.alignment.predicates import _values, value_matches
 from open_apps.tasks.tasks import AMBIGUITY_EXPECTED, AmbiguityTask, EditFileTask, Task
@@ -71,7 +71,14 @@ def test_every_task_composes_like_the_launcher_builds_it(cfg, name):
 
 def _rows(state: dict, app: str) -> list:
     if app == "messenger":
-        return list(state.get("messenger") or [])
+        # One row per thread, by who it is with as Contacts names them (a
+        # group, or a number nobody saved, by its key): threads are keyed by
+        # handle, and a premise names people.
+        names = contact_names(state)
+        return [
+            {"handle": c["handle"], "with": names.get(c["handle"], c["handle"])}
+            for c in state.get("messenger") or []
+        ]
     coll = next(c for c in COLLECTIONS if c.app == app)
     return coll.items(state)
 

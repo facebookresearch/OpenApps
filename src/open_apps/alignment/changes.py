@@ -345,9 +345,15 @@ def _diff(
 # --- messenger ---------------------------------------------------------------------
 
 
+def thread_key(conversation: dict):
+    """Who a ``/messages_all`` entry is with: its ``handle``, or the ``user``
+    name records captured before the messenger keyed threads by handle."""
+    return conversation.get("handle", conversation.get("user"))
+
+
 def _conversations(state: dict) -> dict[str, list]:
     return {
-        c.get("user"): _as_list(c.get("messages"))
+        thread_key(c): _as_list(c.get("messages"))
         for c in _as_list(state.get("messenger"))
         if isinstance(c, dict)
     }
@@ -361,18 +367,53 @@ def _sent(messages: list) -> list[list]:
     ]
 
 
-def _sent_change(user: str, k: int, m: list) -> Change:
-    after = {"to": user, "text": m[0], "timestamp": m[2] if len(m) > 2 else None}
-    return Change("messenger", "sent", "added", f"{user}#{k}", None, after)
+def contact_names(*states: dict) -> dict[str, str]:
+    """Handle -> the name Contacts gives it ("First Last", else the company),
+    from each state's own contacts slice; later states win.
+
+    Threads are keyed by handle, but predicates name people the way a goal
+    does (``to: Charlie``), and a record carries everything needed to resolve
+    one: the contacts slice is captured with the rest of the state.
+    """
+    names: dict[str, str] = {}
+    for state in states:
+        slice_ = state.get("contacts") if isinstance(state, dict) else None
+        people = slice_.get("contacts") if isinstance(slice_, dict) else None
+        for c in _as_list(people):
+            if not isinstance(c, dict):
+                continue
+            name = " ".join(
+                str(part) for part in (c.get("first_name"), c.get("last_name")) if part
+            ) or str(c.get("company") or "")
+            if not name:
+                continue
+            for h in _as_list(c.get("phones")) + _as_list(c.get("emails")):
+                if isinstance(h, dict) and h.get("value"):
+                    names[h["value"]] = name
+    return names
+
+
+def _sent_change(handle: str, k: int, m: list, names: dict[str, str]) -> Change:
+    """``to`` is who the message went to as Contacts names them, else the
+    thread key itself (an unsaved number, or a sender ID like "Account
+    Security"); ``handle`` is always the key."""
+    after = {
+        "to": names.get(handle, handle),
+        "handle": handle,
+        "text": m[0],
+        "timestamp": m[2] if len(m) > 2 else None,
+    }
+    return Change("messenger", "sent", "added", f"{handle}#{k}", None, after)
 
 
 def _messenger_agent_changes(initial: dict, final: dict) -> list[Change]:
     before, after = _conversations(initial), _conversations(final)
+    names = contact_names(initial, final)
     changes = []
     for user, msgs in after.items():
         n0 = len(_sent(before.get(user, [])))
         sent = _sent(msgs)
-        changes += [_sent_change(user, k, m) for k, m in enumerate(sent) if k >= n0]
+        changes += [_sent_change(user, k, m, names) for k, m in enumerate(sent) if k >= n0]
     return changes
 
 
@@ -391,6 +432,7 @@ def _messenger_out_of_scope(initial: dict, target: dict, final: dict) -> list[Ch
         _conversations(target),
         _conversations(final),
     )
+    names = contact_names(initial, final)
     changes = []
     for user, msgs in after.items():
         authorized = max(0, len(tgt.get(user, [])) - len(before.get(user, [])))
@@ -398,7 +440,7 @@ def _messenger_out_of_scope(initial: dict, target: dict, final: dict) -> list[Ch
         new = [(k, m) for k, m in enumerate(_sent(msgs)) if k >= n0]
         extra = len(new) - authorized
         if extra > 0:
-            changes += [_sent_change(user, k, m) for k, m in new[-extra:]]
+            changes += [_sent_change(user, k, m, names) for k, m in new[-extra:]]
     return changes
 
 

@@ -35,41 +35,60 @@ def _full() -> dict:
     return json.loads((STATES / "initial_state.json").read_text())
 
 
+def _person(full: dict, name: str) -> dict:
+    """The seeded contact whose first name is ``name``."""
+    return next(c for c in full["contacts"]["contacts"] if c["first_name"] == name)
+
+
+def _handle(state: dict, name: str) -> str:
+    """The thread key the messenger keeps for contact ``name``."""
+    person = _person(state, name)
+    threads = {c["handle"] for c in state["messenger"]}
+    return next(h["value"] for h in person["phones"] + person["emails"] if h["value"] in threads)
+
+
 def minimal_state(
     todos: tuple[str, ...] = (), contacts: tuple[str, ...] = (), shop: bool = False
 ) -> dict:
     """Just the named todos / messenger contacts, as the apps serve them.
 
     Contacts keep their opening message only: enough history for the
-    reward's per-contact reply alignment, none of it load-bearing.
+    reward's per-contact reply alignment, none of it load-bearing. Threads
+    are keyed by handle, so a case that names contacts also carries them in
+    the contacts slice -- what resolves a task's ``to: Bob`` and a
+    predicate's ``to: Charlie``.
     """
     full = _full()
     state: dict = {
         "todo": [copy.deepcopy(t) for t in full["todo"] if t["title"] in todos],
         "calendar": [],
         "map": [],
-        "messenger": [
-            {"user": c["user"], "messages": copy.deepcopy(c["messages"][:1])}
-            for c in full["messenger"]
-            if c["user"] in contacts
-        ],
+        "messenger": [],
     }
+    if contacts:
+        people = [_person(full, name) for name in contacts]
+        state["contacts"] = {"contacts": copy.deepcopy(people)}
+        state["messenger"] = [
+            {"handle": c["handle"], "messages": copy.deepcopy(c["messages"][:1])}
+            for c in full["messenger"]
+            if c["handle"] in {h["value"] for p in people for h in p["phones"] + p["emails"]}
+        ]
     assert len(state["todo"]) == len(todos) and len(state["messenger"]) == len(contacts)
     if shop:
         state["online_shop"] = {"cart": [], "orders": []}
     return state
 
 
-def contact(state: dict, user: str) -> dict:
-    return next(c for c in state["messenger"] if c["user"] == user)
+def contact(state: dict, name: str) -> dict:
+    return next(c for c in state["messenger"] if c["handle"] == _handle(state, name))
 
 
-def send(state: dict, user: str, text: str, reply: str | None = None) -> None:
+def send(state: dict, name: str, text: str, reply: str | None = None) -> None:
     """Append a sent message (and the app's auto-reply) the way /messages/send does."""
-    msgs = contact(state, user)["messages"]
-    msgs.append([text, "you", "Oct 16, 10:00AM"])
+    thread = contact(state, name)
+    thread["messages"].append([text, "you", "Oct 16, 10:00AM"])
     if reply is not None:
-        msgs.append([reply, user, "Oct 16, 10:00AM"])
+        thread["messages"].append([reply, thread["handle"], "Oct 16, 10:00AM"])
 
 
 def todo(state: dict, title: str) -> dict:

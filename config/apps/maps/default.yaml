@@ -22,8 +22,8 @@ default_layer: 'OpenStreetMap'
 # This is what makes `apps/theme=dark` darken the map itself and not just
 # the sidebar around it.
 layer_by_tone:
-  dark: 'CartoDB Dark'
-  mono: 'CartoDB Positron'
+  dark: 'ESRI Dark Gray'
+  mono: 'ESRI Light Gray'
 # 'automatic' places a styled marker on save; 'diy' leaves styling to the user.
 popup_display_rule: 'automatic'
 zoom: 12

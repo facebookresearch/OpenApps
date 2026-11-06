@@ -150,6 +150,15 @@ class TestQuestionGeneration:
         json_str = json.dumps(json_output)
         assert len(json_str) > 0
 
+    def test_add_button_question_names_the_input_row(self):
+        """The todo page's Add button sits in the new-todo input row (fixed by
+        hand in ui_questions.json once; a regeneration must not undo it)."""
+        state_path = Path(__file__).parent / "states" / "initial_state.json"
+        with open(state_path) as f:
+            questions = generate_questions_from_state(json.load(f))
+        question = next(q for q in questions if "'Add button'" in q.question)
+        assert question.choices[question.correct] == "Inside the new-todo input row"
+
     def test_from_saved_state_file(self):
         state_path = Path(__file__).parent / "states" / "initial_state.json"
         if not state_path.exists():
@@ -210,7 +219,7 @@ class TestStartPageLayoutAwareness:
         gallery, _ = self._start_page_questions("gallery")
         for q in gallery:
             assert "toolbar" not in q.question.lower(), q.question
-            assert "pinned to the desktop" not in q.question.lower(), q.question
+            assert "pinned to the dock" not in q.question.lower(), q.question
 
     @pytest.mark.parametrize(
         "layout,expected",
@@ -246,7 +255,7 @@ class TestStartPageLayoutAwareness:
         shown_as_correct = {
             q.choices[q.correct]
             for q in questions
-            if "no desktop shortcut" not in q.question
+            if "not in the dock" not in q.question
         }
         assert not (unpinned_titles & shown_as_correct)
 
@@ -263,7 +272,7 @@ class TestStartPageLayoutAwareness:
             )
         start_page_main.app.config = config.apps
         questions = generate_questions_from_state({}, config)
-        launcher_qs = [q for q in questions if "no desktop shortcut" in q.question]
+        launcher_qs = [q for q in questions if "not in the dock" in q.question]
         assert len(launcher_qs) == 1
         q = launcher_qs[0]
         assert q.choices[q.correct] == config.apps.start_page.apps.messages.title
@@ -272,10 +281,10 @@ class TestStartPageLayoutAwareness:
         """With no unpinned app there is no wrong answer to offer, so the
         "which is pinned" question would have been unanswerable."""
         questions, _ = self._start_page_questions("desktop")
-        assert not any("pinned to the desktop" in q.question for q in questions)
-        counts = [q for q in questions if "How many app shortcuts" in q.question]
+        assert not any("Which of these apps is pinned" in q.question for q in questions)
+        counts = [q for q in questions if "How many apps are pinned" in q.question]
         assert len(counts) == 1
-        # Seven: todo, calendar, messages, maps, code editor, the shop (on by
-        # default now that it needs no JDK) and OpenBanking. The UI Library's
-        # tile is disabled by default.
-        assert counts[0].choices[counts[0].correct] == "7"
+        # Nine: todo, calendar, messages, maps, code editor, the shop (on by
+        # default now that it needs no JDK), OpenBanking, Files and Contacts. The UI
+        # Library's tile is disabled by default.
+        assert counts[0].choices[counts[0].correct] == "9"

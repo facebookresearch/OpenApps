@@ -4,10 +4,10 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 """
-"""Whether the online shop is served in this run -- the one place that decides.
+"""Which apps a run serves -- the one place that decides.
 
-The shop is the only app that can be absent. Two independent things switch it
-off:
+Files is the one app that can never be absent (``require_files``); the shop
+is the only one that can. Two independent things switch the shop off:
 
 * ``apps.onlineshop.enable=False`` -- hidden on purpose;
 * a ``content`` pack with no ``products`` (``apps/onlineshop/content=default``)
@@ -25,6 +25,25 @@ avoid.
 """
 
 from omegaconf import OmegaConf
+
+
+def require_files(apps_cfg) -> None:
+    """Refuse a config without the Files app.
+
+    Other apps depend on it: the bank saves statements into it, the shop saves
+    a receipt at every checkout, and the code editor's workspace *is* its
+    Code folder. A purchase task scores the receipt, so a run without Files
+    can't pass one however well the agent shops -- it would read as a model
+    failure. Checked before an agent run starts and again when the apps are
+    set up, so removing it (``~apps/files``) fails at once, with this reason.
+    """
+    if getattr(apps_cfg, "files", None) is None:
+        raise ValueError(
+            "This config has no Files app (`apps.files`), and every run needs "
+            "one: the bank saves statements into it, the shop saves receipts, "
+            "and the code editor works in its Code folder. Drop the override "
+            "that removed it (e.g. `~apps/files`)."
+        )
 
 
 def onlineshop_has_catalog(apps_cfg) -> bool:

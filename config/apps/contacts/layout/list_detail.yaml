@@ -1,0 +1,6 @@
+# @package apps.contacts
+# One pane at a time even on a desktop: the list, then a contact on its own
+# page with a back link -- the phone composition at desktop width. Same ids
+# and routes as `default`; what changes is how far an agent has to travel
+# between the list and a contact.
+layout: list_detail
