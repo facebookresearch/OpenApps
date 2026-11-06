@@ -28,7 +28,11 @@ theme: null
 theme_default: vscode_dark
 
 # The design themes offered by the in-editor selector. Each must exist as
-# config/apps/theme/<name>.yaml.
+# config/apps/theme/<name>.yaml (names without a file are dropped). Every
+# shared theme is listed, so whatever `apps/theme=` selected is also an
+# option the selector can show as current; tests/test_codeeditor_variations.py
+# checks this list against the theme directory. An empty list (`[]`) offers
+# every theme in that directory automatically.
 list_of_themes:
   - vscode_dark
   - default
@@ -36,6 +40,11 @@ list_of_themes:
   - solarized
   - material
   - mono
+  - bootstrap
+  - challenging_font
+  - colorblind
+  - meta
+  - meta_dark
 
 # Fallback arms only. Every rule that reads these is written as
 # `var(--token, <this value>)`, so they are what renders if a theme omits the

@@ -13,7 +13,9 @@ Shared tokens only (resolved per request by ``theme_style()``), scoped to
 from fasthtml.common import Style
 
 styles = Style("""
-    html, body { background-color: var(--color-bg); }
+    /* Page frame. Pico paints <html> itself, so without this the canvas
+       below short content stays white under a dark theme. */
+    html, body { background-color: var(--color-bg); color: var(--color-fg); }
     .fs-root {
         --pico-background-color: var(--color-bg);
         --pico-color: var(--color-fg);
@@ -36,6 +38,24 @@ styles = Style("""
         --pico-h1-color: var(--color-fg);
         --pico-h2-color: var(--color-fg);
         --pico-h3-color: var(--color-fg);
+        --pico-h4-color: var(--color-fg);
+        --pico-h5-color: var(--color-fg);
+        --pico-h6-color: var(--color-fg);
+        /* The rest of the bridge: Pico's own font stack, radius and the
+           fills it gives focused/selected fields, the dialog backdrop and
+           <code>, so neither the script face of `challenging_font` nor a
+           dark palette is undone by a Pico default. */
+        --pico-font-family: var(--font-family);
+        --pico-font-family-sans-serif: var(--font-family);
+        --pico-font-family-monospace: var(--font-mono);
+        --pico-border-radius: var(--radius);
+        --pico-form-element-selected-background-color: var(--color-bg);
+        --pico-form-element-active-background-color: var(--color-bg);
+        --pico-modal-overlay-background-color: color-mix(in srgb, var(--color-fg) 35%, transparent);
+        --pico-code-background-color: var(--color-surface);
+        --pico-code-color: var(--color-fg);
+        --pico-dropdown-background-color: var(--color-bg);
+        --pico-dropdown-color: var(--color-fg);
         font-family: var(--font-family);
         color: var(--color-fg);
         max-width: 1280px;
@@ -456,6 +476,48 @@ styles = Style("""
     }
     .fs-page .textLayer .markedContent { display: contents; }
     .fs-page .textLayer ::selection { background: color-mix(in srgb, var(--color-accent) 35%, transparent); }
+
+    /* folder_tabs layout: no side column. The folder list becomes a strip of
+       tabs across the top of the window, above the toolbar, the way a
+       browser or a tabbed file manager (Nautilus, Explorer's tabs) leads with
+       its places; content and preview share the full width below. The DOM is
+       unchanged -- the sidebar already comes first -- so the accessibility
+       tree reads in the order it is drawn, and every id and route is the
+       same as in the other layouts. */
+    .fs-root[data-layout="folder_tabs"]:not(.is-phone) .fs-window {
+        grid-template-columns: minmax(0, 1fr) 17.5rem;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        grid-template-areas: "side side" "bar bar" "main preview";
+    }
+    .fs-root[data-layout="folder_tabs"]:not(.is-phone) .fs-window.no-preview {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "side" "bar" "main";
+    }
+    .fs-root[data-layout="folder_tabs"] .fs-sidebar {
+        overflow-x: auto; overflow-y: visible;
+        padding: calc(var(--space) * 0.5) var(--space) 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+    .fs-root[data-layout="folder_tabs"] .fs-sidebar > ul {
+        flex-direction: row; align-items: flex-end; gap: calc(var(--space) * 0.25);
+    }
+    .fs-root[data-layout="folder_tabs"] .fs-sidebar > ul > li { flex: none; }
+    .fs-root[data-layout="folder_tabs"] .fs-side-link {
+        border-radius: var(--radius) var(--radius) 0 0;
+        border: 1px solid transparent; border-bottom: 0;
+        padding: calc(var(--space) * 0.6) calc(var(--space) * 1.25);
+        white-space: nowrap;
+    }
+    .fs-root[data-layout="folder_tabs"] .fs-side-link[aria-current="page"] {
+        background: var(--color-bg);
+        border-color: var(--color-border);
+        margin-bottom: -1px;
+    }
+    .fs-root[data-layout="folder_tabs"] .fs-side-count { margin-left: calc(var(--space) * 0.5); }
+    .fs-root[data-layout="folder_tabs"] .fs-side-rule {
+        width: 1px; height: 1.5rem; margin: 0 calc(var(--space) * 0.5) calc(var(--space) * 0.6);
+    }
 
     /* Phone: one pane, full-width rows. */
     .fs-root.is-phone { padding: var(--space) var(--space) calc(var(--space) + var(--oa-dock-space, 0px)); }
