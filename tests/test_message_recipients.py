@@ -183,6 +183,18 @@ class TestContactsInComparison:
 
         assert not _quiet(AppStateComparison(_state(ALICE), _state(ALICE, BOB)).compare)
 
+    def test_records_from_before_handles_still_compare(self):
+        """Episodes recorded before threads were keyed by handle name the
+        thread by ``user``; scoring them (leaderboard preview) must not
+        KeyError."""
+        from open_apps.tasks.tasks import AppStateComparison
+
+        old = _state(ALICE)
+        old["messenger"] = [
+            {"user": u, "messages": [["hi", u, "Jan 01, 10:00AM"]]} for u in ("Bob", "Alice")
+        ]
+        assert _quiet(AppStateComparison(old, json.loads(json.dumps(old))).compare)
+
 
 def _send_message_configs():
     """Every task in config/tasks that sends a message, top-level or inside a

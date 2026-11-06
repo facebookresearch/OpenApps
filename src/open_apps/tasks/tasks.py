@@ -604,7 +604,11 @@ class AppStateComparison:
         for app, field in app_and_field:
             state[app] = sorted(
                 state[app],
-                key=lambda p, f=field: StringSimilarityOperator.normalize_string(p[f]),
+                # Messenger records captured before threads were keyed by
+                # handle name the thread by `user` (alignment.changes.thread_key).
+                key=lambda p, f=field: StringSimilarityOperator.normalize_string(
+                    p[f] if f in p else p.get("user", "")
+                ),
             )
         return state
 
