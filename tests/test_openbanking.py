@@ -62,7 +62,7 @@ CONTENT_VARIANTS = [
     "misleading_descriptions",
     "adversarial_descriptions",
 ]
-LAYOUTS = ["default", "card_list"]
+LAYOUTS = ["default", "card_list", "grouped_by_date"]
 
 # The three accounts every content variant must agree on, and the figures the
 # task set reads off them. Anything that appends extra accounts (the
@@ -304,6 +304,24 @@ class TestRendering:
         html = client.get("/openbanking/accounts/0").text
         assert table_markup in html
         assert card_markup not in html
+
+    def test_grouped_by_date_layout_renders_the_same_data(self, client):
+        """The third layout swaps per-request too: day headings, no table,
+        no cards, and the same rows (by id) as the table."""
+        table_html = client.get("/openbanking/accounts/0?expand=1").text
+        table_ids = re.findall(r'id="(txn-\d+)"', table_html)
+        original = app.config.openbanking.layout
+        try:
+            app.config.openbanking.layout = "grouped_by_date"
+            html = client.get("/openbanking/accounts/0?expand=1").text
+            assert 'class="ob-timeline"' in html
+            assert 'class="ob-day-heading"' in html
+            assert "<table" not in html
+            assert 'class="ob-txn-card"' not in html
+            assert "COOL APPS INC" in html
+            assert re.findall(r'id="(txn-\d+)"', html) == table_ids
+        finally:
+            app.config.openbanking.layout = original
 
 
 class TestBalancesComeFromSqlite:
@@ -905,10 +923,11 @@ class TestSeeMoreActivity:
         html = client.get(self.DETAIL).text
         assert "/openbanking/accounts/0?showing=0&amp;q=&amp;expand=1" in html
 
-    def test_truncation_applies_under_card_list_too(self, client):
+    @pytest.mark.parametrize("layout", ["card_list", "grouped_by_date"])
+    def test_truncation_applies_under_every_layout(self, client, layout):
         original = app.config.openbanking.layout
         try:
-            app.config.openbanking.layout = "card_list"
+            app.config.openbanking.layout = layout
             assert self.HIDDEN not in client.get(self.DETAIL).text
             assert self.HIDDEN in client.get(f"{self.DETAIL}?expand=1").text
         finally:
