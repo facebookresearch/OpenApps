@@ -1,9 +1,89 @@
 # @package apps.maps
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# The pack's language. Read by open_apps.alignment.events.content_languages
+# (adversarial events speak it) and by the map page, which renders its UI in
+# it (the *_label keys below; see LABELS in map_app/main.py) and sets
+# <html lang="zh-Hans">.
 content_language: mandarin
 defaults:
   - default
+
+# --- UI labels ----------------------------------------------------------------
+# Saved place *names* are data, not UI: the five NYC landmarks from
+# default.yaml stay in English (tasks such as remove_times_square_from_favorites
+# address them by name); the cities appended below are named in Chinese.
+page_title_label: "世界地图"
+search_placeholder_label: "搜索地点……"
+current_location_label: "当前位置信息"
+current_location_empty_label: "点击地图上的任意位置，查看其地址和坐标。"
+route_planning_label: "路线规划"
+from_placeholder_label: "出发地"
+to_placeholder_label: "目的地"
+calculate_route_label: "计算路线"
+select_route_option_label: "选择路线方案："
+select_an_option_label: "选择一个方案"
+saved_locations_label: "已保存的地点"
+location_label: "地点："
+coordinates_label: "坐标："
+save_location_aria_label: "保存地点：{name}"
+marker_aria_label: "{name} 的标记"
+delete_place_aria_label: "删除 {name}"
+searching_label: "正在搜索……"
+no_results_label: "未找到结果。"
+search_failed_label: "搜索失败。"
+error_label: "错误："
+select_both_label: "请选择两个地点"
+no_route_legs_label: "未找到路线，或路线没有任何路段。"
+no_route_label: "未找到路线。"
+route_hint_label: "请检查地点，或尝试其他出行方式或时间。"
+route_failed_label: "无法获取或处理路线。详情请查看控制台。"
+route_details_label: "路线详情："
+departure_label: "出发："
+arrival_label: "到达："
+line_label: "线路："
+total_duration_label: "总时长："
+total_distance_label: "总距离："
+minutes_label: "分钟"
+option_label: "方案 {n}"
+details_unavailable_label: "详情不可用"
+customize_marker_label: "自定义标记"
+icon_label: "图标："
+color_label: "颜色："
+location_not_found_label: "未找到该地点"
+route_unsupported_label: "暂不支持路线规划，敬请期待！"
+marker_icon_labels:
+  map-marker: "默认标记"
+  utensils: "餐厅"
+  tree: "公园"
+  hospital: "医院"
+  graduation-cap: "学校"
+  shopping-cart: "商店"
+  coffee: "咖啡馆"
+  bed: "酒店"
+  dumbbell: "健身房"
+  book: "图书馆"
+  landmark: "博物馆"
+  plane: "机场"
+  train: "火车站"
+  bus: "汽车站"
+  ship: "港口"
+  parking: "停车场"
+  film: "剧院/电影院"
+  futbol: "体育场"
+  swimming-pool: "游泳池"
+  money-bill: "银行/自动取款机"
+  envelope: "邮局"
+  prescription-bottle-alt: "药店"
+marker_color_labels:
+  red: "红色"
+  blue: "蓝色"
+  green: "绿色"
+  orange: "橙色"
+  purple: "紫色"
+  darkred: "深红色"
+  darkblue: "深蓝色"
+  darkgreen: "深绿色"
+  darkpurple: "深紫色"
+  cadetblue: "军校蓝"
 
 init_location: [39.9042, 116.4074] 
 
