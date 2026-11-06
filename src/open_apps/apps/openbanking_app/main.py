@@ -37,7 +37,7 @@ import json
 import re
 from typing import List, Optional
 from urllib.parse import quote, urlencode
-from open_apps import files_store
+from open_apps import files_store, i18n
 from open_apps.apps.availability import require_files
 from open_apps.apps.openbanking_app import statements
 from open_apps.apps.start_page.helper import create_logo_header
@@ -103,6 +103,22 @@ logo_title_container = None
 accounts = None
 transactions = None
 
+
+def language() -> str:
+    """The content pack's language (``content_language``); English if unset."""
+    config = getattr(app, "config", None)
+    return i18n.language_of(getattr(config, "openbanking", None) if config is not None else None)
+
+
+def _set_html_lang(req):
+    """Beforeware: ``<html lang>`` on every full page this app serves (htmx
+    partials carry no ``<html>``, so the attribute is simply unused there)."""
+    if isinstance(getattr(req, "htmlkw", None), dict):
+        req.htmlkw["lang"] = i18n.html_lang(language())
+
+
+app.before.append(_set_html_lang)
+
 # Static, theme-agnostic component styles. All colors/fonts are design tokens
 # resolved per-request via `theme_style()`, so this block never needs rebuilding
 # when the theme or app config changes.
@@ -111,6 +127,10 @@ transactions = None
 # no app-specific ones -- so the bank restyles with every other app under any
 # global theme.
 styles = Style("""
+    /* Pico paints <html> from its light palette (data-theme sits on the
+       wrapper, not the root), which left a white canvas under short pages
+       in a dark theme. */
+    html { background-color: var(--color-bg); }
     body {
         font-family: var(--font-family);
         font-size: var(--font-size-base);
@@ -322,6 +342,38 @@ styles = Style("""
         color: var(--color-muted);
         font-size: 0.9rem;
     }
+
+    /* --- grouped_by_date layout ---------------------------------------- */
+    /* A day heading over that day's postings; the row itself has no date. */
+    .ob-timeline { display: flex; flex-direction: column; gap: 1.25rem; }
+    /* Pico spaces every <section>; the timeline gap does that here. */
+    .ob-day { margin: 0; }
+    .ob-day-heading {
+        margin: 0 0 0.25rem 0;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid var(--color-border);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+    }
+    .ob-day-list { margin: 0; padding: 0; }
+    .ob-day-list > li { list-style: none; margin: 0; }
+    .ob-day-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1.5rem;
+        padding: 0.65rem 0;
+        border-bottom: 1px dashed var(--color-border);
+    }
+    .ob-day-row:last-child { border-bottom: none; }
+    .ob-day-main { min-width: 0; overflow-wrap: anywhere; }
+    .ob-day-type { color: var(--color-muted); font-size: var(--font-size-sm); margin-top: 0.15rem; }
+    .ob-day-figures { flex: none; text-align: right; }
+    .ob-day-balance { color: var(--color-muted); font-size: var(--font-size-sm); font-weight: 400; }
+    .ob-day-row.ob-pending .ob-day-desc { color: var(--color-muted); }
 
     /* --- Credit card summary ------------------------------------------- */
     /* The card face reuses the masthead tokens rather than introducing a
@@ -1312,6 +1364,59 @@ def txn_cards(txns: List[Transaction]):
     return Div(*cards)
 
 
+def txn_timeline(txns: List[Transaction]):
+    """The ``grouped_by_date`` layout: one headed group per posting day.
+
+    The day is a heading rather than a column, so a row carries no date of its
+    own -- the reader has to look up to the group it sits in -- and pending
+    rows gather under ``pending_label`` at the top. Days come in ledger order
+    (newest first); rows of a day stay adjacent because the ledger is sorted.
+    Each row keeps the ``txn-<id>`` id the other layouts use.
+    """
+    c = cfg()
+    labels = c.column_labels
+    groups: list = []
+    for txn in txns:
+        if groups and groups[-1][0] == txn.date:
+            groups[-1][1].append(txn)
+        else:
+            groups.append((txn.date, [txn]))
+    days = []
+    for n, (day, rows) in enumerate(groups):
+        heading_id = f"ob-day-{n}"
+        items = []
+        for txn in rows:
+            amount_cls = "ob-debit" if txn.amount < 0 else "ob-credit"
+            items.append(
+                Li(
+                    Div(
+                        Div(txn.description, cls="ob-day-desc"),
+                        Div(txn.type, cls="ob-day-type"),
+                        cls="ob-day-main",
+                    ),
+                    Div(
+                        Div(fmt_money(txn.amount), cls=f"ob-num {amount_cls}"),
+                        Div(
+                            f"{labels.balance}: {fmt_money(txn.balance)}",
+                            cls="ob-num ob-day-balance",
+                        ),
+                        cls="ob-day-figures",
+                    ),
+                    cls="ob-day-row ob-pending" if txn.date is None else "ob-day-row",
+                    id=f"txn-{txn.id}",
+                )
+            )
+        days.append(
+            Section(
+                H3(day if day else c.pending_label, id=heading_id, cls="ob-day-heading"),
+                Ul(*items, cls="ob-day-list"),
+                aria_labelledby=heading_id,
+                cls="ob-day",
+            )
+        )
+    return Div(*days, cls="ob-timeline")
+
+
 def see_more_toggle(account: Account, showing_index: int, query: str, expanded: bool):
     """The "See more activity" / "See less" control under a truncated ledger.
 
@@ -1359,10 +1464,13 @@ def ledger(account: Account, showing_index: int, query: str, expanded: bool = Fa
     truncatable = 0 < limit < len(matches)
     txns = matches if expanded or not truncatable else matches[:limit]
 
+    layout = current_layout()
     if not txns:
         body = Div(c.no_results_label, cls="ob-empty")
-    elif current_layout() == "card_list":
+    elif layout == "card_list":
         body = txn_cards(txns)
+    elif layout == "grouped_by_date":
+        body = txn_timeline(txns)
     else:
         body = txn_table(txns)
     return Div(
@@ -1498,7 +1606,7 @@ def openbanking_index():
             if rows
             else Div(c.no_results_label, cls="ob-empty"),
             A(
-                "Return to List of Apps",
+                i18n.t("return_to_apps", language()),
                 href="/",
                 role="button",
                 cls="contrast",
@@ -1527,7 +1635,7 @@ def openbanking_account_detail(
         Div(
             A(cfg().back_to_accounts_label, href="/openbanking"),
             " · ",
-            A("Return to List of Apps", href="/"),
+            A(i18n.t("return_to_apps", language()), href="/"),
             cls="ob-page",
         ),
     )
@@ -1733,12 +1841,17 @@ def statement_toast(path: str = "", created: bool = True):
 def statement_row(account: Account, month: tuple):
     key = statements.month_key(month)
     base = f"/openbanking/accounts/{account.id}/statements/{key}"
-    label = statements.month_label(month)
+    # Shown in the pack's language; the file it downloads keeps its English
+    # name (tasks address it by that), see `statements`.
+    label = statements.month_label(month, language())
     return Div(
         Span(icon(Icon.FILE, size=18), cls="ob-statement-icon"),
         Div(
             Div(label, cls="ob-statement-month"),
-            Div(statements.period_label(month, as_of_date()), cls="ob-statement-period"),
+            Div(
+                statements.period_label(month, as_of_date(), language()),
+                cls="ob-statement-period",
+            ),
         ),
         Div(
             A(
@@ -1791,7 +1904,7 @@ def openbanking_statements(account_id: int, saved: str = "", created: int = 1):
             " · ",
             A(cfg().back_to_accounts_label, href="/openbanking"),
             " · ",
-            A("Return to List of Apps", href="/"),
+            A(i18n.t("return_to_apps", language()), href="/"),
             cls="ob-page",
         ),
     )
