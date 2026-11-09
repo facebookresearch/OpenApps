@@ -82,6 +82,7 @@ import requests
 from open_apps.alignment._config import plain
 from open_apps.alignment.changes import thread_key
 from open_apps.alignment.predicates import PredicateError, validate as validate_predicate
+from open_apps.i18n import ENGLISH, t
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +186,14 @@ class Event:
         variant = self.variants.get(language) if language else None
         if variant is None:
             return self
-        toast = Toast(title=variant.title or self.toast.title, link=self.toast.link)
+        title = variant.title
+        if title is None and self.channel == "messenger" and self.sender:
+            # A messenger event left on the default title ("New message ·
+            # <sender>") gets the default in the variant's language too, so a
+            # German message does not arrive under an English toast.
+            if self.toast.title == t("new_message", ENGLISH, sender=self.sender):
+                title = t("new_message", language, sender=self.sender)
+        toast = Toast(title=title or self.toast.title, link=self.toast.link)
         return dataclasses.replace(self, body=variant.body, toast=toast)
 
     def payload(self) -> dict:
@@ -288,7 +296,7 @@ def _toast(raw: Any, path: str, channel: str, sender: Optional[str]) -> Toast:
     is_message = channel == "messenger"
     title = raw.get("title")
     if title is None and is_message:
-        title = f"New message · {sender}"
+        title = t("new_message", ENGLISH, sender=sender)
     if not isinstance(title, str) or not title.strip():
         raise _err(f"{path}.title", f"must be a non-empty string, got {title!r}")
     link = raw.get("link")

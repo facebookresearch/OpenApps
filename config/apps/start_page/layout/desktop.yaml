@@ -36,9 +36,11 @@ desktop:
   variants:
     phone: home_screen
 
-  # Centred at the top of the desktop surface. Falls back to the start page's
-  # own `headline` when unset, so the gallery layout's copy is not disturbed.
-  headline: "An open source environment for digital agents"
+  # Centred at the top of the desktop surface. null = the content pack's
+  # `desktop_headline` (then its gallery `headline`), so a German or Mandarin
+  # pack speaks its own language here. Set a string to override every pack:
+  #   uv run launch.py apps.start_page.desktop.headline="Hello"
+  headline: null
   # Toolbar clock. Leave null for the real current time. Set a string to FREEZE
   # it -- which is what an eval wants: tests/save_screenshots.py pixel-compares
   # the start page, and a ticking clock changes that image on every run.
@@ -113,3 +115,6 @@ desktop:
     maps: color-success
     codeeditor: color-accent-pink
     onlineshop: color-warning
+    openbanking: color-accent
+    files: color-emphasis
+    contacts: color-info

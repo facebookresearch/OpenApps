@@ -72,6 +72,122 @@ SHARED: dict[str, dict[str, str]] = {
         "german": "Benachrichtigung schließen: {title}",
         "mandarin": "忽略通知：{title}",
     },
+    # --- window chrome: title-bar controls, named "<verb> <app>" -----------------
+    # Whole phrases rather than verb + title: German puts the verb last.
+    "close_window": {
+        "english": "Close {title}",
+        "german": "{title} schließen",
+        "mandarin": "关闭{title}",
+    },
+    "minimize_window": {
+        "english": "Minimize {title}",
+        "german": "{title} minimieren",
+        "mandarin": "最小化{title}",
+    },
+    "maximize_window": {
+        "english": "Maximize {title}",
+        "german": "{title} maximieren",
+        "mandarin": "最大化{title}",
+    },
+    "restore_window": {
+        "english": "Restore {title}",
+        "german": "{title} wiederherstellen",
+        "mandarin": "还原{title}",
+    },
+    # --- desktop shell: toolbar, launcher, pins ---------------------------------
+    "desktop_toolbar": {
+        "english": "Desktop toolbar",
+        "german": "Schreibtisch-Werkzeugleiste",
+        "mandarin": "桌面工具栏",
+    },
+    "switch_to_dark": {
+        "english": "Switch to dark mode",
+        "german": "Zum dunklen Modus wechseln",
+        "mandarin": "切换到深色模式",
+    },
+    "switch_to_light": {
+        "english": "Switch to light mode",
+        "german": "Zum hellen Modus wechseln",
+        "mandarin": "切换到浅色模式",
+    },
+    "celsius": {"english": "Celsius", "german": "Celsius", "mandarin": "摄氏度"},
+    "fahrenheit": {"english": "Fahrenheit", "german": "Fahrenheit", "mandarin": "华氏度"},
+    "temperature_switch": {
+        "english": "Temperature {temperature}. Switch to {other}.",
+        "german": "Temperatur {temperature}. Zu {other} wechseln.",
+        "mandarin": "温度 {temperature}。切换到{other}。",
+    },
+    "weather_title": {
+        "english": "{condition} — click to show {other}",
+        "german": "{condition} — klicken für {other}",
+        "mandarin": "{condition} — 点击显示{other}",
+    },
+    # Weather conditions the toolbar knows (open_apps.ui.molecules.WEATHER_ICONS).
+    # English renders the config string verbatim, as it always has.
+    "weather_clear": {"english": "clear", "german": "Klar", "mandarin": "晴"},
+    "weather_sunny": {"english": "sunny", "german": "Sonnig", "mandarin": "晴朗"},
+    "weather_cloudy": {"english": "cloudy", "german": "Bewölkt", "mandarin": "多云"},
+    "weather_overcast": {"english": "overcast", "german": "Bedeckt", "mandarin": "阴"},
+    "weather_rain": {"english": "rain", "german": "Regen", "mandarin": "雨"},
+    "weather_rainy": {"english": "rainy", "german": "Regnerisch", "mandarin": "有雨"},
+    "open_launcher": {
+        "english": "Open app launcher",
+        "german": "App-Starter öffnen",
+        "mandarin": "打开应用启动器",
+    },
+    "close_launcher": {
+        "english": "Close app launcher",
+        "german": "App-Starter schließen",
+        "mandarin": "关闭应用启动器",
+    },
+    "pin_app": {
+        "english": "Pin {title} to desktop",
+        "german": "{title} an den Schreibtisch anheften",
+        "mandarin": "将{title}固定到桌面",
+    },
+    "unpin_app": {
+        "english": "Unpin {title} from desktop",
+        "german": "{title} vom Schreibtisch lösen",
+        "mandarin": "取消将{title}固定到桌面",
+    },
+    "main_page": {"english": "main-page", "german": "Startseite", "mandarin": "主页"},
+    # --- start page: the gallery's fallback tiles (no `apps:` inventory) --------
+    "fallback_todo": {
+        "english": "Manage your tasks and to-dos efficiently",
+        "german": "Aufgaben und To-dos effizient verwalten",
+        "mandarin": "高效管理您的任务和待办事项",
+    },
+    "fallback_calendar": {
+        "english": "Keep track of your appointments and events",
+        "german": "Termine und Veranstaltungen im Blick behalten",
+        "mandarin": "跟踪您的约会和活动",
+    },
+    "fallback_messages": {
+        "english": "Chat with friends and colleagues",
+        "german": "Mit Freunden und Kollegen chatten",
+        "mandarin": "与朋友和同事聊天",
+    },
+    "fallback_maps": {
+        "english": "Navigate and explore locations",
+        "german": "Orte finden und erkunden",
+        "mandarin": "导航并探索地点",
+    },
+    "fallback_codeeditor": {
+        "english": "Write and edit code seamlessly",
+        "german": "Code nahtlos schreiben und bearbeiten",
+        "mandarin": "流畅地编写和编辑代码",
+    },
+    "fallback_onlineshop": {
+        "english": "Browse and purchase items online",
+        "german": "Artikel online durchsuchen und kaufen",
+        "mandarin": "在线浏览和购买商品",
+    },
+    # --- adversarial events: a messenger event's default toast title ------------
+    "new_message": {
+        "english": "New message · {sender}",
+        "german": "Neue Nachricht · {sender}",
+        "mandarin": "新消息 · {sender}",
+    },
 }
 
 

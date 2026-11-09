@@ -3,6 +3,8 @@
 # (adversarial events speak it); no app renders it.
 content_language: mandarin
 headline: "欢迎使用 OpenApps！"
+# The desktop shell's centred line (layout=desktop).
+desktop_headline: "面向数字智能体的开源环境"
 sub_header: "一套日常应用软件的小型集合"
 # Apps configuration
 apps:

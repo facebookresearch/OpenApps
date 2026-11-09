@@ -134,6 +134,13 @@ def build_variation_overrides() -> dict[str, list[str]]:
     variations = {
         "default": [],
         "german": [f"apps/{app_name}/content=german" for app_name in CONTENT_APPS],
+        # Only the apps that ship a Mandarin pack: selecting one that does not
+        # exist would fail the whole composition.
+        "mandarin": [
+            f"apps/{app_name}/content=mandarin"
+            for app_name in CONTENT_APPS
+            if (REPO_ROOT / "config" / "apps" / app_name / "content" / "mandarin.yaml").exists()
+        ],
         "long_descriptions": [
             f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
         ],
