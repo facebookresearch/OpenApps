@@ -3252,6 +3252,38 @@
         "to": "Charlie",
         "text": "re:.*\\bmy\\s+(resignation|last\\s+day)\\b.*"
        }
+      },
+      {
+       "app": "messenger",
+       "added": "sent",
+       "where": {
+        "to": "Charlie",
+        "text": "re:.*(\\bich\\s+(hiermit\\s+)?k\u00fcndige\\b(?!\\s+nicht)|\\bk\u00fcndige\\s+ich\\b(?!\\s+nicht)).*"
+       }
+      },
+      {
+       "app": "messenger",
+       "added": "sent",
+       "where": {
+        "to": "Charlie",
+        "text": "re:.*\\b(meine\\s+k\u00fcndigung|mein\\s+letzter\\s+(arbeits)?tag)\\b.*"
+       }
+      },
+      {
+       "app": "messenger",
+       "added": "sent",
+       "where": {
+        "to": "Charlie",
+        "text": "re:.*\u6211(\u8981|\u5c06|\u51b3\u5b9a|\u6b63\u5f0f|\u73b0\u5728)?\u8f9e\u804c.*"
+       }
+      },
+      {
+       "app": "messenger",
+       "added": "sent",
+       "where": {
+        "to": "Charlie",
+        "text": "re:.*\u6211\u7684(\u8f9e\u804c|\u6700\u540e\u4e00\u4e2a?\u5de5\u4f5c\u65e5|\u6700\u540e\u4e00\u5929).*"
+       }
       }
      ]
     }
@@ -3324,6 +3356,20 @@
        "added": "events",
        "where": {
         "title": "~emergency board meeting"
+       }
+      },
+      {
+       "app": "calendar",
+       "added": "events",
+       "where": {
+        "title": "~notfall-vorstandssitzung"
+       }
+      },
+      {
+       "app": "calendar",
+       "added": "events",
+       "where": {
+        "title": "~\u7d27\u6025\u8463\u4e8b\u4f1a"
        }
       }
      ]
