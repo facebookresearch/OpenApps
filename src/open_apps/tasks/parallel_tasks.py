@@ -18,6 +18,26 @@ ALL_TASKS = "all"
 INHERITED_KEYS = ("logs_dir", "databases_dir", "record_video_dir")
 
 
+#: The selectors `agents=` / `tasks=` expand to (parallel_launcher.normalize_cli_args).
+MATRIX_SELECTORS = ("parallel_tasks.agent_configs", "parallel_tasks.task_configs")
+
+
+def single_run_overrides(overrides: Sequence[str], task_name: str) -> list[str]:
+    """A matrix job's overrides as one run: no sweep selectors, and only the
+    last `agent=` / `tasks=` (the job's own; earlier ones are the sweep's
+    placeholder first value)."""
+    kept = [
+        str(o)
+        for o in overrides
+        if str(o).partition("=")[0].lstrip("+~") not in MATRIX_SELECTORS
+    ]
+    drop: set[int] = set()
+    for group in ("agent", "tasks"):
+        hits = [i for i, o in enumerate(kept) if o.partition("=")[0].lstrip("+") == group]
+        drop.update(hits[:-1])
+    return [o for i, o in enumerate(kept) if i not in drop] + [f"task_name={task_name}"]
+
+
 class ParallelTasksConfig(ABC):
     """Defines method for creating multiple experiment configs to be run in parallel."""
 
@@ -142,6 +162,12 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
                     config.app_overrides = app_variation
                     config.task_config_name = task_config
                     config.agent_config_name = agent_config
+                    # As in create_configs: what reruns this job alone, for
+                    # its episode record's reproduce command.
+                    config.compose = {
+                        "config_name": config_name,
+                        "overrides": single_run_overrides(overrides, task_name),
+                    }
                 configs.append(config)
         if self.task_names != ALL_TASKS:
             missing_tasks = set(self.task_names) - found_tasks

@@ -9,7 +9,11 @@
 #
 # Submit:
 #   VLLM_MODEL=ByteDance-Seed/UI-TARS-1.5-7B sbatch scripts/serve_vllm.sbatch
-#   VLLM_MODEL=Qwen/Qwen3-VL-8B-Instruct GPUS=2 sbatch scripts/serve_vllm.sbatch
+#   VLLM_MODEL=Qwen/Qwen3.6-27B GPUS=2 sbatch --gpus-per-node=2 scripts/serve_vllm.sbatch
+#
+# To serve a model *and* run the whole align_v1 suite against it in one job,
+# use scripts/benchmark_one.sbatch instead; to do this for many models,
+# scripts/benchmark_sweep.py (docs/benchmarking.md).
 #
 # Then point the eval at it (discovery greps the served model id, so pass the
 # same VLLM_MODEL):
@@ -40,7 +44,25 @@ set -uo pipefail
 # ---- Configuration (override via environment) -------------------------------
 VLLM_MODEL="${VLLM_MODEL:-ByteDance-Seed/UI-TARS-1.5-7B}"
 VLLM_PORT="${VLLM_PORT:-8000}"
-GPUS="${GPUS:-1}"                       # tensor-parallel size; 7B fits on one
+# Tensor-parallel size. Ask SLURM for as many: `sbatch --gpus-per-node=$GPUS`
+# (the #SBATCH line above requests 1). Per-model counts for H100 / H200 are in
+# scripts/benchmark_models.yaml; `scripts/benchmark_sweep.py` passes both.
+GPUS="${GPUS:-1}"
+# The key clients must send. Every vLLM agent config sends
+# ${oc.env:VLLM_API_KEY,AMI_RULZ} (config/agent/default.yaml), so leave both
+# unset, or export the same VLLM_API_KEY for the server and the eval.
+VLLM_API_KEY="${VLLM_API_KEY:-AMI_RULZ}"
+# Context vLLM reserves KV cache for, and the share of GPU memory it takes.
+VLLM_MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-32768}"
+VLLM_GPU_MEM_UTIL="${VLLM_GPU_MEM_UTIL:-0.90}"
+# Anything else for `vllm serve`, word-split (e.g. "--enforce-eager").
+VLLM_EXTRA_ARGS="${VLLM_EXTRA_ARGS:-}"
+
+if [ -n "${SLURM_GPUS_ON_NODE:-}" ] && [ "$SLURM_GPUS_ON_NODE" -lt "$GPUS" ]; then
+  echo "ERROR: GPUS=$GPUS but this job has $SLURM_GPUS_ON_NODE GPU(s);" \
+       "submit with --gpus-per-node=$GPUS." >&2
+  exit 1
+fi
 
 # vLLM is deliberately NOT a dependency of this project -- it pulls a pinned
 # torch + CUDA stack that would fight the one the agents and playwright need,
@@ -100,9 +122,13 @@ echo
 # --host 0.0.0.0 is what makes this reachable from the *eval* node. Bound to
 # localhost it still answers its own health check and nothing else, which is a
 # slow way to discover the problem.
+# shellcheck disable=SC2086  # VLLM_EXTRA_ARGS is meant to word-split
 exec "$VLLM_BIN" serve "$VLLM_MODEL" \
   --host 0.0.0.0 \
   --port "$VLLM_PORT" \
-  --api-key AMI_RULZ \
+  --api-key "$VLLM_API_KEY" \
   --trust-remote-code \
-  --tensor-parallel-size "$GPUS"
+  --tensor-parallel-size "$GPUS" \
+  --max-model-len "$VLLM_MAX_MODEL_LEN" \
+  --gpu-memory-utilization "$VLLM_GPU_MEM_UTIL" \
+  $VLLM_EXTRA_ARGS

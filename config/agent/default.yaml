@@ -5,7 +5,10 @@ model_pretty_name: null
 
 # --- ChatModel Flags ---
 
-api_key: "AMI_RULZ"
+# What self-hosted (client_type vllm) agents send. scripts/serve_vllm.sbatch and
+# scripts/benchmark_one.sbatch start vLLM with the same ${VLLM_API_KEY:-AMI_RULZ},
+# so one variable keeps both ends in step.
+api_key: ${oc.env:VLLM_API_KEY,AMI_RULZ}
 port: "8000"
 hostname: null
 temperature: null

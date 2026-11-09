@@ -152,7 +152,9 @@ uv run launch_parallel_agents.py benchmark=align_v1 agent=<your-agent> mode=loca
 ```
 
 The first command prints the suite's episode count (the table above shows the same number,
-read from the suite file at build time). Use `mode=slurm_cluster` on a cluster. The suite pins the tasks, variation cells, seeds, step
+read from the suite file at build time). Use `mode=slurm_cluster` on a cluster. To benchmark
+several models, or a self-hosted one on H100/H200 GPUs (one job that serves it and runs the
+suite), see [Benchmarking models](benchmarking.md). The suite pins the tasks, variation cells, seeds, step
 budget and termination rule, so don't override them: a run with different settings will not
 validate against the suite. Logs land in `log_outputs/<timestamp>/` locally.
 

@@ -2,16 +2,20 @@
 #
 # SLURM wrapper around scripts/conduct.sh.
 #
+# This runs individual launch_agent.py episodes, not a leaderboard suite. To
+# benchmark a model on align_v1, use scripts/benchmark_one.sbatch (one GPU
+# job) or scripts/benchmark_sweep.py (many models); see docs/benchmarking.md.
+#
 # Requests a CPU allocation, auto-discovers the node running vLLM (serving the
 # target model on :8000), and launches the worker pool pointed at it. This assume
 # the eval job is running on the same internal network as Gemme.
 #
 # Submit:
-#   AGENTS=gemma-4-computer-use COUNT=1 sbatch scripts/conduct_slurm.sh
-#   AGENTS="gemma-4-computer-use" COUNT=20 MAX_PARALLEL=4 sbatch scripts/conduct_slurm.sh
+#   AGENTS=gemma-4-2B-computer-use COUNT=1 sbatch scripts/conduct_slurm.sh
+#   AGENTS="gemma-4-2B-computer-use" COUNT=20 MAX_PARALLEL=4 sbatch scripts/conduct_slurm.sh
 #
 # Override discovery by pinning the node explicitly:
-#   VLLM_HOST=node-001 AGENTS=gemma-4-e2b-it COUNT=1 sbatch scripts/conduct_slurm.sh
+#   VLLM_HOST=node-001 AGENTS=gemma-4-2B-computer-use COUNT=1 sbatch scripts/conduct_slurm.sh
 #
 # Any extra CLI args are forwarded verbatim to conduct.sh -> launch_agent.py.
 #
@@ -97,7 +101,7 @@ fi
 
 # ---- Launch the worker pool -------------------------------------------------
 # WANDB_MODE is honored if set (e.g. offline); otherwise runs online.
-AGENTS="${AGENTS:-gemma-4-e2b-it}" \
+AGENTS="${AGENTS:-gemma-4-2B-computer-use}" \
 COUNT="${COUNT:-1}" \
 MAX_PARALLEL="${MAX_PARALLEL:-4}" \
   ./scripts/conduct.sh \

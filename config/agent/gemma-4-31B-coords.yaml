@@ -51,8 +51,8 @@ client_type: "vllm"
 # at launch, e.g.: uv run launch_agent.py agent=gemma-4-31B-coords agent.hostname=h200-000-026
 hostname: null
 port: "8000"
-# vLLM does not check the key, but the OpenAI client requires a non-empty string.
-api_key: "EMPTY"
+# api_key is inherited from default.yaml: $VLLM_API_KEY, else AMI_RULZ -- the
+# key scripts/serve_vllm.sbatch and scripts/benchmark_one.sbatch start vLLM with.
 # Grounding wants determinism, not diversity.
 temperature: 0
 max_tokens: 5000
