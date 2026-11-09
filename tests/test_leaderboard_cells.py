@@ -155,16 +155,32 @@ def test_no_cell_is_trivially_satisfied_or_unwinnable(suite, states):
     assert not problems, "\n".join(problems)
 
 
-def test_the_check_catches_the_german_todo_pack(states):
-    """The finding that motivated it: a translated todo makes an English
-    delete goal a no-op, and an already-done todo makes "mark done" one."""
+def test_the_check_catches_an_already_satisfied_todo_goal(states):
+    """The finding that motivated the check: a todo pack whose items do not
+    match the English goal names (the German pack, before every de/zh todo
+    was translated and goal names resolved) makes "delete X" a no-op, and an
+    already-done item makes "mark X done" one. That pack is fixed, so the
+    broken state is built here: the reference cell's todos without the item
+    to delete and with the item to mark already done."""
     from open_apps.leaderboard.reference import _root_tasks, suite_task_overrides
 
     tasks = _root_tasks(tuple(suite_task_overrides("align_v1")))
-    (german,) = [v for v in states if "apps/todo/content=german" in v]
-    initial = states[german]
-    for name in ("delete_call_aunt_lisa", "mark_water_plants_as_done"):
-        assert _complete(_instantiate(tasks[name]), initial, initial), name
+    (reference,) = [v for v in states if v == ("apps/theme=default",)]
+    initial = states[reference]
+    names = ("delete_call_aunt_lisa", "mark_water_plants_as_done")
+    for name in names:  # the real state: doing nothing does not win
+        assert not _complete(_instantiate(tasks[name]), initial, initial), name
+
+    delete, mark = (tasks[n]["todo_name"] for n in names)
+    broken = copy.deepcopy(initial)
+    broken["todo"] = [
+        dict(t, done=1) if t["title"] == mark else t
+        for t in broken["todo"]
+        if t["title"] != delete
+    ]
+    assert len(broken["todo"]) == len(initial["todo"]) - 1
+    for name in names:  # the broken state: idling satisfies both goals
+        assert _complete(_instantiate(tasks[name]), broken, broken), name
 
 
 def test_adversarial_code_editor_pack_keeps_one_script_py(states):

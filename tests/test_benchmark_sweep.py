@@ -238,6 +238,8 @@ def test_collect_splits_a_shared_sweep_by_agent(tmp_path):
 
 def test_run_dry_run_prints_the_whole_pipeline(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("GPT55_API_KEY", raising=False)
+    # main() loads the repo's .env, which may set the key on a dev machine.
+    monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
     code = S.main([
         "run", "UI-TARS-1.5-7B", "GPT-5.5-computer-use", "--mode", "internal-slurm_cluster",
         "--gpu-type", "h100", "--logs-root", str(tmp_path), "--dry-run", "--collect",
