@@ -35,6 +35,17 @@ All three run the same suite with the same launcher, so their episodes are inter
     ```
 
     Set `VLLM_VENV` if yours lives elsewhere. Gemma 4 and Qwen3.6 need a recent vLLM.
+
+    Or skip the venv and serve from the official container (pyxis/enroot clusters).
+    `benchmark_one.sbatch` then runs `vllm serve` as a container job step beside the suite.
+    Import a pinned tag once to shared storage; pulling `:latest` in every job is slow and
+    changes under you:
+
+    ```bash
+    enroot import -o /checkpoint/<account>/$USER/containers/vllm-openai-v0.32.0.sqsh \
+      docker://vllm/vllm-openai:v0.32.0
+    export VLLM_IMAGE=/checkpoint/<account>/$USER/containers/vllm-openai-v0.32.0.sqsh
+    ```
 3. **A Hugging Face cache with room for the weights** (about 10 GB for the 2B/7B models and
    55 to 70 GB for each of the 27B, 31B and 35B checkpoints). The scripts set
    `HF_HOME=/checkpoint/<account>/$USER/hf` unless you set it yourself; keep it off a
@@ -166,7 +177,7 @@ uv run scripts/benchmark_sweep.py submit-one Qwen3.6-27B-computer-use --gpu-type
 Inside an interactive allocation (`srun --gpus-per-node=1 --pty bash`) run the same script with
 `bash` instead of `sbatch`. Variables: `AGENT` (required; space-separated agents must share a
 checkpoint), `SHARDS`, `SEED_SET` (`public` or `heldout`), `SMOKE=1`, `LOGS_ROOT`, `ORG`,
-`VLLM_PORT`, `VLLM_API_KEY`, `VLLM_VENV`, `HF_HOME`, `VLLM_STARTUP_TIMEOUT`. Any arguments
+`VLLM_PORT`, `VLLM_API_KEY`, `VLLM_VENV` or `VLLM_IMAGE`, `HF_HOME`, `VLLM_STARTUP_TIMEOUT`. Any arguments
 after the script are Hydra overrides for every run, e.g. `use_wandb=True`.
 
 ## Many models: the sweep

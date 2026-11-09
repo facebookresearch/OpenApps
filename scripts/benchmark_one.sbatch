@@ -33,6 +33,10 @@
 #   LOGS_ROOT    default log_outputs/align_v1-<stamp>-<jobid>; runs go under
 #                $LOGS_ROOT/<group>/run-*/<job_id>/
 #   ORG          org slug for the packed bundle (default: local)
+#   VLLM_IMAGE   serve from this container (pyxis) instead of VLLM_VENV: a pinned
+#                .sqsh is fastest, e.g. one made once with
+#                enroot import -o /checkpoint/<account>/$USER/containers/vllm-openai-v0.32.0.sqsh \
+#                  docker://vllm/vllm-openai:v0.32.0
 #   VLLM_PORT, VLLM_API_KEY, VLLM_VENV, HF_HOME, VLLM_STARTUP_TIMEOUT (s, default 5400)
 # Extra arguments are Hydra overrides for every run (e.g. use_wandb=True).
 #
@@ -58,6 +62,7 @@ ORG="${ORG:-local}"
 VLLM_PORT="${VLLM_PORT:-8000}"
 export VLLM_API_KEY="${VLLM_API_KEY:-AMI_RULZ}"
 VLLM_VENV="${VLLM_VENV:-$HOME/venvs/vllm}"
+VLLM_IMAGE="${VLLM_IMAGE:-}"
 VLLM_STARTUP_TIMEOUT="${VLLM_STARTUP_TIMEOUT:-5400}"
 
 # Under sbatch the script runs from a spool copy; SLURM_SUBMIT_DIR is the repo.
@@ -131,20 +136,36 @@ if [ "$MODEL_KIND" = "vllm" ]; then
     echo "ERROR: $AGENT is self-hosted and this node has no GPU" >&2
     exit 1
   fi
-  VLLM_BIN="${VLLM_VENV}/bin/vllm"
-  [ -x "$VLLM_BIN" ] || VLLM_BIN="$(command -v vllm || true)"
-  if [ -z "$VLLM_BIN" ]; then
-    echo "ERROR: no vllm binary (looked in $VLLM_VENV/bin and on PATH). Create it once:" >&2
-    echo "  uv venv --python 3.11 $VLLM_VENV && uv pip install --python $VLLM_VENV/bin/python vllm" >&2
-    exit 1
-  fi
   CKPT_ROOT="${CKPT_ROOT:-/checkpoint/${SLURM_JOB_ACCOUNT:-default}/${USER}}"
   export HF_HOME="${HF_HOME:-${CKPT_ROOT}/hf}"
   mkdir -p "$HF_HOME"
+  if [ -n "$VLLM_IMAGE" ]; then
+    # vLLM in its own container (pyxis) as an overlapping job step on this
+    # node; the suite stays in the repo's uv env on the host. The job's env
+    # (HF_HOME, HF_TOKEN, VLLM_API_KEY) passes through; only HF_HOME's
+    # filesystem needs mounting.
+    if [ -z "${SLURM_JOB_ID:-}" ]; then
+      echo "ERROR: VLLM_IMAGE needs a Slurm allocation (sbatch, or srun --pty bash)" >&2
+      exit 1
+    fi
+    VLLM_CMD=(srun --overlap --nodes=1 --ntasks=1 --container-image="$VLLM_IMAGE"
+              --container-mounts="$HF_HOME:$HF_HOME" vllm)
+    echo "Image:     $VLLM_IMAGE"
+  else
+    VLLM_BIN="${VLLM_VENV}/bin/vllm"
+    [ -x "$VLLM_BIN" ] || VLLM_BIN="$(command -v vllm || true)"
+    if [ -z "$VLLM_BIN" ]; then
+      echo "ERROR: no vllm binary (looked in $VLLM_VENV/bin and on PATH). Create it once:" >&2
+      echo "  uv venv --python 3.11 $VLLM_VENV && uv pip install --python $VLLM_VENV/bin/python vllm" >&2
+      echo "or set VLLM_IMAGE to a vllm/vllm-openai image or .sqsh" >&2
+      exit 1
+    fi
+    VLLM_CMD=("$VLLM_BIN")
+  fi
   echo "Model:     $VLLM_MODEL (tensor parallel $GPUS, max_model_len $VLLM_MAX_MODEL_LEN)"
   echo "HF_HOME:   $HF_HOME"
   # shellcheck disable=SC2086  # VLLM_EXTRA_ARGS word-splits on purpose
-  "$VLLM_BIN" serve "$VLLM_MODEL" \
+  "${VLLM_CMD[@]}" serve "$VLLM_MODEL" \
     --host 127.0.0.1 --port "$VLLM_PORT" --api-key "$VLLM_API_KEY" \
     --trust-remote-code --tensor-parallel-size "$GPUS" \
     --max-model-len "$VLLM_MAX_MODEL_LEN" \
@@ -207,7 +228,10 @@ cleanup
 VLLM_PID=""
 
 # ---- pack, validate, preview ----------------------------------------------------------
-COLLECT=(--org "$ORG")
+# Only this job's agents: `submit-one` gives every group the same LOGS_ROOT,
+# and the other groups' runs may still be in flight.
+# shellcheck disable=SC2206  # AGENT is a space-separated list on purpose
+COLLECT=(--org "$ORG" --agents $AGENT)
 [ "$SMOKE" = "1" ] && COLLECT+=(--smoke)
 uv run --frozen python scripts/benchmark_sweep.py collect "$LOGS_ROOT" "${COLLECT[@]}"
 STATUS=$?
