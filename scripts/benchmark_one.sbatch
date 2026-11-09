@@ -35,7 +35,7 @@
 #   ORG          org slug for the packed bundle (default: local)
 #   VLLM_IMAGE   serve from this container (pyxis) instead of VLLM_VENV: a pinned
 #                .sqsh is fastest, e.g. one made once with
-#                enroot import -o /checkpoint/<account>/$USER/containers/vllm-openai-v0.32.0.sqsh \
+#                enroot import -o <shared-storage>/containers/vllm-openai-v0.32.0.sqsh \
 #                  docker://vllm/vllm-openai:v0.32.0
 #   VLLM_PORT, VLLM_API_KEY, VLLM_VENV, HF_HOME, VLLM_STARTUP_TIMEOUT (s, default 5400)
 # Extra arguments are Hydra overrides for every run (e.g. use_wandb=True).

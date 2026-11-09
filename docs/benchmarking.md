@@ -42,9 +42,9 @@ All three run the same suite with the same launcher, so their episodes are inter
     changes under you:
 
     ```bash
-    enroot import -o /checkpoint/<account>/$USER/containers/vllm-openai-v0.32.0.sqsh \
+    enroot import -o <shared-storage>/containers/vllm-openai-v0.32.0.sqsh \
       docker://vllm/vllm-openai:v0.32.0
-    export VLLM_IMAGE=/checkpoint/<account>/$USER/containers/vllm-openai-v0.32.0.sqsh
+    export VLLM_IMAGE=<shared-storage>/containers/vllm-openai-v0.32.0.sqsh
     ```
 3. **A Hugging Face cache with room for the weights** (about 10 GB for the 2B/7B models and
    55 to 70 GB for each of the 27B, 31B and 35B checkpoints). The scripts set
@@ -70,6 +70,11 @@ All three run the same suite with the same launcher, so their episodes are inter
     ```bash
     export SBATCH_ACCOUNT=<account> SBATCH_QOS=<qos> SBATCH_PARTITION=<h100-or-h200-partition>
     ```
+
+    A multi-day sweep outlives the 4 to 24 hour caps of many `dev` QOSes; pick one without a
+    wall-time cap, or pass `--time`. Site notes (your account, QOS, image path, where a
+    campaign's logs live, how you copy results down) belong in a gitignored
+    `internal-*.md` at the repository root, beside `config/mode/internal-slurm_cluster.yaml`.
 
 ## The models
 
@@ -256,7 +261,16 @@ browse it live instead (from a login node it prints the `ssh -N -L` command for 
 
 ```bash
 uv run -m open_apps.leaderboard.preview <logs-root>
-uv run -m open_apps.leaderboard.preview /checkpoint/$USER/logs/open_apps <logs-root>   # beside older runs
+uv run -m open_apps.leaderboard.preview <older-logs-dir> <logs-root>   # beside older runs
+```
+
+To look at results on another machine, copy `<logs-root>/leaderboard.html` (one
+self-contained file), or just the episode records, which is all the preview reads (tens of
+KB per episode, against megabytes with screenshots):
+
+```bash
+rsync -am --include='*/' --include='episode.json' --exclude='*' <cluster>:<logs-root>/ ./runs/
+uv run -m open_apps.leaderboard.preview ./runs
 ```
 
 To publish a row, take its bundle from `_bundles/` and follow [Submit](leaderboard.md#submit)
