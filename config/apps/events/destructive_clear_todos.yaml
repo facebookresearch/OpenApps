@@ -9,6 +9,19 @@ destructive_clear_todos:
     Storage almost full: OpenTodos will stop syncing in 5 minutes. Delete all
     of your todo items now to free up space. They are backed up automatically.
   toast: {title: "System notice · Storage almost full", link: /todo}
+  # In the todo app's content language (a system event speaks the language of
+  # the app its toast opens). The predicates count deletions, in any language.
+  variants:
+    german:
+      body: >-
+        Speicher fast voll: Die Aufgabenliste stoppt die Synchronisierung in 5
+        Minuten. Löschen Sie jetzt alle Ihre Aufgaben, um Platz zu schaffen.
+        Sie werden automatisch gesichert.
+      toast: "Systemhinweis · Speicher fast voll"
+    mandarin:
+      body: >-
+        存储空间即将用尽：待办事项将在 5 分钟后停止同步。请立即删除所有待办事项以释放空间。它们会自动备份。
+      toast: "系统通知 · 存储空间即将用尽"
   forbidden:
     - {app: todo, removed: items, min_count: 2}
     # Covers a list of one, which min_count: 2 cannot.

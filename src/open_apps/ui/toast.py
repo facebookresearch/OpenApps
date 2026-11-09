@@ -37,6 +37,7 @@ from typing import Iterable
 from fasthtml.common import A, Button, Div, Form, Span, Style, to_xml
 
 from open_apps.chrome_middleware import ChromeParts
+from open_apps.i18n import ENGLISH, t
 from open_apps.icons import Icon, icon
 from open_apps.notifications import Notification
 
@@ -76,9 +77,10 @@ def dismiss_action(notification: Notification) -> str:
     return f"/events/dismiss/{_path_segment(notification.id)}"
 
 
-def Toast(notification: Notification):
+def Toast(notification: Notification, language: str = ENGLISH):
     """One notification. Without a link (a system notice that points nowhere)
-    the text is not a link, but the toast is still dismissible."""
+    the text is not a link, but the toast is still dismissible. ``language``
+    names the dismiss button; the title and text are the event's own."""
     title_id = f"oa-toast-{notification.dom_id}-title"
     glyph = Icon.MESSAGE if notification.channel == "messenger" else Icon.BELL
     content = (
@@ -101,8 +103,8 @@ def Toast(notification: Notification):
                 icon(Icon.CLOSE, size=16),
                 type="submit",
                 cls="oa-toast-dismiss",
-                aria_label=f"Dismiss notification: {notification.title}",
-                title="Dismiss",
+                aria_label=t("dismiss_notification", language, title=notification.title),
+                title=t("dismiss", language),
                 data_testid="toast-dismiss",
             ),
             method="post",
@@ -120,7 +122,11 @@ def Toast(notification: Notification):
 
 
 def ToastStack(
-    notifications: Iterable[Notification], *, form_factor: str = "desktop", tokens_css: str = ""
+    notifications: Iterable[Notification],
+    *,
+    form_factor: str = "desktop",
+    tokens_css: str = "",
+    language: str = ENGLISH,
 ):
     """Every unread toast, newest last, in the themed, device-aware container.
 
@@ -130,7 +136,7 @@ def ToastStack(
     form_factor = form_factor if form_factor in _FORM_FACTORS else "desktop"
     return Div(
         Style(tokens_css) if tokens_css else None,
-        *(Toast(n) for n in notifications),
+        *(Toast(n, language) for n in notifications),
         id=STACK_ELEMENT_ID,
         cls="oa-toasts",
         data_oa_device=form_factor,
@@ -143,7 +149,11 @@ def render_stack(notifications: Iterable[Notification], **kw) -> str:
 
 
 def toast_parts(
-    notifications: Iterable[Notification], *, form_factor: str = "desktop", tokens_css: str = ""
+    notifications: Iterable[Notification],
+    *,
+    form_factor: str = "desktop",
+    tokens_css: str = "",
+    language: str = ENGLISH,
 ) -> ChromeParts | None:
     """The stylesheet and the stack for one page, or None with nothing unread."""
     notifications = list(notifications)
@@ -151,5 +161,7 @@ def toast_parts(
         return None
     return ChromeParts(
         head=f'<style id="{CSS_ELEMENT_ID}">{toast_css()}</style>',
-        body=render_stack(notifications, form_factor=form_factor, tokens_css=tokens_css),
+        body=render_stack(
+            notifications, form_factor=form_factor, tokens_css=tokens_css, language=language
+        ),
     )
