@@ -8,6 +8,7 @@
 # Submit (GPU counts per model and GPU type: scripts/benchmark_models.yaml,
 # or let `uv run scripts/benchmark_sweep.py submit-one <agent>` pick them):
 #
+#   cd <repo root>; mkdir -p /storage/home/$USER/logs   # the --output dir below
 #   export SBATCH_ACCOUNT=<account> SBATCH_QOS=<qos> SBATCH_PARTITION=<h100|h200>
 #   AGENT=UI-TARS-1.5-7B             sbatch --gpus-per-node=1 scripts/benchmark_one.sbatch
 #   AGENT=gemma-4-31B-computer-use   sbatch --gpus-per-node=1 scripts/benchmark_one.sbatch  # H200
@@ -64,6 +65,10 @@ if [ -n "${SLURM_JOB_ID:-}" ] && [ -f "${SLURM_SUBMIT_DIR:-}/launch_parallel_age
   REPO="$SLURM_SUBMIT_DIR"
 else
   REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+if [ ! -f "$REPO/launch_parallel_agents.py" ]; then
+  echo "ERROR: cannot find the OpenApps checkout; sbatch this from the repo root." >&2
+  exit 1
 fi
 cd "$REPO" || exit 1
 

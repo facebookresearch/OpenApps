@@ -137,7 +137,12 @@ concurrent local processes against it (vLLM batches their requests), stops the s
 then packs, validates and renders the preview. Nothing needs to reach the GPU node from
 another machine, so firewalled compute-to-compute ports don't matter.
 
+Submit from the repository root (the job finds the checkout through `SLURM_SUBMIT_DIR`), and
+make sure the `#SBATCH --output` directory exists; SLURM silently drops a log whose directory
+is missing:
+
 ```bash
+cd <repo>; mkdir -p /storage/home/$USER/logs
 export SBATCH_ACCOUNT=<account> SBATCH_QOS=<qos> SBATCH_PARTITION=<partition>
 
 # H200 partition: one GPU for every model in the registry

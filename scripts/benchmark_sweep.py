@@ -484,6 +484,9 @@ class Runner:
         self.say(f"+ {fmt(cmd)}")
         if self.dry_run:
             return ""
+        if cmd and cmd[0] == "sbatch":
+            # The scripts' #SBATCH --output dir; SLURM drops the log if it is missing.
+            SERVE_LOG_DIR.mkdir(parents=True, exist_ok=True)
         if capture:
             proc = subprocess.run(cmd, cwd=REPO, text=True, capture_output=True)
             self.out.write(proc.stdout or "")
