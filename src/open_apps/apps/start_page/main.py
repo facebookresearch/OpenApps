@@ -1169,7 +1169,7 @@ def render_chrome(path: str) -> ChromeParts | None:
             **(cfg.get("dock") or {}),
             "on_start_page": False,
             "launcher": False,
-            "home_label": "Home",
+            "home_label": t("home", shell_language(app.config)),
         }
         running = []
 

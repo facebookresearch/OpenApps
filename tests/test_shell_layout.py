@@ -668,6 +668,13 @@ class TestChromeOverAHomeScreenApp:
         assert "dock-files" not in ids_in(markup)
         assert 'title="Home"' in dock_item(markup, "dock-desktop")
 
+    @pytest.mark.parametrize(
+        ("content", "label"), [("german", "Startseite"), ("mandarin", "主屏幕")]
+    )
+    def test_home_speaks_the_start_page_language(self, content, label):
+        result = self.chrome("phone", f"apps/start_page/content={content}")
+        assert f'title="{label}"' in dock_item(result.body, "dock-desktop")
+
     @pytest.mark.parametrize("device", ["phone", "tablet"])
     def test_no_window_title_bar(self, device):
         result = self.chrome(device)

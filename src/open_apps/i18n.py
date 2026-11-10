@@ -58,6 +58,8 @@ SHARED: dict[str, dict[str, str]] = {
         "mandarin": "窗口控制",
     },
     "desktop": {"english": "Desktop", "german": "Schreibtisch", "mandarin": "桌面"},
+    # The way back to a phone or tablet home screen (the dock over an app).
+    "home": {"english": "Home", "german": "Startseite", "mandarin": "主屏幕"},
     "dock": {"english": "Dock", "german": "Dock", "mandarin": "程序坞"},
     "all_apps": {"english": "All apps", "german": "Alle Apps", "mandarin": "所有应用"},
     "apps": {"english": "Apps", "german": "Apps", "mandarin": "应用"},

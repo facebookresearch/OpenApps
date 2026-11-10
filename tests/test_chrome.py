@@ -205,6 +205,14 @@ class TestDock:
         assert re.search(r'<a[^>]*title="Home"[^>]*>', markup)
         assert "dock-desktop" in ids(markup)
 
+    def test_unset_home_label_is_desktop_in_the_dock_language(self):
+        markup = to_xml(Dock(APPS, docked=[], running=[], current="todo", language="german"))
+        assert re.search(r'<a[^>]*title="Schreibtisch"[^>]*>', markup)
+        explicit = to_xml(
+            Dock(APPS, docked=[], running=[], current="todo", home_label="Home", language="german")
+        )
+        assert re.search(r'<a[^>]*title="Home"[^>]*>', explicit)
+
     def test_launcher_panel_lists_every_app_and_starts_closed(self):
         markup = to_xml(Dock(APPS, docked=[], running=[], current=None))
         panel_tag = re.search(r'<div[^>]*id="oa-dock-panel"[^>]*>', markup).group(0)
