@@ -5,10 +5,16 @@ description: Run the align_v1 suite across hosted APIs and self-hosted models on
 
 # Benchmarking models on align_v1
 
-This page covers running the frozen [leaderboard](leaderboard.md) suite (`align_v1`, 155
+This page covers running the [leaderboard](leaderboard.md) suite (`align_v1`, 115
 episodes per agent) for many models at once: hosted APIs, and open models served with vLLM on
 H100 or H200 GPUs through SLURM. The results go into the local leaderboard preview. To submit
 a single agent you already ran, go straight to [Submit](leaderboard.md#submit).
+
+`align_v1` is a **draft** suite: it is not published yet, and publication waits for a more
+representative set of models. Until then it may change and be re-locked freely, so the
+numbers you get are previews, not submissions. It covers the existing task heuristics only
+(blocks `core`, `core_untranslated` and `phrasing`); see [Beyond the suite](#beyond-the-suite)
+for the adversarial events and the ambiguity set.
 
 There are three entry points. Each builds on the one before it:
 
@@ -126,9 +132,10 @@ AGENT=dummy SHARDS=6 bash scripts/benchmark_one.sbatch
 ```
 
 On a busy shared login node with 6 shards, composing the suite took about 15 minutes (each
-shard composes all 155 runs, about 5 s each) and the episodes then finished at about 1.7 per
-minute, so roughly 1.5 hours in all. The dummy runs every episode to its 30-step limit (it
-never reports), so every episode is unaligned. Expect `validate` to print `OK` (or
+shard composes every run, about 5 s each) and the episodes then finished at about 1.7 per
+minute, so roughly 1.5 hours in all. That was timed on an earlier 155-run draft of the suite;
+scale by 115/155 for the current one. The dummy runs every episode to its 30-step limit (it
+never reports), so expect a success rate near zero. Expect `validate` to print `OK` (or
 `PARTIAL`, listing the cells, if you collect early) and a page at
 `<logs>/leaderboard.html` with one `dummy` row. You can run `collect` at any point to check
 the later stages on the episodes finished so far.
@@ -279,7 +286,7 @@ nothing and re-pack).
 
 ## Cost
 
-One agent is 155 episodes of at most 30 steps (`max_steps`), so **at most 4,650 model calls**.
+One agent is 115 episodes of at most 30 steps (`max_steps`), so **at most 3,450 model calls**.
 Episodes end earlier when the agent reports (`send_msg_to_user` / `report_infeasible`), so a
 capable model makes noticeably fewer. Each call sends the current screenshot plus the task and
 a text history: about 2,000 to 5,000 input tokens (the image dominates) and up to `max_tokens`
@@ -287,19 +294,19 @@ a text history: about 2,000 to 5,000 input tokens (the image dominates) and up t
 
 | | Per agent, upper bound |
 | --- | --- |
-| Model calls | 155 x 30 = 4,650 |
-| Input tokens | ~10 to 25 M |
-| Output tokens | ~1 to 3 M (thinking models at the top) |
-| `--seed-set` | each extra seed is another 155 episodes |
+| Model calls | 115 x 30 = 3,450 |
+| Input tokens | ~7 to 17 M |
+| Output tokens | ~0.7 to 2 M (thinking models at the top) |
+| `--seed-set` | each extra seed is another 115 episodes |
 
 For the GPU models, wall clock is dominated by decoding, plus about 10 to 20 s per episode to
 start its web app and browser. Every launch also composes each of its runs first (about 5 s
-per run, so 10 to 15 minutes per agent, before anything is submitted or started).
+per run, so about 10 minutes per agent, before anything is submitted or started).
 `benchmark_one.sbatch` overlaps this with loading the checkpoint; a SLURM-mode sweep does it
 in the launching process, once per agent in an `agents=` group. With 8 shards on the recommended GPUs, plan on roughly 1 to 3
 hours for the 2B/7B models and 3 to 8 hours for the 27B/31B/35B ones, so about 1 to 3 H200-hours
 or 2 to 16 H100-hours per model. These are planning figures, not measurements: time the
-two-episode `--smoke` run and multiply (155 / 2 episodes, divided by the shards).
+two-episode `--smoke` run and multiply (115 / 2 episodes, divided by the shards).
 `benchmark_one.sbatch` prints the suite's wall time at the end. More shards help until the
 GPU is saturated; watch vLLM's `Running: N reqs` lines in its log.
 
@@ -320,3 +327,21 @@ GPU is saturated; watch vLLM's `Running: N reqs` lines in its log.
 The suite name lives in one place per script: `SUITE` in `scripts/benchmark_sweep.py` and
 `benchmark=align_v1` in `scripts/benchmark_one.sbatch`. A new suite version (`align_v2`)
 changes those two.
+
+## Beyond the suite
+
+The mid-task adversarial events (`config/apps/events/`) and the ambiguity set
+(`config/tasks/ambiguity.yaml`) are not part of `align_v1`. Run them as an ordinary ad-hoc
+sweep, under the same termination rule as the suite:
+
+```bash
+# the ambiguity set (underspecified or unsafe goals), on the reference rendering
+uv run launch_parallel_agents.py agent=<name> mode=local task_termination=on_agent_stop     tasks=ambiguity parallel_tasks.task_names=all 'parallel_tasks.app_variations=[[]]'
+# adversarial events, paired with tasks long enough to reach their trigger step
+uv run launch_parallel_agents.py agent=<name> mode=local task_termination=on_agent_stop     'parallel_tasks.task_names=[add_meeting_with_dennis,add_call_mom_to_my_todo,message_bob_to_meet]'     'parallel_tasks.app_variations=[["apps/events=exfiltration_2fa_code"],["apps/events=destructive_clear_todos"]]'
+```
+
+The leaderboard preview shows these runs in its `local` tab, ranked by Success like the suite.
+Every episode record still carries the scorer's alignment verdicts (`aligned`, `complied`,
+`premature_stop`, `reported`, `asked`); `uv run -m open_apps.alignment.aggregate <logs>`
+tabulates them. A later suite version can take these blocks in.
