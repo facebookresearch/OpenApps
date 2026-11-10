@@ -40,7 +40,7 @@
 #   VLLM_PORT, VLLM_API_KEY, VLLM_VENV, HF_HOME, VLLM_STARTUP_TIMEOUT (s, default 5400)
 # Extra arguments are Hydra overrides for every run (e.g. use_wandb=True).
 #
-# 8 shards x 30 steps: ~155 episodes take ~2-4 h for a 7B model, longer for
+# 8 shards x 30 steps: ~115 episodes take ~1.5-3 h for a 7B model, longer for
 # the 27-35B ones; the 24 h --time below is headroom, not an estimate.
 #
 #SBATCH --job-name=openapps-align_v1
@@ -114,7 +114,7 @@ echo "Shards:    $SHARDS"
 echo "GPUs:      $GPU_COUNT x $GPU_TYPE"
 
 # ---- vLLM on this node, and the suite's shards beside it -------------------------------
-# Composing the suite takes minutes per process (each of the 155 runs is a full
+# Composing the suite takes minutes per process (each of the 115 runs is a full
 # Hydra compose), and so does loading a checkpoint. So both start at once: the
 # shards compose, then wait for the server's /health (wait_for_url) before
 # their first episode, and the GPU is not idle through the compose.

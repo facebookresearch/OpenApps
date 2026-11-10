@@ -4,7 +4,7 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Run a frozen suite (default ``align_v1``) across many models.
+Run a leaderboard suite (default ``align_v1``) across many models.
 
 The models are the entries of ``scripts/benchmark_models.yaml``. They are
 planned into *launch groups*, each one ``launch_parallel_agents.py`` sweep
@@ -454,7 +454,7 @@ _SUBMITTED = re.compile(r"Submitted \d+ SLURM jobs?:\s*(\d+)")
 
 def parse_array_id(output: str) -> Optional[str]:
     """The SLURM job (array) id ``launch_parallel_agents.py`` printed
-    (``Submitted 155 SLURM jobs: 4242_0, 4242_1, ...`` -> ``4242``)."""
+    (``Submitted 115 SLURM jobs: 4242_0, 4242_1, ...`` -> ``4242``)."""
     match = _SUBMITTED.search(output)
     return match.group(1) if match else None
 

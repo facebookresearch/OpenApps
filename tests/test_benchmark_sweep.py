@@ -212,7 +212,7 @@ def test_slurm_settings_precedence(tmp_path):
 
 
 def test_parse_array_id():
-    out = "155 runs in this sweep.\nSubmitted 155 SLURM jobs: 4242_0, 4242_1, 4242_2\n"
+    out = "115 runs in this sweep.\nSubmitted 115 SLURM jobs: 4242_0, 4242_1, 4242_2\n"
     assert S.parse_array_id(out) == "4242"
     assert S.parse_array_id("Submitted 1 SLURM jobs: 77\n") == "77"
     assert S.parse_array_id("nothing") is None
