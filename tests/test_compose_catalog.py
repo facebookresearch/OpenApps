@@ -249,7 +249,8 @@ def test_every_agent_config_declares_a_label():
 def test_control_hint_follows_option_count(catalog):
     for group in catalog.groups.values():
         n = len(group.options)
-        assert group.control == ("pills" if n <= 5 else "select"), group.path
+        pills = n <= 5 or group.combinable
+        assert group.control == ("pills" if pills else "select"), group.path
         assert group.searchable == (n > 12), group.path
 
 

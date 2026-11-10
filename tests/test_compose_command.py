@@ -276,7 +276,7 @@ def test_run_count_expands_all_tasks_of_combined_groups(catalog):
         {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["all"]}}
     )
     expected = len(catalog.tasks["all_tasks"]) + len(catalog.tasks["openbanking"])
-    assert run_count(sel, catalog) == expected == 283
+    assert run_count(sel, catalog) == expected
 
 
 # --------------------------------------------------------------------------

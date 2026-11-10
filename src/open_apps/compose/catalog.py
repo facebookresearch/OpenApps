@@ -63,6 +63,8 @@ ACRONYMS = {
 }
 
 #: A group with at most this many options renders as pills, otherwise a select.
+#: Combinable groups stay pills at any size: Combine and shift-click pick
+#: several pills, and a select has no way to pick several.
 PILLS_MAX = 5
 #: A group with more than this many options gets a search box.
 SEARCHABLE_MIN = 12
@@ -736,7 +738,11 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
                 append=append,
                 sweepable=group_path.startswith("apps/"),
                 targets=targets,
-                control="pills" if len(options) <= PILLS_MAX else "select",
+                control=(
+                    "pills"
+                    if len(options) <= PILLS_MAX or group_path in COMBINABLE_GROUPS
+                    else "select"
+                ),
                 searchable=len(options) > SEARCHABLE_MIN,
                 null_label=null_label,
                 null_summary=null_summary,

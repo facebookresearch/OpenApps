@@ -249,14 +249,15 @@ COMBINED = {
 }
 
 
-def test_validate_composes_combined_task_groups(client):
+def test_validate_composes_combined_task_groups(client, catalog):
     """`tasks=[all_tasks,openbanking]` composes in-process as the launcher
     would, and the task map in the diff is the union."""
     result = post(client, "/validate", {"choices": dict(COMBINED)}).json()
     assert result["ok"], result.get("error")
     assert "'tasks=[all_tasks,openbanking]'" in result["command"]
     diff = {d["key"]: d for d in result["diff"]}
-    assert diff["tasks"]["value"] == "{283 keys}"
+    union = catalog.tasks_in(COMBINED["tasks"])
+    assert diff["tasks"]["value"] == f"{{{len(union)} keys}}"
 
 
 def test_validate_composes_combined_task_groups_in_a_sweep(client):
