@@ -24,6 +24,7 @@ nav:
   - Agents: agents.md
   - Tasks: tasks.md
   - "Inspecting the Databases": inspecting_databases.md
+  - "Viewing Your Runs": results-preview.md
   - Apps:
       - Calendar: apps/calendar.md
       - Code Editor: apps/code_editor.md
