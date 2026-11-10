@@ -346,15 +346,15 @@ def test_renders_the_fixture_leaderboard(page, site):
         page.locator(
             f"{EL} table.board:not(.partial-table) thead th[scope=col]"
         ).count()
-        == 9
+        == 7
     )
     assert header(page, "success").get_attribute("aria-sort") == "descending"
-    # The alignment verdicts are neither shown nor sortable.
-    for hidden in ("aligned", "fooled", "reported", "ask_at_ambiguous"):
+    # The alignment metrics are neither shown nor sortable.
+    for hidden in ("aligned", "fooled", "reported", "ask_at_ambiguous", "harm", "honest"):
         assert header(page, hidden).count() == 0, hidden
     first = row(page, "twin-agent")
     cells = first.locator("td").all_inner_texts()
-    # rank, tasks, success, worst, harm, honest, steps, tokens
+    # rank, tasks, success, worst, steps, tokens
     assert cells[1] == "4"  # distinct tasks among the six episodes
     # Success is the task's own check: the untouched-state refuse task the
     # agent never refused counts there (4/6).
@@ -362,10 +362,9 @@ def test_renders_the_fixture_leaderboard(page, site):
     assert "n=6" in first.locator("td").nth(2).get_attribute("title")
     assert cells[3].split()[0].endswith("%")  # worst variation (success)
     assert "apps/theme=" in cells[3]
-    # Honest: the 5 episodes with a report, one false claim.
-    assert cells[5].startswith("80.0%")
+    assert len(cells) == 6
     # CI whisker inline, and the interval in the cell's title.
-    assert first.locator("td .whisker").count() >= 2
+    assert first.locator("td .whisker").count() == 1
     assert "95% CI" in first.locator("td").nth(2).get_attribute("title")
     # Partial submissions are listed apart, with coverage.
     partial = page.locator(f"{EL} .partial")
@@ -399,27 +398,27 @@ def test_sorting_by_column(page):
     assert row(page, "dummy").first.locator("td.col-rank").inner_text() == "3"
 
     # Lower-is-better columns sort best (lowest) first.
-    page.locator(f'{EL} button[data-sort="harm"]').click()
-    assert header(page, "harm").get_attribute("aria-sort") == "ascending"
+    page.locator(f'{EL} button[data-sort="steps"]').click()
+    assert header(page, "steps").get_attribute("aria-sort") == "ascending"
     # The state is in the URL hash, so a link reproduces the view.
-    assert "sort=harm" in page.evaluate("location.hash")
+    assert "sort=steps" in page.evaluate("location.hash")
 
 
 def test_headers_sort_from_the_keyboard(page):
     page.goto_board()
-    button = page.locator(f'{EL} button[data-sort="honest"]')
+    button = page.locator(f'{EL} button[data-sort="worst"]')
     button.focus()
     page.keyboard.press("Enter")
-    assert header(page, "honest").get_attribute("aria-sort") == "descending"
+    assert header(page, "worst").get_attribute("aria-sort") == "descending"
     # Focus stays on the header across the re-render.
     assert (
         page.evaluate(
             f"document.querySelector('{EL}').shadowRoot.activeElement.dataset.sort"
         )
-        == "honest"
+        == "worst"
     )
     page.keyboard.press("Space")
-    assert header(page, "honest").get_attribute("aria-sort") == "ascending"
+    assert header(page, "worst").get_attribute("aria-sort") == "ascending"
 
 
 def test_sort_state_is_read_from_the_hash(page):
@@ -522,7 +521,7 @@ def test_unscorable_and_ci_method_are_surfaced(page, site):
     assert "task-clustered bootstrap" in footnote.inner_text()
     assert "ranked by Success" in footnote.inner_text()
     board = page.locator(f"{EL} .olb").inner_text()
-    for hidden in ("Aligned", "Fooled", "Ask@ambiguous", "Reported"):
+    for hidden in ("Aligned", "Fooled", "Ask@ambiguous", "Reported", "Harm", "Honest"):
         assert hidden not in board, hidden
     method = footnote.locator("details.ci-method")
     method.locator("summary").click()

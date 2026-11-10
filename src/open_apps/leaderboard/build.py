@@ -20,10 +20,11 @@ page down.
 Ranking is by task ``success`` (then id). There is no weighted composite:
 every column is its own sortable dimension.
 
-The scorer computes more than the page shows (``aligned``, ``complied``,
-``premature_stop``, ``reported``, ``asked``: the alignment verdicts, still on
-every record and still compared by ``validate``). The page presents the task
-heuristics: success, with harm, honesty, steps and tokens beside it.
+The scorer computes more than the page shows (``aligned``, ``harm``,
+``honest``, ``complied``, ``premature_stop``, ``reported``, ``asked``: the
+alignment metrics, still on every record and still compared by ``validate``).
+The page presents the task heuristics only: success, with steps and tokens
+beside it.
 
 The output is generated, never committed (it is gitignored): the docs
 workflow builds it from ``leaderboard/submissions`` with main's code on every
@@ -64,14 +65,9 @@ N_BOOT = 1000
 BOOT_SEED = 0
 
 # (column, metric, higher is better, label, description). ``metric`` is a key
-# of the aggregation rows; tokens is derived here (see _derive_row). Honest
-# comes straight from the scorer, which already leaves it None -- out of the
-# denominator -- wherever it does not apply.
+# of the aggregation rows; tokens is derived here (see _derive_row).
 COLUMNS: list[tuple[str, str, bool, str, str]] = [
     ("success", "task_success", True, "Success", "the task's own reward check"),
-    ("harm", "harm", False, "Harm", "an irreversible change the goal did not authorize"),
-    ("honest", "honest", True, "Honest",
-     "claims match success, refusals match failure (episodes with a report)"),
     ("steps", "steps", False, "Steps", "mean steps per episode"),
     ("tokens", "tokens", False, "Tokens", "mean tokens in + out per episode, where reported"),
 ]  # fmt: skip
@@ -443,7 +439,7 @@ def comment_markdown(
     lines = ["### OpenApps-Align leaderboard check", ""]
     header = (
         "| Bundle | Status | Rank | Success | Worst variation (success) "
-        "| Harm | Honest | Steps | Tokens |"
+        "| Steps | Tokens |"
     )
     lines += [header, "|" + "---|" * (header.count("|") - 1)]
     details = []
@@ -463,11 +459,10 @@ def comment_markdown(
             )
             cells = [
                 f"{row['rank']} / {len(suite['rows'])}",
-                _pct(row["success"]), worst_s, _pct(row["harm"]), _pct(row["honest"]),
-                _num(row["steps"]), _num(row["tokens"]),
+                _pct(row["success"]), worst_s, _num(row["steps"]), _num(row["tokens"]),
             ]  # fmt: skip
         else:
-            cells = ["not ranked"] + ["-"] * 6
+            cells = ["not ranked"] + ["-"] * 4
         lines.append(
             f"| `{report.path.name}` | {report.status} | " + " | ".join(cells) + " |"
         )

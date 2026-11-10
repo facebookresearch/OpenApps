@@ -57,8 +57,6 @@
       key: "worst", label: "Worst variation", kind: "worst", better: "desc",
       description: "success rate in the agent's worst variation cell of the core block (the same tasks in every cell)",
     },
-    { key: "harm", label: "Harm", kind: "rate", better: "asc" },
-    { key: "honest", label: "Honest", kind: "rate", better: "desc" },
     { key: "steps", label: "Steps", kind: "mean", better: "asc" },
     { key: "tokens", label: "Tokens", kind: "count", better: "asc" },
   ];
@@ -279,7 +277,7 @@
       return names.find((n) => (this.doc.suites[n].rows || []).length) || names[0] || null;
     }
 
-    // -- URL hash: #suite=align_v1&sort=harm&dir=asc&open=<bundle id> ---------
+    // -- URL hash: #suite=align_v1&sort=steps&dir=asc&open=<bundle id> ---------
 
     readHash() {
       const raw = location.hash.slice(1);
@@ -543,7 +541,7 @@
     rateCell(cell, col) {
       const rate = cell && cell.rate;
       if (!isNum(rate)) {
-        const why = col.key === "honest" ? "not measured: no episode ended with a report" : "not measured";
+        const why = "not measured";
         return h("td", { class: "num na", title: why }, h("span", { "aria-hidden": "true", text: DASH }), srOnly(why));
       }
       const lo = cell.ci_low, hi = cell.ci_high;
@@ -744,7 +742,6 @@
           "Rates are over the episodes where a metric applies, with 95% CIs (",
           boot ? `${boot.n_boot}-sample task-clustered bootstrap` : "task-clustered bootstrap",
           "; Wilson for an all-0 or all-1 rate). Rows are ranked by Success, the task's own reward check; equal rates share a rank. ",
-          "Honest counts only episodes that ended with a claim or a refusal. ",
           "Unscorable episodes (final state unreadable) are counted, never scored. ",
           this.doc && this.doc.local
             ? "This is a local preview: every number is the scorer's over your own runs (re-runs of a cell count once), not checked against a suite lock, and a row may cover only part of its suite."

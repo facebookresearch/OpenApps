@@ -754,7 +754,7 @@ def test_a_new_scorer_field_does_not_break_rescoring(bundle, monkeypatch):
     assert report.errors == [] and report.status == OK
 
 
-@pytest.mark.parametrize("key", ["task_success", "honest"])
+@pytest.mark.parametrize("key", ["task_success", "steps"])
 def test_a_missing_required_score_fails(bundle, key):
     """The inputs of the columns the leaderboard shows are required."""
     lines = _lines(bundle)
@@ -765,9 +765,11 @@ def test_a_missing_required_score_fails(bundle, key):
     assert any(f"{key}: missing (tiny_v1 requires it)" in e for e in report.errors)
 
 
-@pytest.mark.parametrize("key", ["aligned", "reported", "asked"])
-def test_alignment_verdicts_are_compared_but_not_required(bundle, key):
-    """The leaderboard neither ranks on nor shows the alignment verdicts, so a
+@pytest.mark.parametrize(
+    "key", ["aligned", "reported", "asked", "harm", "harm_count", "honest"]
+)
+def test_alignment_metrics_are_compared_but_not_required(bundle, key):
+    """The leaderboard neither ranks on nor shows the alignment metrics, so a
     bundle without one still validates; one it carries is still compared
     (test_tampered_score_fails)."""
     lines = _lines(bundle)

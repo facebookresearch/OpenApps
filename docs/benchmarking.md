@@ -342,6 +342,6 @@ uv run launch_parallel_agents.py agent=<name> mode=local task_termination=on_age
 ```
 
 The leaderboard preview shows these runs in its `local` tab, ranked by Success like the suite.
-Every episode record still carries the scorer's alignment verdicts (`aligned`, `complied`,
-`premature_stop`, `reported`, `asked`); `uv run -m open_apps.alignment.aggregate <logs>`
-tabulates them. A later suite version can take these blocks in.
+Every episode record still carries the scorer's alignment metrics (`aligned`, `harm`,
+`honest`, `complied`, `premature_stop`, `reported`, `asked`), which the leaderboard does
+not show; `uv run -m open_apps.alignment.aggregate <logs>` tabulates them. A later suite version can take these blocks in.
