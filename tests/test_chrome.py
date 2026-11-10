@@ -440,3 +440,92 @@ def test_no_page_falls_back_to_fastHTML_page_title(client, route):
     # used to reach the agent's observation as the name of every page.
     titles = re.findall(r"<title>(.*?)</title>", client.get(route).text)
     assert titles and "FastHTML page" not in titles and "main-page" not in titles
+
+
+# --------------------------------------------------------------------------
+# Content language: the chrome speaks the session's (start page's) language
+# --------------------------------------------------------------------------
+
+
+class TestLanguage:
+    def test_english_is_the_default_and_unchanged(self):
+        markup = parts().body
+        assert 'aria-label="Close OpenTodos"' in markup
+        assert 'aria-label="Window controls"' in markup
+        assert 'aria-label="Dock"' in markup
+        assert ">Desktop<" in markup and ">All apps<" in markup
+
+    def test_german_window_controls_and_dock(self):
+        markup = parts(language="german").body
+        assert 'aria-label="OpenTodos schließen"' in markup
+        assert 'aria-label="OpenTodos minimieren"' in markup
+        assert 'aria-label="OpenTodos maximieren"' in markup
+        assert 'title="Schließen"' in markup
+        assert 'aria-label="Fenstersteuerung"' in markup
+        assert ">Schreibtisch<" in markup and ">Alle Apps<" in markup
+        assert "Close OpenTodos" not in markup and ">All apps<" not in markup
+
+    def test_mandarin_restore_and_unlabelled_dock(self):
+        cfg = compose_chrome("apps.chrome.dock.labels=false")
+        markup = parts(cfg, language="mandarin", maximized=True).body
+        assert 'aria-label="还原OpenTodos"' in markup
+        # Unlabelled, the names move to aria-label -- in the same language.
+        assert 'aria-label="桌面"' in markup and 'aria-label="所有应用"' in markup
+
+    def test_ids_and_routes_do_not_change_with_the_language(self):
+        assert ids(parts().body) == ids(parts(language="german").body)
+        assert re.findall(r'action="([^"]+)"', parts().body) == re.findall(
+            r'action="([^"]+)"', parts(language="mandarin").body
+        )
+
+
+def _served(tmp_path_factory, name: str, *overrides: str) -> TestClient:
+    """The real server under ``overrides`` (a fresh database dir each)."""
+    from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
+
+    logs_dir = tmp_path_factory.mktemp(name)
+    if GlobalHydra.instance().is_initialized():
+        GlobalHydra.instance().clear()
+    with initialize_config_dir(version_base=None, config_dir=CONFIG_DIR):
+        config = compose(config_name="config", overrides=[f"logs_dir={logs_dir}", *overrides])
+    Path(config.logs_dir).mkdir(parents=True, exist_ok=True)
+    Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+    initialize_routes_and_configure_task(config.apps)
+    return TestClient(app)
+
+
+def _chrome_block(html: str) -> str:
+    """The token block scoped to the chrome layer (not chrome.css's own
+    ``#oa-chrome { display: contents; }`` rule, which comes first)."""
+    match = re.search(r"#oa-chrome \{(\s*--.*?)\}", html, flags=re.S)
+    assert match, "no #oa-chrome token block"
+    return match.group(1)
+
+
+def test_served_pages_carry_lang_and_pico_theme(client):
+    """English default: lang="en", and Pico pinned to the light palette
+    rather than left to follow the host's prefers-color-scheme."""
+    html = client.get("/todo").text
+    assert re.search(r'<html lang="en" data-theme="light"', html)
+    # The code editor's own default theme is vscode_dark.
+    assert re.search(r'<html lang="en" data-theme="dark"', client.get("/codeeditor/").text)
+
+
+@pytest.mark.parametrize("theme,bg", [("dark", "#121212"), ("challenging_font", "#ffffff")])
+def test_dock_follows_a_selected_theme(tmp_path_factory, theme, bg):
+    """apps/theme beats the shell's own light/dark Meta pair: the dock over a
+    dark app is dark, and challenging_font reaches the dock's labels."""
+    served = _served(tmp_path_factory, f"chrome_{theme}", f"apps/theme={theme}")
+    for route in ("/", "/todo"):
+        block = _chrome_block(served.get(route).text)
+        assert f"--color-bg: {bg};" in block
+        if theme == "challenging_font":
+            assert "--font-family: 'OpenApps Script'" in block
+
+
+def test_german_session_localizes_the_served_chrome(tmp_path_factory):
+    served = _served(tmp_path_factory, "chrome_german", "apps/start_page/content=german",
+                     "apps/todo/content=german")
+    html = served.get("/todo").text
+    assert re.search(r'<html lang="de"', html)
+    assert 'aria-label="Fenstersteuerung"' in html and ">Schreibtisch<" in html

@@ -47,8 +47,9 @@ from starlette.responses import RedirectResponse
 
 from pathlib import PurePosixPath
 
+from open_apps.i18n import ENGLISH, html_lang, language_of, shell_language, t
 from open_apps.app_icons import app_glyph
-from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts
+from open_apps.chrome_middleware import ChromeMiddleware, ChromeParts, merge_parts
 from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from open_apps.ui.chrome import ChromeApp, chrome_parts, configured_dock, dock_shown
 
@@ -496,8 +497,20 @@ def get():
     # Layout group selects the landing page. `gallery` (default) keeps the
     # html5up tile grid so existing tasks, prompts and the reference screenshot
     # are untouched; `desktop` renders the shell instead.
+    language = shell_language(app.config)
     if config.get("layout") == "desktop":
-        return PageWrapper("OpenApps", render_desktop_shell(config), config=config)
+        # The pop-ups sit outside #desktop-shell: every shell control swaps
+        # that element, and a swap must not bring a dismissed pop-up back.
+        return PageWrapper(
+            "OpenApps",
+            Div(*welcome_modals(language)),
+            render_desktop_shell(config),
+            config=config,
+            # The shell carries its own token block (it has to come back with
+            # every swap); this head-level copy themes the page around it --
+            # body, pop-ups -- from the first paint.
+            theme_css=render_theme_css(shell_theme()),
+        )
     
     colors = tile_colors(config)
 
@@ -540,7 +553,7 @@ def get():
         items = [
             ItemContent(
                 "OpenTodos",
-                "Manage your tasks and to-dos efficiently",
+                t("fallback_todo", language),
                 icon="/assets/icons/real_icons/todo.svg",
                 color=colors[0] if colors else "#fdc891",
                 href="/todo",
@@ -548,7 +561,7 @@ def get():
             ),
             ItemContent(
                 "OpenCalendar",
-                "Keep track of your appointments and events",
+                t("fallback_calendar", language),
                 color=colors[1] if len(colors) > 1 else "#fdc891",
                 icon="/assets/icons/real_icons/calendar.svg",
                 href="/calendar",
@@ -556,7 +569,7 @@ def get():
             ),
             ItemContent(
                 "OpenMessages",
-                "Chat with friends and colleagues",
+                t("fallback_messages", language),
                 icon="/assets/icons/real_icons/messages.svg",
                 color=colors[2] if len(colors) > 2 else "#fdc891",
                 href="/messages",
@@ -564,7 +577,7 @@ def get():
             ),
             ItemContent(
                 "OpenMaps",
-                "Navigate and explore locations",
+                t("fallback_maps", language),
                 icon="/assets/icons/real_icons/maps.svg",
                 color=colors[3] if len(colors) > 3 else "#fdc891",
                 href="/maps",
@@ -572,7 +585,7 @@ def get():
             ),
             ItemContent(
                 "OpenCodeEditor",
-                "Write and edit code seamlessly",
+                t("fallback_codeeditor", language),
                 icon="/assets/icons/real_icons/code.svg",
                 color=colors[4] if len(colors) > 4 else "#fdc891",
                 href="/codeeditor",
@@ -580,7 +593,7 @@ def get():
             ),
             ItemContent(
                 "OpenShop",
-                "Browse and purchase items online",
+                t("fallback_onlineshop", language),
                 color=colors[5] if len(colors) > 5 else "#fdc891",
                 icon="/assets/icons/real_icons/shop.svg",  
                 href="/onlineshop",
@@ -596,27 +609,7 @@ def get():
             #),
         ]
 
-    # Create pop-ups
-    welcome_modals = []
-    if hasattr(app.config, 'pop_ups') and app.config.pop_ups:
-        for key, item in app.config.pop_ups.items():
-            if item.url_extension == "":
-                modal_content = []
-                if item.content:
-                    modal_content.append(P(item.content))
-                if item.image_url:
-                    modal_content.append(Img(src=item.image_url, cls="modal-image"))
-                welcome_modals.append(
-                    Modal(
-                    id=f"welcome-modal-{key}",  # unique ID for each modal
-                    content=Div(*modal_content) if modal_content else None,
-                    title=item.title,
-                    button_title=item.button_title,
-                    link_button=item.link_button_title,
-                    link_url=item.link_button_url,
-                    cls=f"welcome-modal {item.position}"
-                    )
-                )
+    welcome = welcome_modals(language)
 
     # Create the gallery with configuration
     has_descriptions = any(
@@ -637,7 +630,7 @@ def get():
     wrapper = Wrapper(
         config.headline,
         config.sub_header,
-        Div(*welcome_modals, gallery),
+        Div(*welcome, gallery),
         config=config,
     )
     
@@ -645,11 +638,95 @@ def get():
     return PageWrapper(
         "OpenApps",
         wrapper,
-        footer(),
+        footer(language),
         config=config,
         # Resolved per-request so live `reconfigure` theme swaps take effect.
         theme_css=render_theme_css(resolve_theme(app.config, "start_page")),
     )
+
+
+def welcome_modals(language: str = ENGLISH) -> list:
+    """The ``apps.pop_ups`` that open on the start page, in config order.
+
+    Shared by both layouts: the desktop shell is the default landing page, so
+    a pop-up variation that only reached the gallery would silently be a
+    no-op in most runs. ``language`` fills the pop-up's default title and
+    button ("Notice", "Close") when a pack leaves them out. Entries that are
+    not pop-ups (a pack's ``content_language`` flag) are skipped.
+    """
+    pop_ups = getattr(app.config, "pop_ups", None)
+    if not pop_ups:
+        return []
+    modals = []
+    for key, item in pop_ups.items():
+        if not hasattr(item, "get") or item.get("url_extension", "") != "":
+            continue
+        modal_content = []
+        if item.get("content"):
+            modal_content.append(P(item.content))
+        if item.get("image_url"):
+            modal_content.append(Img(src=item.image_url, cls="modal-image"))
+        modals.append(
+            Modal(
+                id=f"welcome-modal-{key}",  # unique ID for each modal
+                content=Div(*modal_content) if modal_content else None,
+                title=item.get("title"),
+                button_title=item.get("button_title"),
+                link_button=item.get("link_button_title"),
+                link_url=item.get("link_button_url"),
+                cls=f"welcome-modal {item.get('position', 'center')}",
+                # A pop-up pack that declares its own language speaks it even
+                # when the start page's pack is English.
+                language=language_of(item) if item.get("content_language") else language,
+            )
+        )
+    return modals
+
+
+def _theme_selected(apps_config) -> bool:
+    """Whether a theme was chosen for the start page: a per-app pin
+    (``apps.start_page.theme``) or the global ``apps/theme`` group."""
+    start = getattr(apps_config, "start_page", None)
+    if start is not None and getattr(start, "theme", None):
+        return True
+    return getattr(apps_config, "theme", None) is not None
+
+
+def _shell_theme_config():
+    """The config to resolve the desktop's theme from.
+
+    A selected theme wins -- ``apps/theme=dark`` (or a pin on the start page)
+    paints the desktop, the dock and the toolbar like every app, which is the
+    whole point of a shared theme axis. Only when nobody chose one does the
+    toolbar's light/dark toggle pick between the two Meta themes; that is the
+    shell's own preferred look, the way ``theme_default`` is the code
+    editor's (see ``open_apps.theme.resolve_theme``). Shared with the window
+    chrome, whose dock belongs to the desktop rather than to whichever app it
+    is drawn over.
+
+    The toggle still records its state under a selected theme (``mode`` is
+    scoreable at /desktop_all); it just has no tokens of its own to swap.
+    """
+    if _theme_selected(app.config):
+        return app.config
+    theme_name = {"light": "meta", "dark": "meta_dark"}.get(_desktop_state["mode"])
+    return OmegaConf.create({"theme": theme_name}) if theme_name else app.config
+
+
+def shell_theme() -> dict:
+    """The desktop shell's resolved theme (see :func:`_shell_theme_config`)."""
+    return resolve_theme(_shell_theme_config(), "start_page")
+
+
+def shell_tone() -> str:
+    """The shell theme's ``tone`` asset: light | dark | mono."""
+    return str((shell_theme().get("assets") or {}).get("tone", "light"))
+
+
+def pico_scheme(tone: str) -> str:
+    """Pico's palette polarity for a tone. Only ``dark`` is dark: ``mono`` is
+    black on white, and Pico has no third palette to offer it."""
+    return "dark" if tone == "dark" else "light"
 
 
 def _enabled_apps(config):
@@ -754,16 +831,19 @@ def _desktop_composition(*, toolbar, widget):
     )
 
 
-def _shell_theme_config():
-    """The config to resolve the desktop's theme from.
+def desktop_headline(config, desktop_cfg) -> str:
+    """The line centred on the desktop.
 
-    The mode toggle picks which theme resolves, so the tokens change with it.
-    Falls back to the app's configured theme when the two Meta themes are not
-    the ones in play. Shared with the window chrome, whose dock belongs to the
-    desktop rather than to whichever app it is drawn over.
+    ``apps.start_page.desktop.headline`` is an explicit override and wins.
+    Otherwise the content pack's ``desktop_headline`` -- so a German or
+    Mandarin pack speaks its own language on the desktop -- then the pack's
+    gallery ``headline``.
     """
-    theme_name = {"light": "meta", "dark": "meta_dark"}.get(_desktop_state["mode"])
-    return OmegaConf.create({"theme": theme_name}) if theme_name else app.config
+    return str(
+        desktop_cfg.get("headline")
+        or config.get("desktop_headline")
+        or config.get("headline", "")
+    )
 
 
 def render_desktop_shell(config):
@@ -783,7 +863,9 @@ def render_desktop_shell(config):
     weather = desktop_cfg.get("weather", {}) or {}
     mode = _desktop_state["mode"]
     pinned = _desktop_state["pinned"]
-    theme_cfg = _shell_theme_config()
+    theme = shell_theme()
+    tone = str((theme.get("assets") or {}).get("tone", "light"))
+    language = shell_language(app.config)
 
     # Resolve the wallpaper. Returns None if every backend failed, in which
     # case we set no custom property and the CSS gradient fallback applies.
@@ -793,6 +875,9 @@ def render_desktop_shell(config):
         url = ensure_wallpaper(
             variant=int(wallpaper_cfg.get("variant", 0)),
             force=bool(wallpaper_cfg.get("regenerate", False)),
+            # A dark theme gets the night rendering of the same hills, rather
+            # than the daytime one faded toward a near-black background.
+            tone=tone,
         )
         if url:
             shell_style = (
@@ -808,6 +893,7 @@ def render_desktop_shell(config):
             href=f"/{key}",
             app_key=key,
             pinned=key in pinned,
+            language=language,
             # The bare glyph behind the app's tile icon, found by the icon
             # file's stem -- the same path the dock uses, so a content pack
             # that repoints an icon repoints both. A custom icon with no glyph
@@ -833,15 +919,18 @@ def render_desktop_shell(config):
     factor = device.form_factor(app.config)
     variant = _layout_variant(desktop_cfg, factor)
 
-    launcher = LauncherMenu(*launcher_items, open=_desktop_state["launcher_open"])
+    launcher = LauncherMenu(
+        *launcher_items, open=_desktop_state["launcher_open"], language=language
+    )
     weather_chip = WeatherChip(
         weather.get("condition", "clear"),
         temperature_text(weather, _desktop_state["units"]),
         units=_desktop_state["units"],
+        language=language,
     )
     clock = Clock(clock_text(desktop_cfg))
-    mode_toggle = ModeToggle(mode)
-    headline = desktop_cfg.get("headline") or config.get("headline", "")
+    mode_toggle = ModeToggle(mode, language=language)
+    headline = desktop_headline(config, desktop_cfg)
 
     if variant == "home_screen":
         # Grid: everything not pinned. Dock: everything pinned. Both follow the
@@ -855,7 +944,7 @@ def render_desktop_shell(config):
             # Time on the left, indicators on the right -- a status bar, not a
             # scaled-down toolbar. The brand moves into the widget below,
             # where there is room for it.
-            status_bar=Toolbar(left=[clock], right=[weather_chip, mode_toggle]),
+            status_bar=Toolbar(left=[clock], right=[weather_chip, mode_toggle], language=language),
             widget=Div(
                 Div(Wordmark(height=20), cls="ui-brand"),
                 Text(headline, variant="body"),
@@ -879,6 +968,7 @@ def render_desktop_shell(config):
             toolbar=Toolbar(
                 left=[launcher, Div(Wordmark(height=34), cls="ui-brand")],
                 right=[weather_chip, clock, mode_toggle],
+                language=language,
             ),
             widget=Div(
                 Text(headline, variant="title"),
@@ -888,7 +978,7 @@ def render_desktop_shell(config):
         )
 
     return Div(
-        theme_style(theme_cfg, "start_page"),
+        Style(render_theme_css(theme)),
         component_styles(),
         *body,
         id="desktop-shell",
@@ -905,6 +995,11 @@ def render_desktop_shell(config):
         data_units=_desktop_state["units"],
         data_device=factor,
         data_layout=variant,
+        # Pico keys its palette off the nearest data-theme. The <html> one is
+        # set per page (render_document) and does not come back with a swap,
+        # so the shell carries its own, which the mode toggle does update.
+        data_theme=pico_scheme(tone),
+        data_tone=tone,
     )
 
 
@@ -1036,6 +1131,7 @@ def _desktop_dock_oob():
         current=None,
         docked=_docked_keys(cfg.get("dock") or {}, apps),
         running=list(_chrome_state["running"]),
+        language=shell_language(app.config),
     )
     dock.attrs["hx-swap-oob"] = "true"
     return dock
@@ -1085,10 +1181,9 @@ def render_chrome(path: str) -> ChromeParts | None:
         running=list(running),
         maximized=current in _chrome_state["maximized"],
         form_factor=device.form_factor(app.config),
-        shell_tokens_css=render_theme_css(
-            resolve_theme(_shell_theme_config(), "start_page"), selector="#oa-chrome"
-        ),
+        shell_tokens_css=render_theme_css(shell_theme(), selector="#oa-chrome"),
         dock_overlay=on_shell,
+        language=shell_language(app.config),
     )
 
 
@@ -1140,7 +1235,124 @@ def window_action(action: str, app_key: str, req):
     return RedirectResponse("/", status_code=303)
 
 
-app.add_middleware(ChromeMiddleware, render=render_chrome)
+# ---------------------------------------------------------------------------
+# Per-page document attributes: <html lang> and Pico's data-theme
+#
+# Every full page, whatever app drew it, gets the language of the app it
+# belongs to and the tone of the theme it renders in, spliced in by the same
+# middleware as the window chrome.
+# ---------------------------------------------------------------------------
+
+# First path segment -> the app config whose theme a page renders in. The
+# start page's inventory keys are URL stems, not config group names.
+_THEME_APP_FOR_SEGMENT = {
+    "": "start_page",
+    "messages": "messenger",
+    "codeeditor": "code_editor",
+    "map": "maps",
+    "uilibrary": "ui_library",
+}
+
+
+def _theme_app_for_path(path: str) -> str:
+    first = (path or "/").strip("/").split("/", 1)[0]
+    if first in _THEME_APP_FOR_SEGMENT:
+        return _THEME_APP_FOR_SEGMENT[first]
+    return first if getattr(app.config, first, None) is not None else "start_page"
+
+
+def _page_language(path: str) -> str:
+    """The content language of the app ``path`` belongs to: its own pack's
+    ``content_language``, so an app whose pack was not switched stays English
+    even when the start page's was. The start page speaks the session's."""
+    key = _theme_app_for_path(path)
+    cfg = getattr(app.config, key, None)
+    return language_of(cfg) if cfg is not None else shell_language(app.config)
+
+
+def _page_tone(path: str) -> str:
+    """The theme tone a page renders in: the shell theme on the desktop shell
+    (where the mode toggle may be in charge), the app's theme anywhere else."""
+    key = _theme_app_for_path(path)
+    if key == "start_page" and app.config.start_page.get("layout") == "desktop":
+        return shell_tone()
+    return str(theme_asset(app.config, key, "tone", "light"))
+
+
+def render_document(path: str) -> ChromeParts | None:
+    """Attributes for every page's ``<html>``: ``lang`` and Pico's ``data-theme``.
+
+    ``lang`` is the page app's content language (``open_apps.i18n.html_lang``),
+    so the browser picks Simplified-Chinese glyph variants on a Mandarin page
+    and an agent reading the accessibility tree knows what language it is in.
+
+    ``data-theme`` pins Pico's palette to the theme's tone. Without it Pico 2
+    follows ``prefers-color-scheme`` -- the host's setting, not the run's --
+    so a light theme rendered half-dark in a browser that prefers dark, and a
+    dark theme kept Pico's white form fields everywhere the tokens did not
+    reach. Every page, whatever app or template engine drew it, which is why
+    this is spliced in here rather than set by each app.
+
+    Independent of ``apps/chrome``: turning the window chrome off must not
+    change the page's language or palette.
+    """
+    return ChromeParts(
+        head="".join(
+            f'<link rel="stylesheet" href="{url}">' for url in _theme_stylesheets(path)
+        ),
+        html_attrs={
+            "lang": html_lang(_page_language(path)),
+            "data-theme": pico_scheme(_page_tone(path)),
+        },
+    )
+
+
+def _theme_stylesheets(path: str) -> list[str]:
+    """Same-origin ``import_url``s of the themes on ``path``: the page's own
+    and the shell's (the dock is painted in it).
+
+    A theme's ``import_url`` reaches the page as an ``@import`` at the top of
+    its token block, and an ``@import`` anywhere but the top of a stylesheet
+    is silently dropped -- which is where an app that embeds the block in a
+    larger sheet puts it. Linking it from the head as well makes a bundled
+    webfont (``challenging_font``'s) load on every page whatever the app does.
+    External URLs are left to the token block: linking them here would add
+    egress to pages that never asked for it.
+    """
+    key = _theme_app_for_path(path)
+    page_theme = (
+        shell_theme()
+        if key == "start_page" and app.config.start_page.get("layout") == "desktop"
+        else resolve_theme(app.config, key)
+    )
+    urls: list[str] = []
+    for theme in (page_theme, shell_theme()):
+        url = str(theme.get("import_url") or "").strip()
+        safe = url.startswith("/") and not url.startswith("//")
+        if safe and not any(c in url for c in "\"'<> \n\r") and url not in urls:
+            urls.append(url)
+    return urls
+
+
+def render_page(path: str) -> ChromeParts | None:
+    """Everything spliced into a full page: the ``<html>`` attributes, then
+    the window chrome.
+
+    Each layer fails on its own: a chrome bug must not cost every page its
+    ``lang``, and a document bug must not cost every page its dock.
+    """
+    layers = []
+    for render in (render_document, render_chrome):
+        try:
+            layers.append(render(path))
+        except Exception:  # noqa: BLE001 -- see docstring; logged, and tested
+            import logging
+
+            logging.getLogger(__name__).exception("%s failed on %s", render.__name__, path)
+    return merge_parts(*layers)
+
+
+app.add_middleware(ChromeMiddleware, render=render_page)
 
 
 @app.get("/desktop_all")

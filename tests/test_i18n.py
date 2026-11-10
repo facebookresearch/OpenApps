@@ -31,3 +31,27 @@ def test_t_html_lang_and_label():
     assert i18n.html_lang("english") == "en"
     assert i18n.label({"add_label": "Hinzufügen"}, "add_label", "Add") == "Hinzufügen"
     assert i18n.label({}, "add_label", "Add") == "Add"
+
+
+def test_every_language_uses_the_same_placeholders():
+    """A translation that drops or renames ``{title}`` would raise KeyError --
+    or silently lose the app name -- only in that language."""
+    import string
+
+    for key, texts in i18n.SHARED.items():
+        fields = {
+            lang: {f for _, f, _, _ in string.Formatter().parse(text) if f}
+            for lang, text in texts.items()
+        }
+        assert len({frozenset(f) for f in fields.values()}) == 1, (key, fields)
+
+
+def test_english_shell_strings_are_the_historical_ones():
+    """English renders exactly what it did before the strings moved here:
+    task prompts and tests select on these names."""
+    assert i18n.t("close_window", title="OpenTodos") == "Close OpenTodos"
+    assert i18n.t("pin_app", title="OpenTodos") == "Pin OpenTodos to desktop"
+    assert i18n.t("unpin_app", title="OpenTodos") == "Unpin OpenTodos from desktop"
+    assert i18n.t("open_launcher") == "Open app launcher"
+    assert i18n.t("new_message", sender="Alice") == "New message · Alice"
+    assert i18n.t("main_page") == "main-page"
