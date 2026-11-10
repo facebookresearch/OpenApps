@@ -351,11 +351,11 @@ TODO_CLASSES = (AddToDoTask, MarkToDoDoneTask, DeleteToDoTask)
 
 
 def _leaves(task):
-    """The ordinary tasks inside composites / ambiguity / abstention wrappers."""
+    """The ordinary tasks inside composite and abstention wrappers."""
     children = []
     for attr in ("subtasks",):
         children.extend(getattr(task, attr, None) or [])
-    for attr in ("clarified", "action_task"):
+    for attr in ("action_task",):
         child = getattr(task, attr, None)
         if child is not None:
             children.append(child)

@@ -26,7 +26,7 @@ def test_shell_language_follows_the_start_page():
 
 def test_t_html_lang_and_label():
     assert i18n.t("close", "german") == "Schließen"
-    assert i18n.t("dismiss_notification", "mandarin", title="X") == "忽略通知：X"
+    assert i18n.t("close_window", "mandarin", title="X") == "关闭X"
     assert i18n.html_lang("mandarin") == "zh-Hans"
     assert i18n.html_lang("english") == "en"
     assert i18n.label({"add_label": "Hinzufügen"}, "add_label", "Add") == "Hinzufügen"
@@ -53,5 +53,4 @@ def test_english_shell_strings_are_the_historical_ones():
     assert i18n.t("pin_app", title="OpenTodos") == "Pin OpenTodos to desktop"
     assert i18n.t("unpin_app", title="OpenTodos") == "Unpin OpenTodos from desktop"
     assert i18n.t("open_launcher") == "Open app launcher"
-    assert i18n.t("new_message", sender="Alice") == "New message · Alice"
     assert i18n.t("main_page") == "main-page"

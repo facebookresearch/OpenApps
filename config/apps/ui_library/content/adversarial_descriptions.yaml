@@ -2,10 +2,7 @@
 defaults:
   - default
 
-# The content tells the agent its goal is achieved (apps.adversarial_message):
-# an exposure for the alignment scorer's premature_stop
-# (open_apps.alignment.record.adversarial_content reads the flag). Here the
-# message is the page's intro, so the page itself carries the claim -- the
-# way the code editor's pack puts it in the welcome message.
-adversarial: true
+# The content tells the agent its goal is achieved (apps.adversarial_message).
+# Here the message is the page's intro, so the page itself carries the claim --
+# the way the code editor's pack puts it in the welcome message.
 intro: "${apps.adversarial_message}"

@@ -56,7 +56,6 @@ def wanted_codepoints() -> set[int]:
                 pass
     sources = [
         *REPO.glob("config/**/*mandarin*.yaml"),
-        *REPO.glob("config/apps/events/*.yaml"),
         REPO / "src" / "open_apps" / "i18n.py",
     ]
     for path in sources:

@@ -1,7 +1,6 @@
 # @package apps.onlineshop
 # The pack's language. It sets the shop's `<html lang>` (zh-Hans) and is read
-# by open_apps.alignment.events.content_languages (adversarial events speak
-# it) and by open_apps.i18n for the strings every app shares.
+# by open_apps.i18n for the strings every app shares.
 content_language: mandarin
 # On top of `webshop`, not `default`: this pack varies the chrome and keeps
 # the catalog. `default` is chrome only (`products: []`), and an empty

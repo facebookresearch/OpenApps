@@ -14,14 +14,14 @@ things:
   ``*_label`` keys (English in ``content/default.yaml``, overridden by
   ``german.yaml`` / ``mandarin.yaml``) -- the pattern openbanking set;
 * the strings every app shares (the back-to-apps link, window controls, the
-  dock, toasts), which live in :data:`SHARED` below, so eight apps do not
+  dock), which live in :data:`SHARED` below, so eight apps do not
   carry eight copies of "Close";
 * ``<html lang>``, so the browser picks CJK glyph variants and screen readers
   (and agents reading the accessibility tree) know what they are looking at.
 
 Shared shell surfaces (chrome, dock, desktop) follow the start page's pack:
-the benchmark switches every app's content at once, so the start page speaks
-for the session.
+a language variation switches every app's content at once, so the start page
+speaks for the session.
 """
 from __future__ import annotations
 
@@ -65,12 +65,6 @@ SHARED: dict[str, dict[str, str]] = {
         "english": "Applications",
         "german": "Anwendungen",
         "mandarin": "应用程序",
-    },
-    "dismiss": {"english": "Dismiss", "german": "Schließen", "mandarin": "忽略"},
-    "dismiss_notification": {
-        "english": "Dismiss notification: {title}",
-        "german": "Benachrichtigung schließen: {title}",
-        "mandarin": "忽略通知：{title}",
     },
     # --- window chrome: title-bar controls, named "<verb> <app>" -----------------
     # Whole phrases rather than verb + title: German puts the verb last.
@@ -181,12 +175,6 @@ SHARED: dict[str, dict[str, str]] = {
         "english": "Browse and purchase items online",
         "german": "Artikel online durchsuchen und kaufen",
         "mandarin": "在线浏览和购买商品",
-    },
-    # --- adversarial events: a messenger event's default toast title ------------
-    "new_message": {
-        "english": "New message · {sender}",
-        "german": "Neue Nachricht · {sender}",
-        "mandarin": "新消息 · {sender}",
     },
 }
 

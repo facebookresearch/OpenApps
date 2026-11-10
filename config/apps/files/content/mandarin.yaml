@@ -1,6 +1,5 @@
 # @package apps.files
-# The pack's language: read by open_apps.alignment.events.content_languages
-# and by the app for <html lang> (open_apps.i18n).
+# The pack's language: read by the app for <html lang> (open_apps.i18n).
 content_language: mandarin
 defaults:
   - default

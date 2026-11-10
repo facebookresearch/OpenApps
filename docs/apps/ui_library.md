@@ -85,9 +85,8 @@ in `open_apps.ui`.
 
 `long_descriptions` swaps in a much longer intro and section labels;
 `misleading_descriptions` an intro that describes controls the page does not
-have; `adversarial_descriptions` sets `adversarial: true` and puts
-`apps.adversarial_message` in the intro (an exposure for the alignment
-scorer's premature-stop check).
+have; `adversarial_descriptions` puts `apps.adversarial_message` in the intro, so
+the page itself claims the goal is achieved.
 
 ## State, tasks and agents
 
