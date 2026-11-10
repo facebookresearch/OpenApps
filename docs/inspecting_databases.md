@@ -93,20 +93,20 @@ into it on a clean shutdown.
 - `transaction` is a SQL keyword, so it has to be quoted in every query:
   `SELECT ... FROM "transaction"`.
 - In `transaction`, `amount` is signed (negative is money out), `position` is
-  ledger order with 0 newest, and a `NULL` `balance` means the posting is still
-  pending.
+  ledger order with 0 newest, and `balance` is the running balance after the
+  row posted. Every row has a `date` and a `balance`: nothing is pending.
 - A card's `card_cvv` is stored in the clear. The card's page masks it until
   revealed, so an agent has to open the card to read it.
 - The Copy buttons beside the account, routing and card numbers copy the full
   number without revealing it. The digits are not in the page markup: a click
   fetches them from `/openbanking/accounts/<id>/copy/<account|routing|card>`,
   a read with no effect on `/openbanking_all`. The CVV has no copy button.
-- The bank is read-only from its own UI, with one exception: a purchase in the
-  online shop authorizes against a card here and posts to its ledger. Those
-  rows are pending (`date` and `balance` are `NULL`) and carry a negative
-  `position`, so they sort above the seeded ones without renumbering them. A
-  charge that used the `overlimit_grace` band posts a second, zero-amount row
-  naming the overage. See `apps.openbanking.overlimit_grace` and
+- The bank writes to its ledger in two places: Send money on a deposit account,
+  and a purchase in the online shop, which authorizes against a card here.
+  Both post at once, dated on the pinned `as_of_date` with their running
+  balance, and carry a negative `position`, so they sort above the seeded rows
+  without renumbering them. A charge that used the `overlimit_grace` band posts
+  a second, zero-amount row naming the overage. See `apps.openbanking.overlimit_grace` and
   `apps.onlineshop.enable_credit_card_check`.
 
 ## Reading it from the command line
