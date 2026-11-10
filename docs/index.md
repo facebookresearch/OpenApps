@@ -163,6 +163,7 @@ layout in play. Every app has `default`, plus:
 | | `broken_logos` | Gallery with icons detached from their tiles |
 | | `clickable_logos` | Gallery with tile logos as their own click targets |
 | `todo` | `kanban_board` | Status columns of cards instead of one list |
+| | `grouped_sections` | Two headed sections, Open and Completed; ticking moves a row between them |
 | `calendar` | `agenda_first` | Lands on the agenda, not the month grid |
 | | `sidebar_nav` | Month nav and view toggle become a left rail |
 | `messenger` | `split_inbox` | Chat list stays beside the open thread |
@@ -172,7 +173,9 @@ layout in play. Every app has `default`, plus:
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| | `grouped_by_date` | Ledger rows grouped under a heading per posting date |
 | `files` | `icons` | Folder contents as a grid of first-page thumbnails |
+| | `folder_tabs` | Folders as a row of tabs above the toolbar; no side column |
 | `contacts` | `list_detail` | One pane at a time: the list, then a contact on its own page |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
@@ -358,6 +361,42 @@ other appearance axis.
 Content is per app, so each override names the app it changes, e.g.
 `uv run launch.py apps/calendar/content=german`.
 
+##### Languages
+
+Every app ships `german` and `mandarin` content packs beside the English
+`default`. A pack declares its language with `content_language: german` (or
+`mandarin`); a pack without it is English. That one key drives:
+
+* the app's own UI strings, which live in its packs as flat `*_label` keys
+  (English in `content/default.yaml`, overridden in `german.yaml` /
+  `mandarin.yaml`);
+* the strings every app shares (the back-to-apps link, window controls, the
+  dock, the desktop toolbar), which live once in `SHARED` in
+  `src/open_apps/i18n.py` instead of in eight packs;
+* `<html lang>` (`en`, `de`, `zh-Hans`), so the browser picks CJK glyphs and the
+  accessibility tree an agent reads names the language.
+
+The desktop shell (toolbar, dock, window chrome) follows the **start page's**
+pack, so switch every app together for a fully translated session:
+
+```shell
+uv run launch.py apps/start_page/content=german apps/todo/content=german \
+  apps/calendar/content=german apps/messenger/content=german
+```
+
+Task goals stay English. Tasks whose target is a translated item (a todo
+title, a bank ledger row) resolve the English goal name to the pack's wording,
+so a task stays winnable in every language; `tests/test_*_i18n*.py` checks this
+per app.
+
+In code, `i18n.t("close_window", language, title=...)` returns a shared string,
+`i18n.label(cfg, "save_label", "Save")` an app's own pack label with an
+English fallback, `i18n.language_of(cfg)` a pack's language and
+`i18n.shell_language(apps)` the session's. To add a shared string, add a key
+to `SHARED` with all three languages (`tests/test_i18n.py` fails on a missing
+one). To add a language, add it to `LANGUAGES` and `_HTML_LANG`, translate
+every `SHARED` entry, and add a `<language>.yaml` pack per app.
+
 You can see the specific variables for each defined in the individual apps.
 For example, `config/apps/theme/dark.yaml` for the shared design tokens,
 `config/apps/start_page/layout/broken_logos.yaml` for a per-app structure
@@ -368,7 +407,8 @@ layer, route planning) that is neither.
 
 Where *appearance* varies colours and fonts, *layout* varies page structure —
 what elements exist and how they are arranged — so an agent cannot rely on a
-fixed DOM. Apps with a `layout` group:
+fixed DOM. The full list is the [Layout table](#layout) above, and each app's
+page under *Apps* describes its layouts; for example:
 
 | App | Layouts |
 | --- | --- |
