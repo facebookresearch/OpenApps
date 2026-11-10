@@ -65,6 +65,13 @@ apps:
 # useful to debug configs without launching jobs
 use_wandb: False
 
+# After a local sweep, serve a table of every model's runs under the logs
+# root's parent (one row per model, ranked by task success) and open it in a
+# browser until Ctrl-C; without a display it prints the ssh command to view it.
+# A SLURM sweep prints the command to run once its jobs finish. See
+# open_apps.results_preview.
+open_leaderboard: True
+
 # Sweeps are never interactive. Also required to exist: the launcher starts
 # each job's web app with a `headless=True` override (launcher.py), which
 # Hydra rejects for a key the root config does not define.
