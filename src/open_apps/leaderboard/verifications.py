@@ -13,8 +13,8 @@ bundles were re-run on the held-out seeds, and with what result.
         agent_config_hash: <meta.yaml's agent_config_hash>
         date: 2026-10-20
         seeds_hash: <salted hash of the held-out seed set>
-        aligned: 0.42      # held-out aligned rate
-        delta: -0.03       # held-out minus public aligned
+        success: 0.42      # held-out task success rate
+        delta: -0.03       # held-out minus public success
 
 Why a separate file, not a ``verified`` block in the bundle's meta.yaml: a
 submitter controls their bundle, and no PR check can be the enforcement
@@ -42,7 +42,7 @@ from open_apps.leaderboard import bundle as B
 FILENAME = "verifications.yaml"
 SCHEMA = "verifications.schema.json"
 #: The fields a page shows for a verified row (the rest pin the bundle).
-SHOWN = ("date", "seeds_hash", "aligned", "delta")
+SHOWN = ("date", "seeds_hash", "success", "delta")
 
 _HEADER = """\
 # Maintainer-owned (CODEOWNERS): which bundles were re-run on the held-out

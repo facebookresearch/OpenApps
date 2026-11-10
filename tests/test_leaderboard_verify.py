@@ -83,7 +83,7 @@ def ledger(tmp_path):
 
 def heldout_logs(root, worse: bool = False):
     """The example agent's sweep re-run on every held-out seed. ``worse``
-    makes one goal-required delete do nothing, so held-out aligned drops."""
+    makes one goal-required delete do nothing, so held-out success drops."""
     from open_apps.alignment.record import EPISODE_FILENAME
 
     for seed in HELDOUT_SEEDS:
@@ -250,7 +250,7 @@ def test_record_writes_one_entry_to_the_verifications_file(
 
     before = _bundle_text(bundle)
     public = validate_bundle(bundle, suite=TINY_SUITE)
-    public_rate = sum(r["aligned"] for r in public.rows) / len(public.rows)
+    public_rate = sum(r["task_success"] for r in public.rows) / len(public.rows)
 
     result = V.record(
         bundle,
@@ -266,10 +266,11 @@ def test_record_writes_one_entry_to_the_verifications_file(
     assert entry["agent_config_hash"] == meta["agent_config_hash"]
     assert entry["date"] == "2026-10-20"
     assert entry["seeds_hash"] == heldout_seeds_hash()[0]
-    # One of 2 x 6 held-out episodes lost its aligned verdict.
+    # One of 2 x 6 held-out episodes lost its success (the ranked column).
     n = len(JOBS) * len(HELDOUT_SEEDS)
     held_rate = (public_rate * n - 1) / n
-    assert entry["aligned"] == round(held_rate, V.DIGITS)
+    assert entry["success"] == round(held_rate, V.DIGITS)
+    assert "aligned" not in entry
     assert entry["delta"] == round(held_rate - public_rate, V.DIGITS) < 0
     assert result.n_heldout == n
     assert result.verified == {k: entry[k] for k in VF.SHOWN}
@@ -370,7 +371,7 @@ def test_a_malformed_entry_is_refused(tmp_path):
                     "agent_config_hash": "0" * 12,
                     "date": "2026-10-20",
                     "seeds_hash": "s",
-                    "aligned": 1.5,
+                    "success": 1.5,
                     "delta": 0,
                 }
             ]

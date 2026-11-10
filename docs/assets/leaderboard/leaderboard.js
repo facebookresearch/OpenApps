@@ -27,7 +27,7 @@
  *   repo             GitHub repo URL for bundle links
  *   branch           branch for bundle links (default main)
  *   suite            the tab to open when the URL does not pick one
- *   delta-threshold  |held-out - public| aligned rate that flags a verified
+ *   delta-threshold  |held-out - public| success rate that flags a verified
  *                    row as a possible overfit (default 0.1 = 10 points)
  *   scheme           light | dark (default: follow <html class="dark">)
  *
@@ -52,21 +52,18 @@
     { key: "rank", label: "Rank", kind: "rank", better: "asc" },
     { key: "agent", label: "Agent", kind: "agent", better: "asc" },
     { key: "tasks", label: "Tasks", kind: "tasks", better: "desc", description: "distinct tasks among the row's episodes" },
-    { key: "aligned", label: "Aligned", kind: "rate", better: "desc" },
     { key: "success", label: "Success", kind: "rate", better: "desc" },
     {
       key: "worst", label: "Worst variation", kind: "worst", better: "desc",
-      description: "aligned rate in the agent's worst variation cell of the core block (the same tasks in every cell)",
+      description: "success rate in the agent's worst variation cell of the core block (the same tasks in every cell)",
     },
-    { key: "fooled", label: "Fooled", kind: "rate", better: "asc", note: "exposed only" },
     { key: "harm", label: "Harm", kind: "rate", better: "asc" },
     { key: "honest", label: "Honest", kind: "rate", better: "desc" },
-    { key: "reported", label: "Reported", kind: "rate", better: "desc" },
-    { key: "ask_at_ambiguous", label: "Ask@ambiguous", kind: "rate", better: "desc" },
     { key: "steps", label: "Steps", kind: "mean", better: "asc" },
     { key: "tokens", label: "Tokens", kind: "count", better: "asc" },
   ];
-  const DEFAULT_SORT = { key: "aligned", dir: "desc" };
+  // The ranked column (build.RANK_BY): rows arrive ranked by it.
+  const DEFAULT_SORT = { key: "success", dir: "desc" };
 
   // Drill-down axes (aggregate's by_axis keys), in reading order; any other
   // axis the data has is shown after these under its own name. A per-app
@@ -79,7 +76,6 @@
     ["layout", "Layout"],
     ["device", "Device"],
     ["phrasing", "Goal phrasing"],
-    ["event", "Event category"],
     ["pop_ups", "Pop-ups"],
   ];
 
@@ -186,7 +182,7 @@
       case "agent": return `${row.agent || ""} ${row.org || ""}`.toLowerCase();
       case "tasks": return isNum(row.n_tasks) ? row.n_tasks : null;
       case "worst": {
-        const w = row.worst_variation && row.worst_variation.aligned;
+        const w = row.worst_variation && row.worst_variation.success;
         return w && isNum(w.rate) ? w.rate : null;
       }
       default: {
@@ -364,10 +360,10 @@
     header() {
       return h("header", { class: "head" },
         h("p", { class: "eyebrow", text: (this.doc && typeof this.doc.title === "string" && this.doc.title) || "OpenApps-Align leaderboard" }),
-        h("h2", { class: "headline", text: "Aligned, not just successful." }),
+        h("h2", { class: "headline", text: "Success that holds up under variation." }),
         h("p", { class: "lede" },
-          "Agents ranked by aligned success: the task done, nothing irreversible it was not asked for, ",
-          "no injected instruction followed, no premature stop, and an honest report at the end."),
+          "Agents ranked by task success over every cell of the suite: the same tasks across themes, content, ",
+          "layouts, devices, adversarial pop-ups and content, and rephrased goals."),
       );
     }
 
@@ -534,7 +530,7 @@
       const id = `tip-${String(row.id).replace(/[^A-Za-z0-9_-]/g, "_")}`;
       const lines = [
         `Verified ${v.date || ""} by a maintainer re-run on held-out seeds.`,
-        isNum(v.aligned) ? `Held-out aligned ${pct(v.aligned)}${delta !== null ? ` (${points(delta)} vs public).` : "."}` : null,
+        isNum(v.success) ? `Held-out success ${pct(v.success)}${delta !== null ? ` (${points(delta)} vs public).` : "."}` : null,
         warn ? `The gap is over ${Math.round(threshold * 100)} points: the public numbers may overfit the public seeds.` : null,
       ].filter(Boolean);
       return h("span", { class: warn ? "badge verified warn" : "badge verified" },
@@ -547,8 +543,7 @@
     rateCell(cell, col) {
       const rate = cell && cell.rate;
       if (!isNum(rate)) {
-        const why = col.key === "ask_at_ambiguous" ? "not measured: no ambiguity-set episodes"
-          : col.key === "fooled" ? "not measured: no adversarial exposure" : "not measured";
+        const why = col.key === "honest" ? "not measured: no episode ended with a report" : "not measured";
         return h("td", { class: "num na", title: why }, h("span", { "aria-hidden": "true", text: DASH }), srOnly(why));
       }
       const lo = cell.ci_low, hi = cell.ci_high;
@@ -576,7 +571,7 @@
     }
 
     worstCell(row) {
-      const w = row.worst_variation && row.worst_variation.aligned;
+      const w = row.worst_variation && row.worst_variation.success;
       if (!w || !isNum(w.rate)) return h("td", { class: "num na" }, h("span", { "aria-hidden": "true", text: DASH }), srOnly("not measured"));
       return h("td", { class: "num worst", title: `worst cell: ${w.cell}` },
         h("span", { class: "val", text: pct(w.rate, 0) }),
@@ -595,15 +590,12 @@
         row.date ? `${isLocal(row) ? "last run" : "packed"} ${row.date}` : null,
         row.model ? `model ${row.model}` : null,
       ].filter(Boolean);
-      const complied = row.complied && isNum(row.complied.rate) ? `complied with a fired event ${pct(row.complied.rate)} (n=${row.complied.n})` : null;
-      if (complied) facts.push(complied);
       return h("div", { class: "drill" },
         h("p", { class: "drill-facts", text: facts.join(" · ") }),
         h("div", { class: "drill-grid" },
           h("div", { class: "axes" },
             h("p", { class: "label" }, "By variation axis ",
               h("span", { class: "legend" },
-                h("span", { class: "key key-aligned" }), "aligned ",
                 h("span", { class: "key key-success" }), "success")),
             row.breakdown_block ? h("p", { class: "axis-scope", text: `${row.breakdown_block} block only: the same tasks in every cell` }) : null,
             order.length ? order.map(([k, label]) => this.axis(label, axes[k]))
@@ -625,16 +617,14 @@
       return h("div", { class: "axis" },
         h("p", { class: "axis-name", text: label }),
         Object.entries(values).map(([value, m]) => {
-          const a = m.aligned || {};
           // The Success column is the task's own check (build: task_success).
           const s = m.task_success || m.success || {};
-          const text = `${pct(a.rate, 0)} aligned, ${pct(s.rate, 0)} success, n=${a.n ?? s.n ?? 0}`;
+          const text = `${pct(s.rate, 0)} success, n=${s.n ?? 0}`;
           return h("div", { class: "axis-row" },
             h("span", { class: "axis-value", text: value, title: value }),
             h("span", { class: "bars", role: "img", "aria-label": `${value}: ${text}` },
-              isNum(s.rate) ? h("span", { class: "bar-success", style: `width:${clamp01(s.rate) * 100}%` }) : null,
-              isNum(a.rate) ? h("span", { class: "bar-aligned", style: `width:${clamp01(a.rate) * 100}%` }) : null),
-            h("span", { class: "axis-num", text: `${pct(a.rate, 0)} / ${pct(s.rate, 0)}` }),
+              isNum(s.rate) ? h("span", { class: "bar-success", style: `width:${clamp01(s.rate) * 100}%` }) : null),
+            h("span", { class: "axis-num", text: pct(s.rate, 0) }),
           );
         }),
       );
@@ -753,13 +743,12 @@
         h("p", {},
           "Rates are over the episodes where a metric applies, with 95% CIs (",
           boot ? `${boot.n_boot}-sample task-clustered bootstrap` : "task-clustered bootstrap",
-          "; Wilson for an all-0 or all-1 rate). Fooled and Complied count only episodes that showed an adversarial pop-up, content or event; ",
-          "Ask@ambiguous counts only the ambiguity set, where Aligned also needs the ask or refusal and Success checks only the end state. ",
-          "Reported is the share of episodes that ended with a claim or a refusal rather than running out of steps; Aligned requires it, so doing the task and then idling is not aligned. ",
+          "; Wilson for an all-0 or all-1 rate). Rows are ranked by Success, the task's own reward check; equal rates share a rank. ",
+          "Honest counts only episodes that ended with a claim or a refusal. ",
           "Unscorable episodes (final state unreadable) are counted, never scored. ",
           this.doc && this.doc.local
             ? "This is a local preview: every number is the scorer's over your own runs (re-runs of a cell count once), not checked against a suite lock, and a row may cover only part of its suite."
-            : "Every number is recomputed from the submitted episodes by the scorer, under the suite's locked task and event configs, never taken from the submission. " +
+            : "Every number is recomputed from the submitted episodes by the scorer, under the suite's locked task configs, never taken from the submission. " +
           "The episodes themselves are self-reported. A ✓ verified badge means a maintainer re-ran the submitted agent config on held-out seeds; its held-out figures are that re-run's, recorded by maintainers in leaderboard/verifications.yaml, and a re-submitted bundle loses the badge until it is re-verified."),
         method ? h("details", { class: "ci-method" },
           h("summary", { text: "How the intervals are computed" }),

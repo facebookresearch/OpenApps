@@ -14,7 +14,7 @@ A local leaderboard over your own runs: no bundle, no PR, no docs build.
 Point it at one directory and it finds every run below it: each
 ``episode.json`` (or a finished run without one, rebuilt the way ``pack``
 does), however the sweeps under it are nested. The result is one row per
-model across every task and run, ranked by its aligned rate, in the same
+model across every task and run, ranked by its task success rate, in the same
 table the docs site shows, over a faint halftone background drawn for each
 run (``halftone.py``).
 
@@ -636,13 +636,9 @@ def summary(result: Preview) -> str:
     for suite, tab in sorted(result.doc["suites"].items()):
         lines.append(f"[{suite}]")
         for r in tab["rows"]:
-            aligned = r["aligned"]["rate"]
-            success = r["success"]["rate"]
-            fmt = lambda v: "-" if v is None else f"{v * 100:5.1f}%"  # noqa: E731
             lines.append(
-                f"  {r['rank']:>2}. {r['agent']:<32} aligned {fmt(aligned)}  "
-                f"success {fmt(success)}  ({r['n_episodes']} episodes, "
-                f"{r['covered']}/{r['n_cells']} cells)"
+                f"  {r['rank']:>2}. {r['agent']:<32} success {LB._pct(r['success']):<16} "
+                f"({r['n_episodes']} episodes, {r['covered']}/{r['n_cells']} cells)"
             )
     extra = []
     if result.duplicates:

@@ -16,13 +16,14 @@ the suite with ``benchmark.seed_set=heldout``, plus the held-out set's
 ``seeds_hash``. ``record`` packs the finished held-out run *in a temporary
 directory* (the same ``pack`` code), validates it against the suite's cells
 expanded with the held-out seeds (``validate --seed-set heldout``), computes
-its aligned rate the way the leaderboard does, and writes one entry
+its task success rate (the ranked column) the way the leaderboard does, and
+writes one entry
 
-    {bundle, episodes_sha256, agent_config_hash, date, seeds_hash, aligned, delta}
+    {bundle, episodes_sha256, agent_config_hash, date, seeds_hash, success, delta}
 
 to ``leaderboard/verifications.yaml`` (``open_apps.leaderboard.verifications``)
--- ``aligned`` the held-out aligned rate and ``delta`` held-out minus public
-aligned, both as rates in [0, 1] like every other rate in ``leaderboard.json``
+-- ``success`` the held-out success rate and ``delta`` held-out minus public
+success, both as rates in [0, 1] like every other rate in ``leaderboard.json``
 (the page renders ``delta`` in points: -0.05 is "-5.0 points"). The bundle
 itself is never touched: verified status is not the submitter's to carry, and
 the sha256 and agent hash pin the entry to exactly the bundle verified.
@@ -144,20 +145,20 @@ def plan(bundle: str | Path, mode: str = "<local|slurm_cluster>") -> str:
 # --- record ------------------------------------------------------------------------
 
 
-def _aligned(report: BundleReport) -> float:
-    """The aligned rate exactly as the leaderboard computes it for a row."""
-    from open_apps.leaderboard.build import ranked_row
+def _success(report: BundleReport) -> float:
+    """The ranked (success) rate exactly as the leaderboard computes it for a row."""
+    from open_apps.leaderboard.build import RANK_BY, ranked_row
 
-    rate = ranked_row(report, n_boot=0)["aligned"]["rate"]
+    rate = ranked_row(report, n_boot=0)[RANK_BY]["rate"]
     if rate is None:
-        raise VerifyError(f"{report.path.name}: no episode has an aligned verdict")
+        raise VerifyError(f"{report.path.name}: no episode has a success verdict")
     return float(rate)
 
 
 @dataclass
 class Verification:
     verified: dict
-    public_aligned: float
+    public_success: float
     n_heldout: int
     salted: bool
     path: Optional[Path] = None
@@ -232,9 +233,9 @@ def record(
                 f"agent.yaml (normalized hashes {ran} vs {submitted}); only redacted "
                 "values (keys, endpoints) may differ"
             )
-        held_aligned = _aligned(held)
+        held_success = _success(held)
         n_heldout = held.n_records
-    public_aligned = _aligned(public)
+    public_success = _success(public)
 
     entry = {
         "bundle": bundle.name,
@@ -242,12 +243,12 @@ def record(
         "agent_config_hash": str(meta["agent_config_hash"]),
         "date": date or dt.date.today().isoformat(),
         "seeds_hash": seeds_hash,
-        "aligned": round(held_aligned, DIGITS),
-        "delta": round(held_aligned - public_aligned, DIGITS),
+        "success": round(held_success, DIGITS),
+        "delta": round(held_success - public_success, DIGITS),
     }
     path = VF.upsert(entry, Path(verifications) if verifications else None)
     verified = {k: entry[k] for k in VF.SHOWN}
-    return Verification(verified, public_aligned, n_heldout, salted, path)
+    return Verification(verified, public_success, n_heldout, salted, path)
 
 
 # --- CLI ---------------------------------------------------------------------------
@@ -308,8 +309,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 1
     v = result.verified
     print(
-        f"verified {args.bundle.name}: held-out aligned {v['aligned'] * 100:.1f}% "
-        f"vs public {result.public_aligned * 100:.1f}% "
+        f"verified {args.bundle.name}: held-out success {v['success'] * 100:.1f}% "
+        f"vs public {result.public_success * 100:.1f}% "
         f"(delta {v['delta'] * 100:+.1f} points) over {result.n_heldout} held-out episodes; "
         f"seeds_hash {v['seeds_hash']}"
     )

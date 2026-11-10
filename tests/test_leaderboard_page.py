@@ -69,7 +69,7 @@ def _clone(root, org, agent="dummy", **meta_changes):
 
 
 def _make_worse(bundle):
-    """Undo the aligned delete in the dark cell (a real outcome change), and
+    """Undo the successful delete in the dark cell (a real outcome change), and
     re-score so the submitted scores stay honest."""
     from open_apps.alignment.record import EpisodeRecord
     from open_apps.alignment.score import score
@@ -113,8 +113,8 @@ def _populated(root: Path) -> dict:
     )  # fmt: skip
     twin = _clone(root, "twin", agent="twin-agent")
     entries = [
-        _verification(example, date="2026-10-20", seeds_hash="abc123", aligned=0.48, delta=-0.02),
-        _verification(twin, date="2026-10-21", seeds_hash="def456", aligned=0.25, delta=-0.25),
+        _verification(example, date="2026-10-20", seeds_hash="abc123", success=0.65, delta=-0.02),
+        _verification(twin, date="2026-10-21", seeds_hash="def456", success=0.42, delta=-0.25),
     ]  # fmt: skip
     _make_worse(_clone(root, "worse"))
     partial = _clone(root, "partial")
@@ -140,19 +140,16 @@ def _with_per_app_axes(doc: dict) -> dict:
     per-app ``<app>.content`` keys plus the app-less combination, and the
     partial row an unscorable episode."""
 
-    def cell(aligned, success):
-        return {
-            "aligned": {"n": 1, "rate": aligned},
-            "task_success": {"n": 1, "rate": success},
-        }
+    def cell(success):
+        return {"task_success": {"n": 1, "rate": success}}
 
     tab = doc["suites"]["tiny_v1"]
     worse = next(r for r in tab["rows"] if r["id"] == "worse__dummy__tiny_v1")
     worse["by_axis"].update(
         {
-            "todo.content": {"german": cell(0.0, 1.0)},
-            "calendar.content": {"german": cell(1.0, 1.0)},
-            "content": {"calendar:german+todo:german": cell(0.5, 1.0)},
+            "todo.content": {"german": cell(0.0)},
+            "calendar.content": {"german": cell(1.0)},
+            "content": {"calendar:german+todo:german": cell(0.5)},
         }
     )
     tab["partial"][0]["excluded_unscorable"] = 1
@@ -176,7 +173,7 @@ def _hostile(full: dict) -> dict:
         wandb_report=JS_URL, videos=[JS_URL, " javascript:alert(1)", "https://ok.example/v.mp4"],
         bundle=f"../../{JS_URL}", composer_agent=XSS, date=XSS,
     )  # fmt: skip
-    row["worst_variation"]["aligned"]["cell"] = XSS
+    row["worst_variation"]["success"]["cell"] = XSS
     row["by_axis"]["theme"][XSS] = row["by_axis"]["theme"].pop("dark")
     tab["partial"][0].update(agent=XSS, model=XSS, org=XSS)
     tab["invalid"][0].update(agent=XSS, reason=XSS)
@@ -340,7 +337,7 @@ def test_renders_the_fixture_leaderboard(page, site):
         page.locator(f"{EL} [role=tab][aria-selected=true]").get_attribute("data-suite")
         == "tiny_v1"
     )
-    # Ranked by aligned: the tie shares rank 1, the worse copy is 3rd.
+    # Ranked by success: the tie shares rank 1, the worse copy is 3rd.
     assert agents(page) == ["dummy", "twin-agent", "dummy"]
     ranks = page.locator(f"{EL} tbody tr.row td.col-rank").all_inner_texts()
     assert ranks == ["1", "1", "3"]
@@ -349,26 +346,26 @@ def test_renders_the_fixture_leaderboard(page, site):
         page.locator(
             f"{EL} table.board:not(.partial-table) thead th[scope=col]"
         ).count()
-        == 13
+        == 9
     )
-    assert header(page, "aligned").get_attribute("aria-sort") == "descending"
-    assert header(page, "success").get_attribute("aria-sort") is None
+    assert header(page, "success").get_attribute("aria-sort") == "descending"
+    # The alignment verdicts are neither shown nor sortable.
+    for hidden in ("aligned", "fooled", "reported", "ask_at_ambiguous"):
+        assert header(page, hidden).count() == 0, hidden
     first = row(page, "twin-agent")
     cells = first.locator("td").all_inner_texts()
-    # rank, tasks, aligned, success, worst, fooled, harm, honest, reported, ask, steps, tokens
+    # rank, tasks, success, worst, harm, honest, steps, tokens
     assert cells[1] == "4"  # distinct tasks among the six episodes
     # Success is the task's own check: the untouched-state refuse task the
-    # agent never refused counts there (4/6), not in Aligned (3/6).
-    assert cells[2].startswith("50.0%") and cells[3].startswith("66.7%")
-    assert cells[5].startswith("—")  # fooled: nothing adversarial shown
-    # Reported: all but the impersonation that ran out of steps.
-    assert cells[8].startswith("83.3%")
-    assert header(page, "reported").count() == 1
-    assert cells[9].startswith("50.0%")  # ask@ambiguous: 1 of the 2 ambiguity episodes
-    assert "n=2" in first.locator("td").nth(9).get_attribute("title")
-    assert "apps/theme=dark" in cells[4]
+    # agent never refused counts there (4/6).
+    assert cells[2].startswith("66.7%")
+    assert "n=6" in first.locator("td").nth(2).get_attribute("title")
+    assert cells[3].split()[0].endswith("%")  # worst variation (success)
+    assert "apps/theme=" in cells[3]
+    # Honest: the 5 episodes with a report, one false claim.
+    assert cells[5].startswith("80.0%")
     # CI whisker inline, and the interval in the cell's title.
-    assert first.locator("td .whisker").count() >= 3
+    assert first.locator("td .whisker").count() >= 2
     assert "95% CI" in first.locator("td").nth(2).get_attribute("title")
     # Partial submissions are listed apart, with coverage.
     partial = page.locator(f"{EL} .partial")
@@ -391,13 +388,13 @@ def test_sorting_by_column(page):
     page.locator(f'{EL} button[data-sort="agent"]').click()
     assert agents(page) == ["dummy", "dummy", "twin-agent"]
     assert header(page, "agent").get_attribute("aria-sort") == "ascending"
-    assert header(page, "aligned").get_attribute("aria-sort") is None
+    assert header(page, "success").get_attribute("aria-sort") is None
 
-    # Toggle aligned: first click is best-first (descending), second flips it.
-    page.locator(f'{EL} button[data-sort="aligned"]').click()
-    assert header(page, "aligned").get_attribute("aria-sort") == "descending"
-    page.locator(f'{EL} button[data-sort="aligned"]').click()
-    assert header(page, "aligned").get_attribute("aria-sort") == "ascending"
+    # Toggle success: first click is best-first (descending), second flips it.
+    page.locator(f'{EL} button[data-sort="success"]').click()
+    assert header(page, "success").get_attribute("aria-sort") == "descending"
+    page.locator(f'{EL} button[data-sort="success"]').click()
+    assert header(page, "success").get_attribute("aria-sort") == "ascending"
     assert agents(page)[0] == "dummy"
     assert row(page, "dummy").first.locator("td.col-rank").inner_text() == "3"
 
@@ -410,19 +407,19 @@ def test_sorting_by_column(page):
 
 def test_headers_sort_from_the_keyboard(page):
     page.goto_board()
-    button = page.locator(f'{EL} button[data-sort="success"]')
+    button = page.locator(f'{EL} button[data-sort="honest"]')
     button.focus()
     page.keyboard.press("Enter")
-    assert header(page, "success").get_attribute("aria-sort") == "descending"
+    assert header(page, "honest").get_attribute("aria-sort") == "descending"
     # Focus stays on the header across the re-render.
     assert (
         page.evaluate(
             f"document.querySelector('{EL}').shadowRoot.activeElement.dataset.sort"
         )
-        == "success"
+        == "honest"
     )
     page.keyboard.press("Space")
-    assert header(page, "success").get_attribute("aria-sort") == "ascending"
+    assert header(page, "honest").get_attribute("aria-sort") == "ascending"
 
 
 def test_sort_state_is_read_from_the_hash(page):
@@ -476,8 +473,13 @@ def test_drilldown_and_reproduce_href(page, site):
         "core block only: the same tasks in every cell"
     )
     assert detail.locator(".axis-row").count() == 2
-    # Both bars are filled: the success bar reads build's task_success.
+    # One bar per value, filled from build's task_success; no alignment
+    # breakdown (aligned bars, complied/fooled facts) in the drill-down.
     assert all("—" not in t for t in detail.locator(".axis-num").all_inner_texts())
+    assert detail.locator(".bar-success").count() == 2
+    assert detail.locator(".bar-aligned, .key-aligned").count() == 0
+    for hidden in ("aligned", "complied", "premature", "fooled"):
+        assert hidden not in text.lower(), hidden
 
     # No composer page on this site: no Reproduce link to 404 on, and the
     # exact config is pointed at instead.
@@ -518,6 +520,10 @@ def test_unscorable_and_ci_method_are_surfaced(page, site):
     )
     footnote = page.locator(f"{EL} .footnote")
     assert "task-clustered bootstrap" in footnote.inner_text()
+    assert "ranked by Success" in footnote.inner_text()
+    board = page.locator(f"{EL} .olb").inner_text()
+    for hidden in ("Aligned", "Fooled", "Ask@ambiguous", "Reported"):
+        assert hidden not in board, hidden
     method = footnote.locator("details.ci-method")
     method.locator("summary").click()
     assert site["full"]["bootstrap"]["ci_method"] in method.inner_text()
@@ -565,6 +571,7 @@ def test_verified_badge(page):
     face.focus()
     assert tip.is_visible()
     assert "2026-10-20" in tip.inner_text() and "−2.0 pts" in tip.inner_text()
+    assert "Held-out success 65.0%" in tip.inner_text()
 
     warned = row(page, "twin-agent").locator(".badge.verified")
     assert "warn" in warned.get_attribute("class")

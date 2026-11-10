@@ -594,10 +594,6 @@ th[aria-sort] .arrow {
   vertical-align: -1px;
 }
 
-.key-aligned {
-  background: var(--aligned);
-}
-
 .key-success {
   background: var(--success);
   outline: 1px solid var(--aligned);
@@ -648,12 +644,6 @@ th[aria-sort] .arrow {
 
 .bar-success {
   background: var(--success);
-}
-
-.bar-aligned {
-  top: 3px !important;
-  bottom: 3px !important;
-  background: var(--aligned);
 }
 
 .axis-num {

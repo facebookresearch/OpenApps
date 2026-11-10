@@ -69,6 +69,15 @@ def test_one_row_per_model_with_the_bundles_numbers(logs):
     assert row["by_axis"] == bundle["by_axis"]
 
 
+def test_the_terminal_summary_ranks_by_success_with_its_ci(logs):
+    result = _preview([logs.parent])
+    (row,) = _rows(result)
+    text = P.summary(result)
+    lo, hi = row["success"]["ci_low"], row["success"]["ci_high"]
+    assert f"success {row['success']['rate'] * 100:.1f}% [{lo * 100:.0f}-{hi * 100:.0f}]" in text
+    assert "aligned" not in text
+
+
 def test_a_rerun_sweep_counts_each_cell_once(logs):
     rerun = write_logs_tree(logs.parent / "2026-10-17_09-00-00-me", rebuilt_job=None)
     result = _preview([logs.parent])
