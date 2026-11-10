@@ -24,9 +24,13 @@ account_number_label: "Kontonummer"
 routing_number_label: "Bankleitzahl"
 show_number_label: "Vollständige Nummer anzeigen"
 hide_number_label: "Nummer ausblenden"
+copy_label: "Kopieren"
+copied_label: "Kopiert"
+copy_failed_label: "Kopieren fehlgeschlagen"
 
 card_number_label: "Kartennummer"
 card_expires_label: "Gültig bis"
+card_cvv_label: "Prüfziffer"
 payment_heading: "Zahlung"
 statement_balance_label: "Abrechnungssaldo"
 minimum_payment_label: "Mindestzahlung fällig"
@@ -37,6 +41,14 @@ current_balance_label: "Aktueller Saldo"
 credit_limit_label: "Kreditrahmen"
 
 transactions_heading: "Umsätze"
+statements_label: "Kontoauszüge"
+statements_heading: "Kontoauszüge"
+view_label: "Anzeigen"
+download_label: "Herunterladen"
+saved_to_files_label: "In Dateien gespeichert"
+already_in_files_label: "Bereits in Dateien"
+open_in_files_label: "In Dateien öffnen"
+no_statements_label: "Noch keine Kontoauszüge."
 showing_label: "Anzeige"
 showing_options:
   - "Alle Umsätze"
@@ -54,6 +66,20 @@ column_labels:
   type: "Art"
   amount: "Betrag"
   balance: "Saldo"
+
+
+# --- Zahlungszeilen --------------------------------------------------------
+# Siehe `default.yaml`: die Zeilen, die der Online-Shop bei einer
+# Kartenzahlung in das Kontoblatt schreibt.
+purchase_type: "Karte"
+overlimit_type: "Gebühr"
+overlimit_description: "HINWEIS ÜBERZIEHUNG - Kreditlimit überschritten um {amount}"
+declined_type: "Abgelehnt"
+declined_description: "ABGELEHNT - {merchant} {amount} - nicht genügend verfügbarer Kredit"
+charge_approved_message: "Zahlung genehmigt."
+charge_declined_message: "Karte abgelehnt. Bitte Kartendaten prüfen und erneut versuchen."
+charge_insufficient_message: "Karte abgelehnt: nicht genügend verfügbarer Kredit."
+charge_unavailable_message: "Kartenzahlungen sind derzeit nicht möglich."
 
 accounts:
   - name: "BUS COMPLETE CHK (...5555)"
@@ -153,6 +179,7 @@ accounts:
     routing_number: null
     card_brand: "Meridian"
     card_expiration: "09/29"
+    card_cvv: "418"
     available_balance: 0.00
     present_balance: -1284.19
     available_credit: 8715.81

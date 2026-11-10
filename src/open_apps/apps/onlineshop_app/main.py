@@ -30,6 +30,12 @@ What replaced it:
 
 The scoring surface is ``/onlineshop_all``, which returns the cart and the
 order history as plain JSON for ``open_apps.state.get_current_state``.
+
+Every order also has a PDF receipt in the shared file store
+(``Receipts/OpenShop order <order_id>.pdf``): written at checkout, and at seed
+time for the seeded history. The receipt is rendered from the order row alone
+-- no clock -- so a seeded receipt is byte-identical on every launch, and the
+Orders page serves the same bytes from the same row.
 """
 import json
 import re
@@ -37,12 +43,15 @@ import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fasthtml.common import *
 # Svg/Rect/Text are not re-exported by fasthtml.common.
 from fasthtml.svg import Circle, G, Path, Rect, Svg
 
+from open_apps import files_store
+from open_apps.apps.availability import require_files
+from open_apps.apps.onlineshop_app import receipts
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_style
@@ -94,6 +103,10 @@ class Order:
     date: str
     status: str
     total: float
+    # Last four of the card that paid, or "" when the run has the card check
+    # off. Recorded so a task can assert *which* card an order went on without
+    # having to read it back out of the bank's ledger.
+    card_last4: str = ""
 
 
 @dataclass
@@ -678,6 +691,7 @@ styles = Style("""
         font-weight: 600;
     }
     .order-id .status-pill { align-self: flex-end; }
+    .order-id .order-receipt { align-self: flex-end; font-weight: 600; }
 
     /* default layout keeps "Return to List of Apps" a full-size outlined
        button, as the other apps do: the cross-app navigation tasks need a
@@ -912,10 +926,11 @@ def _seed_orders(config):
                 name=str(raw.get("name", "")),
                 address=str(raw.get("address", "")),
                 date=str(raw.get("date", "")),
-                status=str(raw.get("status", "Processing")),
+                status=str(raw.get("status", NEW_ORDER_STATUS)),
                 # Prefer the configured total when given, so a fixture can pin
                 # a historical price that no longer matches the catalog.
                 total=float(raw["total"]) if raw.get("total") is not None else round(total, 2),
+                card_last4=str(raw.get("card_last4", "")),
             )
         )
         for sku, options, quantity, unit_price in lines:
@@ -929,6 +944,102 @@ def _seed_orders(config):
                     unit_price=unit_price,
                 )
             )
+
+
+# --------------------------------------------------------------------------
+# Receipts
+# --------------------------------------------------------------------------
+
+RECEIPTS_FOLDER = "Receipts"
+SHOP_NAME = "OpenShop"
+
+
+def receipt_name(order_id: str) -> str:
+    """``OpenShop order <order_id>.pdf`` -- the id exactly as the order stores
+    it, so a scorer can swap it for its token by plain substitution."""
+    return f"{SHOP_NAME} order {order_id}.pdf"
+
+
+def receipt_path(order_id: str) -> str:
+    return f"{RECEIPTS_FOLDER}/{receipt_name(order_id)}"
+
+
+def _option_text(options_key: str) -> str:
+    chosen = json.loads(options_key or "{}")
+    return ", ".join(f"{k}: {v}" for k, v in sorted(chosen.items()))
+
+
+def receipt_pdf(order) -> bytes:
+    """The order's receipt, rendered from the order and its lines only."""
+    lines = []
+    for row in _lines_for(order.order_id):
+        product = _row(products, row.sku)
+        title = product.title if product else row.sku
+        options = _option_text(row.options)
+        lines.append([
+            f"{title} ({options})" if options else title,
+            str(row.quantity),
+            money(row.unit_price),
+            money(row.unit_price * row.quantity),
+        ])
+    return receipts.render(
+        {
+            "shop": SHOP_NAME,
+            "order_id": order.order_id,
+            "placed": order.date,
+            "status": order.status,
+            "name": order.name,
+            "address": order.address,
+            "card_last4": order.card_last4,
+            "lines": lines,
+            "total": money(order.total),
+        }
+    )
+
+
+def _point_store_at_files() -> None:
+    """Point the shared store at this run's Files root.
+
+    The Files app configures it at launch, and this is a no-op then. Doing it
+    here too keeps a shop stood up on its own (its tests, a standalone run)
+    writing into its own run's store rather than whichever one was configured
+    last in the process. A config without Files is refused: every checkout
+    writes a receipt (see ``availability.require_files``).
+    """
+    config = app.config
+    require_files(config)
+    code = getattr(getattr(config, "code_editor", None), "database_path", None)
+    files_store.configure(config.files.root, code, config.files.today)
+
+
+def write_receipt(order, *, dated_by_order: bool = False) -> str:
+    """Save the order's receipt into Files; returns its path.
+
+    A seeded order's receipt is dated by the order (``dated_by_order``); one
+    written at checkout gets the store's pinned today, like any new file --
+    the order row itself carries the wall-clock checkout time.
+
+    Idempotent: a receipt already there with these bytes is left alone, so
+    re-seeding the shop over a store the Files app didn't reset doesn't grow
+    " (2)" copies.
+    """
+    _point_store_at_files()
+    data = receipt_pdf(order)
+    path = receipt_path(order.order_id)
+    if files_store.exists(path) and files_store.read(path) == data:
+        return path
+    return files_store.save(
+        RECEIPTS_FOLDER, receipt_name(order.order_id), data,
+        modified=order.date if dated_by_order else None,
+    )
+
+
+def seed_receipts():
+    """A receipt for every order in the shop. Public because a Files-only
+    re-seed empties the store: a full reset re-runs the shop after Files,
+    and anything resetting Files alone calls this to put receipts back."""
+    for order in orders():
+        write_receipt(order, dated_by_order=True)
 
 
 def set_environment(config):
@@ -958,6 +1069,7 @@ def set_environment(config):
     _build_fts()
     _seed_cart(config)
     _seed_orders(config)
+    seed_receipts()
 
     logo_title_container = create_logo_header(
         app_config=config.start_page.apps.onlineshop,
@@ -1887,6 +1999,33 @@ def _allowed_cards() -> list:
     return [str(c) for c in (_plain(getattr(_cfg(), "allowed_credit_cards", [])) or [])]
 
 
+def _card_check_on() -> bool:
+    return bool(getattr(_cfg(), "enable_credit_card_check", False))
+
+
+def _bank():
+    """The OpenBanking module, or None when this run has no bank.
+
+    Every app is imported into one process and merged into one route table by
+    `start_page.initialize_routes_and_configure_task`, so the shop calls the
+    bank directly instead of going back out over HTTP to its own server. The
+    import is lazy and guarded on `accounts`: a config that leaves the bank out
+    (or has not seeded it yet) should decline cleanly, not raise out of a
+    checkout handler.
+    """
+    try:
+        from open_apps.apps.openbanking_app import main as openbanking
+    except ImportError:
+        return None
+    return openbanking if openbanking.accounts is not None else None
+
+
+def _checkout_error(message: str):
+    return RedirectResponse(
+        url=f"/onlineshop/checkout?{urlencode({'error': message})}", status_code=303
+    )
+
+
 @rt("/onlineshop/checkout")
 def get(error: str = ""):
     selected = [row for row in _cart_rows() if row.selected]
@@ -1901,13 +2040,30 @@ def get(error: str = ""):
             ),
         )
 
-    card_field = ""
-    if getattr(_cfg(), "enable_credit_card_check", False):
-        card_field = Div(
-            Label("Card Type", _for="card_type"),
-            Select(*[Option(card, value=card) for card in _allowed_cards()],
-                   id="card_type", name="card_type"),
-            cls="option-group",
+    # The card fields are a real payment form when the check is on: they are
+    # matched against a card seeded in OpenBanking, not pattern-checked. The
+    # PAN, expiry and CVV are all on that card's page in the bank app, which is
+    # what makes "pay for this" a cross-app task rather than a form-fill.
+    card_fields = ""
+    if _card_check_on():
+        card_fields = Fieldset(
+            Legend("Payment"),
+            Div(Label("Card Number", _for="card_number"),
+                Input(id="card_number", name="card_number", required=True,
+                      autocomplete="off", placeholder="0000 0000 0000 0000"),
+                cls="option-group"),
+            Div(Label("Expiry (MM/YY)", _for="card_expiry"),
+                Input(id="card_expiry", name="card_expiry", required=True,
+                      autocomplete="off", placeholder="MM/YY"),
+                cls="option-group"),
+            Div(Label("CVV", _for="card_cvv"),
+                Input(id="card_cvv", name="card_cvv", required=True,
+                      autocomplete="off", placeholder="000"),
+                cls="option-group"),
+            Div(Label("Name on Card", _for="card_name"),
+                Input(id="card_name", name="card_name", required=True,
+                      autocomplete="off"),
+                cls="option-group"),
         )
 
     return page_shell(
@@ -1924,7 +2080,7 @@ def get(error: str = ""):
                     Div(Label("Shipping Address", _for="address"),
                         Input(id="address", name="address", required=True,
                               autocomplete="street-address"), cls="option-group"),
-                    card_field,
+                    card_fields,
                     Button("Place Order", cls="btn btn-primary btn-lg", type="submit"),
                     action="/onlineshop/checkout",
                     method="post",
@@ -1948,28 +2104,73 @@ def get(error: str = ""):
 
 
 @rt("/onlineshop/checkout")
-def post(name: str = "", address: str = "", card_type: str = ""):
+def post(
+    name: str = "",
+    address: str = "",
+    card_number: str = "",
+    card_expiry: str = "",
+    card_cvv: str = "",
+    card_name: str = "",
+):
     selected = [row for row in _cart_rows() if row.selected]
     if not selected:
         return RedirectResponse(url="/onlineshop/cart", status_code=303)
 
-    if getattr(_cfg(), "enable_credit_card_check", False):
+    order_id = uuid.uuid4().hex[:8]
+    total = _cart_total()
+    card_last4 = ""
+
+    # Charge before writing the order: an order that exists without a matching
+    # authorization is the one state a checkout must never leave behind.
+    if _card_check_on():
+        bank = _bank()
+        if bank is None:
+            return _checkout_error("Card payments are unavailable right now.")
+
+        # Brand allow-list first, off the card on file rather than off anything
+        # the shopper typed -- a shop knows which networks it takes before it
+        # asks the issuer for money.
         allowed = _allowed_cards()
-        if card_type not in allowed:
-            message = f"{card_type or 'That card'} is not accepted. Allowed: {', '.join(allowed)}."
-            return RedirectResponse(
-                url=f"/onlineshop/checkout?error={message}", status_code=303
+        card = bank.find_card(card_number)
+        if card is not None and allowed and card.card_brand not in allowed:
+            return _checkout_error(
+                f"{card.card_brand} is not accepted. Allowed: {', '.join(allowed)}."
             )
 
-    order_id = uuid.uuid4().hex[:8]
+        # Expiry is checked here, before the issuer is asked, the way a real
+        # payment form does. It tells the shopper nothing about the card on
+        # file -- only that what they typed is not a date that is still good.
+        expiry = bank.parse_expiry(card_expiry)
+        if expiry is None:
+            return _checkout_error("Enter the card's expiry date as MM/YY.")
+        if bank.expiry_has_passed(expiry):
+            return _checkout_error("That expiry date has passed. Check the card and try again.")
+
+        descriptor = str(getattr(_cfg(), "card_descriptor", "ONLINE SHOP {order_id}"))
+        result = bank.authorize_card_purchase(
+            number=card_number,
+            expiration=card_expiry,
+            cvv=card_cvv,
+            holder=card_name,
+            amount=total,
+            descriptor=descriptor.format(order_id=order_id.upper()),
+            # What a refused charge is recorded under: the same name with the
+            # order id left out, since a declined checkout writes no order.
+            merchant=" ".join(descriptor.format(order_id="").split()),
+        )
+        if not result.approved:
+            return _checkout_error(result.message)
+        card_last4 = result.card_last4
+
     orders.insert(
         Order(
             order_id=order_id,
             name=name,
             address=address,
-            date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            status="Processing",
-            total=_cart_total(),
+            date=_order_timestamp(),
+            status=NEW_ORDER_STATUS,
+            total=total,
+            card_last4=card_last4,
         )
     )
     for row in selected:
@@ -1985,7 +2186,32 @@ def post(name: str = "", address: str = "", card_type: str = ""):
             )
         )
         cart_items.delete(row.id)
+    write_receipt(_row(orders, order_id))
     return RedirectResponse(url="/onlineshop/orders", status_code=303)
+
+
+# A new order ships for the rest of the episode. Nothing advances it: a status
+# that moved with the wall clock would make /onlineshop_all -- and every
+# purchase reward -- depend on how long the episode ran.
+NEW_ORDER_STATUS = "Shipping"
+
+
+def _order_timestamp() -> str:
+    """When a new order was placed, on the run's pinned calendar.
+
+    The day is the one Files dates new files by (``apps.files.today``, which
+    follows the bank's ``as_of_date``), so an order, its receipt and the card
+    charge all agree; the time of day is the real one, so orders placed in one
+    episode still sort. Plain wall-clock time when neither app is configured.
+    """
+    now = datetime.now()
+    config = getattr(app, "config", None)
+    for section, key in (("files", "today"), ("openbanking", "as_of_date")):
+        node = getattr(config, section, None) if config is not None else None
+        day = node.get(key) if node is not None else None
+        if day:
+            return f"{day} {now:%H:%M:%S}"
+    return now.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _lines_for(order_id: str) -> list:
@@ -2016,8 +2242,16 @@ def order_card(order):
             Div(Span("Total", cls="order-label"), Span(money(order.total), cls="cart-total")),
             Div(Span("Ship to", cls="order-label"), Span(order.name),
                 Span(order.address, cls="muted")),
+            Div(Span("Paid with", cls="order-label"),
+                Span(f"Card ending {order.card_last4}"))
+            if order.card_last4 else "",
             Div(H3(f"Order {order.order_id}", cls="card-title"),
-                Span(order.status, cls="status-pill"), cls="order-id"),
+                Span(order.status, cls="status-pill"),
+                A("Receipt", href=files_store.pdf_view_url(
+                      f"/onlineshop/orders/{order.order_id}/receipt", receipt_name(order.order_id)),
+                  target="_blank", rel="noopener", cls="order-receipt text-link",
+                  aria_label=f"Receipt for order {order.order_id}"),
+                cls="order-id"),
             cls="order-head",
         ),
         Div(*lines, cls="order-lines"),
@@ -2040,6 +2274,20 @@ def get():
         search_bar(),
         H1("Your orders", cls="page-title"),
         *[order_card(order) for order in reversed(all_orders)],
+    )
+
+
+@rt("/onlineshop/orders/{order_id}/receipt")
+def get(order_id: str):
+    """The receipt PDF, inline, for a new tab -- rendered from the order, so
+    it opens even if the copy in Files was moved or deleted."""
+    order = _row(orders, order_id)
+    if order is None:
+        return Response("", status_code=404)
+    return Response(
+        receipt_pdf(order),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{receipt_name(order.order_id)}"'},
     )
 
 
@@ -2076,6 +2324,7 @@ def get_all(include_catalog: bool = False):
             "date": order.date,
             "status": order.status,
             "total": order.total,
+            "card_last4": order.card_last4,
             "items": [
                 {
                     "sku": row.sku,

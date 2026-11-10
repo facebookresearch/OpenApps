@@ -34,7 +34,6 @@ import wandb
 import yaml
 from browsergym.experiments import ExpArgs, get_exp_result
 from fasthtml.common import serve
-from killport import kill_ports
 
 # Third-party imports
 from omegaconf import DictConfig, OmegaConf
@@ -42,6 +41,7 @@ from omegaconf import DictConfig, OmegaConf
 # Project-specific imports
 from open_apps.apps.availability import (
     onlineshop_unavailable_reason,
+    require_files,
     task_needs_onlineshop,
 )
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
@@ -97,6 +97,49 @@ def freeze_recording_dir(config: DictConfig) -> None:
     config.record_video_dir = str(_absolute_path(value))
 
 
+def _group_alive(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Something in the group belongs to another user; it still exists.
+        return True
+
+
+def stop_process_group(process: subprocess.Popen, timeout: float = 10.0) -> None:
+    """Stop ``process`` and everything it started: SIGTERM, then SIGKILL.
+
+    The web app is launched as ``bash -c "source ... && uv run launch.py ..."``
+    with ``start_new_session=True``, so ``process`` is the bash wrapper and the
+    leader of its own process group. ``process.terminate()`` signals only that
+    wrapper: bash exits, and ``uv`` and the web server under it are reparented
+    to init and keep serving -- holding their port, and memory, until someone
+    kills them by hand. Signalling the group reaches all three.
+
+    Waits on the *group*, not on ``process``: bash can exit long before the
+    server it started does, and returning then would leave the server running.
+    """
+    pgid = process.pid  # start_new_session makes the leader's pid the pgid
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            break  # nothing left in the group
+        deadline = time.monotonic() + timeout
+        # poll() reaps the wrapper once it exits. Until then it is a zombie,
+        # and a zombie still counts as a member of the group.
+        while process.poll() is None or _group_alive(pgid):
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.2)
+        else:
+            break
+        if sig is signal.SIGTERM:
+            print("OpenApps did not stop on SIGTERM; killing it.")
+
+
 class OpenAppsLauncher:
     def __init__(self, config: DictConfig):
         self.config = config
@@ -107,8 +150,11 @@ class OpenAppsLauncher:
         self.config = merge_plus_keys(self.config)
         random.seed(self.config.seed)
 
-        self.web_app_port = self.pick_empty_port(
-            start_port=5001 + self._job_port_offset()
+        configured_port = self.config.get("web_app_port")
+        self.web_app_port = (
+            int(configured_port)
+            if configured_port is not None
+            else self.pick_empty_port(start_port=5001 + self._job_port_offset())
         )
         print(f"Using port {self.web_app_port} for the web app")
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
@@ -208,7 +254,7 @@ class OpenAppsLauncher:
         Returns:
             int: An available port.
         """
-        port_range = list(range(start_port, start_port + 1000))
+        port_range = list(range(start_port, min(start_port + 1000, 65536)))
         port_range = self._remove_unsafe_ports(port_range)
 
         for port in port_range:
@@ -274,7 +320,8 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True "
+            f"++web_app_port={self.web_app_port}"
         )
         print("Launching web app with command: ", command)
         # Redirect the web app's output to a file rather than an unread PIPE.
@@ -352,6 +399,20 @@ class AgentLauncher(OpenAppsLauncher):
         cum_reward = float(exp_record.get("cum_reward") or 0.0)
         wandb.run.summary["cum_reward"] = cum_reward
         wandb.run.summary["success"] = int(cum_reward >= 1.0)
+
+        # Why the run failed, if it did. Both come from `summary_info.json` via
+        # `get_exp_record`, and without them a crashed episode reaches W&B as
+        # an empty actions table and a zero reward -- indistinguishable from an
+        # agent that ran and got everything wrong. The stack trace is truncated
+        # because a summary value is rendered on one line in the runs table;
+        # the full text stays in the exp dir, which `job_logs_dir` points at.
+        err_msg = exp_record.get("err_msg")
+        wandb.run.summary["errored"] = int(bool(err_msg))
+        if err_msg:
+            wandb.run.summary["err_msg"] = str(err_msg)
+            stack_trace = exp_record.get("stack_trace")
+            if stack_trace:
+                wandb.run.summary["stack_trace"] = str(stack_trace)[-2000:]
         steps_info = exp_result.steps_info
 
         def action_error(i: int) -> str:
@@ -537,16 +598,8 @@ class AgentLauncher(OpenAppsLauncher):
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:
             wandb.finish()
-        apps_process.terminate()
-        try:
-            apps_process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            print("Apps process is still running, stopping OpenApps...")
-            apps_process.kill()
-            apps_process.wait()
-            time.sleep(4)
-            kill_ports(ports=[self.web_app_port])
-            print("OpenApps successfully stopped.")
+        stop_process_group(apps_process)
+        print("OpenApps successfully stopped.")
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
             webapp_log_fh.close()
@@ -578,12 +631,15 @@ class AgentLauncher(OpenAppsLauncher):
             )
 
     def check_task_can_run(self):
-        """Refuse a task that needs the shop when this run does not serve it.
+        """Refuse a run without Files, or a task that needs the shop when this
+        run does not serve it.
 
         Otherwise the agent spends every step looking for an app whose routes
-        were never registered, and the run reads as a model failure. Checked
+        were never registered (or buys correctly and is scored on a receipt
+        nowhere to be written), and the run reads as a model failure. Checked
         before the web app starts, so the mistake costs nothing.
         """
+        require_files(self.config.apps)
         task_name = self.config.get("task_name")
         task_cfg = self.config.tasks.get(task_name) if task_name else None
         if not task_needs_onlineshop(task_cfg):
@@ -602,15 +658,18 @@ class AgentLauncher(OpenAppsLauncher):
         """
         self.check_task_can_run()
         apps_process = self.launch_apps_via_shell()
-        self.wait_until_apps_start(apps_process)
-        # TODO: check if agent model is available in case of VLLM or API
+        # `finally`, so the web app is stopped on every way out: a server that
+        # never came up, an agent error, and Ctrl-C, which raises
+        # KeyboardInterrupt and so slips past `except Exception`.
         try:
+            self.wait_until_apps_start(apps_process)
+            # TODO: check if agent model is available in case of VLLM or API
             self.launch_agent()
-            self.cleanup(apps_process)
         except Exception as e:
-            self.cleanup(apps_process)
             print("Error during agent launch: ", e)
-            raise e
+            raise
+        finally:
+            self.cleanup(apps_process)
 
 
 if __name__ == "__main__":

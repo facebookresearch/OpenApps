@@ -21,19 +21,19 @@ On by default on every page of every app. None of it is scoreable: it changes th
 observation, not the reward.
 
 ```bash
-uv run launch.py                                       # mac-style traffic lights, dock, glowing cursor
+uv run launch.py                                       # mac-style traffic lights, dock; your own pointer only
 uv run launch.py apps/chrome=windows                   # caption buttons on the right
 uv run launch.py apps/chrome=none                      # no chrome: the control condition
 uv run launch.py apps.chrome.dock.show=all             # every app in the dock, not just the pinned ones
 uv run launch.py apps.chrome.cursor.show=always
 uv run launch.py apps.chrome.cursor.enabled=false
 uv run launch.py apps.chrome.titlebar.enabled=false    # dock only
-uv run launch.py device=phone                          # no title bar on a phone; the dock stays
+uv run launch.py device=phone                          # no title bar or agent cursor on a phone; the dock stays
 ```
 
 To check: minimise, maximise and close work in every app, including maps and the shop (they're
-template-rendered, not FastHTML). Opening an app puts a running dot in the dock. The cursor
-glides to each click and ripples. The code editor still fits the window with the title bar and
+template-rendered, not FastHTML). Opening an app puts a running dot in the dock. With `cursor.show=always`, the
+cursor glides to each click and ripples. The code editor still fits the window with the title bar and
 dock on.
 
 ## 2. Realism / styles sweep across every app (visible by default)

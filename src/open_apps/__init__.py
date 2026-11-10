@@ -31,12 +31,16 @@ _ensure_legacy_src_importable()
 
 
 def config_dir() -> Path:
-    """Filesystem path to the OpenApps Hydra config directory (the repo ``config/``).
+    """Path to the OpenApps Hydra config directory.
 
-    Resolved relative to this package. Works under editable installs (uv
-    workspace, ``pip install -e``); for wheel installs the ``config/`` tree
-    must ship with the package.
+    Wheel installs (e.g. OpenApps as a git dependency of another project) ship
+    the tree inside the package as ``open_apps/config`` (see the hatch
+    ``force-include`` in pyproject.toml). Checkouts and editable installs have
+    no such directory and fall back to the repo-root ``config/``.
     """
+    packaged = Path(__file__).resolve().parent / "config"
+    if packaged.is_dir():
+        return packaged
     return Path(__file__).resolve().parents[2] / "config"
 
 

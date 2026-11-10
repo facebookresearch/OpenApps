@@ -50,6 +50,22 @@ class ModelArgs(BaseModelArgs):
         logger.info(f"Creating Model with model_name: {self.model_name}")
 
         if self.client_type == "vllm" or self.client_type == "gemini":
+            # Every self-hosted agent yaml ships `hostname: null` -- the node
+            # serving the model is only known at launch time. Interpolating a
+            # None straight into the URL yields "http://None:8000/v1", whose
+            # DNS failure surfaces three minutes later as a bare
+            # `RetryError: Connection error` (n_retry_server=3 x
+            # min_retry_wait_time=60), naming neither the host nor the reason.
+            # Fail here instead, while there is still something useful to say.
+            if not str(self.hostname or "").strip() or self.hostname == "None":
+                raise ValueError(
+                    f"No vLLM hostname for {self.model_name!r}: agent.hostname is "
+                    f"{self.hostname!r}. Pass the node serving the model, e.g. "
+                    f"`agent.hostname=<node>`, or submit through "
+                    f"`scripts/conduct_slurm.sh`, which discovers it. Check what "
+                    f"is running with `squeue --me` and "
+                    f"`curl http://<node>:{self.port}/v1/models`."
+                )
             suffix = "v1" if self.client_type == "vllm" else ""
             base_url = f"http://{self.hostname}:{self.port}/{suffix}"
             client_args = {"base_url": base_url}

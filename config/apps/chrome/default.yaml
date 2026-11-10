@@ -26,8 +26,9 @@ titlebar:
   # mac      traffic lights on the left, title centred
   # windows  title on the left, minimise / maximise / close on the right
   style: mac
-  # A phone has no windows. Form factors come from config/device/.
-  form_factors: [desktop, tablet]
+  # Neither a phone nor a tablet has windows: an app is full screen, and the
+  # way out is Home in the dock. Form factors come from config/device/.
+  form_factors: [desktop]
 
 dock:
   enabled: true
@@ -50,9 +51,10 @@ dock:
   # An "All apps" button last, opening a panel that lists every enabled app --
   # including excluded and unpinned ones.
   launcher: true
-  # The start page already has its own shortcuts. The dock still shows there
-  # by default: a dock that disappears on one page is a dock an agent cannot
-  # rely on being in the same place.
+  # The desktop draws no app icons of its own, so on the start page the dock
+  # is the one-click route to an app. Turning this off leaves only the
+  # launcher menu there -- a deliberate navigation-pressure condition, not a
+  # cosmetic one.
   on_start_page: true
   # Alt+1..9 opens the nth dock item; Alt+0 goes to the desktop. Advertised in
   # the accessibility tree via aria-keyshortcuts, so an agent reading the tree
@@ -68,6 +70,10 @@ cursor:
   # always   also for a person, e.g. a headed demo recording.
   # never    off.
   show: auto
+  # A phone has no pointer -- a finger lands, nothing hovers -- so an arrow
+  # gliding across it is the wrong picture of what the agent did. Add `phone`
+  # back for a recording that needs to show where each tap landed.
+  form_factors: [desktop, tablet]
   # glow     gradient arrow with a soft halo, in the shell's ring colours
   # classic  white arrow, black outline -- what a native pointer looks like
   style: glow

@@ -94,8 +94,8 @@ class TestMarkup:
     def test_has_one_arc_and_two_rays(self):
         assert brand.wordmark_markup().count("<path") == 3
 
-    def test_mark_is_grouped_apart_from_the_word(self):
-        """CSS can target the mark without touching the word."""
+    def test_carries_a_hook_for_the_mark_alone(self):
+        """A class on the mark group, so it can be styled without the word."""
         assert 'class="ui-wordmark-mark"' in brand.wordmark_markup()
 
     def test_gradient_runs_bottom_to_top(self):

@@ -70,6 +70,30 @@ Here are some key flags you can configure in your agent's YAML file:
 
 For the complete set of configuration options, see `config/agent/default.yaml`.
 
+**Protected state endpoints:**
+
+Each app serves its raw state at `/<app>_all` (`/todo_all`, `/calendar_all`,
+`/onlineshop_all`, ...), and the map at `/maps/landmarks`; rewards are
+computed from these. The agent's `goto` action, defined in
+`src/open_apps/agent/utils.py`, refuses them so an agent can't read the
+state it is scored on:
+
+- The url is resolved by the page's own URL parser, so the check sees exactly
+  what Chromium will request: `/todo_all/.`, `/todo_all/%2e`,
+  `/x/../todo_all` and `/x\..\todo_all` are all refused.
+- Any path segment ending in `_all`, and anything under `/maps/landmarks`, is
+  refused.
+- Only `http:` and `https:` are allowed, so a `data:` or `javascript:` url
+  can't load an endpoint in an iframe or script.
+
+A refused `goto` raises an error, which the agent sees as the action's error.
+The reward code is unaffected: it reads these endpoints over HTTP, not
+through the agent's browser.
+
+The guard covers `goto` only. It does not cover the MCP server's `goto`
+(`src/open_apps/mcp/actions.py`) or other ways the page itself could request
+these urls.
+
 
 ## Creating Your Own Agent
 
@@ -141,7 +165,7 @@ cp config/mode/slurm_cluster.yaml config/mode/internal-slurm_cluster.yaml
 # @package _global_
 project: open_apps
 
-logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${agent.model_name}/${job_id}
+logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}
 databases_dir: ${logs_dir}/databases
 
 cluster: slurm
@@ -159,6 +183,11 @@ slurm_sweep_launcher:
   slurm_srun_args: ["-vv", "--cpu-bind", "none"]
   slurm_comment: "parallel agent tasks"
 ```
+
+For the parallel launcher, `logs_dir` is a sweep-level root resolved once in
+the parent. Results go under `logs_dir/run-<id>/<job_id>/`, and each job's saved
+config records its agent. Do not include `${job_id}` or `${agent.*}` references
+in the root: they use the parent's values for every job and trigger a warning.
 
 Select it like any other Hydra mode:
 
@@ -180,6 +209,20 @@ srun --account=example_account --qos=example_qos --partition=example_partition \
 # then, on the GPU node:
 vllm serve google/gemma-4-E2B-it --host 0.0.0.0 --port 8000
 ```
+
+Or submit it as a batch job with `scripts/serve_vllm.sbatch`, which does the
+same thing plus the parts that are easy to forget — caching weights under
+`/checkpoint` rather than the quota-capped `/home`, clearing any inherited
+proxy vars before the HuggingFace download, and writing the node name to
+`~/logs/vllm_host_<jobid>.txt`:
+
+```bash
+VLLM_MODEL=ByteDance-Seed/UI-TARS-1.5-7B \
+  sbatch --account=... --qos=... --partition=... scripts/serve_vllm.sbatch
+```
+
+`--host 0.0.0.0` is the load-bearing flag in both forms. Bound to localhost the
+server still passes its own health check and is invisible to the eval node.
 
 Confirm it's healthy from its own node:
 

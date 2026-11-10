@@ -1,0 +1,74 @@
+# @package apps.contacts
+#
+# The long_descriptions messenger pack adds seventeen more conversations, and
+# the messenger now draws every thread's name from Contacts -- so the people
+# behind those threads have to be contacts here, or their chats would suddenly
+# show bare phone numbers. Handles match the messenger pack's `threads:` keys.
+#
+# The default people are restated in full rather than appended with
+# `+contacts`: plus-keys are merged by the launcher only
+# (open_apps.utils.merge_plus_keys), and a composed config without that step --
+# tests, the MCP server -- would otherwise replace the defaults with just the
+# extras. A list in a content pack replaces the default's list in Hydra.
+#
+# "Priya" (first name only, a classmate) is a different person from Priya Shah;
+# a recipient written as just "Priya" is ambiguous in this pack, on purpose.
+defaults:
+  - default
+
+contacts:
+  - first_name: Alice
+    phones: [{label: mobile, value: "+1 (555) 010-0001"}]
+    emails: [{label: home, value: alice@example.com}]
+  - first_name: Bob
+    phones: [{label: mobile, value: "+1 (555) 010-0002"}]
+    emails: [{label: home, value: bob@example.com}]
+  - first_name: Charlie
+    phones: [{label: mobile, value: "+1 (555) 010-0003"}]
+    emails: [{label: home, value: charlie@example.com}]
+  - first_name: Priya
+    last_name: Shah
+    phones: [{label: mobile, value: "+1 (555) 010-0004"}]
+    emails: [{label: work, value: priya.shah@example.com}]
+  - first_name: Marcus
+    last_name: Webb
+    favorite: true
+    phones: [{label: mobile, value: "+1 (555) 010-0005"}]
+  - company: Northgate Properties LLC
+    note: "Landlord. Rent is due on the 1st."
+    phones: [{label: work, value: "+1 (555) 010-0040"}]
+    emails: [{label: work, value: rent@northgateprop.example}]
+  - first_name: Sieglinde
+    phones: [{label: mobile, value: "+15550100101"}]
+  - first_name: Hans
+    phones: [{label: mobile, value: "+15550100102"}]
+  - first_name: Greta
+    phones: [{label: mobile, value: "+15550100103"}]
+  - first_name: Lukas
+    phones: [{label: mobile, value: "+15550100104"}]
+  - first_name: Anna
+    phones: [{label: mobile, value: "+15550100105"}]
+  - first_name: Franz
+    phones: [{label: mobile, value: "+15550100106"}]
+  - first_name: Josef
+    phones: [{label: mobile, value: "+15550100107"}]
+  - first_name: Karl
+    phones: [{label: mobile, value: "+15550100108"}]
+  - first_name: Helga
+    phones: [{label: mobile, value: "+15550100109"}]
+  - first_name: Otto
+    phones: [{label: mobile, value: "+15550100110"}]
+  - first_name: Mom
+    phones: [{label: mobile, value: "+15550100111"}]
+  - first_name: Dad
+    phones: [{label: mobile, value: "+15550100112"}]
+  - first_name: Alex
+    phones: [{label: mobile, value: "+15550100113"}]
+  - first_name: Priya
+    phones: [{label: mobile, value: "+15550100114"}]
+  - first_name: Jamal
+    phones: [{label: mobile, value: "+15550100115"}]
+  - first_name: Elena
+    phones: [{label: mobile, value: "+15550100116"}]
+  - first_name: Self
+    phones: [{label: mobile, value: "+15550100117"}]

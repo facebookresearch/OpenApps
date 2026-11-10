@@ -68,7 +68,7 @@ prompt_txt:
     \ python string format. If you want to submit your input, use \\\\n at the end\
     \ of content. \nscroll(direction='down or up', point='(x, y)')\
     \ # Show more information on the `direction` side.\nwait() #Sleep\
-    \ for 5s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
+    \ for 3s and take a screenshot to check for any changes.\n\n## Note\n- Use English\
     \ in `Thought` part.\n- Write a small plan and finally summarize your next action\
     \ (with its target element) in one sentence in `Thought` part.\n"
   action_abstract_example: '<action>type(content='''')</action>

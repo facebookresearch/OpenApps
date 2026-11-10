@@ -22,7 +22,6 @@ from browsergym.core.action.functions import (
     focus,
     go_back,
     go_forward,
-    goto,
     hover,
     keyboard_down,
     keyboard_insert_text,
@@ -51,6 +50,40 @@ from browsergym.core.action.functions import (
 
 from agentlab.llm.chat_api import ChatModel
 from agentlab.llm.llm_utils import Discussion, ParseError, extract_code_blocks
+
+
+def goto(url: str):
+    """
+    Navigate to a url.
+
+    Examples:
+        goto('http://www.example.com')
+    """
+    # Replaces BrowserGym's goto. The `/<app>_all` endpoints and
+    # `/maps/landmarks` serve the raw state rewards are scored from, so an agent
+    # must not be able to read them. The page's own URL parser resolves `url`
+    # exactly as Chromium will navigate it (dot segments, `%2e`, backslashes,
+    # stripped tabs), and only http(s) is allowed, which rules out a `data:`
+    # page that iframes an endpoint. BrowserGym execs this function's source on
+    # its own, hence the local import.
+    from urllib.parse import unquote
+
+    resolved = page.evaluate(  # noqa: F821 -- `page` is injected by BrowserGym
+        "u => { const p = new URL(u, location.href);"
+        " return [p.href, p.protocol, p.pathname]; }",
+        url,
+    )
+    href, scheme, path = resolved
+    segments = [s for s in unquote(path).lower().split("/") if s]
+    if (
+        scheme not in ("http:", "https:")
+        or any(s.endswith("_all") for s in segments)
+        or segments[:2] == ["maps", "landmarks"]
+    ):
+        raise ValueError(f"Navigation to {url!r} is not allowed.")
+    # Navigate to what was checked, which also lets relative urls work.
+    page.goto(href)  # noqa: F821
+
 
 action_map = {
     "clear": clear,
@@ -295,6 +328,17 @@ def translate_uitars_type_action(action: str) -> str:
     return f"keyboard_type(text={content!r})"
 
 
+def translate_uitars_wait_action(action: str) -> str:
+    """Translate UI-TARS ``wait()`` to BrowserGym ``noop(wait_ms=3000)``.
+
+    The prompt describes ``wait()`` as a 3s sleep. A trailing comment or
+    semicolon is tolerated, as BrowserGym tolerates them for other actions.
+    """
+    if not re.fullmatch(r"wait\s*\(\s*\)\s*(?:[;#].*)?", action, re.DOTALL):
+        raise ParseError(f"Could not parse wait action: {action!r}. Expected wait().")
+    return "noop(wait_ms=3000)"
+
+
 _HOTKEY_NAMES = {
     "backspace": "Backspace", "delete": "Delete", "enter": "Enter",
     "return": "Enter", "tab": "Tab", "escape": "Escape", "esc": "Escape",
@@ -386,6 +430,10 @@ def uitars_parser(result, rescale=None):
     # type(content=text) -> keyboard_type(text=text)
     if result["action"].startswith("type(content="):
         result["action"] = translate_uitars_type_action(result["action"])
+    # wait() -> noop(wait_ms=3000). The UI-TARS prompt advertises wait() as a
+    # 3s sleep; BrowserGym's equivalent is noop.
+    if re.match(r"wait\s*\(", result["action"]):
+        result["action"] = translate_uitars_wait_action(result["action"])
     # scroll(direction='down'|'up'|'left'|'right', point='(x, y)') -> scroll(dx, dy)
     if result["action"].startswith("scroll("):
         dir_match = re.search(

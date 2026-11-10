@@ -1,0 +1,4 @@
+# Seeded Files documents are scored by sha256, and a PDF's xref is byte offsets:
+# never let git rewrite their line endings.
+src/open_apps/apps/files_app/seed/*.pdf binary
+src/open_apps/apps/files_app/seed/*.png binary

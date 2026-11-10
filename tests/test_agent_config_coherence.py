@@ -24,8 +24,12 @@ from open_apps.agent.utils import flexible_parser
 
 
 def agent_args(agent_name: str):
+    # Self-hosted configs ship `hostname: null`, and building the agent refuses
+    # one (see tests/test_vllm_model_args.py). These tests build the client but
+    # never call it, so any name will do.
+    overrides = [f"agent={agent_name}", "agent.hostname=placeholder-node"]
     with initialize(version_base=None, config_path="../config/"):
-        config = compose(config_name="config", overrides=[f"agent={agent_name}"])
+        config = compose(config_name="config", overrides=overrides)
     return hydra.utils.instantiate(config.agent)
 
 
