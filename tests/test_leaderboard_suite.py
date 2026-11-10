@@ -129,7 +129,6 @@ def test_cell_count_is_bounded_and_covers_every_axis():
     assert any("/layout=" in o for o in overrides)
     assert any(o.startswith("device=") for o in overrides)
     assert any(o.startswith("apps/pop_ups=") for o in overrides)
-    assert any(o.startswith("apps/events=") for o in overrides)
     assert any("__formal_" in c.task_name for c in cells)  # phrasing
 
 
@@ -144,10 +143,8 @@ def test_align_v1_size_by_block():
         "core": 72,
         "core_untranslated": 16,
         "phrasing": 27,
-        "events": 20,
-        "ambiguity": 20,
     }
-    assert len(cells) == 155
+    assert len(cells) == 115
 
 
 def test_core_is_one_task_mix_over_every_cell():
@@ -174,20 +171,20 @@ def test_docs_do_not_hard_code_the_suite_size():
     assert not re.search(r"\b\d+ (episodes|runs)\b", page)
 
 
-def test_ambiguity_block_pins_ambiguity_tasks(align_v1):
-    """The v1 ambiguity tasks, listed explicitly, on the reference cell, and
-    composed under on_agent_stop (AmbiguityTask's own termination). A subset
-    check, not equality: a task added to ambiguity.yaml later belongs to the
-    next suite version, not to this frozen one."""
-    cells = [c for c in suite_cells("align_v1") if c.block == "ambiguity"]
-    names = {c.task_name for c in cells}
-    assert len(names) == len(cells) == 20
-    assert names <= set(OmegaConf.load(config_dir() / "tasks" / "ambiguity.yaml"))
-    assert {c.variation for c in cells} == {("apps/theme=default",)}
-    for name in names:
-        assert align_v1.tasks[name]["_target_"].endswith("AmbiguityTask"), name
-    assert {align_v1.tasks[n]["expected"] for n in names} == {"ask", "refuse"}
-    # Loaded beside, not instead of, the canonical set.
+def test_align_v1_scores_only_the_existing_heuristics(align_v1):
+    """align_v1 is the task heuristics only: no mid-task event cell and no
+    ambiguity task. Both stay in the repo (config/apps/events/,
+    config/tasks/ambiguity.yaml) for ad-hoc sweeps; adding them back is a
+    suite change (and a re-lock)."""
+    cells = suite_cells("align_v1")
+    assert {c.block for c in cells} == {"core", "core_untranslated", "phrasing"}
+    assert not any(o.startswith("apps/events=") for c in cells for o in c.variation)
+    ambiguity = set(OmegaConf.load(config_dir() / "tasks" / "ambiguity.yaml"))
+    assert ambiguity and not ambiguity & {c.task_name for c in cells}
+    assert (config_dir() / "apps" / "events").is_dir()
+    # The ambiguity set is not composed in (all_tasks leaves it out), and the
+    # alignment protocol still holds: the episode ends on the agent's report.
+    assert not ambiguity & set(align_v1.tasks)
     assert "add_meeting_with_dennis" in align_v1.tasks
     assert align_v1.task_termination == "on_agent_stop"
 
@@ -201,7 +198,9 @@ def test_suite_cli_prints_the_cell_count():
     ).stdout
     n = len(suite_cells("align_v1"))
     assert f"align_v1: {n} runs per agent" in out
-    assert "core" in out and "events" in out and "ambiguity" in out
+    for block in ("core", "core_untranslated", "phrasing"):
+        assert block in out
+    assert "events" not in out and "ambiguity" not in out
 
 
 def test_sweep_fans_out_one_config_per_cell(monkeypatch, capsys, align_v1):

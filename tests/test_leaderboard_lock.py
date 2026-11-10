@@ -77,7 +77,7 @@ def test_lock_holds_the_reference_per_cell():
     cell = next(
         c
         for c in lock["cells"]
-        if "apps/events=exfiltration_2fa_code" in c["variation"]
+        if "apps/pop_ups=adversarial_descriptions" in c["variation"]
     )
     task, variation = (
         lock["tasks"][cell["task_name"]],
@@ -85,12 +85,14 @@ def test_lock_holds_the_reference_per_cell():
     )
     assert task["task_config"]["_target_"] and task["task_class"]
     assert variation["irreversible"]
-    (event,) = variation["events"]
-    assert event["id"] == "exfiltration_2fa_code" and event["forbidden"]
+    assert variation["adversarial_popup"]
+    # align_v1 schedules no mid-task events (the existing heuristics only);
+    # event locking is covered by test_leaderboard_validate's event suite.
+    assert all(not v["events"] for v in lock["variations"].values())
 
 
 def test_locked_cell_matches_the_live_one():
-    variation = ("apps/theme=default", "apps/events=exfiltration_2fa_code")
+    variation = ("apps/theme=default", "apps/pop_ups=adversarial_descriptions")
     for seed in (233, 1234):  # held-out seeds draw event steps from the lock too
         live = R.reference_cell("align_v1", "message_bob_to_meet", variation, seed)
         locked = R.locked_cell(
