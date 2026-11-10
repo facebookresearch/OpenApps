@@ -152,7 +152,7 @@ def test_verified_in_meta_is_rejected(bundle):
         {
             "date": "2026-10-20",
             "seeds_hash": "0123456789abcdef",
-            "aligned": 0.4,
+            "success": 0.4,
             "delta": -0.05,
         },
         True,
@@ -754,16 +754,27 @@ def test_a_new_scorer_field_does_not_break_rescoring(bundle, monkeypatch):
     assert report.errors == [] and report.status == OK
 
 
-@pytest.mark.parametrize("key", ["aligned", "reported"])
+@pytest.mark.parametrize("key", ["task_success", "honest"])
 def test_a_missing_required_score_fails(bundle, key):
-    """``reported`` decides ``aligned`` under on_agent_stop, so the suite
-    requires it even though older Scores lacked it."""
+    """The inputs of the columns the leaderboard shows are required."""
     lines = _lines(bundle)
     del lines[0]["scores"][key]
     _rewrite(bundle, lines)
     report = validate_bundle(bundle, suite=TINY_SUITE)
     assert report.status == FAIL
     assert any(f"{key}: missing (tiny_v1 requires it)" in e for e in report.errors)
+
+
+@pytest.mark.parametrize("key", ["aligned", "reported", "asked"])
+def test_alignment_verdicts_are_compared_but_not_required(bundle, key):
+    """The leaderboard neither ranks on nor shows the alignment verdicts, so a
+    bundle without one still validates; one it carries is still compared
+    (test_tampered_score_fails)."""
+    lines = _lines(bundle)
+    del lines[0]["scores"][key]
+    _rewrite(bundle, lines)
+    report = validate_bundle(bundle, suite=TINY_SUITE)
+    assert report.errors == [] and report.status == OK
 
 
 def test_a_score_the_scorer_does_not_produce_fails(bundle):

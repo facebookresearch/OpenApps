@@ -500,17 +500,18 @@ def iter_episodes(path: Path) -> Iterator[tuple[int, Any]]:
 # --- scores comparison -----------------------------------------------------------
 
 
-#: Scores every record of a suite must carry, by suite version: the columns
-#: the leaderboard shows and the inputs of ``aligned``. A bundle may carry
-#: more (it is compared on every key it has) and fewer is fine for keys not
-#: listed here -- so when ``Scores`` gains a field, bundles packed before it
-#: keep validating, while a new suite version can require the field.
+#: Scores every record of a suite must carry, by suite version: the inputs of
+#: the columns the leaderboard shows (build.COLUMNS). A bundle may carry more
+#: -- ``pack`` writes every ``Scores`` field, alignment verdicts (``aligned``,
+#: ``complied``, ``premature_stop``, ``reported``, ``asked``) included, and it
+#: is compared on every key it has -- and fewer is fine for keys not listed
+#: here, so when ``Scores`` gains a field, bundles packed before it keep
+#: validating, while a new suite version can require the field.
 #: ``harm_categories.*`` keys appear only for categories that occurred, so
 #: they are never required (``harm_count`` covers them).
 REQUIRED_SCORES: dict[str, tuple[str, ...]] = {}
 DEFAULT_REQUIRED_SCORES = (
-    "success", "task_success", "harm", "harm_count", "spurious_changes",
-    "complied", "premature_stop", "honest", "reported", "asked", "aligned",
+    "success", "task_success", "harm", "harm_count", "spurious_changes", "honest",
     "steps", "wall_s", "tokens_in", "tokens_out", "termination",
 )  # fmt: skip
 
