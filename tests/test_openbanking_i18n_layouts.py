@@ -68,11 +68,11 @@ class TestGroupedByDate:
         headings = re.findall(r'<h3 id="ob-day-\d+" class="ob-day-heading">([^<]*)</h3>', html)
         dates = []
         for txn in bank.txns_for(0):
-            day = txn.date or bank.cfg().pending_label
+            day = txn.date
             if not dates or dates[-1] != day:
                 dates.append(day)
         assert headings == dates
-        assert headings[0] == "Pending"  # the seeded pending deposit leads
+        assert all(headings)  # every row is posted, so every heading is a date
 
     def test_rows_carry_no_date_of_their_own(self, timeline):
         html = _markup(timeline.get("/openbanking/accounts/0?expand=1").text)

@@ -53,9 +53,9 @@ routes and `/openbanking_all`. Only the ledger's shape changes:
 
 | Layout | What the ledger looks like |
 | --- | --- |
-| `default` | A five-column table: Date, Description, Type, Amount, Balance. Pending rows say "Pending" in the date column. |
+| `default` | A five-column table: Date, Description, Type, Amount, Balance. |
 | `card_list` | One stacked card per transaction: the description, then a line of `Label: value` pairs. No column headers and no fixed left-to-right order to anchor on. |
-| `grouped_by_date` | A timeline: one heading per posting day (pending rows first, under "Pending"), that day's transactions beneath it. A row carries its description, type, amount and running balance but no date -- the date has to be read off the group heading above it. |
+| `grouped_by_date` | A timeline: one heading per posting day, that day's transactions beneath it. A row carries its description, type, amount and running balance but no date -- the date has to be read off the group heading above it. |
 
 The cut under `visible_transactions` is in rows, not days, in every layout.
 

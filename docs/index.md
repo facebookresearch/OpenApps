@@ -407,8 +407,8 @@ uv run openbanking-gen-txns --account 2043 --count 2 --max-amount 80 \
 ```
 
 The same `--seed` always produces the same rows, and nothing is written to the
-running database -- the app is read-only, and `/openbanking_all` has to stay
-byte-stable. `--types` and `--max-amount` are how you stay clear of the figures
+running database -- `/openbanking_all` has to stay byte-stable until an agent
+sends money or buys something. `--types` and `--max-amount` are how you stay clear of the figures
 `config/tasks/openbanking.yaml` reads off an account; re-run
 `pytest tests/test_openbanking.py` afterwards, which checks those.
 

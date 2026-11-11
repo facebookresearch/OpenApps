@@ -14,6 +14,7 @@ month. Downloading must not touch the bank's own state.
 """
 
 import re
+from datetime import date
 from pathlib import Path
 from urllib.parse import quote
 
@@ -74,6 +75,36 @@ class TestPostingDates:
         assert statements.parse_posting_date(text) is None
 
 
+class TestFormattingPostingDates:
+    """``format_posting_date`` writes a payment's date the way the pack's
+    seeded rows spell theirs, so a send reads like the rows around it."""
+
+    @pytest.mark.parametrize(
+        "style,when,text",
+        [
+            ("en", (2026, 8, 26), "Aug 26, 2026"),
+            ("en", (2026, 8, 1), "Aug 01, 2026"),
+            ("de", (2026, 8, 26), "26. Aug. 2026"),
+            ("de", (2026, 7, 1), "01. Juli 2026"),
+            ("de", (2026, 3, 3), "03. März 2026"),
+            ("zh", (2026, 8, 26), "2026年8月26日"),
+            ("zh", (2026, 7, 1), "2026年7月1日"),
+        ],
+    )
+    def test_matches_the_seeded_spelling(self, style, when, text):
+        assert statements.format_posting_date(date(*when), style) == text
+
+    @pytest.mark.parametrize("style", ["en", "de", "zh"])
+    def test_round_trips_every_day_of_the_year(self, style):
+        day = date(2026, 1, 1)
+        while day.year == 2026:
+            assert statements.parse_posting_date(statements.format_posting_date(day, style)) == day
+            day = day.fromordinal(day.toordinal() + 1)
+
+    def test_unknown_style_is_english(self):
+        assert statements.format_posting_date(date(2026, 8, 26), "fr") == "Aug 26, 2026"
+
+
 class TestMonths:
     def test_only_months_with_posted_rows_are_offered(self, client):
         months = {a.id: bank.statement_months(a) for a in bank.account_rows()}
@@ -81,10 +112,12 @@ class TestMonths:
         assert months[SAVINGS] == [(2026, 8), (2026, 7), (2026, 6)]
         assert months[CARD] == [(2026, 8), (2026, 7)]
 
-    def test_pending_rows_are_left_out(self, client):
+    def test_every_row_is_on_its_months_statement(self, client):
+        """Nothing in the bank is pending, so the real-time transfer posted on
+        the pinned day is on August's statement with the other six."""
         rows = bank.statement_rows(bank.get_account(CHECKING), (2026, 8))
-        assert all(r.date is not None for r in rows)
-        assert len(rows) == 6  # the seventh, the real-time transfer, is pending
+        assert len(rows) == 7
+        assert "REAL TIME TRANSFER" in rows[-1].description
 
     def test_rows_run_oldest_first(self, client):
         rows = bank.statement_rows(bank.get_account(SAVINGS), (2026, 7))
@@ -102,6 +135,19 @@ class TestMonths:
         assert statements.parse_month("2026-07") == (2026, 7)
         for bad in ("2026-13", "July", "2026-7-1", ""):
             assert statements.parse_month(bad) is None
+
+
+@pytest.mark.parametrize("pack", PACKS)
+def test_each_pack_style_spells_dates_like_its_seed(pack, tmp_path_factory):
+    """``posting_date_style`` is what a payment's date is written in, so it has
+    to reproduce every dated row the pack seeds, character for character."""
+    bank_cfg = _compose(tmp_path_factory, f"apps/openbanking/content={pack}").apps.openbanking
+    style = bank_cfg.posting_date_style
+    for account in OmegaConf.to_container(bank_cfg.accounts, resolve=True):
+        for txn in account["transactions"]:
+            if txn["date"]:
+                parsed = statements.parse_posting_date(txn["date"])
+                assert statements.format_posting_date(parsed, style) == txn["date"], account["name"]
 
 
 @pytest.mark.parametrize("pack", PACKS)

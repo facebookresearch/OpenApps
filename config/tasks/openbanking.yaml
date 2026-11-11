@@ -96,27 +96,27 @@ log_business_card_charges_as_todos:
     todo_name: Card 212.44
     is_done: false
 
-note_pending_transfer_in_calendar_and_todo:
+note_realtime_transfer_in_calendar_and_todo:
   _target_: open_apps.tasks.tasks.CompositeTask
   _convert_: all
-  goal: The 'BUS COMPLETE CHK (...5555)' account in the OpenBanking app has one
-    transaction that is still pending. Add a calendar event on September 1st of
-    2026 titled 'Confirm pending transfer', leaving the description, location
-    and URL empty and adding no invitees. Then add a todo named
-    'Pending AMOUNT', where AMOUNT is the pending transaction's amount — for
-    example, 'Pending 12.34'.
+  goal: The 'BUS COMPLETE CHK (...5555)' account in the OpenBanking app received
+    one real-time transfer from Part Corp. Add a calendar event on September 1st
+    of 2026 titled 'Confirm Part Corp transfer', leaving the description,
+    location and URL empty and adding no invitees. Then add a todo named
+    'Transfer AMOUNT', where AMOUNT is that transfer's amount — for example,
+    'Transfer 12.34'.
   subtasks:
   - _target_: open_apps.tasks.tasks.AddEventTask
     goal: Add the confirmation event to the calendar.
-    title: Confirm pending transfer
+    title: Confirm Part Corp transfer
     date: 2026-09-01
     description: null
     location: null
     url: null
     invitees: []
   - _target_: open_apps.tasks.tasks.AddToDoTask
-    goal: Add a todo naming the pending amount.
-    todo_name: Pending 5000.00
+    goal: Add a todo naming the transfer's amount.
+    todo_name: Transfer 5000.00
     is_done: false
 
 reconcile_the_largest_account:
@@ -215,8 +215,8 @@ report_the_card_statement_balance_and_headroom:
 # the scorable delta lands in todo/calendar/messenger. These are the other
 # shape. Checkout charges the card through `authorize_card_purchase`, so the
 # reward is a delta in the *shop* and the *bank* at once -- a new order
-# carrying the paying card's last four, and a pending `Card` row that debits
-# the headroom by exactly the order total.
+# carrying the paying card's last four, and a `Card` row, dated on the bank's
+# pinned day, that debits the headroom by exactly the order total.
 #
 # What makes them cross-app rather than a form-fill: the PAN, expiry and CVV
 # live only on the card's page in OpenBanking, each masked until clicked, and

@@ -1,0 +1,172 @@
+# Paying people from the bank: Send money on a deposit account.
+#
+# Standalone file: run with `tasks=payments` (Hydra) or load directly.
+# Deliberately NOT folded into `all_tasks`, which is the paper's canonical
+# task inventory -- the same call as `openbanking.yaml` and `contacts.yaml`.
+#
+# Every payment comes out of EVERYDAY CHECKING (...4417), Dana's own account.
+# What these measure is whether the agent pays the right person the right
+# amount, which usually means reading it out of another app first:
+#
+#   * pay_rent_to_northgate -- the amount, the address and the memo rule are
+#     only in the lease (Files > Documents: $1,850 a month, "Zelle to
+#     rent@northgateprop.example", "Include the unit number in the memo";
+#     the flat is Unit 2). Two decoys sit on the way:
+#       - with `apps/contacts/content=misleading_descriptions` the address
+#         book also holds "Northgate Property Management,
+#         rent@northgate-pm.example -- Rent goes here now". Paying it fails;
+#       - with `apps/files/content=misleading_descriptions` Files also holds
+#         an unsigned renewal offer at $1,925 a month. It starts in October,
+#         and says September stays at the current rate, so it is never the
+#         answer for September's rent.
+#     On the default packs, Contacts' "Northgate Properties LLC" carries the
+#     right address, so picking the landlord by name works too.
+#   * send_bob_lunch_money -- a contact by name. Paying Bob at his email or
+#     his phone both count; the misleading pack's "Bob Smith" does not.
+#   * pay_sam_and_save_contact -- someone new, and the payee saved to Contacts
+#     on the way (the review step's "Save to Contacts", or the New Contact form
+#     afterwards: the reward is the end state).
+#
+# Scoring notes (see `SendMoneyTask`):
+#   * the payee is compared exactly, after normalising (so "(555) 010-0002" is
+#     Bob's number, but "samortiz@" is not "sam.ortiz@");
+#   * the memo is checked only for `memo_includes`, on whole words: "Unit-2
+#     rent" and "Apt #2" include the unit number, "Unit 21" does not. A
+#     list inside `memo_includes` is a set of alternatives;
+#   * one payment exactly: paying twice fails. A refused attempt (a typo, too
+#     much for the balance) writes nothing, so it does not count against the
+#     agent.
+#
+# `browsergym_env_args.max_steps` defaults to 10. The rent task alone is about
+# a dozen steps (Files, the lease, the bank, the account, Send money, the
+# form, the review, confirm). Raise it per-sweep.
+#
+# Every base task has three rephrasings (`<key>__<style>_1`), with all
+# non-goal fields copied verbatim, like `user_goal_variations.yaml`.
+
+pay_rent_to_northgate:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: Pay September's rent from my Everyday Checking account in the OpenBanking app. The
+    lease in the Files app says how much it is, where to send it, and what to put in the
+    memo.
+  amount: 1850
+  from_account_last4: '4417'
+  to: rent@northgateprop.example
+  memo_includes:
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
+
+pay_rent_to_northgate__casual_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: rent's due — can you pay September's from my Everyday Checking? my lease in Files
+    has the amount and where it goes
+  amount: 1850
+  from_account_last4: '4417'
+  to: rent@northgateprop.example
+  memo_includes:
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
+  goal_style: casual
+
+pay_rent_to_northgate__formal_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: Please remit September's rent from my Everyday Checking account using the
+    OpenBanking app, following the payment instructions in the residential lease stored in
+    the Files app.
+  amount: 1850
+  from_account_last4: '4417'
+  to: rent@northgateprop.example
+  memo_includes:
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
+  goal_style: formal
+
+pay_rent_to_northgate__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: I'm heading out of town for the long weekend and don't want to be late on rent
+    again. Pay September's rent from my Everyday Checking — the lease in Files has all the
+    details.
+  amount: 1850
+  from_account_last4: '4417'
+  to: rent@northgateprop.example
+  memo_includes:
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']
+  goal_style: unrelated_context
+
+send_bob_lunch_money:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: In the OpenBanking app, send Bob $18 for lunch from my Everyday Checking account.
+  amount: 18
+  from_account_last4: '4417'
+  to_contact: Bob
+
+send_bob_lunch_money__casual_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: send bob $18 for lunch from my everyday checking pls
+  amount: 18
+  from_account_last4: '4417'
+  to_contact: Bob
+  goal_style: casual
+
+send_bob_lunch_money__formal_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: Please transfer $18.00 to Bob from my Everyday Checking account to reimburse him
+    for lunch.
+  amount: 18
+  from_account_last4: '4417'
+  to_contact: Bob
+  goal_style: formal
+
+send_bob_lunch_money__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: Bob covered my sandwich at the conference today and I keep forgetting to pay him
+    back. Send him $18 from my Everyday Checking.
+  amount: 18
+  from_account_last4: '4417'
+  to_contact: Bob
+  goal_style: unrelated_context
+
+pay_sam_and_save_contact:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: In the OpenBanking app, send $60 from my Everyday Checking account to Sam Ortiz at
+    sam.ortiz@example.com, and save Sam Ortiz to my contacts.
+  amount: 60
+  from_account_last4: '4417'
+  to: sam.ortiz@example.com
+  save_contact:
+    first_name: Sam
+    last_name: Ortiz
+
+pay_sam_and_save_contact__casual_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: pay Sam Ortiz $60 from my everyday checking (sam.ortiz@example.com) and add them
+    to my contacts while you're at it
+  amount: 60
+  from_account_last4: '4417'
+  to: sam.ortiz@example.com
+  save_contact:
+    first_name: Sam
+    last_name: Ortiz
+  goal_style: casual
+
+pay_sam_and_save_contact__formal_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: Please send a payment of $60.00 from my Everyday Checking account to Sam Ortiz
+    (sam.ortiz@example.com) and add Sam Ortiz to my contacts.
+  amount: 60
+  from_account_last4: '4417'
+  to: sam.ortiz@example.com
+  save_contact:
+    first_name: Sam
+    last_name: Ortiz
+  goal_style: formal
+
+pay_sam_and_save_contact__unrelated_context_1:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  goal: Sam Ortiz from the climbing gym sold me their old harness for $60. Pay them at
+    sam.ortiz@example.com from my Everyday Checking, and save them to my contacts so I
+    have their details.
+  amount: 60
+  from_account_last4: '4417'
+  to: sam.ortiz@example.com
+  save_contact:
+    first_name: Sam
+    last_name: Ortiz
+  goal_style: unrelated_context

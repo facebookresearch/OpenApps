@@ -71,6 +71,9 @@ SEEDED_ACCOUNTS = [
     "BUS COMPLETE CHK (...5555)",
     "BUS SELECT SAVINGS (...8891)",
     "INK BUSINESS CARD (...2043)",
+    # The user's own account -- the one the payment tasks pay from. Appended,
+    # so the three business accounts keep ids 0-2.
+    "EVERYDAY CHECKING (...4417)",
 ]
 
 
@@ -231,6 +234,20 @@ class TestContentInvariants:
         assert names[: len(SEEDED_ACCOUNTS)] == SEEDED_ACCOUNTS
         assert len(names) > len(SEEDED_ACCOUNTS), "the `+accounts` append did not apply"
 
+    @pytest.mark.parametrize("variant", CONTENT_VARIANTS)
+    def test_the_personal_account_is_danas_checking(self, tmp_path, variant):
+        """The payment tasks pay "from my Everyday Checking": a deposit account
+        in Dana's name, after the three business ones. Its balance stays under
+        the savings account's, or it would become the answer to
+        `reconcile_the_largest_account`."""
+        accounts = _compose(tmp_path, [f"apps/openbanking/content={variant}"]).apps.openbanking.accounts
+        dana = accounts[3]
+        assert dana.name == SEEDED_ACCOUNTS[3]
+        assert dana.holder == "Dana Reyes"
+        assert dana.get("kind", "deposit") == "deposit"
+        assert str(dana.account_number).endswith("4417")
+        assert dana.available_balance < accounts[1].available_balance
+
     def test_adversarial_variant_injects_the_shared_message(self, tmp_path):
         cfg = _compose(tmp_path, ["apps/openbanking/content=adversarial_descriptions"])
         message = _norm(cfg.apps.adversarial_message)
@@ -269,10 +286,15 @@ class TestRendering:
         assert "COOL APPS INC" in html
         assert "Available balance" in html
 
-    def test_pending_transaction_has_no_posted_balance(self, client):
+    def test_nothing_is_pending(self, client):
+        """Every row has a posting date and a running balance -- including the
+        real-time transfer, which used to be seeded as pending."""
+        from open_apps.apps.openbanking_app import main as bank
+
         html = client.get("/openbanking/accounts/0").text
-        assert "Pending" in html
-        assert "—" in html
+        assert "Pending" not in html
+        assert "Aug 26, 2026" in html
+        assert all(t.date and t.balance is not None for t in bank.transactions())
 
     def test_unknown_account_does_not_500(self, client):
         assert client.get("/openbanking/accounts/999").status_code == 200
@@ -1027,6 +1049,12 @@ class TestRewardState:
         assert len(state["accounts"]) == len(SEEDED_ACCOUNTS)
         assert state["transactions"]
 
+    def test_seeded_rows_carry_no_counterparty_or_memo(self, client):
+        """Only a payment the user sends names a payee; every seeded and card
+        row reports both fields as null, so the shape is the same everywhere."""
+        for txn in client.get("/openbanking_all").json()["transactions"]:
+            assert txn["counterparty"] is None and txn["memo"] is None
+
     def test_state_is_byte_stable_across_fetches(self, client):
         first = client.get("/openbanking_all").text
         for _ in range(3):
@@ -1156,14 +1184,14 @@ class TestTaskAnswersMatchTheSeed:
         }
         assert expected == {_norm(f"Card {abs(a):.2f}") for a in charges}
 
-    def test_exactly_one_pending_transaction_and_its_amount(self, accounts):
+    def test_exactly_one_part_corp_transfer_and_its_amount(self, accounts):
         checking = accounts["BUS COMPLETE CHK (...5555)"]
-        pending = [t for t in checking.transactions if t.date is None]
-        assert len(pending) == 1, (
-            "the goal says 'one transaction that is still pending'"
+        transfers = [t for t in checking.transactions if "PART CORP" in t.description]
+        assert len(transfers) == 1, (
+            "the goal says 'one real-time transfer from Part Corp'"
         )
-        expected = self._expected("note_pending_transfer_in_calendar_and_todo", index=1)
-        assert _norm(expected) == _norm(f"Pending {pending[0].amount:.2f}")
+        expected = self._expected("note_realtime_transfer_in_calendar_and_todo", index=1)
+        assert _norm(expected) == _norm(f"Transfer {transfers[0].amount:.2f}")
 
     def test_highest_available_balance_account(self, accounts):
         richest = max(accounts.values(), key=lambda a: a.available_balance)
@@ -1425,8 +1453,6 @@ class TestVariantFanout:
         read = gen.VARIANTS[stem].read_date
         for account in gen.load_accounts(gen.content_path(stem)):
             for txn in account["transactions"]:
-                if txn["date"] is None:  # pending rows carry no date
-                    continue
                 assert read(txn["date"]) is not None, txn["date"]
 
     @pytest.mark.parametrize("stem", ["default", "german", "mandarin"])
@@ -1599,3 +1625,31 @@ class TestVariantFanout:
             gen.splice_all(plan)
         for path in content.glob("*.yaml"):
             assert path.read_text("utf-8") == before[path.name]
+
+
+def test_a_seeded_row_without_a_date_or_balance_is_refused(tmp_path):
+    """Nothing in the bank is pending; a pack that still seeds a pending row
+    fails at launch instead of rendering one."""
+    from open_apps.apps.openbanking_app import main as bank
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=[f"logs_dir={tmp_path}"])
+    Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+    OmegaConf.update(config, "apps.openbanking.accounts.0.transactions.0.date", None)
+    with pytest.raises(ValueError, match="Nothing in the bank is pending"):
+        bank.set_environment(config.apps)
+
+
+def test_the_tasks_posting_date_mirrors_the_bank():
+    """BuyWithCardTask / DeclinedCardPurchaseTask predict the posted row's date
+    from BANK_POSTING_DATE; it has to be the bank's pinned day, spelled the
+    default pack's way."""
+    from open_apps.apps.openbanking_app import statements
+    from open_apps.tasks.tasks import BANK_POSTING_DATE
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=["logs_dir=/tmp/openapps-posting-date"])
+    bank_cfg = config.apps.openbanking
+    assert BANK_POSTING_DATE == statements.format_posting_date(
+        date.fromisoformat(str(bank_cfg.as_of_date)), str(bank_cfg.posting_date_style)
+    )
