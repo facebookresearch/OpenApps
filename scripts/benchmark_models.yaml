@@ -82,9 +82,8 @@ models:
     hf_model: ByteDance-Seed/UI-TARS-1.5-7B
     params_b: 8
     gpus: {h100: 1, h200: 1}
-    # Its screenshot + action history outgrows 32k on long episodes: 4 of 115
-    # align_v1 episodes hit vLLM's 400 at 32,768 and errored out. The
-    # checkpoint takes 128k; 64k leaves a 7B model ample KV for 8 episodes.
+    # 64k gives headroom (the checkpoint takes 128k). The 32k overflows seen
+    # on align_v1 were runaway replies, capped by max_tokens in its agent config.
     max_model_len: 65536
   Qwen3.6-27B-computer-use:
     kind: vllm
