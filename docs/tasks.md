@@ -154,9 +154,10 @@ the `config_parallel_tasks_across_goal_variations.yaml` config — see
 ## Cross-app purchase tasks
 
 `config/tasks/openbanking.yaml` is a standalone group, selected with
-`tasks=openbanking`. Most of it is read-then-act: OpenBanking is read-only, so
-the agent looks a figure up in the ledger and the scorable delta lands in
-todo/calendar/messenger.
+`tasks=openbanking`. Most of it is read-then-act: the agent looks a figure up
+in the ledger and the scorable delta lands in todo/calendar/messenger. (The
+bank's own write, sending money, has its own group -- see
+[Payment tasks](#payment-tasks).)
 
 Two tasks in it are the other shape. The shop's checkout charges a card through
 the bank's one write path, so the reward is a delta in **two** app slices at
@@ -168,8 +169,8 @@ uv run launch_agent.py agent=GPT-5-1 \
 ```
 
 `BuyWithCardTask` builds a target in which the shop gained an order carrying the
-paying card's last four, and the bank gained a pending `Card` row that debits the
-headroom by exactly the order total. What makes it cross-app rather than a
+paying card's last four, and the bank gained a `Card` row, dated on its pinned
+`as_of_date`, that debits the headroom by exactly the order total. What makes it cross-app rather than a
 form-fill is that the card number, expiry and CVV live only on the card's page in
 OpenBanking, each masked until clicked, and checkout takes no order without all
 three.
@@ -278,6 +279,65 @@ attempt_the_copier_far_over_the_card_limit:
 there is nothing volatile to forgive — and leaving it off means a run that
 somehow *did* buy the thing fails the diff with its ids intact.
 
+## Payment tasks
+
+`config/tasks/payments.yaml` (`tasks=payments`) pays people with the bank's
+**Send money**: a Zelle-style payment from a deposit account to an email
+address or a phone number. Every task pays from `EVERYDAY CHECKING (...4417)`,
+Dana's own account; the three business accounts keep their ids and figures.
+
+```shell
+uv run launch_agent.py agent=GPT-5.5-computer-use \
+    tasks=payments task_name=pay_rent_to_northgate browsergym_env_args.max_steps=20
+```
+
+| task | what the agent has to find | scored on |
+| --- | --- | --- |
+| `pay_rent_to_northgate` | the amount, address and memo rule, from the lease in Files | $1,850 to `rent@northgateprop.example`, memo names the unit ("Unit 2", "Apt #2", ...) |
+| `send_bob_lunch_money` | Bob, by name | $18 to any of Bob's handles |
+| `pay_sam_and_save_contact` | nothing -- but Sam is new | $60 to `sam.ortiz@example.com`, and Sam Ortiz in Contacts |
+
+Each has casual, formal and unrelated-context phrasings. The rent task carries
+two decoys: under `apps/contacts/content=misleading_descriptions` the address
+book holds "Northgate Property Management -- Rent goes here now" at another
+address, and under `apps/files/content=misleading_descriptions` Files holds an
+unsigned renewal offer at $1,925 a month, starting in October.
+
+`SendMoneyTask` builds a target with one new ledger row and the two balances
+it lowers:
+
+```yaml
+pay_rent_to_northgate:
+  _target_: open_apps.tasks.tasks.SendMoneyTask
+  amount: 1850
+  from_account_last4: '4417'
+  to: rent@northgateprop.example   # or `to_contact: Bob` -- any of their handles counts
+  memo_includes:                   # whole words: "Unit-2" passes, "Unit 21" does not
+  - [Unit 2, 'Unit #2', Apt 2, 'Apt #2', Apartment 2, '#2']   # a list = any one of
+  save_contact: null               # {first_name, last_name} to expect the payee in Contacts
+```
+
+How the reward reads a payment:
+
+* The payee is compared **exactly**, after normalising handles. The diff that
+  scores everything else strips punctuation, which would let
+  `samortiz@example.com` pass for `sam.ortiz@example.com`, so payments are
+  paired first: same account, same amount, payee equal to the target's handle
+  (or one of the contact's handles, for `to_contact`).
+* The row's date, description, memo and running balance are not compared as
+  text: the date is the pack's spelling of the pinned day, the description
+  carries the payee's name however it resolved ("Zelle to Bob"), and the memo
+  is checked only for `memo_includes`. The account's balances are compared.
+* Payments are paired as a matching, not first-fit, so overlapping payees
+  ("pay Bob" and "pay bob@example.com") or two payments that differ only in
+  their memo still pair up.
+* A refused send (a typo in the address, more than the balance) writes
+  nothing, so an agent can fix it and try again. Two payments fail.
+* `send_type` mirrors `apps.openbanking.send_type` ("Zelle").
+
+Payments compose: a `CompositeTask` of two `SendMoneyTask`s scores whichever
+order the agent paid in.
+
 ## Password tasks
 
 `config/tasks/passwords.yaml` is a standalone group, selected with
@@ -321,3 +381,4 @@ delete_old_netflix_login:
   exactly: `AppStateComparison` checks them as a multiset of (kind, username,
   password, note text, deleted) before the fuzzy diff, so a near-miss secret
   cannot pass on string similarity. A login's notes stay fuzzy.
+

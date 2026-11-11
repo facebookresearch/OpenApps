@@ -31,7 +31,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, Optional
 
 from open_apps import device as device_module
 
@@ -87,32 +87,55 @@ def fit_to_screen(wanted: tuple[int, int], screen: dict[str, int]) -> tuple[int,
     return max(1, min(wanted[0], room_w)), max(1, min(wanted[1], room_h))
 
 
+def _centred(outer: tuple[int, int], screen: dict[str, int]) -> dict[str, int]:
+    """Where a window of ``outer`` size sits centred on ``screen``."""
+    return {
+        "left": screen["left"] + max(0, (screen["width"] - outer[0]) // 2),
+        "top": screen["top"] + max(0, (screen["height"] - outer[1]) // 2),
+    }
+
+
 def _place_window(page: Any, size: tuple[int, int], screen: dict[str, int]) -> None:
     """Resize ``page``'s window so its *page area* is ``size``, centred on screen.
 
     ``--window-size`` can't do this: it is fixed at launch, before the screen
     can be read, and it sizes the outer window, toolbar included.
     """
-    outer_w, outer_h = size[0] + screen["frameW"], size[1] + screen["frameH"]
+    outer = (size[0] + screen["frameW"], size[1] + screen["frameH"])
     cdp = page.context.new_cdp_session(page)
     window = cdp.send("Browser.getWindowForTarget")
     cdp.send(
         "Browser.setWindowBounds",
         {
             "windowId": window["windowId"],
-            "bounds": {
-                "left": screen["left"] + max(0, (screen["width"] - outer_w) // 2),
-                "top": screen["top"] + max(0, (screen["height"] - outer_h) // 2),
-                "width": outer_w,
-                "height": outer_h,
-            },
+            "bounds": {**_centred(outer, screen), "width": outer[0], "height": outer[1]},
         },
     )
     cdp.detach()
 
 
-def _open_with_playwright(url: str, device: dict[str, Any]) -> bool:
-    """Open a Chromium window showing ``device``, never larger than the screen.
+def _centre_window(page: Any, screen: dict[str, int]) -> None:
+    """Move ``page``'s window to the middle of the screen, at the size it has."""
+    cdp = page.context.new_cdp_session(page)
+    window = cdp.send("Browser.getWindowForTarget")
+    bounds = window["bounds"]
+    cdp.send(
+        "Browser.setWindowBounds",
+        {
+            "windowId": window["windowId"],
+            "bounds": _centred((bounds["width"], bounds["height"]), screen),
+        },
+    )
+    cdp.detach()
+
+
+def open_window(
+    browser: Any, device: dict[str, Any], screen: Optional[dict[str, int]] = None
+) -> tuple[Any, tuple[int, int]]:
+    """A window on ``browser`` showing ``device``: ``(page, page size)``.
+
+    ``screen`` is what :data:`_MEASURE_JS` returns; when omitted it is read
+    from a throwaway window first (tests pass one in instead).
 
     Two shapes, depending on whether the device needs emulation:
 
@@ -124,7 +147,54 @@ def _open_with_playwright(url: str, device: dict[str, Any]) -> bool:
     * **phone / tablet** -- ``is_mobile`` and touch only exist on a fixed
       viewport, so the device size is kept but clamped to the screen. A tablet
       taller than the display loses height, not width: the composition is the
-      same and the rest is a scroll away.
+      same and the rest is a scroll away. These open as a *popup* window:
+      Chromium won't make a tabbed window narrower than about 500px, so a
+      390px phone in one sat beside a blank strip. A popup has no tab strip,
+      no such floor, and ``window.open`` sizes its page area exactly.
+    """
+    wanted = (int(device["viewport"][0]), int(device["viewport"][1]))
+    # `context_kwargs` already excludes the viewport by design -- it is passed
+    # separately here, and via task_kwargs.screen_resolution on the agent path.
+    # Non-empty means touch, a mobile viewport or a UA: things only a fixed
+    # viewport can emulate.
+    context_kwargs = dict(device_module.context_kwargs(device))
+
+    context = page = None
+    if screen is None or not context_kwargs:
+        context = browser.new_context(no_viewport=True)
+        page = context.new_page()
+        if screen is None:
+            screen = page.evaluate(_MEASURE_JS)
+    size = fit_to_screen(wanted, screen)
+
+    if not context_kwargs:
+        context.add_init_script(_PERSON_DRIVING_JS)
+        _place_window(page, size, screen)
+        return page, size
+
+    emulated = browser.new_context(
+        viewport={"width": size[0], "height": size[1]}, **context_kwargs
+    )
+    # Before the popup exists, so it applies to the page a person sees.
+    emulated.add_init_script(_PERSON_DRIVING_JS)
+    opener = emulated.new_page()
+    with emulated.expect_page() as popup:
+        opener.evaluate(
+            "([w, h]) => window.open('', '_blank', `popup,width=${w},height=${h}`)", list(size)
+        )
+    page = popup.value
+    # Close the windows it came from only now, so the browser never sits at
+    # zero windows.
+    opener.close()
+    if context is not None:
+        context.close()
+    _centre_window(page, screen)
+    return page, size
+
+
+def _open_with_playwright(url: str, device: dict[str, Any]) -> bool:
+    """Open a Chromium window showing ``device`` (see :func:`open_window`),
+    never larger than the screen.
 
     Blocks until the user closes the window, which is what keeps the browser
     alive -- Playwright tears the browser down when its context manager exits.
@@ -136,32 +206,10 @@ def _open_with_playwright(url: str, device: dict[str, Any]) -> bool:
         return False
 
     wanted = (int(device["viewport"][0]), int(device["viewport"][1]))
-    # `context_kwargs` already excludes the viewport by design -- it is passed
-    # separately here, and via task_kwargs.screen_resolution on the agent path.
-    # Non-empty means touch, a mobile viewport or a UA: things only a fixed
-    # viewport can emulate.
-    context_kwargs = dict(device_module.context_kwargs(device))
-
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=False)
-            context = browser.new_context(no_viewport=True)
-            page = context.new_page()
-            screen = page.evaluate(_MEASURE_JS)
-            size = fit_to_screen(wanted, screen)
-
-            if context_kwargs:
-                emulated = browser.new_context(
-                    viewport={"width": size[0], "height": size[1]}, **context_kwargs
-                )
-                # Open the new window before closing the probe's, so the
-                # browser never sits at zero windows.
-                emulated_page = emulated.new_page()
-                context.close()
-                context, page = emulated, emulated_page
-
-            context.add_init_script(_PERSON_DRIVING_JS)
-            _place_window(page, size, screen)
+            page, size = open_window(browser, device)
             if size != wanted:
                 print(
                     f"Preview window fit to your screen at {size[0]}x{size[1]}; "

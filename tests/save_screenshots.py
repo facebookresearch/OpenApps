@@ -73,6 +73,14 @@ ROUTES = (
     # Savings has three statement months (Jun-Aug), so the list isn't a
     # single row.
     RouteSpec("openbanking_statements", "/openbanking/accounts/1/statements", ".ob-card"),
+    # Send money, from Dana's Everyday Checking: the form, and the review for
+    # someone new, which is the one that shows "Save to Contacts".
+    RouteSpec("openbanking_send", "/openbanking/send?from=3", "#ob-send-form"),
+    RouteSpec(
+        "openbanking_send_review",
+        "/openbanking/send/review?from=3&to=sam.ortiz%40example.com&amount=60&memo=Harness",
+        "#ob-send-review",
+    ),
     RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),

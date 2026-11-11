@@ -16,8 +16,8 @@ amount, closing balance is the last row's posted balance, and the bank's
 seeded ledgers are self-consistent (``tests/test_bank_statements.py`` checks
 every pack).
 
-Pending rows (no date yet) belong on no statement. That also keeps a shop
-checkout -- which posts pending rows -- from changing any statement.
+Every row is dated -- nothing in the bank is pending -- so a payment or a
+shop checkout lands on the statement for the pinned ``as_of_date``'s month.
 
 Posting dates are stored as each content pack prints them ("Aug 25, 2026",
 "25. Aug. 2026", "2026年8月25日"), so :func:`parse_posting_date` reads all
@@ -72,6 +72,23 @@ def parse_posting_date(text: Optional[str]) -> Optional[date]:
     except ValueError:  # "Feb 30, 2026"
         return None
     return None
+
+
+# How the German pack writes each month: abbreviated with a full stop, except
+# the ones short enough to print whole ("Juni", "Juli", "März", "Mai").
+_DE_ABBR = ("Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sep.",
+            "Okt.", "Nov.", "Dez.")
+
+
+def format_posting_date(day: date, style: str = "en") -> str:
+    """``day`` the way a pack's ledger prints it: ``en`` "Aug 26, 2026",
+    ``de`` "26. Aug. 2026", ``zh`` "2026年8月26日". The inverse of
+    :func:`parse_posting_date`; an unknown style falls back to English."""
+    if style == "de":
+        return f"{day.day:02d}. {_DE_ABBR[day.month - 1]} {day.year}"
+    if style == "zh":
+        return f"{day.year}年{day.month}月{day.day}日"
+    return f"{MONTH_ABBR[day.month - 1]} {day.day:02d}, {day.year}"
 
 
 def month_key(month: tuple[int, int]) -> str:

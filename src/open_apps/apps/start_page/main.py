@@ -91,10 +91,8 @@ from open_apps.wallpaper import ensure_wallpaper
 from open_apps.ui import (
     AppTile,
     Clock,
-    LauncherButton,
     LauncherItem,
     LauncherMenu,
-    LauncherSheet,
     ModeToggle,
     Text,
     Toolbar,
@@ -187,9 +185,10 @@ def resolve_pinned(desktop_cfg, start_page_cfg, variant: str = "shell") -> list[
 
     The phone splits apps between a home grid (unpinned) and a dock (pinned),
     so `all` there would dock everything and leave the grid empty. It takes
-    `pinned_by_variant.home_screen` instead when that is set. Nothing is hidden
-    on a phone either way -- an unpinned app is on the grid, not behind the
-    launcher -- so the launcher-pressure experiment is a desktop one.
+    `pinned_by_variant.home_screen` instead when that is set, and keeps at most
+    `dock_size_by_variant.home_screen` of them. Nothing is hidden on a phone
+    either way -- an unpinned app is on the grid -- so the launcher-pressure
+    experiment is a desktop one.
     """
     inventory = _inventory_keys(start_page_cfg)
 
@@ -215,7 +214,15 @@ def resolve_pinned(desktop_cfg, start_page_cfg, variant: str = "shell") -> list[
     ordered = [k for k in inventory if k in keys and k not in excluded]
     # Keys outside the inventory are kept rather than dropped, so a typo shows
     # up as an app that never appears instead of vanishing from /desktop_all.
-    return ordered + [k for k in keys if k not in inventory and k not in excluded]
+    resolved = ordered + [k for k in keys if k not in inventory and k not in excluded]
+    limit = dock_size(desktop_cfg, variant)
+    return resolved if limit is None else resolved[:limit]
+
+
+def dock_size(desktop_cfg, variant: str) -> int | None:
+    """How many apps this composition's dock holds; ``None`` for no limit."""
+    size = (desktop_cfg.get("dock_size_by_variant") or {}).get(variant)
+    return None if size is None else max(0, int(size))
 
 
 def reset_desktop_state(start_page_cfg=None, variant: str = "shell") -> None:
@@ -717,8 +724,8 @@ def _layout_variant(desktop_cfg, factor: str) -> str:
     return str(variants.get(factor, "shell"))
 
 
-def _phone_home(*, status_bar, widget, grid, dock):
-    """The phone composition: status bar, widget, icon grid, dock.
+def _home_screen(*, status_bar, widget, grid, dock):
+    """The phone and tablet composition: status bar, widget, icon grid, dock.
 
     Different markup from the desktop, not the same markup reflowed -- that is
     the whole reason the device is a config axis rather than a media query.
@@ -727,10 +734,15 @@ def _phone_home(*, status_bar, widget, grid, dock):
     moves an app onto the desktop on a laptop. Same route, same
     ``/desktop_all``, same reward; a different thing to look at and a
     different distance to travel.
+
+    The surface between the status bar and the dock is the scroll container,
+    so an inventory larger than one screen pages under a dock that stays put
+    -- what a home screen does, and what keeps the dock icons at the same
+    coordinates however many apps there are.
     """
     return (
         status_bar,
-        Div(widget, grid, cls="ui-desktop-surface"),
+        Div(widget, grid, cls="ui-desktop-surface", data_testid="home-screen"),
         dock,
     )
 
@@ -814,12 +826,17 @@ def render_desktop_shell(config):
         for key, cfg in apps
     ]
 
-    def tile(key, cfg, slot):
+    def tile(key, cfg, slot, labelled=True):
+        # The app's own icon -- the file the window chrome's dock draws -- so
+        # an app looks the same on the home screen, in the dock and in the
+        # title bar of its window.
         return AppTile(
             title=cfg.get("title", key.capitalize()),
             href=f"/{key}",
             accent=accents.get(key),
             slot=slot,
+            image=icon_for(cfg, key),
+            labelled=labelled,
         )
 
     factor = device.form_factor(app.config)
@@ -840,8 +857,10 @@ def render_desktop_shell(config):
         # configured app order rather than pin order, so the home screen does
         # not reshuffle every time something is pinned.
         grid_tiles = [tile(k, c, "shortcut") for k, c in apps if k not in pinned]
-        dock_tiles = [tile(k, c, "favorite") for k, c in apps if k in pinned]
-        body = _phone_home(
+        # Unlabelled, as on a phone: the dock is for apps you already know. The
+        # name stays on aria-label, so the tree an agent reads still has it.
+        dock_tiles = [tile(k, c, "favorite", labelled=False) for k, c in apps if k in pinned]
+        body = _home_screen(
             # Time on the left, indicators on the right -- a status bar, not a
             # scaled-down toolbar. The brand moves into the widget below,
             # where there is room for it.
@@ -856,26 +875,14 @@ def render_desktop_shell(config):
                 Div(*grid_tiles, cls="ui-tile-dock", data_testid="desktop-tiles"),
                 cls="ui-dock-row",
             ),
-            # The pinned icons go in their own strip, with the launcher outside
-            # it. The strip is what scrolls when enough apps are pinned to
-            # overflow a 390px screen, and a scroll container clips what opens
-            # out of it -- with the launcher inside, the panel was clipped to
-            # the dock and the apps menu simply never appeared.
-            # Only the button lives in the dock. The menu itself is a
-            # full-screen sheet appended at the shell root below -- the dock
-            # sets backdrop-filter, which would become the containing block for
-            # the sheet's `position: fixed` and trap it in the dock's own box.
+            # No launcher. Every app is on the grid or in the dock, so an
+            # all-apps menu would only be a second copy of the screen.
             dock=Div(
-                Div(*dock_tiles, cls="ui-phone-dock-apps") if dock_tiles else None,
-                Div(
-                    LauncherButton(open=_desktop_state["launcher_open"]),
-                    cls="ui-launcher",
-                ),
+                *dock_tiles,
                 cls="ui-phone-dock",
                 data_testid="phone-dock",
             ),
         )
-        body = (*body, LauncherSheet(*launcher_items, open=_desktop_state["launcher_open"]))
     else:
         body = _desktop_composition(
             toolbar=Toolbar(
@@ -894,11 +901,13 @@ def render_desktop_shell(config):
         component_styles(),
         *body,
         id="desktop-shell",
-        # The form factor is on the root as a class *and* an attribute: the
-        # class is what the stylesheet keys off, the attribute is what a test
-        # or an agent can read without inspecting computed styles -- the same
-        # reasoning as data-mode and data-pinned.
-        cls=f"ui-desktop is-{factor}",
+        # The form factor and the composition are on the root as classes *and*
+        # attributes: the classes are what the stylesheet keys off, the
+        # attributes are what a test or an agent can read without inspecting
+        # computed styles -- the same reasoning as data-mode and data-pinned.
+        # Both, because they vary independently: `variants.phone=shell` is a
+        # phone rendering the desktop composition.
+        cls=f"ui-desktop is-{factor}" + (" is-home-screen" if variant == "home_screen" else ""),
         style=shell_style,
         data_mode=mode,
         data_pinned=",".join(pinned),
@@ -919,15 +928,17 @@ def toggle_mode():
 def toggle_pin(app_key: str):
     """Pin or unpin an app. Scoreable -- see /desktop_all.
 
-    Unknown keys are ignored rather than 404'd: the shell is re-rendered either
-    way, so a stale button never leaves the page in a broken state.
+    Unknown keys are ignored rather than 404'd, and so is pinning into a full
+    dock (``dock_size_by_variant``): the shell is re-rendered either way, so a
+    stale button never leaves the page in a broken state.
     """
     known = {key for key, _ in _enabled_apps(app.config.start_page)}
     if app_key in known:
         pinned = _desktop_state["pinned"]
+        limit = dock_size(_desktop_config(app.config.start_page), _configured_variant(app.config))
         if app_key in pinned:
             pinned.remove(app_key)
-        else:
+        elif limit is None or len(pinned) < limit:
             pinned.append(app_key)
     shell = render_desktop_shell(app.config.start_page)
     dock = _desktop_dock_oob()
@@ -1056,10 +1067,24 @@ def render_chrome(path: str) -> ChromeParts | None:
         running.append(current)
 
     # On the desktop shell the dock floats over the wallpaper -- except on a
-    # phone home screen, which already has a dock of its own in that spot.
+    # home screen, which already has a dock of its own in that spot.
     on_shell = current is None and app.config.start_page.get("layout") == "desktop"
-    if on_shell and _configured_variant(app.config) == "home_screen":
-        cfg["dock"] = {**(cfg.get("dock") or {}), "on_start_page": False}
+    home_screen = (
+        app.config.start_page.get("layout") == "desktop"
+        and _configured_variant(app.config) == "home_screen"
+    )
+    if home_screen:
+        # Over an app, the dock is the home screen's: Home plus the same pinned
+        # (at most four) apps. No all-apps launcher and no running extras --
+        # on a phone or tablet an app is on the home screen or in the dock,
+        # so the way to anything else is Home.
+        cfg["dock"] = {
+            **(cfg.get("dock") or {}),
+            "on_start_page": False,
+            "launcher": False,
+            "home_label": "Home",
+        }
+        running = []
 
     return chrome_parts(
         cfg,

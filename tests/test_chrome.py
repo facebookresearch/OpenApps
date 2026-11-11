@@ -200,6 +200,11 @@ class TestDock:
         assert "oa-dock-label" not in row
         assert 'aria-label="OpenTodos"' in row
 
+    def test_home_label_renames_the_way_back_but_not_its_test_id(self):
+        markup = to_xml(Dock(APPS, docked=[], running=[], current="todo", home_label="Home"))
+        assert re.search(r'<a[^>]*title="Home"[^>]*>', markup)
+        assert "dock-desktop" in ids(markup)
+
     def test_launcher_panel_lists_every_app_and_starts_closed(self):
         markup = to_xml(Dock(APPS, docked=[], running=[], current=None))
         panel_tag = re.search(r'<div[^>]*id="oa-dock-panel"[^>]*>', markup).group(0)

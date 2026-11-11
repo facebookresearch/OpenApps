@@ -139,15 +139,9 @@ _CSS = """
 .ui-toolbar-side { display: flex; align-items: center; gap: var(--space); }
 
 .ui-wordmark { display: block; }
-/* Dark mode flips the mark vertically, so the V opens upward. Scoped to the
-   mark group, not the <svg>: flipping the whole thing would mirror the word
-   too. transform-box: fill-box makes the origin the group's own bounds rather
-   than the SVG viewport, which is what keeps it spinning in place. */
-#desktop-shell[data-mode="dark"] .ui-wordmark-mark {
-  transform: scaleY(-1);
-  transform-box: fill-box;
-  transform-origin: center;
-}
+/* No dark-mode transform: the mark keeps its shape in both modes, and only the
+   ink changes, through currentColor. It used to flip vertically in dark mode,
+   which carried the brand wash up to the tips and read as a different logo. */
 .ui-brand { display: inline-flex; align-items: center; }
 
 .ui-chip {
@@ -336,6 +330,14 @@ _CSS = """
    mode. The glyph keeps --color-on-primary, which is correct there. */
 .ui-tile { color: var(--color-fg); text-shadow: 0 1px 3px var(--ui-wallpaper-halo), 0 0 2px var(--ui-wallpaper-halo); }
 .ui-tile .ui-text { color: inherit; }
+/* Hover keeps the ink and only firms up the halo a step. The start page also
+   loads html5up's main.css, whose `a:hover { color: #47D3E5 }` outranks
+   `.ui-tile` -- a cyan label inside a white halo, which in light mode read as
+   a heavy glow rather than a hover. Two classes outrank its `a:hover`. */
+.ui-desktop .ui-tile:hover {
+  color: var(--color-fg);
+  text-shadow: 0 1px 4px var(--ui-wallpaper-halo), 0 0 2px var(--ui-wallpaper-halo);
+}
 .ui-tile-glyph {
   display: flex;
   align-items: center;
@@ -410,48 +412,109 @@ _CSS = """
 .ui-pin-btn.is-pinned { opacity: 1; }
 .ui-pin-btn.is-pinned { color: var(--color-accent); }
 
-/* ---- phone home screen ------------------------------------------------ */
-/* Applied when `device.form_factor` is phone -- the shell root carries
-   `is-phone`, and apps/start_page/main.py has already emitted a different
-   composition: a status bar, a wordmark widget, a grid of the apps that are
-   not pinned, and a real dock element holding the ones that are.
+/* ---- home screen (phone, tablet) -------------------------------------- */
+/* Applied when the layout's `variants:` map gives the device the
+   `home_screen` composition -- the shell root carries `is-home-screen`, and
+   apps/start_page/main.py has already emitted different markup: a status bar,
+   a wordmark widget, a grid of the apps that are not pinned, and a real dock
+   element holding the (at most four) that are. No launcher anywhere.
  *
- * Keyed off the root class, not a width, and that is the substantive
- * difference from doing this with a media query. The device is configuration
+ * Keyed off a root class, not a width, and that is the substantive difference
+ * from doing this with a media query. The device is configuration
  * (config/device/), so it is known at render time and settled for the whole
- * episode: the phone rendering holds at any window size, it appears in the
- * saved config and in W&B next to every other axis, and -- because the markup
+ * episode: the rendering holds at any window size, it appears in the saved
+ * config and in W&B next to every other axis, and -- because the markup
  * differs rather than only the styling -- the layout can say things a
  * stylesheet cannot, like which apps belong in the dock. The narrow-window
  * case, a person dragging a desktop window small, is a different problem and
  * is handled separately at the bottom of this file.
+ *
+ * Phone and tablet share every rule here except sizes, which are custom
+ * properties set per form factor right below. `is-phone` alone is not enough
+ * to key off: `variants.phone=shell` is a phone rendering the desktop.
  */
-.ui-desktop.is-phone { min-height: 100dvh; }
+.ui-desktop.is-home-screen {
+  /* Icon box, label size, grid columns, side gutter, dock gap. Phone values
+     are iPhone's: 60-64pt icons, four columns, 12px labels. */
+  --ui-home-icon: 64px;
+  --ui-home-label: 12px;
+  --ui-home-cols: 4;
+  --ui-home-gutter: 4px;
+  --ui-home-dock-gap: 30px;
+  /* Exactly the viewport, not at least it: the surface between the status bar
+     and the dock is what scrolls, so the dock stays on screen -- at the same
+     coordinates -- however many apps the grid holds. */
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.ui-desktop.is-home-screen.is-tablet {
+  --ui-home-icon: 76px;
+  --ui-home-label: 13px;
+  --ui-home-cols: 6;
+  --ui-home-gutter: calc(var(--space) * 3);
+  --ui-home-dock-gap: 26px;
+}
 
-/* Status bar. Slimmer than the toolbar, and the launcher is not in it -- it
-   moved to the dock -- so the left slot is the clock alone. */
-.is-phone .ui-toolbar {
-  padding: calc(var(--space) * 0.5) var(--space);
+/* More depth of field than the desktop: icons and labels sit across the whole
+   wallpaper here, not just a headline at the top, so the blur is tripled and
+   the mask's clear middle band is nearly filled in -- any sharp image let
+   through there shows as the wallpaper's dither, worst on a tablet, where it
+   is scaled up furthest. A multiple of the configured
+   `wallpaper.blur` rather than a fixed value, so the knob still moves both. */
+.ui-desktop.is-home-screen::before {
+  backdrop-filter: blur(calc(var(--ui-wallpaper-blur, 4px) * 3)) saturate(112%);
+  -webkit-backdrop-filter: blur(calc(var(--ui-wallpaper-blur, 4px) * 3)) saturate(112%);
+  -webkit-mask-image: linear-gradient(180deg,
+      rgb(0 0 0 / 100%) 0%,
+      rgb(0 0 0 / 88%) 40%,
+      rgb(0 0 0 / 92%) 65%,
+      rgb(0 0 0 / 100%) 100%);
+  mask-image: linear-gradient(180deg,
+      rgb(0 0 0 / 100%) 0%,
+      rgb(0 0 0 / 88%) 40%,
+      rgb(0 0 0 / 92%) 65%,
+      rgb(0 0 0 / 100%) 100%);
+}
+
+/* Status bar. Slimmer than the toolbar, and transparent: it sits on the
+   wallpaper the way a phone's does, not on a frosted strip. */
+.is-home-screen .ui-toolbar {
+  padding: calc(var(--space) * 0.5) calc(var(--space) * 1.5);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom: none;
 }
-.is-phone .ui-toolbar-side { gap: calc(var(--space) * 0.5); }
-.is-phone .ui-chip { padding: 0; }
+.is-home-screen .ui-toolbar-side { gap: calc(var(--space) * 0.5); }
+.is-home-screen .ui-chip { padding: 0; }
 
-.is-phone .ui-desktop-surface { padding: calc(var(--space) * 1.5); }
+/* The scroll container. Only the side gutter is padding -- labels are meant to
+   run the full width of their column, so the grid wants every pixel it can
+   get; the widget gets its inset back as a margin. */
+.is-home-screen .ui-desktop-surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: var(--space) var(--ui-home-gutter) calc(var(--space) * 2);
+}
+.is-home-screen .ui-desktop-surface::-webkit-scrollbar { display: none; }
 
-/* The widget: wordmark over the headline, on a frosted card. A phone home
-   screen has no room for centred display type across the wallpaper, and it
-   is where the brand goes now that the status bar is only indicators. */
-.is-phone .ui-desktop-headline {
+/* The widget: wordmark over the headline, on a frosted card. A home screen has
+   no room for centred display type across the wallpaper, and it is where the
+   brand goes now that the status bar is only indicators. */
+.is-home-screen .ui-desktop-headline {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space) * 0.75);
-  margin: 0 0 calc(var(--space) * 2.5);
+  margin: 0 var(--space) calc(var(--space) * 3);
   max-width: none;
   text-align: left;
   padding: calc(var(--space) * 1.25) calc(var(--space) * 1.5);
   border: 1px solid var(--color-border);
-  border-radius: calc(var(--radius) * 2);
+  border-radius: calc(var(--radius) * 2.5);
   background: color-mix(in srgb, var(--color-surface) 78%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
@@ -461,161 +524,108 @@ _CSS = """
   color: var(--color-fg);
   text-shadow: none;
 }
-.is-phone .ui-desktop-headline .ui-text { line-height: 1.35; }
+.is-home-screen .ui-desktop-headline .ui-text { line-height: 1.35; }
 
-/* Icons fill from the top-left. Four columns, fixed: a grid whose column count
-   followed the width would put the same app in a different place on two
+/* Icons fill from the top-left. A fixed column count per form factor: one
+   that followed the width would put the same app in a different place on two
    phones, and a coordinate-grounded action would stop transferring between
-   them for no reason the task can see. */
-.is-phone .ui-dock-row { align-items: flex-start; justify-content: stretch; }
-.is-phone .ui-tile-dock {
+   them for no reason the task can see.
+ *
+ * No column gap. The space between icons is the spare width *inside* each
+ * column, which is what lets a label use all of it and meet its neighbour's --
+ * "OpenCodeEditor" whole rather than "OpenCodeEd...". */
+.is-home-screen .ui-dock-row { flex: none; align-items: flex-start; justify-content: stretch; }
+.is-home-screen .ui-tile-dock {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: calc(var(--space) * 2) var(--space);
+  grid-template-columns: repeat(var(--ui-home-cols), minmax(0, 1fr));
+  gap: calc(var(--space) * 2.5) 0;
   width: 100%;
   max-height: none;
 }
-.is-phone .ui-tile { padding: 0; gap: calc(var(--space) * 0.75); }
-.is-phone .ui-tile-glyph {
-  width: 58px;
-  height: 58px;
-  /* A percentage, so the corners stay proportional at any size -- and rounded
-     far enough to read as an app icon rather than as a card. */
-  border-radius: 28%;
+.is-home-screen .ui-tile {
+  min-width: 0;
+  padding: 0;
+  gap: 6px;
+  border-radius: 0;
+}
+/* No hover card: a finger does not hover, and a lifted square behind an icon
+   is a desktop affordance. Dim the icon instead, as a tap does. */
+.is-home-screen .ui-tile:hover { background: none; }
+.is-home-screen .ui-tile:hover .ui-tile-glyph,
+.is-home-screen .ui-tile:active .ui-tile-glyph { filter: brightness(0.9); }
+.is-home-screen .ui-tile-glyph {
+  width: var(--ui-home-icon);
+  height: var(--ui-home-icon);
+  /* A percentage, so the corners stay proportional at any size -- and the
+     same ~22% the icon files draw their own squares with. */
+  border-radius: 22.5%;
   box-shadow: var(--ui-shadow-raised);
 }
-.is-phone .ui-tile-label {
+/* The app's own icon file: already a finished square, so no fill behind it. */
+.ui-tile-glyph.is-image { background: none; overflow: hidden; }
+.ui-tile-glyph.is-image img { display: block; width: 100%; height: 100%; }
+.is-home-screen .ui-tile-label {
   display: block;
-  max-width: 100%;
-  font-size: calc(var(--font-size-base) * 0.75);
+  width: 100%;
+  padding: 0 2px;
+  font-size: var(--ui-home-label);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
+  /* Still ellipsized if a localized name outruns its column -- one line, and
+     never into the next icon's label. */
   text-overflow: ellipsis;
 }
 
-/* The dock: pinned apps, then the launcher. In flow as the shell's last child
-   rather than positioned over it, so nothing has to reserve space for it and
-   the grid above simply gets what is left.
- *
- * The dock itself must NOT set overflow. The launcher panel opens upward out
- * of it, and any overflow value other than visible makes this a scroll
- * container that clips the panel to the dock's own box -- the panel renders,
- * `aria-expanded` flips, and nothing appears on screen. Scrolling belongs to
- * the strip of pinned icons below, which is the part that can actually run
- * out of room. */
+/* The dock: up to four pinned apps on a frosted shelf, unlabelled. In flow as
+   the shell's last child rather than positioned over it, so nothing has to
+   reserve space for it and the grid above simply gets what is left. The
+   bottom margin is the home indicator's strip, below the shelf as on a phone. */
 .ui-phone-dock {
+  position: relative;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: calc(var(--space) * 1.5);
-  padding: var(--space) var(--space) calc(var(--space) * 1.75);
-  background: color-mix(in srgb, var(--color-surface) 74%, transparent);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border-top: 1px solid var(--color-border);
+  gap: var(--ui-home-dock-gap, 30px);
+  min-height: calc(var(--ui-home-icon, 64px) + var(--space) * 2.5);
+  /* Pico gives `[role=group]` and friends width: 100%; an explicit auto keeps
+     the side margins honest whatever a vendor sheet decides. */
+  width: auto;
+  margin: 0 var(--space) 22px;
+  padding: calc(var(--space) * 1.25) var(--space);
+  border-radius: 32px;
+  background: color-mix(in srgb, var(--color-surface) 56%, transparent);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid color-mix(in srgb, var(--color-fg) 8%, transparent);
 }
-/* Pin every app and the icons still have to fit on a 390px screen: the strip
-   scrolls, and the launcher beside it stays put rather than being pushed off
-   the edge with them. */
-.ui-phone-dock-apps {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space) * 1.5);
-  min-width: 0;
-  overflow-x: auto;
-  /* Room for the icons' drop shadow. A scroll container clips at its own
-     edges, so without the inset the shadow would end in a hard line; the
-     matching negative margin gives the space back, leaving the dock's own
-     padding to set the visual height. */
-  padding-block: calc(var(--space) * 0.75);
-  margin-block: calc(var(--space) * -0.75);
+/* A tablet's dock is a centred shelf as wide as its icons, not a bar. */
+.is-tablet .ui-phone-dock {
+  align-self: center;
+  margin-bottom: 26px;
+  padding-inline: calc(var(--space) * 2);
+  border-radius: 30px;
 }
+/* An empty dock keeps its shelf, so unpinning everything does not move the
+   grid's bottom edge. */
+.ui-phone-dock:empty { min-width: 60%; align-self: center; }
 /* Home indicator. A pseudo-element because it is decoration: an empty <div>
    would show up in the accessibility tree as an unnamed node for an agent to
    wonder about. */
-.ui-phone-dock { position: relative; }
 .ui-phone-dock::after {
   content: "";
   position: absolute;
-  bottom: 6px;
+  bottom: -14px;
   left: 50%;
-  width: 120px;
-  height: 4px;
+  width: 134px;
+  height: 5px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-fg) 32%, transparent);
+  background: color-mix(in srgb, var(--color-fg) 55%, transparent);
 }
-/* Dock icons are smaller than the grid's and drop their labels, the way a
-   phone's do -- the dock is for apps you already recognise. */
 .ui-phone-dock .ui-tile { padding: 0; }
-.ui-phone-dock .ui-tile-glyph { width: 46px; height: 46px; border-radius: 28%; }
-.ui-phone-dock .ui-tile-label { display: none; }
-.is-phone .ui-launcher-btn {
-  --ui-icon-btn-size: 46px;
-  background: color-mix(in srgb, var(--color-fg) 8%, transparent);
-}
-/* The launcher panel rises from the dock instead of hanging off the toolbar,
-   and it is anchored to the dock rather than to the button inside it -- hence
-   dropping the launcher's own `position: relative` here. The dock spans the
-   screen and its contents are centred, so a panel hung off the button's right
-   edge starts wherever the number of pinned icons happens to put it and runs
-   off the left of a 390px screen at anything near its full width. Off the
-   dock it is a sheet: full width, inset by the dock's own padding. */
-/* The phone does not use the anchored panel at all -- LauncherSheet renders a
-   full-screen drawer at the shell root instead. A popover here had to fit in
-   whatever vertical space the dock left it and was one `overflow` on any
-   ancestor away from being clipped to nothing, with correct markup and a
-   correct `aria-expanded` either way: a silent failure.
-
-   The overlay is `fixed` and MUST stay outside `.ui-phone-dock`, which sets
-   `backdrop-filter`. Any of filter/backdrop-filter/transform makes an element
-   the containing block for fixed descendants, so nested in the dock `inset: 0`
-   would resolve to the dock's ~88px box rather than the viewport. */
-.ui-launcher-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-.ui-launcher-scrim {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  padding: 0;
-  background: color-mix(in srgb, #000 45%, transparent);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-}
-.ui-launcher-sheet {
-  position: relative;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  padding: var(--space) var(--space) calc(var(--space) * 2.5);
-  background: color-mix(in srgb, var(--color-bg) 96%, transparent);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border-top: 1px solid var(--color-border);
-  border-radius: calc(var(--radius) * 3) calc(var(--radius) * 3) 0 0;
-  box-shadow: 0 -8px 32px color-mix(in srgb, var(--color-fg) 22%, transparent);
-}
-.ui-launcher-sheet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: calc(var(--space) * 0.5) var(--space) var(--space);
-}
-.ui-launcher-sheet-list {
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--space) * 0.25);
-}
-.is-phone .ui-launcher-link { padding: var(--space); gap: calc(var(--space) * 1.25); }
-.is-phone .ui-launcher-glyph { width: 34px; height: 34px; }
-.is-phone .ui-launcher-glyph svg { width: 28px; height: 28px; }
 
 /* ---- tablet ----------------------------------------------------------- */
 /* Keeps the desktop composition -- there is room for it -- and grows the hit
@@ -637,21 +647,22 @@ _CSS = """
 }
 
 /* ---- narrow windows ---------------------------------------------------- */
-/* A person dragging a desktop window small, or a device whose layouts have not
-   been written yet. Not the phone rendering -- that is a composition, chosen
-   by config -- just enough to keep the desktop one from breaking up. Scoped
-   with :not(.is-phone) so it cannot reach the phone markup, which is already
-   laid out for this width. */
+/* A person dragging a desktop window small, a device whose layouts have not
+   been written yet, or a phone told to render the desktop (`variants.phone=
+   shell`). Not the home screen -- that is a composition, chosen by config --
+   just enough to keep the desktop one from breaking up. Scoped with
+   :not(.is-home-screen) so it cannot reach the home-screen markup, which is
+   already laid out for its device. */
 @media (max-width: 640px) {
-  .ui-desktop:not(.is-phone) .ui-toolbar { padding: calc(var(--space) * 0.5) var(--space); }
+  .ui-desktop:not(.is-home-screen) .ui-toolbar { padding: calc(var(--space) * 0.5) var(--space); }
   /* CSS beats the SVG height attribute, so the lockup shrinks without the
      Python having to know how wide the window is. */
-  .ui-desktop:not(.is-phone) .ui-wordmark { height: 22px; }
-  .ui-desktop:not(.is-phone) .ui-desktop-surface { padding: calc(var(--space) * 1.5); }
-  .ui-desktop:not(.is-phone) .ui-desktop-headline { max-width: none; }
+  .ui-desktop:not(.is-home-screen) .ui-wordmark { height: 22px; }
+  .ui-desktop:not(.is-home-screen) .ui-desktop-surface { padding: calc(var(--space) * 1.5); }
+  .ui-desktop:not(.is-home-screen) .ui-desktop-headline { max-width: none; }
   /* Shortcuts run out of vertical room long before horizontal: wrap them into
      rows instead of one tall column. */
-  .ui-desktop:not(.is-phone) .ui-tile-dock {
+  .ui-desktop:not(.is-home-screen) .ui-tile-dock {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: flex-end;

@@ -408,8 +408,8 @@ uv run openbanking-gen-txns --account 2043 --count 2 --max-amount 80 \
 ```
 
 The same `--seed` always produces the same rows, and nothing is written to the
-running database -- the app is read-only, and `/openbanking_all` has to stay
-byte-stable. `--types` and `--max-amount` are how you stay clear of the figures
+running database -- `/openbanking_all` has to stay byte-stable until an agent
+sends money or buys something. `--types` and `--max-amount` are how you stay clear of the figures
 `config/tasks/openbanking.yaml` reads off an account; re-run
 `pytest tests/test_openbanking.py` afterwards, which checks those.
 
@@ -527,10 +527,13 @@ One setting moves two things:
   layout can pick a composition for the form factor rather than only reflowing
   to the width.
 
-The start page's desktop shell does exactly that. On a phone it renders a home
-screen: status bar, wordmark widget, an icon grid of the apps that are **not**
-pinned, and a dock holding the ones that are — so pinning moves an app into the
-dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+The start page's desktop shell does exactly that. On a phone or tablet it
+renders a home screen: status bar, wordmark widget, a scrollable icon grid of
+the apps that are **not** pinned, and a dock holding at most four that are.
+There is no launcher menu — an app is on the home screen or in the dock — and
+over an app the chrome's dock shows the same four plus Home, with no window
+title bar. Pinning moves an app into the dock, where pinning on a desktop
+moves it into the desktop's dock. The routes,
 the test ids and `/desktop_all` are the same on both, so a task written against
 one scores unchanged on the other; what differs is what the agent can see and
 how far it has to travel. Which composition a form factor gets is config, not
@@ -539,6 +542,8 @@ code:
 ```bash
 # the control condition: the desktop composition, in a phone-sized window
 uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
+# a different dock size (the phone default is 4)
+uv run launch.py +experiment=phone apps.start_page.desktop.dock_size_by_variant.home_screen=3
 ```
 
 Adding a device is a file in `config/device/`; a form factor with no variant of

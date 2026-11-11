@@ -9,10 +9,11 @@ LICENSE file in the root directory of this source tree.
 Unit tests for the desktop shell's per-device compositions.
 
 The shell renders two different documents from one config: a desktop (toolbar,
-centred headline, no app icons -- those are the chrome dock's job) and a phone home screen
-(status bar, wordmark widget, a grid of the apps that are *not* pinned, a dock
-holding the ones that are). Which one is chosen comes from the device's form
-factor via the layout's ``variants:`` map.
+centred headline, no app icons -- those are the chrome dock's job) and a phone
+or tablet home screen (status bar, wordmark widget, a scrollable grid of the
+apps that are *not* pinned, a dock holding at most four that are, no launcher).
+Which one is chosen comes from the device's form factor via the layout's
+``variants:`` map.
 
 What these cover is the seam between the three: that the config actually
 reaches the renderer, that each composition contains what it claims to, and
@@ -126,17 +127,23 @@ def ancestor_classes(markup: str, target: str) -> list[str]:
     return parser.found or []
 
 
-def scroll_container_classes(css: str) -> set[str]:
+def scroll_container_classes(css: str, absent: frozenset[str] = frozenset()) -> set[str]:
     """Classes whose rule makes them clip -- any overflow but ``visible``.
 
     Keyed on the selector's last compound, which is the element the rule
     actually applies to. One axis is enough: ``overflow-x`` alone computes the
     other axis from ``visible`` to ``auto``, which is exactly the trap this
     exists to catch.
+
+    ``absent`` names classes the markup under test does not carry; a rule
+    qualified by one cannot apply, so it is skipped -- the home screen's
+    scroll container is not the desktop's.
     """
     found: set[str] = set()
     for selector, declarations in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
         if not re.search(r"\boverflow(-[xy])?\s*:\s*(?!visible)\S", declarations):
+            continue
+        if absent & set(re.findall(r"\.([A-Za-z0-9_-]+)", selector)):
             continue
         found |= set(re.findall(r"\.([A-Za-z0-9_-]+)", selector.strip().split()[-1]))
     return found
@@ -144,13 +151,14 @@ def scroll_container_classes(css: str) -> set[str]:
 
 class TestCompositionSelection:
 
-    def test_phone_gets_the_home_screen(self):
-        markup = render("phone")
+    @pytest.mark.parametrize("device", ["phone", "tablet"])
+    def test_phones_and_tablets_get_the_home_screen(self, device):
+        markup = render(device)
         assert 'data-layout="home_screen"' in markup
-        assert 'data-device="phone"' in markup
-        assert "is-phone" in markup
+        assert f'data-device="{device}"' in markup
+        assert f"is-{device} is-home-screen" in markup
 
-    @pytest.mark.parametrize("device", ["desktop", "laptop", "tablet"])
+    @pytest.mark.parametrize("device", ["desktop", "laptop"])
     def test_everything_else_gets_the_desktop_shell(self, device):
         markup = render(device)
         assert 'data-layout="shell"' in markup
@@ -163,14 +171,18 @@ class TestCompositionSelection:
         # The control condition: the desktop composition, on a phone.
         markup = render("phone", "apps.start_page.desktop.variants.phone=shell")
         assert 'data-layout="shell"' in markup
-        # Still tagged as a phone, so the touch and narrow-window rules apply.
+        # Still tagged as a phone, so the touch rules apply -- but not as a
+        # home screen, so none of the home-screen sizing reaches the desktop
+        # markup and the narrow-window rules do.
         assert 'data-device="phone"' in markup
+        assert "is-home-screen" not in body(markup)
 
 
-class TestPhoneHomeScreen:
+@pytest.mark.parametrize("device", ["phone", "tablet"])
+class TestHomeScreen:
 
-    def test_grid_holds_the_unpinned_apps_and_the_dock_the_pinned(self):
-        markup = render("phone", pinned=("todo", "calendar"))
+    def test_grid_holds_the_unpinned_apps_and_the_dock_the_pinned(self, device):
+        markup = render(device, pinned=("todo", "calendar"))
         ids = ids_in(markup)
         assert {"favorite-opentodos", "favorite-opencalendar"} <= ids
         assert {"shortcut-openmaps", "shortcut-openmessages"} <= ids
@@ -179,39 +191,58 @@ class TestPhoneHomeScreen:
         assert "shortcut-opentodos" not in ids
         assert "favorite-openmaps" not in ids
 
-    def test_pinning_moves_an_icon_from_the_grid_into_the_dock(self):
-        before = ids_in(render("phone", pinned=()))
-        after = ids_in(render("phone", pinned=("maps",)))
+    def test_pinning_moves_an_icon_from_the_grid_into_the_dock(self, device):
+        before = ids_in(render(device, pinned=()))
+        after = ids_in(render(device, pinned=("maps",)))
         assert "shortcut-openmaps" in before and "favorite-openmaps" not in before
         assert "favorite-openmaps" in after and "shortcut-openmaps" not in after
 
-    def test_the_dock_holds_the_launcher(self):
-        markup = render("phone")
+    def test_there_is_no_launcher(self, device):
+        # Every app is on the grid or in the dock; an all-apps menu would be a
+        # second copy of the screen. Not even when the state says it is open --
+        # a desktop episode's leftover state must not draw one here.
+        for launcher_open in (False, True):
+            markup = body(render(device, launcher_open=launcher_open))
+            ids = ids_in(markup)
+            assert not ids & {"launcher-button", "launcher-panel", "launcher-overlay"}
+            assert "/desktop/launcher" not in markup
+
+    def test_icons_are_the_apps_own_files(self, device):
+        # The files the window chrome's dock draws, so an app looks the same on
+        # the home screen, in the dock and in its window's title bar.
+        markup = body(render(device, pinned=("todo",)))
+        grid = markup[markup.index('data-testid="desktop-tiles"') : markup.index('data-testid="phone-dock"')]
         dock = markup[markup.index('data-testid="phone-dock"') :]
-        assert 'data-testid="launcher-button"' in dock
+        assert '<img src="/assets/icons/real_icons/maps.svg"' in grid
+        assert '<img src="/assets/icons/real_icons/todo.svg"' in dock
 
-    def test_the_launcher_sits_beside_the_scrolling_strip_not_inside_it(self):
-        # The strip of pinned icons scrolls, because enough pinned apps will
-        # not fit across 390px. The launcher has to stay out of it: a scroll
-        # container clips what opens out of it, and the panel opens upward.
-        chain = ancestor_classes(render("phone", pinned=("todo", "calendar")), "ui-launcher")
-        assert "ui-phone-dock" in chain
-        assert "ui-phone-dock-apps" not in chain
+    def test_dock_icons_are_unlabelled_but_still_named(self, device):
+        markup = body(render(device, pinned=("todo", "calendar")))
+        dock = markup[markup.index('data-testid="phone-dock"') :]
+        assert "ui-tile-label" not in dock
+        assert 'aria-label="OpenTodos"' in dock
 
-    def test_no_empty_strip_when_nothing_is_pinned(self):
-        # An unnamed empty <div> is a node an agent reading the accessibility
-        # tree has to wonder about; the dock renders the launcher alone.
-        markup = render("phone", pinned=())
-        assert "ui-phone-dock-apps" not in body(markup)
+    def test_an_empty_dock_still_renders(self, device):
+        # So unpinning everything does not move the grid's bottom edge.
+        markup = render(device, pinned=())
+        assert 'data-testid="phone-dock"' in markup
+        assert not any(i.startswith("favorite-") for i in ids_in(markup))
 
-    def test_the_status_bar_leads_with_the_clock(self):
-        markup = render("phone")
+    def test_the_grid_scrolls_under_a_dock_that_does_not(self, device):
+        # The dock is a sibling of the scroll container, not inside it: with
+        # more apps than fit, the grid pages and the dock stays put.
+        markup = render(device)
+        assert "ui-desktop-surface" not in ancestor_classes(markup, "ui-phone-dock")
+        assert "ui-desktop-surface" in ancestor_classes(markup, "ui-tile-dock")
+
+    def test_the_status_bar_leads_with_the_clock(self, device):
+        markup = render(device)
         assert markup.index('data-testid="toolbar-clock"') < markup.index(
             'data-testid="toolbar-weather"'
         )
 
-    def test_the_brand_moves_into_the_widget(self):
-        markup = render("phone")
+    def test_the_brand_moves_into_the_widget(self, device):
+        markup = render(device)
         widget = markup[markup.index('data-testid="desktop-headline"') :]
         assert "ui-wordmark" in widget[: widget.index("ui-dock-row")]
 
@@ -229,65 +260,14 @@ class TestTheAppsMenuOpens:
     def css(self) -> str:
         return re.sub(r"/\*.*?\*/", "", to_xml(component_styles()), flags=re.S)
 
-    # Phone is excluded: it no longer uses an anchored panel, and the sheet has
-    # its own stronger guarantee above (fixed to the viewport, so no ancestor
-    # can clip it at all).
+    # Desktop only: the home screen has no launcher at all.
     @pytest.mark.parametrize("device", ["desktop"])
     def test_nothing_between_the_panel_and_the_shell_root_clips(self, device):
         markup = render(device, launcher_open=True)
         chain = ancestor_classes(markup, "ui-launcher-panel")
         assert chain, "the launcher panel is not in the markup at all"
-        clipping = scroll_container_classes(self.css()) & set(chain)
+        clipping = scroll_container_classes(self.css(), absent=frozenset({"is-home-screen"})) & set(chain)
         assert not clipping, f"{sorted(clipping)} clips the open launcher panel on {device}"
-
-    def test_the_phone_menu_is_a_full_screen_sheet(self):
-        """Not an anchored popover -- see LauncherSheet for why."""
-        declarations = re.search(
-            r"\.ui-launcher-overlay\s*\{([^}]*)\}", self.css()
-        )
-        assert declarations, "no rule for the phone launcher overlay"
-        assert "position: fixed" in declarations.group(1)
-        assert "inset: 0" in declarations.group(1)
-
-    def test_the_phone_sheet_is_not_nested_in_a_filtered_ancestor(self):
-        """`position: fixed` resolves against the nearest filtered ancestor.
-
-        `.ui-phone-dock` sets `backdrop-filter`, and filter/backdrop-filter/
-        transform all make an element the containing block for fixed
-        descendants. Nested in the dock, the sheet's `inset: 0` would resolve
-        to the dock's own ~88px box instead of the viewport and render as a
-        sliver behind the icons -- with correct markup, as always.
-        """
-        markup = render("phone", launcher_open=True)
-        chain = ancestor_classes(markup, "ui-launcher-overlay")
-        assert chain, "the launcher sheet is not in the phone markup"
-        filtered = {
-            selector.lstrip(".")
-            for selector, body in re.findall(r"([^{}]+)\{([^}]*)\}", self.css())
-            if "backdrop-filter" in body or re.search(r"[^-]transform:", body)
-        }
-        offenders = {c for c in chain if c in filtered}
-        assert not offenders, (
-            f"{sorted(offenders)} would become the containing block for the "
-            f"sheet's position: fixed"
-        )
-
-    def test_the_phone_dock_still_holds_the_button(self):
-        """The button stays in the dock even though the menu moved out of it."""
-        markup = render("phone", launcher_open=False)
-        chain = ancestor_classes(markup, "ui-launcher-btn")
-        assert "ui-phone-dock" in chain, chain
-
-    def test_the_sheet_can_be_dismissed_without_the_button(self):
-        """Tapping outside is the expected gesture; it must be a real control."""
-        markup = render("phone", launcher_open=True)
-        assert 'data-testid="launcher-scrim"' in markup
-        assert 'data-testid="launcher-close"' in markup
-
-    def test_closed_phone_menu_adds_nothing_to_the_dom(self):
-        # By testid, not class name -- the class appears in the inlined
-        # stylesheet, which is part of the swapped markup.
-        assert 'data-testid="launcher-overlay"' not in render("phone", launcher_open=False)
 
 
 class TestDesktopShellIsUnchanged:
@@ -311,7 +291,7 @@ class TestDesktopShellIsUnchanged:
 class TestLauncherGlyphs:
     """Launcher rows show each app's own glyph, bare and in the text colour."""
 
-    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    @pytest.mark.parametrize("device", ["desktop"])
     def test_rows_carry_the_app_glyph_not_the_generic_grid(self, device):
         markup = body(render(device, launcher_open=True))
         glyphs = re.findall(r'<div class="ui-launcher-glyph">(.*?)</div>', markup, re.S)
@@ -331,33 +311,34 @@ class TestLauncherGlyphs:
 class TestControlsDoNotDriftBetweenDevices:
     """Whatever the composition, the same things have to be actionable."""
 
-    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    @pytest.mark.parametrize("device", ["desktop", "phone", "tablet"])
     def test_every_shell_control_is_present(self, device):
         ids = ids_in(render(device))
         assert {
-            "launcher-button",
             "mode-toggle",
             "toolbar-clock",
             "toolbar-weather",
             "desktop-headline",
         } <= ids
+        # The launcher is the desktop's; the home screen has none by design.
+        assert ("launcher-button" in ids) == (device == "desktop")
 
-    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    @pytest.mark.parametrize("device", ["desktop", "phone", "tablet"])
     def test_every_app_is_reachable(self, device):
-        # With the launcher open, because that is where the full app list
-        # lives on both compositions -- the surface only ever shows some of it.
-        markup = render(device, pinned=("todo",), launcher_open=True)
+        # On the desktop the full app list is behind the launcher; on a home
+        # screen it is the grid and the dock, with nothing open.
+        markup = render(device, pinned=("todo",), launcher_open=device == "desktop")
         for href in ("/todo", "/calendar", "/messages", "/maps", "/codeeditor"):
             assert f'href="{href}"' in markup
 
-    @pytest.mark.parametrize("device", ["desktop", "phone"])
+    @pytest.mark.parametrize("device", ["desktop", "phone", "tablet"])
     def test_controls_still_swap_the_whole_shell(self, device):
         # Every control posts and replaces #desktop-shell; a composition that
         # forgot the id would render once and then break on first click.
         markup = render(device)
         assert 'id="desktop-shell"' in markup
-        # The launcher, the mode toggle and the unit switch, at a minimum.
-        assert markup.count('hx-target="#desktop-shell"') >= 3
+        # The mode toggle and the unit switch, plus the launcher on a desktop.
+        assert markup.count('hx-target="#desktop-shell"') >= (3 if device == "desktop" else 2)
 
 
 class TestStylesheet:
@@ -375,15 +356,15 @@ class TestStylesheet:
         assert match, f"no rule for {selector}"
         return match.group(1)
 
-    def test_phone_rules_are_not_behind_a_media_query(self):
-        # The device is config, so the phone rendering has to hold at any
-        # window size -- including whatever a screenshot harness picks.
+    def test_home_screen_rules_are_not_behind_a_media_query(self):
+        # The device is config, so the home screen has to hold at any window
+        # size -- including whatever a screenshot harness picks.
         css = self.strip_comments(self.css())
         head, _, tail = css.partition("@media")
-        assert ".is-phone" in head
+        assert ".is-home-screen" in head
         # The only mention inside a media query may be the narrow-window
         # block's exclusion of it.
-        assert ".is-phone" not in tail.replace(":not(.is-phone)", "")
+        assert ".is-home-screen" not in tail.replace(":not(.is-home-screen)", "")
 
     def test_narrow_window_rules_cannot_reach_the_phone_markup(self):
         # The phone composition is already laid out for this width; desktop
@@ -393,15 +374,28 @@ class TestStylesheet:
         )
         assert block, "no narrow-window block"
         selectors = re.findall(r"([^{}]+)\{", block.group(1))
-        assert all(":not(.is-phone)" in s for s in selectors), selectors
+        assert all(":not(.is-home-screen)" in s for s in selectors), selectors
 
-    def test_the_home_grid_is_a_fixed_four_column_grid(self):
-        declarations = self.rule(".is-phone .ui-tile-dock")
+    def test_the_home_grid_has_a_fixed_column_count_per_form_factor(self):
+        declarations = self.rule(".is-home-screen .ui-tile-dock")
         assert "display: grid" in declarations
         # Not auto-fill: a column count that follows the width would put the
         # same app in a different place on two phones, and a grounded click
         # would stop transferring between them.
-        assert "repeat(4, minmax(0, 1fr))" in declarations
+        assert "repeat(var(--ui-home-cols), minmax(0, 1fr))" in declarations
+        assert "--ui-home-cols: 4" in self.rule(".ui-desktop.is-home-screen")
+        assert "--ui-home-cols: 6" in self.rule(".ui-desktop.is-home-screen.is-tablet")
+
+    def test_labels_span_their_whole_column(self):
+        # No column gap, and a label as wide as its column: the spare width
+        # between icons belongs to the labels, which is what keeps names
+        # whole instead of ellipsized.
+        assert re.search(r"gap:[^;]*\s0;", self.rule(".is-home-screen .ui-tile-dock"))
+        assert "width: 100%" in self.rule(".is-home-screen .ui-tile-label")
+
+    def test_the_home_screen_scrolls_inside_a_fixed_height_shell(self):
+        assert "height: 100dvh" in self.rule(".ui-desktop.is-home-screen")
+        assert "overflow-y: auto" in self.rule(".is-home-screen .ui-desktop-surface")
 
     def test_the_dock_is_in_flow(self):
         # It is the shell's last child, not an overlay, so nothing has to
@@ -481,7 +475,7 @@ class TestWallpaperTextIsThemeAware:
 
     def test_the_phone_widget_opts_out_of_the_halo(self):
         # It sits on its own frosted card, not on the image.
-        declarations = self.rule(".is-phone .ui-desktop-headline")
+        declarations = self.rule(".is-home-screen .ui-desktop-headline")
         assert "text-shadow: none" in declarations
 
     def test_tile_hover_lifts_a_surface_rather_than_tinting_with_the_ink(self):
@@ -496,6 +490,26 @@ class TestWallpaperTextIsThemeAware:
         assert "var(--color-bg)" in declarations
         assert "var(--color-fg)" not in declarations
 
+    def test_the_mark_keeps_its_shape_in_dark_mode(self):
+        # Only the ink changes between modes; a flip read as a different logo.
+        css = self.strip_comments(self.css())
+        assert not re.search(r"\.ui-wordmark-mark\s*\{[^}]*transform", css)
+
+    def test_tile_hover_keeps_the_ink_and_only_firms_the_halo(self):
+        """html5up's `a:hover { color: #47D3E5 }` outranks `.ui-tile`; left
+        alone it turned the label cyan inside its halo, a heavy glow in light
+        mode. Hover pins the ink and nudges the halo, still theme-derived."""
+        declarations = self.rule(".ui-desktop .ui-tile:hover")
+        assert "color: var(--color-fg)" in declarations
+        shadow = re.search(r"text-shadow:([^;]*);", declarations).group(1)
+        assert "--ui-wallpaper-halo" in shadow
+        assert "rgb(" not in shadow and "#" not in shadow
+
+    def test_the_home_screen_blurs_the_wallpaper_more_than_the_desktop(self):
+        # A multiple of the configured blur, so `wallpaper.blur` still moves it.
+        declarations = self.rule(".ui-desktop.is-home-screen::before")
+        assert "blur(calc(var(--ui-wallpaper-blur, 4px) * 3))" in declarations
+
     def test_elevation_shadows_are_not_derived_from_the_foreground(self):
         """A --color-fg shadow inverts with the theme and becomes a white smear
         under every app icon on the dark one. Depth stays dark."""
@@ -508,7 +522,7 @@ class TestWallpaperTextIsThemeAware:
         # It was a literal rgb(0 0 0 / 28%), tuned against the dark wallpaper
         # where a black shadow all but disappears -- and far too heavy on the
         # pale one, where it is the only place it actually shows.
-        declarations = self.rule(".is-phone .ui-tile-glyph")
+        declarations = self.rule(".is-home-screen .ui-tile-glyph")
         assert "box-shadow: var(--ui-shadow-raised)" in declarations
 
     def test_toolbar_chips_track_the_theme_foreground(self):
@@ -595,11 +609,89 @@ class TestPinResolution:
         """`all` on the home screen would dock every app and leave the grid
         empty, since the grid is exactly the unpinned set."""
         pinned = self.resolve(variant="home_screen")
-        assert pinned == ["todo", "calendar"]
+        assert pinned == ["todo", "calendar", "messages", "maps"]
         assert len(pinned) < len(self.resolve())
+
+    def test_the_home_screen_dock_holds_four(self):
+        # Asking for every app still docks four -- the first four in inventory
+        # order -- rather than a dock that scrolls.
+        pinned = self.resolve(
+            ["apps.start_page.desktop.pinned_by_variant.home_screen=all"], variant="home_screen"
+        )
+        assert pinned == ["todo", "calendar", "messages", "maps"]
+
+    def test_the_dock_size_is_config(self):
+        pinned = self.resolve(
+            ["apps.start_page.desktop.dock_size_by_variant.home_screen=2"], variant="home_screen"
+        )
+        assert pinned == ["todo", "calendar"]
+
 
     def test_an_unknown_pinned_value_is_rejected(self):
         # Not silently treated as "none": a typo'd sentinel would empty the
         # desktop, which looks like a rendering bug rather than a config one.
         with pytest.raises(ValueError, match="not understood"):
             self.resolve(["apps.start_page.desktop.pinned=everything"])
+
+
+class TestPinningIntoAFullDock:
+    """The pin route refuses a fifth app on the home screen."""
+
+    def configure(self, device):
+        apps_cfg = compose_apps(device)
+        start_page.app.config = apps_cfg
+        start_page.reset_desktop_state(apps_cfg.start_page, start_page._configured_variant(apps_cfg))
+        return start_page._desktop_state["pinned"]
+
+    def test_a_full_dock_refuses_a_fifth_app(self):
+        pinned = self.configure("phone")
+        assert pinned == ["todo", "calendar", "messages", "maps"]
+        start_page.toggle_pin("files")
+        assert "files" not in start_page._desktop_state["pinned"]
+        # Unpinning frees a slot, and the next pin takes it.
+        start_page.toggle_pin("maps")
+        start_page.toggle_pin("files")
+        assert start_page._desktop_state["pinned"] == ["todo", "calendar", "messages", "files"]
+
+    def test_the_desktop_dock_is_unlimited(self):
+        pinned = self.configure("desktop")
+        assert len(pinned) > 4
+
+
+def dock_item(markup: str, testid: str) -> str:
+    """The opening tag of the element carrying ``testid``."""
+    return re.search(rf'<[^<>]*data-testid="{testid}"[^<>]*>', markup).group(0)
+
+
+class TestChromeOverAHomeScreenApp:
+    """Over an app on a phone or tablet, the dock is the home screen's."""
+
+    def chrome(self, device, *extra):
+        apps_cfg = compose_apps(device, *extra)
+        start_page.app.config = apps_cfg
+        start_page.reset_desktop_state(apps_cfg.start_page, start_page._configured_variant(apps_cfg))
+        start_page.reset_chrome_state()
+        start_page.render_chrome("/files")  # leaves `files` running
+        return start_page.render_chrome("/todo")
+
+    @pytest.mark.parametrize("device", ["phone", "tablet"])
+    def test_home_plus_the_docked_apps_and_nothing_else(self, device):
+        result = self.chrome(device)
+        markup = result.body
+        assert ids_in(markup) >= {"dock-desktop", "dock-todo", "dock-calendar", "dock-messages", "dock-maps"}
+        # No launcher, and no running-app extras: an app is on the home screen
+        # or in the dock, and the way to anything else is Home.
+        assert "dock-launcher" not in ids_in(markup)
+        assert "dock-files" not in ids_in(markup)
+        assert 'title="Home"' in dock_item(markup, "dock-desktop")
+
+    @pytest.mark.parametrize("device", ["phone", "tablet"])
+    def test_no_window_title_bar(self, device):
+        result = self.chrome(device)
+        assert 'id="oa-titlebar"' not in result.body
+        assert "data-oa-titlebar" not in result.html_attrs
+
+    def test_the_desktop_keeps_its_launcher_and_title_bar(self):
+        result = self.chrome("desktop")
+        assert {"dock-launcher", "window-close"} <= ids_in(result.body)
+        assert 'title="Desktop"' in dock_item(result.body, "dock-desktop")
