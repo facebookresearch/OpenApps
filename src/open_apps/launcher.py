@@ -798,15 +798,60 @@ class AgentLauncher(OpenAppsLauncher):
         except Exception as exc:  # noqa: BLE001 -- never fail a run over logging
             print(f"Alignment: could not log to W&B ({type(exc).__name__}: {exc})")
 
-    def cleanup(self, apps_process: subprocess.Popen):
+    def cleanup(self, apps_process: subprocess.Popen | None):
         if self.config.use_wandb:
             wandb.finish()
-        stop_process_group(apps_process)
+        if apps_process is not None:
+            stop_process_group(apps_process)
         print("OpenApps successfully stopped.")
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
             webapp_log_fh.close()
             self._webapp_log_fh = None
+
+    #: Web-app starts to try when the chosen port turns out to be taken.
+    APP_START_ATTEMPTS = 3
+
+    def _webapp_log_says_port_taken(self, offset: int) -> bool:
+        """Whether this attempt's part of ``webapp.log`` (from ``offset``)
+        reports a bind failure on its port."""
+        log = Path(self.config.logs_dir) / "webapp.log"
+        try:
+            with open(log, errors="replace") as fh:
+                fh.seek(offset)
+                return "address already in use" in fh.read()
+        except OSError:
+            return False
+
+    def start_apps(self) -> subprocess.Popen:
+        """Start the web app and wait until it serves, on a fresh port if the
+        chosen one was taken in the meantime.
+
+        ``pick_empty_port`` only checks that a port is free; nothing holds it
+        until the server binds, ~30 s later. Two jobs on one node with the
+        same job id scan from the same port (``_job_port_offset``), so both can
+        pick it and the second server dies on bind (align_v1, 2026-11-11). Any
+        other startup failure still raises at once.
+        """
+        log = Path(self.config.logs_dir) / "webapp.log"
+        for attempt in range(1, self.APP_START_ATTEMPTS + 1):
+            offset = log.stat().st_size if log.exists() else 0
+            apps_process = self.launch_apps_via_shell()
+            try:
+                self.wait_until_apps_start(apps_process)
+                return apps_process
+            except RuntimeError:
+                taken = apps_process.poll() is not None and self._webapp_log_says_port_taken(offset)
+                stop_process_group(apps_process)
+                if getattr(self, "_webapp_log_fh", None) is not None:
+                    self._webapp_log_fh.close()
+                    self._webapp_log_fh = None
+                if not taken or attempt == self.APP_START_ATTEMPTS:
+                    raise
+                self.web_app_port = self.pick_empty_port(start_port=self.web_app_port + 1)
+                self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
+                print(f"Port was taken before the web app bound it; retrying on {self.web_app_url}")
+        raise AssertionError("unreachable")
 
     def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
         is_app_running = False
@@ -860,12 +905,12 @@ class AgentLauncher(OpenAppsLauncher):
         Launches open apps environment and orchestrates agent to perform the task.
         """
         self.check_task_can_run()
-        apps_process = self.launch_apps_via_shell()
+        apps_process = None
         # `finally`, so the web app is stopped on every way out: a server that
         # never came up, an agent error, and Ctrl-C, which raises
         # KeyboardInterrupt and so slips past `except Exception`.
         try:
-            self.wait_until_apps_start(apps_process)
+            apps_process = self.start_apps()
             # TODO: check if agent model is available in case of VLLM or API
             self.launch_agent()
         except Exception as e:
