@@ -55,8 +55,9 @@ All three run the same suite with the same launcher, so their episodes are inter
 3. **A Hugging Face cache with room for the weights** (about 10 GB for the 2B/7B models and
    55 to 70 GB for each of the 27B, 31B and 35B checkpoints). The scripts set
    `HF_HOME=/checkpoint/<account>/$USER/hf` unless you set it yourself; keep it off a
-   quota-capped home directory. Gated models (Gemma) need `huggingface-cli login`, or `HF_TOKEN`,
-   once.
+   quota-capped home directory. None of the registry's checkpoints is gated (Gemma 4 included),
+   so no token is needed; one (`HF_TOKEN`, or a `token` file in `HF_HOME`) only raises Hugging
+   Face's rate limits. A gated checkpoint you add later needs its license accepted and that token.
 4. **API keys**, for hosted models, in the shell or in `.env` (see `.env.example`):
 
     | Agent configs | Variables |
