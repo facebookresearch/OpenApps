@@ -231,7 +231,7 @@ Run it inside `tmux` or `screen` on the login node: it waits for the servers and
 - `--separate`: one launch per model, without sharing servers or `agents=` sweeps.
 - `--overrides use_wandb=True ...`: Hydra overrides for every launch.
 - `--logs-root`: default `log_outputs/align_v1-<stamp>/`. Group `<g>` writes to
-  `<logs-root>/<g>/run-*/<job_id>/`, and `_sweep/` holds the per-group and per-shard logs.
+  `<logs-root>/<g>/run-*/<job_id>/`, and `_sweep/` holds the per-group and per-shard logs (`benchmark_one.sbatch`: one `_sweep/<group>-<jobid>/` per job, so jobs sharing a root keep their own logs).
 - `--collect`: pack, validate and preview once everything has finished (below).
 
 ## Monitoring
@@ -239,8 +239,8 @@ Run it inside `tmux` or `screen` on the login node: it waits for the servers and
 ```bash
 squeue --me                                           # servers, single-node jobs, episode arrays
 tail -f /storage/home/$USER/logs/openapps-align_v1-<agent>_<jobid>.out   # benchmark_one.sbatch
-tail -f <logs-root>/_sweep/shard0.log                 # one shard's episodes
-tail -f <logs-root>/_sweep/vllm.log                   # benchmark_one's server
+tail -f <logs-root>/_sweep/<group>-<jobid>/shard0.log  # one shard's episodes (benchmark_one)
+tail -f <logs-root>/_sweep/<group>-<jobid>/vllm.log    # benchmark_one's server
 tail -f /storage/home/$USER/logs/openapps-vllm-<agent>_<jobid>.out       # serve_vllm.sbatch
 find <logs-root> -name episode.json | wc -l           # episodes finished so far
 uv run -m open_apps.leaderboard.preview <logs-root>   # the table so far, any time

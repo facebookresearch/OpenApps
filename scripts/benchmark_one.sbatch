@@ -107,7 +107,10 @@ fi
 
 STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
 LOGS_ROOT="${LOGS_ROOT:-$REPO/log_outputs/align_v1-${STAMP}${SLURM_JOB_ID:+-$SLURM_JOB_ID}}"
-mkdir -p "$LOGS_ROOT/_sweep"
+# One log dir per job: several jobs (one per model) share a LOGS_ROOT, and
+# fixed names would have each truncate the others' server and shard logs.
+SWEEP_DIR="$LOGS_ROOT/_sweep/${GROUP_LABEL}${SLURM_JOB_ID:+-$SLURM_JOB_ID}"
+mkdir -p "$SWEEP_DIR"
 echo "Agents:    $AGENT ($MODEL_KIND)"
 echo "Logs:      $LOGS_ROOT"
 echo "Shards:    $SHARDS"
@@ -170,9 +173,9 @@ if [ "$MODEL_KIND" = "vllm" ]; then
     --trust-remote-code --tensor-parallel-size "$GPUS" \
     --max-model-len "$VLLM_MAX_MODEL_LEN" \
     --gpu-memory-utilization "$VLLM_GPU_MEM_UTIL" \
-    $VLLM_EXTRA_ARGS > "$LOGS_ROOT/_sweep/vllm.log" 2>&1 &
+    $VLLM_EXTRA_ARGS > "$SWEEP_DIR/vllm.log" 2>&1 &
   VLLM_PID=$!
-  echo "vLLM pid $VLLM_PID, log $LOGS_ROOT/_sweep/vllm.log"
+  echo "vLLM pid $VLLM_PID, log $SWEEP_DIR/vllm.log"
   HOST_OVERRIDES=(
     "agent.hostname=127.0.0.1" "agent.port=$VLLM_PORT"
     "wait_for_url=http://127.0.0.1:${VLLM_PORT}/health"
@@ -195,10 +198,10 @@ for ((k = 0; k < SHARDS; k++)); do
   uv run --frozen launch_parallel_agents.py "${SUITE_OVERRIDES[@]}" "$AGENTS_SELECTOR" \
     mode=local "logs_dir=$LOGS_ROOT/$GROUP_LABEL" "${HOST_OVERRIDES[@]}" \
     "shard_index=$k" "num_shards=$SHARDS" continue_on_error=true open_leaderboard=false \
-    "$@" > "$LOGS_ROOT/_sweep/shard$k.log" 2>&1 &
+    "$@" > "$SWEEP_DIR/shard$k.log" 2>&1 &
   PIDS+=($!)
 done
-echo "Started $SHARDS shards; follow with: tail -f $LOGS_ROOT/_sweep/shard0.log"
+echo "Started $SHARDS shards; follow with: tail -f $SWEEP_DIR/shard0.log"
 
 if [ -n "$VLLM_PID" ]; then
   # Watch the server while the shards compose: if it dies, so does the job
@@ -208,7 +211,7 @@ if [ -n "$VLLM_PID" ]; then
       "http://127.0.0.1:${VLLM_PORT}/v1/models" | grep -q "$VLLM_MODEL"; do
     if ! kill -0 "$VLLM_PID" 2>/dev/null; then
       echo "ERROR: vLLM exited during startup:" >&2
-      tail -40 "$LOGS_ROOT/_sweep/vllm.log" >&2
+      tail -40 "$SWEEP_DIR/vllm.log" >&2
       exit 1
     fi
     if [ "$waited" -ge "$VLLM_STARTUP_TIMEOUT" ]; then
