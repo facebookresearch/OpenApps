@@ -378,7 +378,10 @@ delete_old_netflix_login:
 * Delete means Recently Deleted (`deleted: true`). Deleting permanently
   removes the item, which fails the task.
 * Passwords, usernames and a secure note's text (whitespace aside) compare
-  exactly: `AppStateComparison` checks them as a multiset of (kind, username,
-  password, note text, deleted) before the fuzzy diff, so a near-miss secret
-  cannot pass on string similarity. A login's notes stay fuzzy.
+  exactly: `AppStateComparison` checks (kind, username, password, note text,
+  deleted) item by item, in the order the fuzzy diff pairs items, before that
+  diff runs, so a near-miss secret cannot pass on string similarity and two
+  items cannot trade secrets. A login's notes stay fuzzy.
+* A Wi-Fi `AddPasswordTask` must name its `security`: the form always submits
+  one, so a target without it could never be reached.
 

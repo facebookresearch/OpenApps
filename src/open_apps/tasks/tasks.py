@@ -1316,6 +1316,13 @@ class AddPasswordTask(Task):
     notes: str = ""
     favorite: bool = False
 
+    def __post_init__(self) -> None:
+        # The new-item form always submits a security option (the content
+        # pack's first by default) and offers no empty one, so a Wi-Fi target
+        # with security="" could never be reached through the UI.
+        if self.kind == "wifi" and not self.security:
+            raise ValueError("AddPasswordTask for a Wi-Fi network needs security (e.g. 'WPA3')")
+
     def get_target_state(self, initial_state: dict) -> dict:
         target_state = copy.deepcopy(initial_state)
         vault = target_state.setdefault("passwords", {}).setdefault("items", [])

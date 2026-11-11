@@ -162,6 +162,43 @@ class TestAdd:
                                         "notes": "Harbor Self Storage, unit B-114.\n  Gate code 4471#."})
         assert _passes(task, initial, fresh())
 
+    def test_a_quoted_title_sorts_where_the_fuzzy_diff_pairs_it(self, client, fresh):
+        """Quotes are punctuation to the fuzzy title match, so items are
+        sorted on the same normalized title: "'Storage unit'" must not land
+        before "Bike lock" and get diffed against it."""
+        task = AddPasswordTask(goal="Add the storage unit note.", kind="note", title="Storage unit",
+                               notes="Harbor Self Storage, unit B-114. Gate code 4471#.")
+        initial = fresh()
+        client.post("/passwords", data={"kind": "note", "title": "'Storage unit'",
+                                        "notes": "Harbor Self Storage, unit B-114. Gate code 4471#."})
+        assert _passes(task, initial, fresh())
+
+    def test_a_wifi_network_needs_its_security(self):
+        """The form always submits a security option, so a target without
+        one could never be reached."""
+        with pytest.raises(ValueError, match="security"):
+            AddPasswordTask(goal="Add the network.", kind="wifi", title="Cabin", password="pine-cone-8")
+
+    def test_a_wifi_network(self, client, fresh):
+        task = AddPasswordTask(goal="Add the cabin network.", kind="wifi", title="Cabin",
+                               password="Pine-Cone-8!", security="WPA2")
+        initial = fresh()
+        client.post("/passwords", data={"kind": "wifi", "title": "Cabin", "password": "Pine-Cone-8!",
+                                        "security": "WPA2"})
+        assert _passes(task, initial, fresh())
+
+    def test_secrets_stay_with_their_items(self, client, fresh):
+        """Two passwords the fuzzy diff can't tell apart, put on each other's
+        networks: as a bag of secrets nothing changed, item by item both are
+        wrong."""
+        task = AddPasswordTask(goal="Add the cabin network.", kind="wifi", title="Cabin",
+                               password="harborlight42", security="WPA3")
+        initial = fresh()
+        client.post("/passwords", data={"kind": "wifi", "title": "Cabin", "password": "Harbor-Light-42!",
+                                        "security": "WPA3"})
+        _edit(client, _id(client, "Wharf Street 5G"), password="harborlight42")
+        assert not _passes(task, initial, fresh())
+
 
 class TestEdit:
     def test_correct_episode(self, client, fresh):
