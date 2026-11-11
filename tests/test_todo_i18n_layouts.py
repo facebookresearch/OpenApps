@@ -71,8 +71,8 @@ def _env(tmp_path: Path, layout: str, content: str) -> TestClient:
 
 
 def _markup(html: str) -> str:
-    html = re.sub(r"<style.*?</style>", "", html, flags=re.S)
-    return re.sub(r"<script.*?</script>", "", html, flags=re.S)
+    html = re.sub(r"<style\b.*?</style\s*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<script\b.*?</script\s*>", "", html, flags=re.S | re.I)
 
 
 def _labels(content: str) -> dict:

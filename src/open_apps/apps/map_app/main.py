@@ -550,8 +550,10 @@ async def get_route(
     except requests.exceptions.RequestException as e:
         return {"error": _label("route_unsupported_label")}
     except Exception as e:
+        # The exception stays in the server log: its text can carry internals
+        # (URLs, stack frames) that a page must not show.
         print(f"An error occurred during route planning: {e}")
-        return {"error": _label("route_unsupported_label"), "details": str(e)}
+        return {"error": _label("route_unsupported_label")}
 
 
 def get_map_routes():
