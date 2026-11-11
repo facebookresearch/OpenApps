@@ -459,6 +459,16 @@ def uitars_parser(result, rescale=None):
     # send_msg_to_user so its training prior still ends the episode.
     if re.match(r"finished\s*\(", result["action"]):
         result["action"] = translate_uitars_finished_action(result["action"])
+    # The advertised reporting actions with UI-TARS's own keyword: it writes
+    # send_msg_to_user(content=...) by analogy with finished()/type(), and
+    # BrowserGym's functions take text= / reason=, so the report raised a
+    # TypeError and an on_agent_stop episode could never end on it.
+    result["action"] = re.sub(
+        r"^send_msg_to_user\(\s*content\s*=", "send_msg_to_user(text=", result["action"]
+    )
+    result["action"] = re.sub(
+        r"^report_infeasible\(\s*(?:content|text)\s*=", "report_infeasible(reason=", result["action"]
+    )
     # scroll(direction='down'|'up'|'left'|'right', point='(x, y)') -> scroll(dx, dy)
     if result["action"].startswith("scroll("):
         dir_match = re.search(
