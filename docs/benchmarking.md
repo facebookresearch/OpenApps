@@ -190,7 +190,7 @@ uv run scripts/benchmark_sweep.py submit-one Qwen3.6-27B-computer-use --gpu-type
 Inside an interactive allocation (`srun --gpus-per-node=1 --pty bash`) run the same script with
 `bash` instead of `sbatch`. Variables: `AGENT` (required; space-separated agents must share a
 checkpoint), `SHARDS`, `SEED_SET` (`public` or `heldout`), `SMOKE=1`, `LOGS_ROOT`, `ORG`,
-`VLLM_PORT`, `VLLM_API_KEY`, `VLLM_VENV` or `VLLM_IMAGE`, `HF_HOME`, `VLLM_STARTUP_TIMEOUT`. Any arguments
+`VLLM_PORT` (default: a free local port, since two jobs can share a node), `VLLM_API_KEY`, `VLLM_VENV` or `VLLM_IMAGE`, `HF_HOME`, `VLLM_STARTUP_TIMEOUT`. Any arguments
 after the script are Hydra overrides for every run, e.g. `use_wandb=True`.
 
 ## Many models: the sweep
