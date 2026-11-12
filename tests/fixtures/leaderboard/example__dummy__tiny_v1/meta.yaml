@@ -10,7 +10,7 @@ redacted:
 - api_key
 - hostname
 n_episodes: 6
-record_version: 1
+record_version: 2
 compute_notes: null
 wandb_report: null
 videos: []

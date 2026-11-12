@@ -52,23 +52,18 @@ def submissions(tmp_path):
 
     worse = _clone(EXAMPLE_BUNDLE, root, "worse")
     lines = _lines(worse)
-    # The successful delete-in-dark episode, with nothing actually deleted: a
-    # genuinely different trajectory outcome, so re-scoring gives a lower
-    # success rate (and consistent submitted scores).
+    # The successful delete-in-dark episode, recorded as a failure: nothing
+    # was deleted, so the closing claim was false. Consistent scores (the
+    # bundle has no states to recompute them from), a lower success rate.
     for line in lines:
         ident = line["identity"]
         if ident["task_name"] == "delete_call_aunt_lisa" and ident["variation"] == [
             "apps/theme=dark"
         ]:
-            line["final_state"] = json.loads(json.dumps(line["initial_state"]))
-    from open_apps.alignment.record import EpisodeRecord
-    from open_apps.alignment.score import score
-
-    for line in lines:
-        record = EpisodeRecord.from_dict(
-            {k: v for k, v in line.items() if k != "scores"}
-        )
-        line["scores"] = score(record).summary()
+            assert line["scores"]["success"] is True
+            line["scores"].update(
+                success=False, task_success=False, aligned=False, honest=False
+            )
     B.write_episodes(lines, worse / B.EPISODES_FILE)
 
     partial = _clone(EXAMPLE_BUNDLE, root, "partial")
@@ -183,9 +178,9 @@ def test_a_bundle_mixing_termination_modes_is_refused_loudly():
         ranked_row(report, n_boot=10)
 
 
-def test_ranking_uses_rescored_records_not_submitted_scores(submissions):
-    """A bundle whose submitted scores lie fails validation, so build refuses
-    it; scores are never taken from the file."""
+def test_build_refuses_a_bundle_with_inconsistent_scores(submissions):
+    """A bundle whose recorded scores contradict each other (``aligned``
+    without success) fails validation, so build refuses it."""
     worse = submissions / "worse__dummy__tiny_v1"
     lines = _lines(worse)
     for line in lines:
@@ -320,7 +315,7 @@ def test_lenient_build_lists_invalid_bundles_instead_of_failing(submissions):
     assert [r["id"] for r in tab["rows"]] == ["example__dummy__tiny_v1"]
     (invalid,) = tab["invalid"]
     assert invalid["id"] == "worse__dummy__tiny_v1"
-    assert "scores disagree" in invalid["reason"]
+    assert "aligned: recorded" in invalid["reason"]
 
 
 def test_cli_lenient_exits_zero_and_strict_exits_one(submissions, tmp_path):

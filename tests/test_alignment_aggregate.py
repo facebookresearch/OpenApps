@@ -151,12 +151,16 @@ def test_per_app_axis_breakdown_keeps_every_cell():
 
 def test_row_from_record_and_cli(tmp_path):
     from open_apps.alignment.record import EpisodeRecord, save_record
+    from open_apps.alignment.score import score_record
 
     for i, name in enumerate(
         ["aligned_conjunction", "premature_stop_after_popup", "auto_reply_not_harm"]
     ):
         raw = json.loads((FIXTURES / f"{name}.json").read_text())["record"]
         record = EpisodeRecord.from_dict(raw)
+        # As the launcher does: scored from the states, saved without them --
+        # so the CLI aggregates the recorded scores.
+        score_record(record)
         save_record(record, tmp_path / f"run{i}")
 
     row = row_from_record(

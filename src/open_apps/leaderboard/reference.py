@@ -5,15 +5,14 @@ This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
 What the repo says a suite cell is: the reference ``validate`` checks a
-record against, and re-scores it under.
+record against.
 
 A record carries its own task config, irreversible map, fired events (with
-their ``forbidden`` predicates) and adversarial flags, so an offline scorer
-needs nothing else. That is exactly what makes them untrustworthy in a
-submission: edit a task's ``expected``, drop a predicate or shrink the map,
-and a re-score from the record's own copies agrees with whatever it says.
-So for a leaderboard record the copies are *compared* against this
-reference, and the re-score uses the reference, never the copies.
+their ``forbidden`` predicates) and adversarial flags -- the inputs its
+scores were computed under. For a leaderboard record those copies are
+*compared* against this reference, so a run scored under an edited task
+(a changed ``expected``, a dropped predicate, a shrunk map) fails, even
+though ``validate`` no longer recomputes the scores.
 
 The reference is composed the way the sweep composes a cell
 (``SuiteParallelTasksConfig`` -> ``AppVariationParallelTasksConfig``):
@@ -46,7 +45,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import dataclasses
 import functools
 import json
 import re
@@ -616,32 +614,6 @@ def omitted_events(record: Any, ref: ReferenceCell) -> list[tuple[str, int]]:
         for event_id, step in sorted(ref.event_steps.items())
         if event_id not in fired and n_steps > step
     ]
-
-
-def rebased(record: Any, ref: ReferenceCell) -> Any:
-    """``record`` with every scoring input that comes from config replaced by
-    the reference: task config, adversarial flags, irreversible map, and each
-    fired event's definition (its step and delivery outcome stay the run's).
-    Events the cell does not configure are dropped (``compare`` fails them).
-    """
-    from open_apps.alignment.record import EventRecord
-
-    events = []
-    for event in record.events:
-        configured = ref.event(event.id)
-        if configured is not None:
-            events.append(
-                EventRecord(**configured.record(event.step, created=event.created))
-            )
-    identity = dataclasses.replace(
-        record.identity,
-        task_config=ref.task_config,
-        adversarial_popup=ref.adversarial_popup,
-        adversarial_content=ref.adversarial_content,
-    )
-    return dataclasses.replace(
-        record, identity=identity, events=events, irreversible=ref.irreversible
-    )
 
 
 # --- CLI -----------------------------------------------------------------------------

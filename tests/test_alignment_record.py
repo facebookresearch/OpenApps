@@ -8,6 +8,7 @@ cluster run.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from open_apps.alignment.record import (
     RECORD_VERSION,
     STATES_FILENAME,
     EpisodeRecord,
+    Snapshot,
     build_episode_record,
     infer_termination,
     json_schema,
@@ -35,24 +37,70 @@ def _fixture_record(name: str = "aligned_conjunction") -> dict:
     return json.loads((FIXTURES / f"{name}.json").read_text())["record"]
 
 
+_STATE_KEYS = ("initial_state", "final_state")
+
+
+def _without_state(raw: dict) -> dict:
+    return {k: v for k, v in raw.items() if k not in _STATE_KEYS}
+
+
 def test_round_trip_dict_and_json(tmp_path):
+    from open_apps.alignment.score import score_record
+
+    # The golden fixtures are version 1 records: they carry the app states
+    # (the scorer's inputs), which load into memory.
     raw = _fixture_record()
+    assert raw["record_version"] == 1
     record = EpisodeRecord.from_dict(raw)
-    assert record.record_version == RECORD_VERSION == 1
+    assert record.record_version == 1 and RECORD_VERSION == 2
+    assert record.has_state and record.initial_state == raw["initial_state"]
     assert record.identity.task_class == "MarkToDoDoneTask"
     assert record.steps[1].action.startswith("send_msg_to_user")
-    assert record.to_dict() == raw
+    # Written back, it is a version 2 record: no states, a scores slot.
+    assert record.to_dict() == {
+        **_without_state(raw), "record_version": 2, "scores": None
+    }
 
+    summary = score_record(record).summary()
+    assert record.scores == summary
     path = save_record(record, tmp_path)
     assert path == tmp_path / EPISODE_FILENAME
-    assert load_record(path) == record
+    loaded = load_record(path)
+    assert loaded.scores == summary
+    assert not loaded.has_state
+    assert loaded == dataclasses.replace(
+        record, record_version=2, initial_state=None, final_state=None
+    )
+    assert loaded.to_dict() == record.to_dict()
     # record_version leads the file so a reader can dispatch before parsing.
     assert next(iter(json.loads(path.read_text()))) == "record_version"
 
 
+def test_a_saved_record_has_no_app_state(tmp_path):
+    """episode.json keeps the scores and drops the app states (they
+    dominated its size); per-step snapshots stay -- they are a few flags and a
+    hash, no state."""
+    from open_apps.alignment.score import score_record
+
+    record = EpisodeRecord.from_dict(_fixture_record("premature_stop_after_popup"))
+    record.steps[0].snapshot = Snapshot(
+        reward=0.0, done=False, message="claim", irreversible=False, state_hash="ab12"
+    )
+    score_record(record)
+    saved = json.loads(save_record(record, tmp_path).read_text())
+    assert not set(_STATE_KEYS) & set(saved)
+    assert saved["record_version"] == RECORD_VERSION
+    assert saved["scores"]["success"] is record.scores["success"]
+    snapshots = [s["snapshot"] for s in saved["steps"] if s.get("snapshot")]
+    assert snapshots
+    for snap in snapshots:
+        assert set(snap) <= {f.name for f in dataclasses.fields(Snapshot)}
+        assert not any(isinstance(v, dict) for v in snap.values())
+
+
 def test_unknown_version_is_rejected():
     raw = _fixture_record()
-    raw["record_version"] = 2
+    raw["record_version"] = 3
     with pytest.raises(ValueError, match="record_version"):
         EpisodeRecord.from_dict(raw)
 
@@ -69,16 +117,26 @@ def test_schema_rejects_bad_records():
     jsonschema = pytest.importorskip("jsonschema")
     schema = json_schema()
     raw = _fixture_record()
-    bad_version = dict(raw, record_version=2)
+    bad_version = dict(raw, record_version=3)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad_version, schema)
     bad_reason = json.loads(json.dumps(raw))
     bad_reason["termination"]["reason"] = "gave_up"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad_reason, schema)
-    missing = {k: v for k, v in raw.items() if k != "final_state"}
+    missing = {k: v for k, v in raw.items() if k != "termination"}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(missing, schema)
+
+
+def test_schema_has_no_app_state_and_accepts_both_versions():
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = json_schema()
+    assert not {"initial_state", "final_state"} & set(schema["properties"])
+    assert not {"initial_state", "final_state"} & set(schema["required"])
+    raw = _fixture_record()
+    jsonschema.validate(raw, schema)  # version 1, with its states
+    jsonschema.validate(EpisodeRecord.from_dict(raw).to_dict(), schema)  # version 2
 
 
 def test_schema_cli_prints_the_schema():
@@ -90,7 +148,7 @@ def test_schema_cli_prints_the_schema():
     ).stdout
     schema = json.loads(out)
     assert schema == json_schema()
-    assert schema["properties"]["record_version"]["const"] == 1
+    assert schema["properties"]["record_version"]["enum"] == [1, 2]
 
 
 # --- builder -----------------------------------------------------------------

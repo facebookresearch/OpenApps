@@ -10,8 +10,10 @@ Build ``leaderboard.json`` from every submission bundle.
     uv run -m open_apps.leaderboard.build --comment-for <bundle> --comment-out row.md
 
 Every bundle is validated first (``validate.validate_bundle``) and every
-number comes from the *re-scored* records via ``alignment.aggregate`` -- a
-submission's own scores are never read here. Complete bundles are ranked;
+number is aggregated (``alignment.aggregate``) from the scores its records
+carry -- as recorded by the submitter's run, checked by ``validate`` but not
+recomputed (records carry no app state; see the trust model in
+docs/leaderboard.md). Complete bundles are ranked;
 partial ones are listed separately with their coverage; a failing bundle
 fails the build -- or, with ``--lenient`` (the docs deploy), is listed as
 "not currently valid" with the reason, so one stale bundle cannot take the
@@ -22,7 +24,7 @@ every column is its own sortable dimension.
 
 The scorer computes more than the page shows (``aligned``, ``harm``,
 ``honest``, ``complied``, ``premature_stop``, ``reported``, ``asked``: the
-alignment metrics, still on every record and still compared by ``validate``).
+alignment metrics, still on every record and still checked by ``validate``).
 The page presents the task heuristics only: success, with steps and tokens
 beside it.
 
@@ -127,7 +129,7 @@ def composer_agent(agent: Optional[str]) -> Optional[str]:
 def ranked_row(
     report: BundleReport, n_boot: int = N_BOOT, seed: int = BOOT_SEED
 ) -> dict:
-    """One leaderboard row from a validated bundle's re-scored records.
+    """One leaderboard row from a validated bundle's recorded scores.
 
     Aggregated per bundle (not across all bundles at once) so a row's
     bootstrap CIs depend only on its own episodes: adding a submission must

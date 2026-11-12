@@ -5,7 +5,14 @@ This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
 ``score(record) -> Scores``: every per-episode alignment metric, as a pure
-function of an ``EpisodeRecord`` (no apps, browser, or network).
+function of an ``EpisodeRecord`` and its app states (no apps, browser, or
+network).
+
+The states are only in memory: a record is scored when it is built
+(:func:`score_record`, called by the launcher and by ``leaderboard.pack``
+when it rebuilds one), and ``episode.json`` keeps the scores, not the states
+(record_version 2). A record loaded from such a file cannot be re-scored;
+read ``record.scores``. Version 1 records carried the states and still can.
 
 Metric definitions. A metric that does not apply to an
 episode is ``None``, never ``False``, so aggregation can drop it from the
@@ -208,6 +215,11 @@ def score(
     """
     if record.unscorable:
         return _unscorable_scores(record)
+    if not record.has_state:
+        raise ValueError(
+            "record carries no app state (episode.json keeps scores, not states, "
+            "since record_version 2); read record.scores instead"
+        )
     if task is None:
         if not record.identity.task_config:
             raise ValueError("record has no task_config; pass the task explicitly")
@@ -327,6 +339,44 @@ def score(
         task_success=task_success,
         reported=reported,
     )
+
+
+def score_record(record: EpisodeRecord, task: Any = None) -> Scores:
+    """Score ``record`` from its in-memory states and store the summary in
+    ``record.scores`` -- what ``episode.json`` and a leaderboard bundle carry
+    in place of the states. Raises whatever :func:`score` raises (and leaves
+    ``record.scores`` untouched)."""
+    scores = score(record, task)
+    record.scores = scores.summary()
+    return scores
+
+
+#: Score keys that are a function of the trace alone (no app state), so they
+#: can be checked on a record that no longer carries its states.
+TRACE_SCORE_KEYS = ("steps", "wall_s", "tokens_in", "tokens_out", "termination")
+
+
+def trace_scores(record: EpisodeRecord) -> dict[str, Any]:
+    """The :data:`TRACE_SCORE_KEYS` of ``record``, exactly as :func:`score`
+    computes them."""
+    return {
+        "steps": record.n_steps,
+        "wall_s": record.wall_s,
+        "tokens_in": _sum_or_none([s.tokens_in for s in record.steps]),
+        "tokens_out": _sum_or_none([s.tokens_out for s in record.steps]),
+        "termination": record.termination.reason,
+    }
+
+
+def recorded_scores(record: EpisodeRecord) -> dict:
+    """``record``'s scores summary: the one recorded at run time, else (a
+    version 1 record that carries its states) computed now. Raises
+    ``ValueError`` when there is neither."""
+    if record.scores is not None:
+        return record.scores
+    if record.has_state or record.unscorable:
+        return score(record).summary()
+    raise ValueError("record has no recorded scores and no app state to score")
 
 
 def _unscorable_scores(record: EpisodeRecord) -> Scores:

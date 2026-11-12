@@ -5,7 +5,8 @@ This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
 ``open_apps.leaderboard.pack`` over a fixture sweep: the bundle it writes
-validates, finished runs without ``episode.json`` are rebuilt, secrets never
+validates and carries no app state, finished runs without ``episode.json``
+are rebuilt and scored, secrets never
 reach agent.yaml, re-runs are resolved by a fixed rule, and the committed
 example bundle is what ``pack`` produces today.
 """
@@ -109,6 +110,55 @@ def test_finished_run_without_episode_json_is_rebuilt(logs, tmp_path):
     assert ident["agent_name"] == "dummy"
     # Read off the trajectory's last action, as the launcher would.
     assert rebuilt[0]["termination"]["reason"] == "claim"
+
+
+def test_a_bundle_carries_no_app_state(logs, tmp_path):
+    """Every line -- from an episode.json or rebuilt -- has its recorded
+    scores and no app states (nor any step snapshot holding them)."""
+    from open_apps.alignment.record import RECORD_VERSION, Snapshot
+
+    out = pack([logs], org="example", agent="dummy", out=tmp_path / "b").out
+    snapshot_fields = set(Snapshot.__dataclass_fields__)
+    for line in _lines(out):
+        assert "initial_state" not in line and "final_state" not in line
+        assert line["record_version"] == RECORD_VERSION
+        assert isinstance(line["scores"], dict) and "success" in line["scores"]
+        for step in line["steps"]:
+            assert step.get("snapshot") is None or set(step["snapshot"]) <= snapshot_fields
+    assert b'"initial_state"' not in gzip.decompress((out / B.EPISODES_FILE).read_bytes())
+
+
+def test_an_old_episode_json_with_states_is_scored_and_packed_without_them(logs, tmp_path):
+    """A version 1 episode.json (states, no scores) is scored at pack time."""
+    from tests._leaderboard_helpers import tiny_record
+
+    job, name, task, variation = JOBS[0]
+    victim = next((logs / str(job)).rglob("episode.json"))
+    old = tiny_record(name, task, variation)
+    assert old["record_version"] == 1 and "scores" not in old
+    victim.write_text(json.dumps(old))
+    out = pack([logs], org="example", agent="dummy", out=tmp_path / "example__dummy__tiny_v1").out
+    (line,) = [
+        line for line in _lines(out)
+        if (line["identity"]["task_name"], line["identity"]["variation"]) == (task, variation)
+    ]  # fmt: skip
+    assert "initial_state" not in line and line["scores"]["termination"] == "claim"
+    assert validate_bundle(out, suite=TINY_SUITE).status == OK
+
+
+def test_an_episode_json_without_scores_or_states_is_skipped(logs, tmp_path):
+    """Its scoring failed at run time: nothing to pack it with, so the cell
+    is missing and the reason says why."""
+    victim = next((logs / "0").rglob("episode.json"))
+    data = json.loads(victim.read_text())
+    data["scores"] = None
+    victim.write_text(json.dumps(data))
+    result = pack(
+        [logs], org="example", agent="dummy", out=tmp_path / "example__dummy__tiny_v1"
+    )
+    assert result.n_episodes == len(JOBS) - 1
+    ((where, reason),) = result.skipped
+    assert where == victim.parent and "no scores" in reason
 
 
 def test_unfinished_runs_are_skipped_and_show_as_missing(logs, tmp_path):

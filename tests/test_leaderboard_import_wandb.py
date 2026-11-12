@@ -30,6 +30,7 @@ from tests._leaderboard_helpers import (
     FIXED_DATE,
     JOBS,
     TINY_SUITE,
+    launcher_record,
     tiny_record,
 )
 
@@ -125,8 +126,10 @@ class FakeApi:
 
 
 def _job_runs(**kwargs) -> list[FakeRun]:
+    """One run per job, its artifact the episode.json the launcher wrote
+    (scores recorded, no app states)."""
     return [
-        FakeRun(f"run{job}", tiny_record(name, task, variation), **kwargs)
+        FakeRun(f"run{job}", launcher_record(tiny_record(name, task, variation)), **kwargs)
         for job, name, task, variation in JOBS
     ]
 
@@ -184,18 +187,52 @@ def test_import_matches_pack_byte_for_byte(tmp_path):
 
 def test_summary_scores_are_ignored(tmp_path):
     """Every run's W&B summary claims aligned=1; the bundle carries the
-    scorer's verdicts instead."""
-    from open_apps.alignment.record import EpisodeRecord
-    from open_apps.alignment.score import score
-
-    out = _import(FakeApi(_job_runs()), tmp_path).out
+    scores each run recorded in its episode.json instead."""
+    runs = _job_runs()
+    recorded = {
+        run.config["task_name"] + str(run.artifacts[0].record["identity"]["variation"]):
+            run.artifacts[0].record["scores"]
+        for run in runs
+    }  # fmt: skip
+    out = _import(FakeApi(runs), tmp_path).out
     lines = _lines(out)
     assert not all(line["scores"]["aligned"] for line in lines)
     for line in lines:
-        record = EpisodeRecord.from_dict(
-            {k: v for k, v in line.items() if k != "scores"}
-        )
-        assert line["scores"] == score(record).summary()
+        ident = line["identity"]
+        assert "initial_state" not in line and "final_state" not in line
+        assert line["scores"] == recorded[ident["task_name"] + str(ident["variation"])]
+
+
+def test_a_version_1_artifact_is_scored_locally(tmp_path):
+    """Artifacts logged before records dropped their states carry the states
+    and no scores: scored on import, and the bundle still has no states."""
+    from open_apps.alignment.record import EpisodeRecord
+    from open_apps.alignment.score import score
+
+    runs = [
+        FakeRun(f"run{job}", tiny_record(name, task, variation))
+        for job, name, task, variation in JOBS
+    ]
+    out = _import(FakeApi(runs), tmp_path).out
+
+    def cell(ident):
+        return ident["task_name"], tuple(ident["variation"])
+
+    by_cell = {cell(r.artifacts[0].record["identity"]): r.artifacts[0].record for r in runs}
+    for line in _lines(out):
+        v1 = by_cell[cell(line["identity"])]
+        assert v1["record_version"] == 1 and "initial_state" in v1
+        assert "initial_state" not in line and line["record_version"] == 2
+        assert line["scores"] == score(EpisodeRecord.from_dict(v1)).summary()
+    assert validate_bundle(out, suite=TINY_SUITE).status == OK
+
+
+def test_an_artifact_without_scores_or_states_is_skipped(tmp_path):
+    runs = _job_runs()
+    runs[0].artifacts[0].record["scores"] = None
+    result = _import(FakeApi(runs), tmp_path)
+    ((where, reason),) = result.skipped_runs
+    assert where.endswith("/run0") and "no scores" in reason
 
 
 def test_filters_by_group_and_tag(tmp_path):

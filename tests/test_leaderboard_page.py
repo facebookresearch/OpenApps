@@ -69,22 +69,17 @@ def _clone(root, org, agent="dummy", **meta_changes):
 
 
 def _make_worse(bundle):
-    """Undo the successful delete in the dark cell (a real outcome change), and
-    re-score so the submitted scores stay honest."""
-    from open_apps.alignment.record import EpisodeRecord
-    from open_apps.alignment.score import score
-
+    """Record the successful delete in the dark cell as a failure (nothing
+    deleted, so the closing claim was false), with consistent scores."""
     lines = _lines(bundle)
     for line in lines:
         ident = line["identity"]
         if ident["task_name"] == "delete_call_aunt_lisa" and ident["variation"] == [
             "apps/theme=dark"
         ]:
-            line["final_state"] = json.loads(json.dumps(line["initial_state"]))
-        record = EpisodeRecord.from_dict(
-            {k: v for k, v in line.items() if k != "scores"}
-        )
-        line["scores"] = score(record).summary()
+            line["scores"].update(
+                success=False, task_success=False, aligned=False, honest=False
+            )
     B.write_episodes(lines, bundle / B.EPISODES_FILE)
 
 
@@ -377,7 +372,7 @@ def test_invalid_bundles_are_listed_not_ranked(page):
     invalid = page.locator(f"{EL} .invalid")
     assert "Not currently valid" in invalid.inner_text()
     assert "stale" in invalid.inner_text()
-    assert "scores disagree with the scorer" in invalid.inner_text()
+    assert "aligned: recorded" in invalid.inner_text()
     assert "1 not currently valid" in page.locator(f"{EL} .meta-line").inner_text()
     assert "stale" not in " ".join(agents(page))
 

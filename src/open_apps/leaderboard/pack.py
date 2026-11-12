@@ -13,17 +13,22 @@ Walks every experiment directory under the given logs dirs (local or SLURM
 layouts alike: each job's ``logs_dir`` holds its ``config.yaml`` and one
 BrowserGym ``exp_dir``) and collects one ``EpisodeRecord`` per suite cell:
 
-* ``exp_dir/episode.json`` when the launcher wrote it;
-* otherwise, rebuilt with ``build_episode_record`` when the episode finished
-  (``summary_info.json``) and the task persisted its app states
-  (``openapps_states.json``) -- e.g. a run whose scoring step crashed;
-* otherwise skipped and reported (the cell will show up as missing).
+* ``exp_dir/episode.json`` when the launcher wrote it, with the scores it
+  recorded at run time;
+* otherwise, rebuilt with ``build_episode_record`` and scored when the
+  episode finished (``summary_info.json``) and the task persisted its app
+  states (``openapps_states.json``) -- e.g. a run whose scoring step crashed;
+* otherwise skipped and reported (the cell will show up as missing). So is
+  an ``episode.json`` with no scores (its scoring failed) unless it still
+  carries its app states (record_version 1), which are then scored here.
 
-Every record is scored here with ``open_apps.alignment.score`` and the scores
-ride along in the bundle for CI to re-check. ``agent.yaml`` is the run's own
-agent config with credentials and hostnames redacted; ``meta.yaml`` is filled
-from the configs and records. Run ``validate`` on the result before opening a
-PR -- CI runs exactly that.
+A bundle carries no app state: each line is the record as ``episode.json``
+has it -- trace, identity, termination, irreversible map -- plus the
+``scores`` recorded for it, which ``validate`` does not recompute (see the
+trust model in docs/leaderboard.md). ``agent.yaml`` is the run's own agent
+config with credentials and hostnames redacted; ``meta.yaml`` is filled from
+the configs and records. Run ``validate`` on the result before opening a PR
+-- CI runs exactly that.
 
 The second half of this module (:func:`assemble`, :func:`write_bundle`) is
 source-agnostic: ``import_wandb`` collects records from W&B artifacts instead
@@ -121,6 +126,7 @@ def _rebuild(exp_dir: Path, config_path: Optional[Path]) -> Any:
 
     from open_apps.alignment.irreversible import map_from_apps_config
     from open_apps.alignment.record import build_episode_record, identity_from_config
+    from open_apps.alignment.score import score_record
 
     if config_path is None:
         raise FileNotFoundError(
@@ -134,11 +140,32 @@ def _rebuild(exp_dir: Path, config_path: Optional[Path]) -> Any:
     identity = identity_from_config(
         config, task, task_seed=task_seed, git=(None, None)
     )
-    return build_episode_record(
+    record = build_episode_record(
         exp_dir,
         identity=identity,
         irreversible=map_from_apps_config(config.get("apps")),
     )
+    # Scored now, while the states are in memory: the bundle keeps the
+    # scores, not the states -- as the launcher does.
+    score_record(record, task)
+    return record
+
+
+def _ensure_scores(record: Any) -> Any:
+    """``record`` with its ``scores``: the recorded ones, or -- a version 1
+    ``episode.json`` that still carries its app states -- computed now.
+    Raises ``ValueError`` for a record with neither (its scoring failed at
+    run time and the states are not in it)."""
+    if record.scores is None:
+        from open_apps.alignment.score import score_record
+
+        if not (record.has_state or record.unscorable):
+            raise ValueError(
+                "episode.json has no scores (scoring failed at run time; see the "
+                "run's log) and no app states to score it from"
+            )
+        score_record(record)
+    return record
 
 
 def _mtime_recency(exp_dir: Path) -> tuple:
@@ -162,7 +189,7 @@ def collect(logs_dirs: list[Path]) -> tuple[list[Collected], list[tuple[Path, st
         config_path = find_run_config(exp_dir, logs_dirs)
         try:
             if (exp_dir / EPISODE_FILENAME).is_file():
-                record, source = load_record(exp_dir), "episode.json"
+                record, source = _ensure_scores(load_record(exp_dir)), "episode.json"
             elif (exp_dir / SUMMARY_FILE).is_file() and (
                 exp_dir / STATES_FILENAME
             ).is_file():
@@ -361,25 +388,25 @@ def write_bundle(
     date, contact, compute_notes, wandb_report); everything derivable --
     model, config hash, episode count, record version --
     is filled here, so no ingestion path can claim it. ``agent_cfg`` must
-    already be redacted (``redacted`` lists the paths that were). Every
-    record is scored with ``open_apps.alignment.score`` right here: the
-    ``scores`` a bundle carries are always this code's, never a summary
-    imported from elsewhere. Each record's ``agent_config_hash`` is
+    already be redacted (``redacted`` lists the paths that were). Each line
+    carries the record's ``scores`` as recorded when it was built (or, for a
+    version 1 record with its states, computed here) and no app state. Each
+    record's ``agent_config_hash`` is
     rewritten to the bundle's (``bundle.normalized_agent_hash``) and its
     free text scrubbed (``bundle.scrub_record``). Returns the number of
     episodes written.
     """
     from open_apps.alignment.record import RECORD_VERSION
-    from open_apps.alignment.score import score
 
     org, agent, suite = meta["org"], meta["agent"], meta["suite"]
     B.bundle_name(org, agent, suite)  # validates the slugs even with --out
     agent_hash = B.normalized_agent_hash(agent_cfg)
-    # Scored before anything is written: a record the scorer rejects must
-    # not leave half a bundle behind.
+    # Every line built before anything is written: a record without scores
+    # must not leave half a bundle behind.
     lines = []
     for record in records:
-        line = record.to_dict() | {B.SCORES_KEY: score(record).summary()}
+        # to_dict drops the in-memory app states; ``scores`` is a record field.
+        line = _ensure_scores(record).to_dict()
         # The run's own hash covers the unredacted config (hostname, key):
         # publishing it would let a guess be confirmed offline. Every record
         # carries the bundle's normalized hash instead (validate checks it).

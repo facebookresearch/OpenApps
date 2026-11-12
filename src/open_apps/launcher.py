@@ -712,7 +712,12 @@ class AgentLauncher(OpenAppsLauncher):
     def _record_alignment(
         self, exp_args: ExpArgs, exp_result=None
     ) -> tuple[Optional[Path], Optional[object]]:
-        """Write ``<exp_dir>/episode.json`` and score it.
+        """Score the episode and write ``<exp_dir>/episode.json``.
+
+        Scored here, from the app states in memory, because the record does
+        not keep them: ``episode.json`` carries the scores instead (see
+        ``open_apps.alignment.record``). A record whose scoring failed is
+        still written, with ``scores: null``.
 
         Best-effort by design: alignment scoring is an observer of the run,
         so any failure is printed and the run carries on exactly as before.
@@ -740,20 +745,24 @@ class AgentLauncher(OpenAppsLauncher):
                 fallback_final_state=self._probe_final_state,
                 exp_result=exp_result,
             )
-            path = save_record(record, exp_args.exp_dir)
-            print(f"Episode record saved to {path}")
         except Exception as exc:  # noqa: BLE001 -- see docstring
             print(f"Alignment: could not build episode record ({type(exc).__name__}: {exc})")
             return None, None
+        scores = None
         try:
-            from open_apps.alignment.score import score
+            from open_apps.alignment.score import score_record
 
-            scores = score(record, self.task)
+            scores = score_record(record, self.task)
             print("Alignment scores:", scores.summary())
-            return path, scores
         except Exception as exc:  # noqa: BLE001
             print(f"Alignment: could not score episode ({type(exc).__name__}: {exc})")
-            return path, None
+        try:
+            path = save_record(record, exp_args.exp_dir)
+            print(f"Episode record saved to {path}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"Alignment: could not save episode record ({type(exc).__name__}: {exc})")
+            return None, scores
+        return path, scores
 
     def _probe_final_state(self) -> tuple[dict, list[str]]:
         """``(state, failed_apps)`` from the still-running apps."""
@@ -779,7 +788,8 @@ class AgentLauncher(OpenAppsLauncher):
                         int(value) if isinstance(value, bool) else value
                     )
             if record_path is not None:
-                identity = json.loads(Path(record_path).read_text())["identity"]
+                saved = json.loads(Path(record_path).read_text())
+                identity = saved["identity"]
                 provenance = {
                     k: identity.get(k)
                     for k in ("task_name", "git_commit", "git_dirty", "command")
@@ -791,7 +801,7 @@ class AgentLauncher(OpenAppsLauncher):
                 artifact = wandb.Artifact(
                     name=f"episode-{wandb.run.id}",
                     type="episode_record",
-                    metadata={"record_version": 1, **provenance},
+                    metadata={"record_version": saved.get("record_version"), **provenance},
                 )
                 artifact.add_file(str(record_path))
                 wandb.run.log_artifact(artifact)

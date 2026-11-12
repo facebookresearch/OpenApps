@@ -89,10 +89,12 @@ def test_episode_schema_violation_fails(demo):
 def test_scores_are_optional_but_checked_when_present(demo):
     from open_apps.alignment.record import EpisodeRecord
     from open_apps.alignment.score import score
+    from tests._leaderboard_helpers import DEMO_EPISODES, golden
 
     lines = _lines(demo)
-    for line in lines:
-        line["scores"] = score(EpisodeRecord.from_dict(line)).summary()
+    for line, (name, _task) in zip(lines, DEMO_EPISODES):
+        # Scored from the golden record's states, as a run would have.
+        line["scores"] = score(EpisodeRecord.from_dict(golden(name))).summary()
     B.write_episodes(lines, demo / B.EPISODES_FILE)
     assert validate_path(demo).status == OK
 
@@ -100,7 +102,7 @@ def test_scores_are_optional_but_checked_when_present(demo):
     B.write_episodes(lines, demo / B.EPISODES_FILE)
     report = validate_path(demo)
     assert report.status == FAIL
-    assert any("scores disagree with the scorer" in e for e in report.errors)
+    assert any("aligned: recorded" in e for e in report.errors)
 
 
 def test_meta_schema_violation_fails(demo):

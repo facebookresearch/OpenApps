@@ -28,11 +28,19 @@ In order:
                 is its action count (indices ``0..n``, at most
                 ``max_steps``), ``max_steps`` termination only at the budget,
                 a claim or refusal only when the last action made one
-  5. re-score   ``open_apps.alignment.score`` on every record *under the
-                lock's config*, never the record's copies; any submitted
-                score that disagrees with the scorer fails the bundle, as
-                does one the suite requires (``bundle.required_scores``)
-                that is missing
+  5. scores     each record's ``scores``, as recorded by the submitter's
+                run (``bundle.scores_errors``): only keys the scorer
+                writes, each of its type; the suite's required keys
+                (``bundle.required_scores``) present; the trace-derived
+                ones (steps, wall time, tokens, termination) equal to the
+                trace; ``harm`` / ``aligned`` consistent with the other
+                metrics. They are *not* recomputed: a record carries no
+                app state (record_version 2), so nothing here can check
+                ``success`` or ``harm`` themselves -- the held-out
+                verification re-run does (see the trust model in
+                docs/leaderboard.md). The leaderboard's rows are these
+                recorded scores. Older records that still carry their
+                states are checked the same way; the states are ignored
   6. coverage   every (task, variation, seed) cell of the suite present
                 exactly once; missing cells => ``partial`` (listed, not
                 ranked); duplicates or cells outside the suite => fail.
@@ -46,9 +54,10 @@ In order:
 
 A demonstration (``leaderboard/demonstrations/<contributor>__<topic>``,
 ``kind: demonstration`` in its meta.yaml) gets steps 1, 2 and 5 only -- its
-own meta schema, the same episode schema, and a re-score of any ``scores`` it
-carries (they are optional there) under its *embedded* config: it has no
-suite cell to check that config against, which is why it is never ranked.
+own meta schema, the same episode schema, and the step-5 checks on any
+``scores`` it carries (they are optional there, and no key is required): it
+has no suite cell to check its config against, which is why it is never
+ranked.
 
     uv run -m open_apps.leaderboard.validate leaderboard/demonstrations/<contributor>__<topic>
 
@@ -113,7 +122,7 @@ class BundleReport:
     # Why a cell is missing when a record for it *was* submitted (unscorable,
     # or an expected event absent), keyed like ``missing``.
     missing_reasons: dict[tuple, str] = field(default_factory=dict)
-    # Aggregation rows built from the *re-scored* records (see
+    # Aggregation rows built from the records' recorded scores (see
     # ``alignment.aggregate.row_from_record``), keyed by bundle id; plus the
     # records themselves, for leaderboard columns the scorer does not emit.
     rows: list[dict] = field(default_factory=list)
@@ -402,43 +411,38 @@ def _key(record: Any) -> tuple[str, str, int]:
     return cell_key(ident.task_name, ident.variation, ident.seed)
 
 
-def _score_one(
+def _check_scores(
     record: Any,
     submitted: Optional[dict],
     report: BundleReport,
     keep: bool = True,
     block: Optional[str] = None,
 ) -> None:
-    """Score ``record`` as given, check the submitted scores, keep its row.
+    """Check ``record``'s recorded scores (``bundle.scores_errors``), keep
+    its row.
 
-    ``keep=False`` still scores and checks (a tampered score fails the bundle
-    whether or not the record covers its cell) but adds no row: the record's
-    cell counts as missing, so its numbers must not reach an aggregate.
+    No re-score: a record carries no app state (record_version 2), so the
+    row is built from the scores as recorded by the submitter's run. Records
+    that still carry states (version 1) are treated the same; the states are
+    ignored.
+
+    ``keep=False`` still checks (a malformed score fails the bundle whether
+    or not the record covers its cell) but adds no row: the record's cell
+    counts as missing, so its numbers must not reach an aggregate.
     """
     from open_apps.alignment.aggregate import row_from_record
-    from open_apps.alignment.score import score
+    from open_apps.alignment.score import trace_scores
 
     label = _label(record, report)
-    try:
-        scores = score(record)
-    except Exception as exc:  # noqa: BLE001 -- a record the scorer rejects fails the bundle
-        report.errors.append(
-            f"{label}: scorer failed ({type(exc).__name__}: {str(exc)[:200]!r})"
-        )
-        return
-    # Demonstrations may omit scores; scoring still has to succeed.
+    if submitted is None:
+        return  # a demonstration without scores: nothing to check or rank
+    # Demonstrations need no particular keys.
     required = B.required_scores(report.suite) if report.kind == SUBMISSION else ()
-    diffs = (
-        B.scores_diff(
-            submitted, scores.summary(), required, report.suite or "the suite"
-        )
-        if submitted is not None
-        else []
+    errors = B.scores_errors(
+        submitted, trace_scores(record), required, report.suite or "the suite"
     )
-    if diffs:
-        report.errors.append(
-            f"{label}: scores disagree with the scorer -- " + "; ".join(diffs[:4])
-        )
+    if errors:
+        report.errors.append(f"{label}: scores -- " + "; ".join(errors[:4]))
         return
     if record.unscorable:
         report.n_unscorable += 1
@@ -453,7 +457,7 @@ def _score_one(
         )
     if not keep:
         return
-    row = row_from_record(record, scores)
+    row = row_from_record(record, submitted)
     row["agent"] = report.bundle_id
     # The suite block the cell belongs to: build compares variation cells
     # within one block (the same tasks in each), never across task mixes.
@@ -462,18 +466,20 @@ def _score_one(
     report.records.append(record)
 
 
-def _rescore(parsed: list[tuple[Any, Optional[dict]]], report: BundleReport) -> None:
-    """Re-score under each record's *embedded* config (demonstrations)."""
+def _check_demo_scores(
+    parsed: list[tuple[Any, Optional[dict]]], report: BundleReport
+) -> None:
+    """Check the scores a demonstration carries (they are optional)."""
     for record, submitted in parsed:
-        _score_one(record, submitted, report)
+        _check_scores(record, submitted, report)
 
 
-def _rescore_against_suite(
+def _check_against_suite(
     parsed: list[tuple[Any, dict]], report: BundleReport, lock: Any, cells: dict
 ) -> None:
     """Check each record's embedded config against the suite's lock for its
-    cell, then re-score it under the lock's (``reference.rebased``)."""
-    from open_apps.leaderboard.reference import compare, locked_cell, rebased
+    cell, then its recorded scores."""
+    from open_apps.leaderboard.reference import compare, locked_cell
 
     for record, submitted in parsed:
         cell = cells.get(_key(record))
@@ -502,9 +508,7 @@ def _rescore_against_suite(
                 )
                 + f" ({record.n_steps}-step episode, not in the record); re-run this cell"
             )
-        _score_one(
-            rebased(record, ref), submitted, report, keep=not omitted, block=cell.block
-        )
+        _check_scores(record, submitted, report, keep=not omitted, block=cell.block)
 
 
 def _check_identity(parsed: list[tuple[Any, dict]], report: BundleReport) -> None:
@@ -710,7 +714,7 @@ def _validate_bundle(
     if lock is not None:
         _check_termination(parsed, report, lock)
         _check_env_args(parsed, report, lock)
-    _rescore_against_suite(parsed, report, lock, cells)
+    _check_against_suite(parsed, report, lock, cells)
     _check_coverage(parsed, report, cells)
 
 
@@ -736,7 +740,7 @@ def validate_demonstration(path: str | Path) -> BundleReport:
         report.warnings.append(
             f"records name agent(s) {sorted(agents)}, meta says {report.meta.get('agent')!r}"
         )
-    _rescore(parsed, report)
+    _check_demo_scores(parsed, report)
     return report
 
 
@@ -762,8 +766,8 @@ def validate_path(
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate OpenApps leaderboard bundles (schema, re-score, coverage) "
-            "and demonstrations (schema, re-score)."
+            "Validate OpenApps leaderboard bundles (schema, provenance, recorded "
+            "scores, coverage) and demonstrations (schema, recorded scores)."
         )
     )
     parser.add_argument(

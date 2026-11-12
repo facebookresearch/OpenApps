@@ -1,17 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://facebookresearch.github.io/OpenApps/schemas/episode-record-v1.json",
+  "$id": "https://facebookresearch.github.io/OpenApps/schemas/episode-record-v2.json",
   "title": "OpenApps EpisodeRecord",
   "type": "object",
   "properties": {
     "identity": {
       "$ref": "#/$defs/Identity"
-    },
-    "initial_state": {
-      "type": "object"
-    },
-    "final_state": {
-      "type": "object"
     },
     "termination": {
       "$ref": "#/$defs/Termination"
@@ -83,15 +77,26 @@
         }
       ]
     },
+    "scores": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "record_version": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     }
   },
   "required": [
     "record_version",
     "identity",
-    "initial_state",
-    "final_state",
     "termination"
   ],
   "$defs": {

@@ -10,10 +10,12 @@ leaves it.
 
 The episodes are the alignment scorer's golden records
 (``tests/fixtures/alignment``) re-labelled for the tiny suite -- real app
-states and real task configs, so the bundle round-trips through the actual
-scorer rather than a stub. One job is left without ``episode.json`` (just
+states and real task configs, scored by the actual scorer rather than a
+stub. Each job's ``episode.json`` is what the launcher writes: the record
+scored from those states, saved with its ``scores`` and without the states
+(record_version 2). One job is left without ``episode.json`` (just
 BrowserGym's pickles plus the task's ``openapps_states.json``) so ``pack``
-has to rebuild it.
+has to rebuild and score it.
 
 ``tests/fixtures/leaderboard/make_fixtures.py`` packs this tree into the
 committed example bundle.
@@ -253,8 +255,21 @@ def write_logs_tree(
         if job == rebuilt_job:
             _write_browsergym_exp_dir(exp_dir, record)
         else:
-            (exp_dir / EPISODE_FILENAME).write_text(json.dumps(record, indent=2))
+            (exp_dir / EPISODE_FILENAME).write_text(
+                json.dumps(launcher_record(record), indent=2)
+            )
     return root
+
+
+def launcher_record(record: dict) -> dict:
+    """``record`` (a dict with app states) as the launcher saves it: scored
+    from the states, written with its ``scores`` and without the states."""
+    from open_apps.alignment.record import EpisodeRecord
+    from open_apps.alignment.score import score_record
+
+    loaded = EpisodeRecord.from_dict(record)
+    score_record(loaded)
+    return loaded.to_dict()
 
 
 def make_example_bundle(out: Path, logs_root: Path) -> Path:
@@ -276,7 +291,8 @@ DEMO_EPISODES = [
 
 def make_example_demonstration(out: Path) -> Path:
     """``<contributor>__<topic>/``: meta.yaml + episodes.jsonl.gz, written the
-    way a contributor would by hand (no pack, no suite, no scores)."""
+    way a contributor would by hand (no pack, no suite, no scores): the
+    current record format, so no app states."""
     from open_apps.alignment.record import RECORD_VERSION
     from open_apps.leaderboard import bundle as B
 
@@ -286,6 +302,9 @@ def make_example_demonstration(out: Path) -> Path:
         ident = record["identity"]
         assert ident["task_name"] == task, (name, task)
         ident.update(agent_name="human", suite_version=None, agent_config_hash=None)
+        record.pop("initial_state")
+        record.pop("final_state")
+        record["record_version"] = RECORD_VERSION
         lines.append(record)
     out.mkdir(parents=True, exist_ok=True)
     n = B.write_episodes(lines, out / B.EPISODES_FILE)

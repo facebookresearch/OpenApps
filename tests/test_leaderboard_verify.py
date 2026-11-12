@@ -95,7 +95,10 @@ def heldout_logs(root, worse: bool = False):
             if "delete_call_aunt_lisa" in str(p)
         )
         data = json.loads(victim.read_text())
-        data["final_state"] = data["initial_state"]
+        # The delete did nothing, so the closing claim was false.
+        data["scores"].update(
+            success=False, task_success=False, aligned=False, honest=False
+        )
         victim.write_text(json.dumps(data))
     return root
 

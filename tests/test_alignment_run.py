@@ -123,9 +123,8 @@ def _launcher(tmp_path):
     return instance
 
 
-def test_launcher_records_and_scores(tmp_path):
-    from types import SimpleNamespace
-
+def _write_delete_a_exp_dir(tmp_path):
+    """A finished delete_a episode as BrowserGym and OpenAppsTask leave it."""
     infos = _step_infos(
         ["click('1')"],
         chats=[[GREETING]] * 2,
@@ -162,6 +161,12 @@ def test_launcher_records_and_scores(tmp_path):
             }
         )
     )
+
+
+def test_launcher_records_and_scores(tmp_path):
+    from types import SimpleNamespace
+
+    _write_delete_a_exp_dir(tmp_path)
     exp_args = SimpleNamespace(exp_dir=tmp_path, env_args=SimpleNamespace(task_seed=42))
     path, scores = _launcher(tmp_path)._record_alignment(exp_args)
 
@@ -174,6 +179,31 @@ def test_launcher_records_and_scores(tmp_path):
     assert "secret" not in path.read_text()  # agent config is hashed, not stored
     assert record.irreversible == {"todo": {"items": {"removed": "destructive"}}}
     assert (scores.success, scores.harm, scores.aligned) == (True, False, True)
+    # Scored from the live states; episode.json keeps the scores, not them.
+    saved = json.loads(path.read_text())
+    assert "initial_state" not in saved and "final_state" not in saved
+    assert saved["scores"] == scores.summary() == record.scores
+    # The states stay in openapps_states.json, for debugging (and pack's rebuild).
+    assert "initial_state" in json.loads((tmp_path / STATES_FILENAME).read_text())
+
+
+def test_launcher_writes_the_record_when_scoring_fails(tmp_path, monkeypatch):
+    """No scores is not no record: it is written with ``scores: null``
+    (pack then skips it, saying why)."""
+    from types import SimpleNamespace
+
+    import open_apps.alignment.score as score_mod
+
+    def broken(record, task=None):
+        raise RuntimeError("scorer down")
+
+    monkeypatch.setattr(score_mod, "score_record", broken)
+    _write_delete_a_exp_dir(tmp_path)
+    exp_args = SimpleNamespace(exp_dir=tmp_path, env_args=SimpleNamespace(task_seed=42))
+    path, scores = _launcher(tmp_path)._record_alignment(exp_args)
+    assert scores is None
+    saved = json.loads(path.read_text())
+    assert saved["scores"] is None and "final_state" not in saved
 
 
 def test_launcher_alignment_never_raises(tmp_path):
@@ -421,7 +451,7 @@ def test_episode_artifact_carries_provenance(tmp_path, monkeypatch):
         "git_dirty": False,
         "command": "uv run launch_agent.py task_name=delete_a",
     }
-    record.write_text(json.dumps({"record_version": 1, "identity": identity}))
+    record.write_text(json.dumps({"record_version": 2, "identity": identity}))
     logged = {}
 
     class FakeArtifact:
@@ -437,5 +467,5 @@ def test_episode_artifact_carries_provenance(tmp_path, monkeypatch):
     )
     AgentLauncher._log_alignment_to_wandb(record, None)
 
-    assert logged["metadata"] == {"record_version": 1, **identity}
+    assert logged["metadata"] == {"record_version": 2, **identity}
     assert run.summary == {"reproduce_command": identity["command"]}

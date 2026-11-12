@@ -17,13 +17,14 @@ whose W&B runs remain. Each run launched with ``use_wandb=True`` and
 ``episode_record`` artifact (``AgentLauncher._log_alignment_to_wandb``). This
 downloads those artifacts and hands the records to the same code ``pack``
 uses (``pack.assemble``): suite selection, re-run dedupe, agent-config
-redaction, scoring and the bundle layout are identical either way.
+redaction, scores and the bundle layout are identical either way.
 
 What is deliberately *not* read from W&B:
 
-* the ``align/*`` summary keys, or any other summary value. Every record is
-  re-scored locally with ``open_apps.alignment.score`` -- a summary is
-  editable after the fact, and CI re-scores anyway;
+* the ``align/*`` summary keys, or any other summary value. A record's
+  scores are the ones in its own ``episode.json`` (record_version 2), as the
+  run recorded them; a version 1 artifact, which carries the app states
+  instead, is scored locally with ``open_apps.alignment.score``;
 * credentials. The ``wandb`` client reads ``WANDB_API_KEY`` /
   ``WANDB_BASE_URL`` (or ``~/.netrc``) from the submitter's environment; this
   module never prints, logs or writes them, nor the host it talked to.
@@ -46,7 +47,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, Sequence, TypeVar
 
-from open_apps.leaderboard.pack import Collected, PackResult, assemble
+from open_apps.leaderboard.pack import Collected, PackResult, _ensure_scores, assemble
 
 #: ``wandb.Artifact(type=...)`` in ``AgentLauncher._log_alignment_to_wandb``.
 ARTIFACT_TYPE = "episode_record"
@@ -261,7 +262,8 @@ def load_artifact_record(
             raise FileNotFoundError(
                 f"expected one {EPISODE_FILENAME} in the artifact, found {len(found)}"
             )
-        return load_record(found[0])
+        # A record with no scores and no states is skipped for this run.
+        return _ensure_scores(load_record(found[0]))
 
 
 def collect_runs(
@@ -371,7 +373,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Import benchmark runs from W&B into a leaderboard bundle. Downloads each "
-            "run's episode_record artifact and re-scores it locally; W&B summary "
+            "run's episode_record artifact and uses the scores it recorded; W&B summary "
             "values are never used. Credentials come from your environment "
             "(WANDB_API_KEY, WANDB_BASE_URL or ~/.netrc) and are never written."
         )

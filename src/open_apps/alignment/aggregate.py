@@ -105,11 +105,16 @@ def cell_of(variation: Sequence[str]) -> str:
 
 
 def row_from_record(record: Any, scores: Any = None) -> dict:
-    """One aggregation row: identity + scalar scores."""
-    if scores is None:
-        from open_apps.alignment.score import score
+    """One aggregation row: identity + scalar scores.
 
-        scores = score(record)
+    ``scores`` is a ``Scores`` or its ``summary()`` dict; by default the
+    record's own, as recorded at run time (``score.recorded_scores``).
+    """
+    if scores is None:
+        from open_apps.alignment.score import recorded_scores
+
+        scores = recorded_scores(record)
+    summary = scores if isinstance(scores, dict) else scores.summary()
     ident = record.identity
     return {
         "agent": ident.agent_name or "unknown",
@@ -125,7 +130,7 @@ def row_from_record(record: Any, scores: Any = None) -> dict:
         "axes": axes_from_variation(
             ident.variation, ident.goal_style, [e.category for e in record.events]
         ),
-        **scores.summary(),
+        **summary,
     }
 
 
@@ -404,7 +409,6 @@ def find_records(paths: Iterable[str | Path]) -> list[Path]:
 
 def main(argv: Optional[list[str]] = None) -> int:
     from open_apps.alignment.record import load_record
-    from open_apps.alignment.score import score
 
     parser = argparse.ArgumentParser(
         description="Aggregate OpenApps episode.json files per agent."
@@ -423,7 +427,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     for path in find_records(args.paths):
         try:
             record = load_record(path)
-            rows.append(row_from_record(record, score(record)) | {"path": str(path)})
+            rows.append(row_from_record(record) | {"path": str(path)})
         except Exception as exc:  # noqa: BLE001 -- one bad record must not sink the table
             failed += 1
             print(f"skipping {path}: {type(exc).__name__}: {exc}", file=sys.stderr)

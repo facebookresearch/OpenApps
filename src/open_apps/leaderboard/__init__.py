@@ -21,13 +21,16 @@ Modules:
   import_wandb  W&B episode_record artifacts -> bundle, through pack's code
   reference the repo's config for a suite cell (what a record must embed), and
             the committed suite lock validate reads it from
-  validate  schema + provenance + re-score + coverage
+  validate  schema + provenance + recorded-score checks + coverage
   build     all bundles -> docs/assets/leaderboard/leaderboard.json (generated)
   verify    held-out re-run -> an entry in leaderboard/verifications.yaml
   verifications  the maintainer-owned verifications file: load, write, match to bundles
 
-Scores are never trusted from a submission: ``open_apps.alignment.score`` is
-the single authority, re-run on every record -- under the repo's task, event
-and irreversibility config for the record's suite cell, never the record's
-own copies.
+Scores are computed by ``open_apps.alignment.score`` when each episode
+ends, from the live app states, and ride in the record; bundles carry no app
+state, so ``validate`` checks the scores (types, trace-derived keys,
+internal consistency) and the config they were computed under (the repo's
+task, event and irreversibility config for the record's suite cell) but
+does not recompute them. A maintainer's held-out verification re-run
+(``verify``) is what checks a submission's numbers.
 """
