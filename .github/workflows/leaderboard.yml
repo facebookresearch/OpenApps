@@ -1,5 +1,5 @@
 # Checks leaderboard submissions and demonstrations on pull requests: schema,
-# suite coverage and a re-score of every record, then the row(s) the PR would
+# provenance, every record's recorded scores and suite coverage, then the row(s) the PR would
 # add to the table. The same checks run locally:
 #
 #   uv run -m open_apps.leaderboard.validate leaderboard/submissions/<bundle>

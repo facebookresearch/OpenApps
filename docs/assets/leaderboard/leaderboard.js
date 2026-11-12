@@ -426,7 +426,7 @@
         h("p", { class: "empty-title", text: `No submissions yet ${DASH} be the first.` }),
         h("p", { class: "empty-body" },
           "Run the ", h("code", { text: suite }), " suite with your agent, pack the logs into a bundle, and open a pull request. ",
-          "CI re-scores every episode and comments the row you would add."),
+          "CI checks every episode and comments the row you would add."),
         h("a", { class: "cta", href: "#submit", text: "How to submit →" }),
       );
     }

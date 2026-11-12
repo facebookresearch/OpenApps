@@ -35,7 +35,7 @@ them as an ad-hoc sweep ([Benchmarking](benchmarking.md#beyond-the-suite)).
 The scorer (`src/open_apps/alignment/score.py`) still computes its alignment metrics on
 every episode (`aligned`, `harm`, `honest`, `complied`, `premature_stop`, `reported`,
 `asked`), and `validate`
-still compares any of them a bundle carries, but the table neither ranks on nor shows them.
+still checks any of them a bundle carries, but the table neither ranks on nor shows them.
 It shows:
 
 - **Success**: the task's own reward check (`task_success`), the ranked column.
@@ -52,9 +52,11 @@ tab.
 
 There are two trust tiers:
 
-- **Self-reported** (every row): CI re-scores every submitted episode with the repository's
-  scorer and fails the submission on any disagreement. The numbers in the table are always the
-  scorer's, never the submitter's.
+- **Self-reported** (every row): the numbers are the scores the submitter's own run recorded.
+  The repository's scorer computes them when each episode ends, from the live app state, and
+  the episode record keeps the scores, not the state. CI therefore cannot re-score a
+  submission: it checks the scores' shape and consistency and the config they were computed
+  under (below), and otherwise takes them as recorded.
 - **Verified** (the ✓ badge): a maintainer re-ran the submitted `agent.yaml` on held-out seeds
   that are not public, and recorded the result in `leaderboard/verifications.yaml`, a
   maintainer-owned file. The badge's held-out figures are that re-run's, never the
@@ -74,10 +76,18 @@ those copies is trusted. `validate` reads the record's suite cell (task, variati
 from the suite's committed lock (`config/benchmark/<suite>.lock.json`, the cell's config as the
 sweep composes it), and fails the bundle with the exact path of any difference: an edited goal
 or `expected`, a dropped predicate, a shrunken map, or a fired event the cell does not
-configure (or whose id, category or text was changed). The re-score then runs under the
-lock's task, events and map, never the record's. The lock is what makes "frozen" true: a
+configure (or whose id, category or text was changed). A record that passes was therefore
+scored under the lock's task, events and map, if its scores are honest. The lock is what
+makes "frozen" true: a
 later change to a task, a content pack or an event fails the repository's tests until it is
 made a deliberate suite-version decision, so it cannot quietly move a published table.
+
+The recorded scores are checked as far as the record allows, which excludes the app state:
+every key must be one the scorer writes, with its type; the suite's required keys must be
+present; the ones the trace determines (`steps`, `wall_s`, `tokens_in`, `tokens_out`,
+`termination`) must equal the trace; and `harm` and `aligned` must agree with the other
+recorded metrics. `success`, `harm_count` and the other state-derived metrics cannot be
+checked offline.
 
 The trace is held to itself and to the suite's step budget: every episode must carry the
 suite's pinned `max_steps` and `task_seed`; `n_steps` must be the trace's action count (steps
@@ -93,22 +103,24 @@ the cell counts as missing and the bundle is `partial`, with the reason listed
 (`event '<id>' should have fired at step N ...; re-run this cell`). Re-run the cell and
 re-pack.
 
-What re-scoring cannot catch: a fabricated trajectory. The initial and final app states,
-steps, messages and timings are evidence the scorer reads, not something it can recompute
-without re-running the agent, so a submitter who writes a consistent but fake trace would
-pass. That is what the verified tier is for: it re-runs `agent.yaml` on held-out seeds that
-were never public, and its badge shows how far the held-out numbers are from the
-self-reported ones.
+What CI cannot catch: a consistent edit of the state-derived scores (say `success` flipped
+along with `aligned`), or a fabricated trajectory. Neither is something it can recompute
+without re-running the agent, so a self-reported row is exactly that. (Records used to carry
+the initial and final app state so CI could re-score them, but the state dominated a bundle's
+size, and a re-score only proved the scores matched the state the submitter supplied.) That
+is what the verified tier is for: it re-runs `agent.yaml` on held-out seeds that were never
+public, scoring those episodes on the maintainer's machine, and its badge shows how far the
+held-out numbers are from the self-reported ones.
 
 Demonstrations (below) have no suite cell to compare against, so they are checked more
-leniently: schema, plus a re-score under the config they embed. That is why they are never
+leniently: schema, plus the same checks on any scores they carry. That is why they are never
 ranked.
 
 Two more rules from the alignment protocol. Every episode must run with
 `task_termination=on_agent_stop` (the suite sets it; under `on_success` honesty and premature
 stop cannot be measured, so a mixed bundle fails). An *unscorable* episode, one whose final
-app state could not be read, is reported as a warning and counted, but it is never scored
-and covers no cell: re-run it, or the bundle is partial.
+app state could not be read, is reported as a warning and counted, but its state-derived
+scores are empty and it covers no cell: re-run it, or the bundle is partial.
 
 ## Your own runs, locally
 
@@ -171,13 +183,20 @@ This writes `leaderboard/submissions/<org>__<agent>__align_v1/`:
 | --- | --- |
 | `meta.yaml` | who, what, when: model (the agent config's `model_name` or `model_pretty_name`), org, contact, date, agent config hash |
 | `agent.yaml` | the agent config the runs used, with keys, tokens, hosts, URLs, headers and anything secret-looking redacted (every value under such a key, list items included) |
-| `episodes.jsonl.gz` | one episode record per suite cell, with the scores `pack` computed; error messages and chat scrubbed of hosts, URLs and secrets, and each record's `agent_config_hash` set to the bundle's |
+| `episodes.jsonl.gz` | one episode record per suite cell, with the scores its run recorded and no app state; error messages and chat scrubbed of hosts, URLs and secrets, and each record's `agent_config_hash` set to the bundle's |
 
 `--wandb-report <https URL>` adds an optional public W&B report link, and `--compute-notes`
 a free-text note. Videos are linked, not committed: add `https://` links to `videos:` in
 `meta.yaml`. Packing several logs dirs (e.g. a re-run of crashed jobs) is fine; for a cell that
 ran twice, an infrastructure-error episode is replaced by its re-run, otherwise the later run
 is kept. It is never the better of the two.
+
+The launcher scores each episode as it ends and writes the scores into its `episode.json`;
+the app states stay in `openapps_states.json` next to it, for debugging, and are not packed.
+`pack` scores a run itself only when it has to: a finished run without `episode.json` (it
+rebuilds the record from `openapps_states.json`), or an `episode.json` from before records
+dropped their states. An `episode.json` with no scores (its scoring failed; the run's log
+says why) is skipped, and its cell shows up as missing.
 
 #### From W&B
 
@@ -196,8 +215,9 @@ Every run (`record_alignment` on, the default) uploads its episode record as an
 about them is printed or written), takes the agent config from the run config, and writes
 the bundle through the same code as `pack`: same redaction, same re-run rule, same layout.
 
-- The `align/*` summary values in W&B are **never used**. Every record is re-scored
-  locally, as CI will do anyway.
+- The `align/*` summary values in W&B are **never used**. Each record's scores are the ones
+  in its own `episode.json`, as the run recorded them (an older artifact that carries the app
+  states instead is scored locally).
 - Runs without the artifact (recorded before `record_alignment` existed, or with
   `record_alignment=false`) are skipped and counted, with the reason. Their cells show up as
   missing in `validate`.
@@ -219,7 +239,7 @@ uv run -m open_apps.leaderboard.build \
 
 `validate` runs exactly what CI runs: layout, both JSON Schemas (`leaderboard/schema/`), the
 termination rule, a check of every episode's embedded config against the repository's for
-its cell, a re-score of every episode under the repository's config, and coverage of every
+its cell, checks of every episode's recorded scores (no re-score), and coverage of every
 suite cell (see [Trust model](#trust-model)). On `align_v1` it takes under a minute, most of
 it composing the suite's variation cells. It prints one of:
 
@@ -305,8 +325,8 @@ until the bundle is re-verified. Once merged, the table shows the ✓ badge and 
 ## Demonstrations
 
 Episodes contributed as training and analysis data, by a person or any agent, are welcome
-too. They are validated with the same episode schema and re-scored under the config they
-embed (there is no suite cell to check it against), and never ranked.
+too. They are validated with the same episode schema, plus the score checks on any `scores`
+they carry (there is no suite cell to check their config against), and never ranked.
 
 ```text
 leaderboard/demonstrations/<contributor>__<topic>/

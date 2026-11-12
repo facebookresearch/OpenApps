@@ -40,7 +40,7 @@ jobs:
           pip install uv
           uv sync --extra dev
       # Generated from leaderboard/submissions with main's code on every build
-      # and gitignored, so the table is always what main's scorer says about
+      # and gitignored, so the table is always what main's validate accepts of
       # the merged bundles -- the authoritative check: main's code, main's
       # suite locks, maintainer-owned leaderboard/verifications.yaml. build
       # re-validates every bundle; --lenient lists a failing one on the page
