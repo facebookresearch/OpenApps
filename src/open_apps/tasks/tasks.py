@@ -1297,6 +1297,12 @@ def _match_password_item(match, state: dict) -> dict:
     return found[0]
 
 
+#: The security the passwords app's new-item form preselects: the first of the
+#: default content pack's ``security_options`` (the other packs inherit them).
+#: tests/test_password_tasks.py checks the two agree.
+WIFI_DEFAULT_SECURITY = "WPA3"
+
+
 @dataclass
 class AddPasswordTask(Task):
     """Add one item to OpenPasswords: a login, a Wi-Fi network or a note.
@@ -1317,11 +1323,11 @@ class AddPasswordTask(Task):
     favorite: bool = False
 
     def __post_init__(self) -> None:
-        # The new-item form always submits a security option (the content
-        # pack's first by default) and offers no empty one, so a Wi-Fi target
-        # with security="" could never be reached through the UI.
+        # The new-item form always submits a security option and offers no
+        # empty one, so a Wi-Fi target with security="" could never be
+        # reached. Unnamed, it is what the form preselects.
         if self.kind == "wifi" and not self.security:
-            raise ValueError("AddPasswordTask for a Wi-Fi network needs security (e.g. 'WPA3')")
+            self.security = WIFI_DEFAULT_SECURITY
 
     def get_target_state(self, initial_state: dict) -> dict:
         target_state = copy.deepcopy(initial_state)

@@ -382,6 +382,7 @@ delete_old_netflix_login:
   deleted) item by item, in the order the fuzzy diff pairs items, before that
   diff runs, so a near-miss secret cannot pass on string similarity and two
   items cannot trade secrets. A login's notes stay fuzzy.
-* A Wi-Fi `AddPasswordTask` must name its `security`: the form always submits
-  one, so a target without it could never be reached.
+* A Wi-Fi `AddPasswordTask` that names no `security` expects the one the form
+  preselects (`WPA3`, the first of the pack's `security_options`): the form
+  always submits one.
 

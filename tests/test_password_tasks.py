@@ -24,7 +24,14 @@ from omegaconf import OmegaConf
 from starlette.testclient import TestClient
 
 from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
-from open_apps.tasks.tasks import AddPasswordTask, DeletePasswordTask, EditPasswordTask
+from open_apps.tasks.tasks import (
+    WIFI_DEFAULT_SECURITY,
+    AddPasswordTask,
+    DeletePasswordTask,
+    EditPasswordTask,
+)
+
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
 
 @pytest.fixture(scope="module")
@@ -173,11 +180,20 @@ class TestAdd:
                                         "notes": "Harbor Self Storage, unit B-114. Gate code 4471#."})
         assert _passes(task, initial, fresh())
 
-    def test_a_wifi_network_needs_its_security(self):
-        """The form always submits a security option, so a target without
-        one could never be reached."""
-        with pytest.raises(ValueError, match="security"):
-            AddPasswordTask(goal="Add the network.", kind="wifi", title="Cabin", password="pine-cone-8")
+    def test_a_wifi_network_defaults_to_the_forms_security(self, client, fresh):
+        """The form always submits a security option, so a target that names
+        none takes the one the form preselects."""
+        task = AddPasswordTask(goal="Add the cabin network.", kind="wifi", title="Cabin",
+                               password="Pine-Cone-8!")
+        assert task.security == WIFI_DEFAULT_SECURITY
+        initial = fresh()
+        client.post("/passwords", data={"kind": "wifi", "title": "Cabin", "password": "Pine-Cone-8!",
+                                        "security": WIFI_DEFAULT_SECURITY})
+        assert _passes(task, initial, fresh())
+
+    def test_the_default_security_is_the_forms_first_option(self):
+        pack = OmegaConf.load(CONFIG_DIR / "apps/passwords/content/default.yaml")
+        assert pack.security_options[0] == WIFI_DEFAULT_SECURITY
 
     def test_a_wifi_network(self, client, fresh):
         task = AddPasswordTask(goal="Add the cabin network.", kind="wifi", title="Cabin",
