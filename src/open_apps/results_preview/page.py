@@ -26,6 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional, Sequence
 
+from open_apps.results_preview import reproduce
 from open_apps.results_preview.halftone import tile_png
 from open_apps.results_preview.runs import ModelRow, Results, Tally
 
@@ -33,6 +34,7 @@ DEFAULT_PORT = 8765
 TITLE = "OpenApps results · local preview"
 _SHOW_SOURCES = 8
 _SHOW_ERRORS = 12
+_SHOW_COMMANDS = 8
 
 
 def _e(value: object) -> str:
@@ -98,7 +100,101 @@ def plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
 
-def _drilldown(row: ModelRow) -> str:
+def _grid(n_tasks: int, n_variations: int) -> str:
+    return f"{plural(n_tasks, 'task')} × {plural(n_variations, 'variation')}"
+
+
+def _reproduce(row: ModelRow, rid: str) -> str:
+    """The Reproduce section: launcher commands that re-run the row's runs,
+    each with a Copy button (hidden when printed)."""
+    rep = reproduce.commands(row.runs)
+    notes = []
+    if rep.n_configs > 1:
+        why = f" (they differ in {', '.join(rep.differs_in)})" if rep.differs_in else ""
+        notes.append(f"These runs came from {rep.n_configs} configurations{_e(why)}: "
+                     "one command each.")  # fmt: skip
+    if len(rep.commands) > rep.n_configs:
+        notes.append(
+            "They do not form one tasks × variations grid, so the tasks that ran "
+            "the same variations share a command."
+        )
+    guessed = sorted({c.agent for c in rep.commands if c.agent_guessed and c.agent})
+    if guessed:
+        notes.append(
+            "The runs' configs do not record the agent config; "
+            + ", ".join(f"<code>{_e(g)}</code>" for g in guessed)
+            + " is the one in <code>config/agent/</code> with this model's name."
+        )
+    if any(c.agent_unknown for c in rep.commands):
+        notes.append(
+            "The runs' configs do not record the agent config: replace "
+            f"<code>{_e(reproduce.UNKNOWN_AGENT)}</code> with its name."
+        )
+    if any("agent.hostname=" in c.text for c in rep.commands):
+        notes.append(
+            "<code>agent.hostname</code> is the model server the runs used; "
+            "point it at yours."
+        )
+    if rep.cluster == "slurm":
+        notes.append(
+            "They ran on SLURM: add <code>mode=slurm_cluster</code>, a "
+            "<code>logs_dir</code> and your <code>slurm_sweep_launcher</code> "
+            "settings to launch there."
+        )
+    blocks = []
+    for i, command in enumerate(rep.commands[:_SHOW_COMMANDS]):
+        label = (
+            f"{plural(command.n_runs, 'run')}: "
+            f"{_grid(len(command.tasks), len(command.variations))}"
+        )
+        if rep.n_configs > 1:
+            label = f"Configuration {command.config + 1} · {label}"
+        cid = f"{rid}-cmd{i}"
+        blocks.append(
+            f'<p class="cmd-label">{_e(label)}</p>' if len(rep.commands) > 1 else ""
+        )
+        blocks.append(
+            f'<div class="cmd"><pre class="code"><code id="{cid}">{_e(command.text)}'
+            f'</code></pre><button type="button" class="copy" data-copy="{cid}" '
+            f'aria-label="Copy the command">Copy</button></div>'
+        )
+    more = len(rep.commands) - _SHOW_COMMANDS
+    if more > 0:
+        blocks.append(f'<p class="note">… and {more} more</p>')
+    return (
+        '<section class="reproduce"><h3>Reproduce</h3>'
+        + "".join(f'<p class="note">{n}</p>' for n in notes)
+        + "".join(blocks)
+        + "</section>"
+    )
+
+
+def _value(text: str) -> str:
+    if text.startswith("varies: "):
+        return f'<span class="varies">{_e(text)}</span>'
+    return _e(text)
+
+
+def _configuration(row: ModelRow) -> str:
+    """The Configuration section: how the row's runs were set up, read from
+    their config.yaml; a value that differs across runs reads ``varies``."""
+    sections = reproduce.configuration(row.runs)
+    if not sections:
+        body = '<p class="none">Not recorded in the runs&#x27; config.yaml.</p>'
+    else:
+        body = '<dl class="config">' + "".join(
+            f"<dt>{_e(title)}</dt><dd>"
+            + '<span class="sep"> · </span>'.join(
+                f'<span class="kv"><span class="k">{_e(label)}</span> {_value(value)}</span>'
+                for label, value in items
+            )
+            + "</dd>"
+            for title, items in sections
+        ) + "</dl>"
+    return f'<section class="configuration"><h3>Configuration</h3>{body}</section>'
+
+
+def _drilldown(row: ModelRow, rid: str = "m") -> str:
     facts = [
         f"{plural(row.episodes, 'episode')} of {plural(row.tasks, 'task')}",
         plural(len(row.by_variation), "variation"),
@@ -114,6 +210,8 @@ def _drilldown(row: ModelRow) -> str:
         + _breakdown("By variation", row.by_variation)
         + "</div>"
     )
+    parts.append(_reproduce(row, rid))
+    parts.append(_configuration(row))
     if row.errors:
         items = "".join(
             f"<li><b>{_e(task)}</b> {_e(msg) or 'error'}<br><code>{_e(where)}</code></li>"
@@ -147,7 +245,7 @@ def _table(results: Results) -> str:
             f'<td class="num{" warn" if row.errored else ""}">{row.errored}</td>'
             f'<td class="num">{_steps(row.mean_steps)}</td>'
             "</tr>"
-            f'<tr class="detail" id="{rid}" hidden><td colspan="7">{_drilldown(row)}</td></tr>'
+            f'<tr class="detail" id="{rid}" hidden><td colspan="7">{_drilldown(row, rid)}</td></tr>'
             "</tbody>"
         )
     return (
@@ -168,6 +266,7 @@ _CSS = """
   --muted: #666b73; --line: rgba(22,24,27,.14); --line-strong: rgba(22,24,27,.32);
   --track: rgba(22,24,27,.08); --fill: #3b4048; --whisker: #16181b; --warn: #9a4a12;
   --hover: rgba(22,24,27,.035); --detail: rgba(244,245,246,.92);
+  --code: rgba(22,24,27,.045); --button: #ffffff;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -177,6 +276,7 @@ _CSS = """
     --muted: #979da6; --line: rgba(236,238,241,.12); --line-strong: rgba(236,238,241,.3);
     --track: rgba(236,238,241,.1); --fill: #aeb4bd; --whisker: #eceef1; --warn: #e3a36f;
     --hover: rgba(236,238,241,.04); --detail: rgba(26,28,31,.94);
+    --code: rgba(236,238,241,.055); --button: #23252a;
   }
 }
 html { min-height: 100%; background: var(--paper) var(--tile) repeat; image-rendering: pixelated; }
@@ -236,10 +336,34 @@ section + section, .split + section { margin-top: 1rem; }
 .split > section { margin-top: 0; min-width: 0; }
 ul.errors, ul.sources { margin: 0; padding-left: 1.1rem; color: var(--ink-2); }
 ul.errors li { margin-bottom: .35rem; }
+.note { margin: 0 0 .45rem; color: var(--ink-2); max-width: 90ch; }
+.cmd-label { margin: .6rem 0 .25rem; font-size: 12.5px; color: var(--muted); }
+.cmd { position: relative; max-width: 900px; }
+pre.code {
+  margin: 0; padding: .6rem 4.6rem .6rem .8rem; max-height: 16rem; overflow: auto;
+  background: var(--code); border: 1px solid var(--line); border-radius: 6px;
+}
+pre.code code { white-space: pre; overflow-wrap: normal; color: var(--ink); }
+.copy {
+  position: absolute; top: .4rem; right: .4rem; padding: .15rem .6rem; cursor: pointer;
+  font: 600 12px/1.5 var(--sans); color: var(--ink-2); background: var(--button);
+  border: 1px solid var(--line-strong); border-radius: 5px;
+}
+.copy:hover, .copy:focus-visible { color: var(--ink); border-color: var(--ink-2); }
+.copy.done { color: var(--ink); }
+dl.config { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: .35rem 1rem; margin: 0; max-width: 900px; }
+dl.config dt { font-weight: 600; color: var(--ink-2); }
+dl.config dd { margin: 0; color: var(--ink); }
+.kv { white-space: nowrap; } .kv .k { color: var(--muted); }
+.sep { color: var(--line-strong); }
+.varies { color: var(--warn); white-space: normal; }
 .empty { padding: 2rem; color: var(--muted); }
 footer { margin-top: 1.25rem; color: var(--muted); font-size: 12.5px; max-width: 80ch; }
 footer p { margin: .3rem 0; }
-@media print { .save { display: none; } .sheet { backdrop-filter: none; } }
+@media print {
+  .save, .copy { display: none; } .sheet { backdrop-filter: none; }
+  pre.code { max-height: none; padding-right: .8rem; }
+}
 """
 
 _JS = """
@@ -248,6 +372,33 @@ for (const button of document.querySelectorAll(".toggle")) {
     const open = button.getAttribute("aria-expanded") !== "true";
     button.setAttribute("aria-expanded", String(open));
     document.getElementById(button.getAttribute("aria-controls")).hidden = !open;
+  });
+}
+// Copy a command. The clipboard API needs a secure context (https, or
+// localhost); elsewhere -- a saved file, a forwarded host -- select the text
+// and fall back to the legacy copy command, leaving it selected if that fails.
+for (const button of document.querySelectorAll(".copy")) {
+  button.addEventListener("click", async () => {
+    const code = document.getElementById(button.dataset.copy);
+    let copied = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try { await navigator.clipboard.writeText(code.textContent); copied = true; } catch (e) {}
+    }
+    if (!copied) {
+      const range = document.createRange();
+      range.selectNodeContents(code);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      try { copied = document.execCommand("copy"); } catch (e) {}
+    }
+    button.textContent = copied ? "Copied" : "Selected";
+    button.classList.add("done");
+    clearTimeout(button.timer);
+    button.timer = setTimeout(() => {
+      button.textContent = "Copy";
+      button.classList.remove("done");
+    }, 1500);
   });
 }
 """

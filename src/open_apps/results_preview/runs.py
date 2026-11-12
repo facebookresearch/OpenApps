@@ -15,12 +15,15 @@ in the job's ``logs_dir``, the experiment directory's parent:
     <logs_dir>/<run-dir>/<job_id>/config.yaml     # launch_parallel_agents.py
     .../<job>/<time>_AgentArgs_on_<task>_<seed>/summary_info.json
 
-Only those two files are read. From ``summary_info.json``: ``cum_reward``
+Only those two files are read (and Hydra's ``.hydra/overrides.yaml`` beside
+the config, if the run saved one, for the Reproduce command). From ``summary_info.json``: ``cum_reward``
 (success is ``cum_reward >= 1.0``, the rule the launcher's W&B summary uses),
 ``n_steps``, and ``err_msg`` / ``stack_trace`` (an infrastructure error -- the
 web app never came up, the model server timed out -- not an agent failure).
 From ``config.yaml``: the agent (``model_pretty_name``, else ``model_name``),
-``task_name``, ``app_overrides`` (the app variation) and the seeds.
+``task_name``, ``app_overrides`` (the app variation) and the seeds, plus the
+few keys the drill-down's Reproduce and Configuration sections show (see
+:mod:`open_apps.results_preview.reproduce`), read once per config file.
 
 Re-runs of one cell -- the same (agent, task, variation, seed) -- count once:
 an errored run loses to one that did not error, otherwise the later run wins.
@@ -41,14 +44,16 @@ from typing import Any, Iterable, Optional, Sequence
 
 import yaml
 
+from open_apps.results_preview.reproduce import COMMIT_KEYS, Setup, setup_from_config
+
 SUMMARY = "summary_info.json"
 CONFIG = "config.yaml"
 #: Directories that never hold a run and can be large (a job's databases, the
 #: W&B cache, an episode's video folder).
 _PRUNE = {"wandb", "databases", "task_video", ".git", "node_modules", "__pycache__"}
-#: The top-level config keys a run is identified by. Everything else in a
-#: job's config.yaml (tens of thousands of lines of app and task settings) is
-#: skipped without being parsed.
+#: The top-level config keys a run is identified and described by.
+#: Everything else in a job's config.yaml (tens of thousands of lines of app
+#: and task settings) is skipped without being parsed.
 _CONFIG_KEYS = (
     "agent",
     "task_name",
@@ -57,6 +62,10 @@ _CONFIG_KEYS = (
     "browsergym_env_args",
     "agent_config_name",
     "task_config_name",
+    "device",
+    "task_termination",
+    "cluster",
+    *COMMIT_KEYS,
 )
 #: The z for a two-sided 95% interval.
 Z95 = 1.959963984540054
@@ -77,6 +86,9 @@ class Run:
     exp_dir: str
     source: str  # the sweep (or single run) it came from, for the drill-down
     error: Optional[str] = None
+    overrides: tuple[str, ...] = ()  # the app variation's overrides, as launched
+    #: How its job was set up (shared by every run of one config file).
+    setup: Optional[Setup] = field(default=None, compare=False)
 
     @property
     def cell(self) -> tuple[str, str, str, str]:
@@ -146,6 +158,14 @@ def agent_name(config: dict) -> str:
     return "unknown"
 
 
+def variation_overrides(overrides: Any) -> tuple[str, ...]:
+    if not overrides:
+        return ()
+    if isinstance(overrides, (list, tuple)):
+        return tuple(str(o) for o in overrides)
+    return (str(overrides),)
+
+
 def variation_label(overrides: Any) -> str:
     if not overrides:
         return "default"
@@ -176,7 +196,9 @@ def _source(path: Path, root: Path) -> str:
     return str(root / rel.parts[0])
 
 
-def read_run(exp_dir: Path, config: dict, root: Path) -> Run:
+def read_run(
+    exp_dir: Path, config: dict, root: Path, setup: Optional[Setup] = None
+) -> Run:
     """The run in ``exp_dir``, identified by its job's ``config``."""
     summary_path = exp_dir / SUMMARY
     summary = json.loads(summary_path.read_text())
@@ -203,6 +225,8 @@ def read_run(exp_dir: Path, config: dict, root: Path) -> Run:
         exp_dir=str(exp_dir),
         source=_source(exp_dir, root),
         error=str(error).strip().splitlines()[-1][:300] if error else None,
+        overrides=variation_overrides(config.get("app_overrides")),
+        setup=setup,
     )
 
 
@@ -236,6 +260,7 @@ def find_runs(
     name (shell globs; an agent matches by display name or agent config name)."""
     found = Found()
     configs: dict[Path, Any] = {}  # path -> parsed dict, or the exception
+    setups: dict[Path, Setup] = {}
     seen: set[Path] = set()
     for root in map(Path, paths):
         if root.is_file():
@@ -264,12 +289,19 @@ def find_runs(
                     configs[config_path] = read_config(config_path)
                 except Exception as exc:  # noqa: BLE001 -- skip, don't sink the page
                     configs[config_path] = exc
+                else:
+                    try:  # only the drill-down's description: never skip for it
+                        setups[config_path] = setup_from_config(
+                            configs[config_path], config_path
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
             config = configs[config_path]
             if isinstance(config, Exception):
                 found.skipped.append((str(config_path), f"unreadable: {config}"))
                 continue
             try:
-                run = read_run(here, config, root)
+                run = read_run(here, config, root, setups.get(config_path))
             except Exception as exc:  # noqa: BLE001
                 found.skipped.append((str(here / SUMMARY), f"unreadable: {exc}"))
                 continue
@@ -355,6 +387,7 @@ class ModelRow(Tally):
     latest: Optional[float] = None
     replaced: int = 0  # re-runs of its cells that lost to another run
     errors: list[tuple[str, str, str]] = field(default_factory=list)  # task, dir, msg
+    runs: list[Run] = field(default_factory=list)  # its resolved runs
 
 
 def _tallies(runs: Sequence[Run], key) -> list[Tally]:
@@ -381,6 +414,7 @@ def leaderboard(runs: Sequence[Run]) -> list[ModelRow]:
         row.by_variation = _tallies(agent_runs, lambda r: r.variation)
         row.sources = sorted({r.source for r in agent_runs})
         row.latest = max(r.started for r in agent_runs)
+        row.runs = list(agent_runs)
         row.errors = [
             (r.task, r.exp_dir, r.error or "") for r in agent_runs if r.errored
         ]

@@ -21,11 +21,13 @@ from open_apps.results_preview.runs import Results, collect
 
 DEFAULT_LOGS = Path("log_outputs")
 MODULE = "open_apps.results_preview"
-#: Copies only what the preview reads from a cluster's logs to a laptop.
+#: Copies only what the preview reads from a cluster's logs to a laptop
+#: (Hydra's overrides.yaml only exists if the run saved one).
 #: (W&B's own config.yaml copies and the app databases are left behind.)
 RSYNC = (
     "rsync -am --exclude='wandb/' --exclude='databases/' --include='*/' "
-    "--include='summary_info.json' --include='config.yaml' --exclude='*' "
+    "--include='summary_info.json' --include='config.yaml' --include='overrides.yaml' "
+    "--exclude='*' "
     "<cluster>:<logs>/ ./runs/"
 )
 _SHOW_SKIPPED = 5
