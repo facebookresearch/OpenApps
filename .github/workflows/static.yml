@@ -60,7 +60,7 @@ jobs:
         # Where their $id URLs point.
         run: |
           mkdir -p site/schemas
-          cp leaderboard/schema/episode.schema.json site/schemas/episode-record-v1.json
+          cp leaderboard/schema/episode.schema.json site/schemas/episode-record-v2.json
           cp leaderboard/schema/meta.schema.json site/schemas/leaderboard-meta-v1.json
           cp leaderboard/schema/demonstration.schema.json site/schemas/leaderboard-demonstration-v1.json
           cp leaderboard/schema/verifications.schema.json site/schemas/leaderboard-verifications-v1.json
