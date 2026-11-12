@@ -45,7 +45,7 @@ def client(tmpdir_factory):
 
 def editor_script(html: str) -> str:
     """Return the inline ``<script>`` block that binds the page's ``editor``."""
-    blocks = re.findall(r"<script[^>]*>(.*?)</script\s*>", html, flags=re.DOTALL | re.I)
+    blocks = re.findall(r"<script[^>]*>(.*?)</script\b[^>]*>", html, flags=re.DOTALL | re.I)
     binding = [b for b in blocks if "var editor" in b]
     assert binding, "no editor binding found on the page"
     return binding[0]

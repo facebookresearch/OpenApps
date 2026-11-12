@@ -61,12 +61,12 @@ def render(layout: str = "default", theme: str = "default", extra: tuple[str, ..
 
 def markup(html: str) -> str:
     """The page body without CSS and JS, so assertions see only elements."""
-    html = re.sub(r"<style>.*?</style\s*>", "", html, flags=re.S | re.I)
-    return re.sub(r"<script>.*?</script\s*>", "", html, flags=re.S | re.I)
+    html = re.sub(r"<style>.*?</style\b[^>]*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<script>.*?</script\b[^>]*>", "", html, flags=re.S | re.I)
 
 
 def script(html: str) -> str:
-    return "\n".join(re.findall(r"<script>(.*?)</script\s*>", html, flags=re.S | re.I))
+    return "\n".join(re.findall(r"<script>(.*?)</script\b[^>]*>", html, flags=re.S | re.I))
 
 
 def positions(body: str, *needles: str) -> list[int]:

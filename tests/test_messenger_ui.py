@@ -48,8 +48,8 @@ def build_client(tmp_path: Path, layout: str = "default", theme: str = "default"
 
 def strip_assets(html: str) -> str:
     """The markup without <style>/<script> bodies, so asserts see only the DOM."""
-    html = re.sub(r"<style\b.*?</style\s*>", "", html, flags=re.S | re.I)
-    return re.sub(r"<script\b.*?</script\s*>", "", html, flags=re.S | re.I)
+    html = re.sub(r"<style\b.*?</style\b[^>]*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<script\b.*?</script\b[^>]*>", "", html, flags=re.S | re.I)
 
 
 def find_tag(html: str, name: str, **attrs) -> str:

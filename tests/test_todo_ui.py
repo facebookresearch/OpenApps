@@ -38,8 +38,8 @@ def _client(tmp_path: Path, *overrides: str) -> TestClient:
 
 
 def _markup(html: str) -> str:
-    html = re.sub(r"<style\b.*?</style\s*>", "", html, flags=re.S | re.I)
-    return re.sub(r"<script\b.*?</script\s*>", "", html, flags=re.S | re.I)
+    html = re.sub(r"<style\b.*?</style\b[^>]*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<script\b.*?</script\b[^>]*>", "", html, flags=re.S | re.I)
 
 
 def _row(html: str, todo_id: int) -> str:
