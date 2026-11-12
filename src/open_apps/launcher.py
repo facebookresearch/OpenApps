@@ -840,8 +840,8 @@ class AgentLauncher(OpenAppsLauncher):
         ``pick_empty_port`` only checks that a port is free; nothing holds it
         until the server binds, ~30 s later. Two jobs on one node with the
         same job id scan from the same port (``_job_port_offset``), so both can
-        pick it and the second server dies on bind (align_v1, 2026-11-11). Any
-        other startup failure still raises at once.
+        pick it and the second server dies on bind. Any other startup failure
+        still raises at once.
         """
         log = Path(self.config.logs_dir) / "webapp.log"
         for attempt in range(1, self.APP_START_ATTEMPTS + 1):

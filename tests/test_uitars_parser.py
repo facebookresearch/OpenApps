@@ -102,8 +102,8 @@ def test_finished_becomes_a_message_to_the_user():
 
 
 def test_reports_with_the_uitars_keyword_reach_browsergyms_signature():
-    # Seen in an align_v1 smoke run: the model called the advertised action
-    # with finished()'s keyword, and BrowserGym raised a TypeError.
+    # The model can call the advertised action with finished()'s keyword,
+    # which BrowserGym's signature rejects with a TypeError.
     assert _action("send_msg_to_user(content='Done.')") == "send_msg_to_user(text='Done.')"
     assert _action("send_msg_to_user( content=\"It's sent.\")") == "send_msg_to_user(text=\"It's sent.\")"
     assert _action("report_infeasible(content='No such contact.')") == "report_infeasible(reason='No such contact.')"

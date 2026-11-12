@@ -132,10 +132,8 @@ AGENT=dummy SHARDS=6 bash scripts/benchmark_one.sbatch
 # or: uv run scripts/benchmark_sweep.py run dummy --mode local --shards 6 --collect
 ```
 
-On a busy shared login node with 6 shards, composing the suite took about 15 minutes (each
-shard composes every run, about 5 s each) and the episodes then finished at about 1.7 per
-minute, so roughly 1.5 hours in all. That was timed on an earlier 155-run draft of the suite;
-scale by 115/155 for the current one. The dummy runs every episode to its 30-step limit (it
+Expect it to take a while on a busy shared login node: each shard composes every run (a few
+seconds each) before its episodes start. The dummy runs every episode to its 30-step limit (it
 never reports), so expect a success rate near zero. Expect `validate` to print `OK` (or
 `PARTIAL`, listing the cells, if you collect early) and a page at
 `<logs>/leaderboard.html` with one `dummy` row. You can run `collect` at any point to check

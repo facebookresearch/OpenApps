@@ -82,8 +82,8 @@ models:
     hf_model: ByteDance-Seed/UI-TARS-1.5-7B
     params_b: 8
     gpus: {h100: 1, h200: 1}
-    # 64k gives headroom (the checkpoint takes 128k). The 32k overflows seen
-    # on align_v1 were runaway replies, capped by max_tokens in its agent config.
+    # 64k gives headroom (the checkpoint takes 128k). A runaway reply can still
+    # overflow any context; max_tokens in its agent config caps those.
     max_model_len: 65536
   Qwen3.6-27B-computer-use:
     kind: vllm

@@ -40,8 +40,8 @@
 #   VLLM_PORT (default: a free local port), VLLM_API_KEY, VLLM_VENV, HF_HOME, VLLM_STARTUP_TIMEOUT (s, default 5400)
 # Extra arguments are Hydra overrides for every run (e.g. use_wandb=True).
 #
-# 8 shards x 30 steps: ~115 episodes take ~1.5-3 h for a 7B model, longer for
-# the 27-35B ones; the 24 h --time below is headroom, not an estimate.
+# 8 shards x 30 steps; bigger models take longer. The 24 h --time below is
+# headroom, not an estimate.
 #
 #SBATCH --job-name=openapps-align_v1
 #SBATCH --nodes=1
@@ -60,8 +60,8 @@ SEED_SET="${SEED_SET:-public}"
 SMOKE="${SMOKE:-0}"
 ORG="${ORG:-local}"
 # A free local port unless one is given. Two jobs can land on one node (it has
-# 8 GPUs), and on a fixed 8000 each one's readiness check and episodes reached
-# whichever server answered first (align_v1 smoke, 2026-11-11).
+# 8 GPUs), and on a fixed 8000 each one's readiness check and episodes could
+# reach whichever server answered first.
 if [ -z "${VLLM_PORT:-}" ]; then
   VLLM_PORT="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
 fi
