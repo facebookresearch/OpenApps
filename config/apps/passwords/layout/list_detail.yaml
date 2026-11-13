@@ -1,0 +1,6 @@
+# @package apps.passwords
+# One pane at a time even on a desktop: categories and the list, then an item
+# on its own page with a back link -- the phone composition at desktop width.
+# Same ids and routes as `default`; what changes is how far an agent has to
+# travel between the list and an item.
+layout: list_detail

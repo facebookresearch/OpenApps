@@ -1,0 +1,149 @@
+# @package apps.passwords
+#
+# Seed items. Every secret is obviously synthetic and no real service's
+# format is copied; every website is on `.example` (RFC 2606), which never
+# resolves, so a clicked link cannot take the agent out of the sandbox.
+#
+# The items tie into the rest of the world: the tenant portal is the lease's
+# landlord (Files > Documents), the patient portal is the insurance card's
+# insurer, the VPN is the W-2's employer, and OpenBanking is the bank. Two
+# items exist for the tasks: "Netflix (old)" is the one to delete and the
+# decoy for changing the Netflix password, and "Iron Harbor Gym" is an ended
+# trial next to the gym login a task adds.
+#
+# `edited_on` is each item's "Last edited" date (ISO). A save stamps
+# `apps.passwords.today` instead.
+title: ${apps.start_page.apps.passwords.title}
+description: ${apps.start_page.apps.passwords.description}
+
+# --- Interface strings ------------------------------------------------------
+# Field labels are lowercase, as in the password managers this imitates: they
+# sit in a muted column beside the value and read as annotations.
+vault_name: "Personal"
+categories:
+  all: "All Items"
+  favorites: "Favorites"
+  login: "Logins"
+  wifi: "Wi-Fi"
+  note: "Secure Notes"
+deleted_label: "Recently Deleted"
+categories_label: "Categories"
+list_label: "Items"
+search_placeholder: "Search Personal"
+search_label: "Search items"
+new_item_label: "New Item"
+new_item_heading: "What would you like to add?"
+kind_labels: {login: "Login", wifi: "Wi-Fi", note: "Secure Note"}
+new_heading: "New {kind}"
+edit_heading: "Edit {kind}"
+title_label: "title"
+username_label: "username"
+password_label: "password"
+website_label: "website"
+network_label: "network name"
+security_label: "security"
+notes_label: "notes"
+security_options: ["WPA3", "WPA2", "WPA/WPA2", "None"]
+reveal_label: "Reveal"
+hide_label: "Hide"
+copy_label: "Copy"
+copied_label: "Copied"
+copy_failed_label: "Couldn't copy"
+favorite_label: "Add to Favorites"
+favorite_badge: "Favorite"
+edit_label: "Edit"
+save_label: "Save"
+cancel_label: "Cancel"
+last_edited: "Last edited {date}"
+delete_label: "Delete"
+delete_confirm: "Move {title} to Recently Deleted?"
+delete_confirm_button: "Move to Recently Deleted"
+purge_label: "Delete Permanently"
+purge_confirm: "Delete {title} permanently? This can't be undone."
+purge_confirm_button: "Delete Permanently"
+deleted_note: "Items here can be deleted permanently."
+back_label: "Personal"
+no_items: "No items yet. Add one with New Item."
+no_results: "No items match \"{query}\"."
+empty_deleted: "Recently Deleted is empty."
+not_found: "That item doesn't exist. It may have been deleted permanently."
+error_title: "Add a title."
+error_login: "A login needs a username or a password."
+error_wifi: "A Wi-Fi network needs a password."
+error_summary: "Check the highlighted fields."
+
+entries:
+  - kind: login
+    title: "Netflix"
+    username: "dana.reyes@example.com"
+    password: "Popcorn-Wharf-2291"
+    website: "https://netflix.example"
+    notes: "Family plan. Bob uses the second profile."
+    favorite: true
+    edited_on: "2026-06-14"
+  - kind: login
+    title: "Netflix (old)"
+    username: "danareyes.old@example.com"
+    password: "Netflix2019!"
+    website: "https://netflix.example"
+    notes: "Account from before the move. Cancelled in 2025."
+    edited_on: "2025-11-02"
+  - kind: login
+    title: "Northgate Tenant Portal"
+    username: "dana.reyes@example.com"
+    password: "Unit2-Rent-Keys!"
+    website: "https://portal.northgateprop.example"
+    notes: "Rent and maintenance requests for 44 Wharf Street, Unit 2."
+    edited_on: "2025-09-15"
+  - kind: login
+    title: "Harborline Patient Portal"
+    username: "HLH447109382"
+    password: "Silver-PPO-Heron-17"
+    website: "https://my.harborline.example"
+    notes: "Member ID is on the insurance card."
+    edited_on: "2026-03-09"
+  - kind: login
+    title: "OpenBanking"
+    username: "dreyes4417"
+    password: "Ledger-Tide-5520!"
+    website: "https://openbanking.example"
+    favorite: true
+    edited_on: "2026-08-01"
+  - kind: login
+    title: "Mail"
+    username: "dana.reyes@example.com"
+    password: "Gull-Postbox-38"
+    website: "https://mail.example"
+    edited_on: "2026-02-20"
+  - kind: login
+    title: "Iron Harbor Gym"
+    username: "dana.r"
+    password: "Kettlebell-Trial-9"
+    website: "https://ironharbor.example"
+    notes: "Trial membership. Ended in July."
+    edited_on: "2026-06-01"
+  - kind: login
+    title: "Northwind VPN"
+    username: "dreyes"
+    password: "Northwind-Tunnel-62"
+    website: "https://vpn.northwind.example"
+    notes: "Work laptop only."
+    edited_on: "2026-01-05"
+  - kind: wifi
+    title: "Wharf Street 5G"
+    password: "Harbor-Light-42!"
+    security: "WPA3"
+    notes: "Router is in the hall closet."
+    edited_on: "2025-10-01"
+  - kind: wifi
+    title: "Wharf Street Guest"
+    password: "guest-tide-2026"
+    security: "WPA2"
+    edited_on: "2026-01-12"
+  - kind: note
+    title: "Bike lock"
+    notes: "Combination 3-9-1-7. The spare key is in the kitchen drawer."
+    edited_on: "2026-04-22"
+
+# Added after `entries` by the noise packs (decoys, long notes). Empty here.
+extra_entries: []

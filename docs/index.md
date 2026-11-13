@@ -174,6 +174,7 @@ layout in play. Every app has `default`, plus:
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
 | `files` | `icons` | Folder contents as a grid of first-page thumbnails |
 | `contacts` | `list_detail` | One pane at a time: the list, then a contact on its own page |
+| `passwords` | `list_detail` | One pane at a time: the vault list, then an item on its own page |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
 
@@ -668,6 +669,33 @@ Contact tasks are their own set, outside `all_tasks`:
 
 ```shell
 uv run launch_agent.py agent=dummy tasks=contacts task_name=save_unknown_sender_as_jordan_lee
+```
+
+##### Passwords
+
+OpenPasswords (`/passwords`) is a password manager in the style of 1Password
+or Dashlane: one vault ("Personal") with logins, Wi-Fi networks and secure
+notes, a category sidebar, search, favourites, and a Recently Deleted bin that
+only empties when an item is deleted permanently. Passwords stay masked until
+Reveal is clicked, and usernames, passwords and websites have Copy pills. All seeded secrets are
+synthetic, and every website is on `.example`, which never resolves.
+
+It is in the all-apps launcher but not in the dock: the start page's
+`pinned: all` skips apps whose inventory entry says `pinned_by_default: false`.
+Dock it for a run with `apps.start_page.apps.passwords.pinned_by_default=true`,
+or with the pin button beside it in the launcher.
+
+`/passwords_all` serves the vault as `{"items": [...]}`, and the agent's
+`goto` refuses it like every other state endpoint, and `/environment_variables`
+leaves the seeded vault out of the config it serves. Passwords, usernames and
+a secure note's text are compared exactly ("Harbor-Light-42!" is not
+"harborlight42"); titles, websites and a login's notes compare loosely, like
+any other text.
+
+Password tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=passwords task_name=change_netflix_password
 ```
 
 ## Launch Agent(s) Across Multiple Tasks

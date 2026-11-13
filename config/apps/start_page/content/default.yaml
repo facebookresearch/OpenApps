@@ -34,3 +34,6 @@ apps:
   contacts:
     title: "OpenContacts"
     description: # "Keep your contacts in one place"
+  passwords:
+    title: "OpenPasswords"
+    description: # "Keep your passwords in one secure vault"

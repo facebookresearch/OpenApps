@@ -490,6 +490,7 @@ class AppStateComparison:
         state = self._normalize_calendar_invitees(state)
         state = self._remove_id_key(state)
         state = self._normalize_contacts(state)
+        state = self._normalize_passwords(state)
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
@@ -831,6 +832,51 @@ class AppStateComparison:
             if 0 <= extra <= allowed:
                 contact["messages"] = contact["messages"][:n_target]
 
+    @staticmethod
+    def _normalize_passwords(state: dict) -> dict:
+        """Drop item ids and edit dates; sort items.
+
+        Ids are database row ids, and ``edited_on`` is stamped with the pinned
+        date on every save, so neither says anything a target could predict
+        that the rest of the item doesn't. Sorted by kind, title and username
+        so an add lands in the same place in both states.
+        """
+        vault = state.get("passwords")
+        if not isinstance(vault, dict) or not isinstance(vault.get("items"), list):
+            return state
+        rows = [{k: v for k, v in item.items() if k not in ("id", "edited_on")} for item in vault["items"]]
+        vault["items"] = sorted(
+            rows,
+            key=lambda i: (str(i.get("kind")), StringSimilarityOperator.normalize_string(str(i.get("title", ""))),
+                           str(i.get("username", "")), str(i.get("password", ""))),
+        )
+        return state
+
+    def _password_fields_match(self) -> bool:
+        """Compare every item's secrets exactly.
+
+        The fuzzy diff below strips case and punctuation -- right for a title,
+        wrong for a password ("Harbor-Light-42!" is not "harborlight42") or a
+        username, which is an address. A secure note's text is its secret
+        ("Gate code 4471#" is not "gate code 4471"), so a note's notes are
+        compared too, with only whitespace collapsed. Kind and the deleted flag
+        ride along, so a note can't stand in for a login and a deleted item
+        can't stand in for a live one.
+        """
+
+        def secrets(state: dict):
+            vault = state.get("passwords")
+            if not isinstance(vault, dict):
+                return None
+            return [
+                (str(i.get("kind")), str(i.get("username", "")), str(i.get("password", "")),
+                 " ".join(str(i.get("notes", "")).split()) if i.get("kind") == "note" else "",
+                 bool(i.get("deleted")))
+                for i in vault.get("items") or []
+            ]
+
+        return secrets(self.state1) == secrets(self.state2)
+
     def _contact_handles_match(self) -> bool:
         """Compare every contact's handles exactly.
 
@@ -894,6 +940,9 @@ class AppStateComparison:
             return False
         if not self._contact_handles_match():
             print("===Contact handles differ")
+            return False
+        if not self._password_fields_match():
+            print("===Passwords or usernames differ")
             return False
         if not self._files_match():
             print("===Files differ")
@@ -1202,6 +1251,151 @@ class DeleteContactTask(Task):
         self, initial_state: dict, current_state: dict, current_url: str | None = None
     ) -> bool:
         return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+_PASSWORD_FIELDS = ("title", "username", "password", "website", "security", "notes", "favorite")
+
+
+def _password_item(kind: str, title: str, username: str = "", password: str = "", website: str = "",
+                   security: str = "", notes: str = "", favorite: bool = False) -> dict:
+    """A ``/passwords_all`` item as the app would store it: fields the kind
+    has no use for are empty, as ``passwords_app._clean`` leaves them."""
+    return {
+        "id": None,
+        "kind": kind,
+        "title": title,
+        "username": username if kind == "login" else "",
+        "password": password if kind in ("login", "wifi") else "",
+        "website": website if kind == "login" else "",
+        "security": security if kind == "wifi" else "",
+        "notes": notes or "",
+        "favorite": bool(favorite),
+        "deleted": False,
+        "edited_on": None,
+    }
+
+
+def _match_password_item(match, state: dict) -> dict:
+    """The one live item ``match`` names: a title (exact, case-insensitive),
+    or ``{title, username}`` when titles repeat. Zero or several matches is a
+    ``ValueError`` naming the candidates."""
+    vault = (state.get("passwords") or {}).get("items") or []
+    if isinstance(match, str):
+        title, username = match, None
+    else:
+        title, username = match.get("title"), match.get("username")
+    wanted = " ".join(str(title or "").split()).casefold()
+    found = [
+        i for i in vault
+        if not i.get("deleted")
+        and " ".join(str(i.get("title", "")).split()).casefold() == wanted
+        and (username is None or i.get("username") == username)
+    ]
+    if len(found) != 1:
+        who = ", ".join(f"{i.get('title')!r} ({i.get('username') or i.get('kind')})" for i in found)
+        raise ValueError(f"{match!r} matches {len(found)} items{': ' + who if who else ''}; a task needs exactly one")
+    return found[0]
+
+
+#: The security the passwords app's new-item form preselects: the first of the
+#: default content pack's ``security_options`` (the other packs inherit them).
+#: tests/test_password_tasks.py checks the two agree.
+WIFI_DEFAULT_SECURITY = "WPA3"
+
+
+@dataclass
+class AddPasswordTask(Task):
+    """Add one item to OpenPasswords: a login, a Wi-Fi network or a note.
+
+    The target is the initial vault plus this item. The password and
+    username are compared exactly (see
+    ``AppStateComparison._password_fields_match``); the title, website and
+    notes loosely, like any other text.
+    """
+
+    kind: str = "login"
+    title: str = ""
+    username: str = ""
+    password: str = ""
+    website: str = ""
+    security: str = ""
+    notes: str = ""
+    favorite: bool = False
+
+    def __post_init__(self) -> None:
+        # The new-item form always submits a security option and offers no
+        # empty one, so a Wi-Fi target with security="" could never be
+        # reached. Unnamed, it is what the form preselects.
+        if self.kind == "wifi" and not self.security:
+            self.security = WIFI_DEFAULT_SECURITY
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        vault = target_state.setdefault("passwords", {}).setdefault("items", [])
+        vault.append(_password_item(self.kind, self.title, self.username, self.password, self.website,
+                                    self.security, self.notes, self.favorite))
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class EditPasswordTask(Task):
+    """Change fields on one item.
+
+    ``match`` names the item (see :func:`_match_password_item`); ``set`` maps
+    fields to their new values. Anything else on the item must stay as it
+    was, and the item's kind can't change.
+    """
+
+    match: object = ""
+    set: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        unknown = set(self.set or {}) - set(_PASSWORD_FIELDS)
+        if unknown:
+            raise ValueError(f"EditPasswordTask can't set {sorted(unknown)}; fields are {_PASSWORD_FIELDS}")
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        item = _match_password_item(self.match, target_state)
+        for key, value in (self.set or {}).items():
+            item[key] = bool(value) if key == "favorite" else str(value)
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
+@dataclass
+class DeletePasswordTask(Task):
+    """Delete one item: it moves to Recently Deleted. Deleting it there as
+    well fails -- the same call as deleting a file."""
+
+    match: object = ""
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        _match_password_item(self.match, target_state)["deleted"] = True
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
 
 
 @dataclass

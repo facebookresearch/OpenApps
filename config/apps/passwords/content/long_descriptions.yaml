@@ -1,0 +1,48 @@
+# @package apps.passwords
+defaults:
+  - default
+
+# Adds items whose notes run long -- account numbers, recovery steps, the
+# history of who has which login -- so the list and the item pane carry far
+# more to read past. The seeded items are untouched, so every task's answer
+# holds.
+extra_entries:
+  - kind: login
+    title: "Harbor Self Storage"
+    username: "dreyes.storage"
+    password: "Locker-B114-Tide"
+    website: "https://harborselfstorage.example"
+    notes: >-
+      Unit B-114, climate controlled, rented month to month since the move in
+      September 2025. The account was opened at the front desk, so the online
+      login was set up later with the email on file; the gate keypad uses a
+      separate code that is printed on the rental agreement, not this
+      password. Billing goes to the Everyday Checking card on the first of the
+      month, and a late fee of fifteen dollars applies after the tenth. To
+      close the unit, the office needs ten days' written notice and the unit
+      swept out; the deposit comes back by check within thirty days.
+    edited_on: "2025-09-20"
+  - kind: login
+    title: "Portland Public Library"
+    username: "21983004417"
+    password: "Stacks-Reading-55"
+    website: "https://catalog.portlandlibrary.example"
+    notes: >-
+      The username is the library card number on the back of the card. Holds
+      can be picked up at the Main branch or the Burbank branch; the account
+      is set to email when a hold arrives and three days before a due date.
+      Ebooks and audiobooks borrowed through the library app use this same
+      login. The PIN at the self-checkout kiosks is the last four digits of
+      the password's number, which the library suggests changing once a year.
+    edited_on: "2026-05-03"
+  - kind: wifi
+    title: "Harborline Clinic Guest"
+    password: "WellVisit-2026"
+    security: "WPA2"
+    notes: >-
+      Waiting room network at the Harborline clinic on Commercial Street.
+      The front desk changes the password at the start of every year and
+      prints it on a card at check-in; this one was copied at the August
+      visit. It works in the lab draw room too, but not in the parking garage,
+      where the signal drops out past the second level.
+    edited_on: "2026-08-12"

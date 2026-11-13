@@ -98,6 +98,11 @@ ROUTES = (
     # handle row and their Copy pills.
     RouteSpec("contacts_detail", "/contacts/1", "#ct-detail"),
     RouteSpec("contacts_new", "/contacts/new", "#ct-form"),
+    RouteSpec("passwords", "/passwords", "#pw-list"),
+    # Netflix (id 1): a login with every field -- username, masked password,
+    # website, notes -- and a favorite.
+    RouteSpec("passwords_item", "/passwords/1", "#pw-detail"),
+    RouteSpec("passwords_new", "/passwords/new?kind=login", "#pw-form"),
 )
 
 
@@ -105,7 +110,7 @@ THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
-    "onlineshop", "ui_library", "files", "contacts",
+    "onlineshop", "ui_library", "files", "contacts", "passwords",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -129,6 +134,7 @@ LAYOUT_VARIATIONS = {
     "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
     "layout_files_icons": ["apps/files/layout=icons"],
     "layout_contacts_list_detail": ["apps/contacts/layout=list_detail"],
+    "layout_passwords_list_detail": ["apps/passwords/layout=list_detail"],
 }
 
 
