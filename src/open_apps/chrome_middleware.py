@@ -54,9 +54,10 @@ class ChromeParts:
     html_attrs: dict[str, str] = field(default_factory=dict)
 
 
-#: Called once per full-page GET with the request path. Returns ``None`` to
-#: leave the page alone.
-Renderer = Callable[[str], ChromeParts | None]
+#: Called once per full-page GET with the request target (path, plus ``?query``
+#: when there is one) and the response status. Returns ``None`` to leave the
+#: page alone.
+Renderer = Callable[[str, int], ChromeParts | None]
 
 _HTML_OPEN = re.compile(r"<html\b", re.IGNORECASE)
 _HEAD_CLOSE = re.compile(r"</head\s*>", re.IGNORECASE)
@@ -116,7 +117,9 @@ class ChromeMiddleware:
             await self.app(scope, receive, send)
             return
 
-        await self.app(scope, receive, _Buffer(send, lambda: self.render(scope["path"])))
+        query = scope.get("query_string", b"").decode("latin-1")
+        target = scope["path"] + (f"?{query}" if query else "")
+        await self.app(scope, receive, _Buffer(send, lambda status: self.render(target, status)))
 
 
 class _Buffer:
@@ -126,7 +129,7 @@ class _Buffer:
     message, so static files and JSON stream exactly as before.
     """
 
-    def __init__(self, send: Send, render: Callable[[], ChromeParts | None]) -> None:
+    def __init__(self, send: Send, render: Callable[[int], ChromeParts | None]) -> None:
         self.send = send
         self.render = render
         self.start: Message | None = None
@@ -163,7 +166,7 @@ class _Buffer:
     async def _flush(self) -> None:
         body = b"".join(self.chunks)
         try:
-            parts = self.render()
+            parts = self.render(self.start["status"])
         except Exception:
             # The chrome is decoration. A bug in it must cost the page its
             # title bar, not its 200 -- a 500 on every route would zero an
