@@ -234,7 +234,9 @@ srun --overlap --jobid=<vllm-job> --pty curl -s http://localhost:8000/v1/models
 ### 2. Submit the eval job
 
 `scripts/conduct_slurm.sh` requests a CPU allocation, finds the vLLM node, and
-runs `scripts/conduct.sh` pointed at it with `use_wandb=True`:
+runs `scripts/conduct.sh` pointed at it with `use_wandb=True`. For sweeps across
+task files, tasks, variations or several agents, use `scripts/sweep_slurm.sh`
+instead (below):
 
 ```bash
 # smoke test (1 run)
@@ -290,6 +292,33 @@ srun --overlap --jobid=<vllm-job> \
   env AGENTS=gemma-4-e2b-it COUNT=1 VLLM_HOST=localhost \
   ./scripts/conduct.sh agent.hostname=localhost use_wandb=True
 ```
+
+### 2b. Or submit a sweep
+
+`scripts/sweep_slurm.sh` does the same discovery, then runs
+`launch_parallel_agents.py` inside the allocation, `MAX_PARALLEL` jobs at a time.
+The sweep is task files × agents × app variations × tasks × repeats, and every
+job gets its own port window, `logs_dir` and databases. It will replace
+`conduct_slurm.sh`.
+
+```bash
+# smoke test: one agent, one task, one variation
+VLLM_MODEL=google/gemma-4-31B-it sbatch scripts/sweep_slurm.sh \
+  agents=gemma-4-31B-computer-use \
+  'parallel_tasks.task_names=[add_meeting_with_dennis]' 'parallel_tasks.app_variations=[[]]'
+
+# every longer_horizon task, 3 repeats, 8 at a time
+VLLM_MODEL=google/gemma-4-31B-it MAX_PARALLEL=8 sbatch scripts/sweep_slurm.sh \
+  agents=gemma-4-31B-computer-use tasks=longer_horizon.yaml \
+  parallel_tasks.repeats=3 browsergym_env_args.max_steps=40
+```
+
+- `VLLM_MODEL` is required: the served model id, i.e. the agent config's `model_name`.
+- Every self-hosted agent in one sweep is pointed at the discovered node.
+- `VLLM_HOST` pins the node; `DRY_RUN=1` prints the command instead of running it.
+- Arguments are forwarded to `launch_parallel_agents.py`. Each job logs to
+  `<logs_dir>/run-<id>/<job_id>/run.log`, and the runs share one W&B group (the
+  `run-<id>` name) with the agent as `job_type`.
 
 ### 3. Check results
 

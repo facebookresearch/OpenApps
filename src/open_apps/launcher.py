@@ -207,6 +207,9 @@ class OpenAppsLauncher:
         task_name = self.config.get("task_name")
         if task_name:
             run_name = f"{run_name}-{task_name}"
+        # Set only by a sweep with parallel_tasks.repeats > 1.
+        if self.config.get("repeat") is not None:
+            run_name = f"{run_name}-r{self.config.repeat}"
 
         logger = wandb.init(
             **self.config.wandb,
@@ -239,10 +242,17 @@ class OpenAppsLauncher:
     def _job_port_offset(self) -> int:
         """Offset port ranges per parallel job so siblings don't collide.
 
-        Each job gets a 100-port window starting at ``5001 + job_id*100``.
+        Each job gets a 100-port window starting at ``5001 + job_id*100``,
+        wrapping every 500 jobs. Unwrapped, job 606 and up would start the
+        search above 65535 and get no window of its own -- only a random
+        OS-assigned port, which then sits unbound until the app subprocess
+        binds it -- and agent and task-file sweeps reach that size easily
+        (longer_horizon x 2 agents x 2 variations is 400+ jobs). Jobs 500
+        apart sharing a window only matters if both are alive on one machine
+        at once, and the sibling-job guard catches that case.
         """
         job_id = int(self.config.get("job_id", 0) or 0)
-        return job_id * 100
+        return (job_id % 500) * 100
 
     def pick_empty_port(self, start_port=5001) -> int:
         """
