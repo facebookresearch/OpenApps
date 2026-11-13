@@ -78,6 +78,15 @@ def _rate_cell(t: Tally, compact: bool = False) -> str:
     )
 
 
+def _fold(title: str, count: str, body: str, warn: bool = False) -> str:
+    """A section that starts folded: its heading and a count are the summary."""
+    return (
+        f'<section><details class="fold"><summary><h3>{_e(title)}</h3>'
+        f'<span class="count{" warn" if warn else ""}">{_e(count)}</span></summary>'
+        f"{body}</details></section>"
+    )
+
+
 def _breakdown(title: str, tallies: Sequence[Tally]) -> str:
     rows = "".join(
         f'<tr><td class="name">{_breakable(t.label)}</td>'
@@ -87,13 +96,15 @@ def _breakdown(title: str, tallies: Sequence[Tally]) -> str:
         f'<td class="num">{_steps(t.mean_steps)}</td></tr>'
         for t in tallies
     )
-    return (
-        f'<section><h3>{_e(title)}</h3><table class="sub">'
-        f"<thead><tr><th>{_e(title.split()[-1].capitalize())}</th><th>Success</th>"
+    word = title.split()[-1]
+    table = (
+        f'<table class="sub">'
+        f"<thead><tr><th>{_e(word.capitalize())}</th><th>Success</th>"
         f'<th class="num">Passed</th><th class="num">Errored</th>'
         f'<th class="num">Steps</th></tr></thead>'
-        f"<tbody>{rows}</tbody></table></section>"
+        f"<tbody>{rows}</tbody></table>"
     )
+    return _fold(title, plural(len(tallies), word), table)
 
 
 def plural(n: int, word: str) -> str:
@@ -210,8 +221,8 @@ def _drilldown(row: ModelRow, rid: str = "m") -> str:
         + _breakdown("By variation", row.by_variation)
         + "</div>"
     )
-    parts.append(_reproduce(row, rid))
     parts.append(_configuration(row))
+    parts.append(_reproduce(row, rid))
     if row.errors:
         items = "".join(
             f"<li><b>{_e(task)}</b> {_e(msg) or 'error'}<br><code>{_e(where)}</code></li>"
@@ -220,12 +231,13 @@ def _drilldown(row: ModelRow, rid: str = "m") -> str:
         more = len(row.errors) - _SHOW_ERRORS
         if more > 0:
             items += f"<li>… and {more} more</li>"
-        parts.append(f'<section><h3>Errored runs</h3><ul class="errors">{items}</ul></section>')
+        errors = f'<ul class="errors">{items}</ul>'
+        parts.append(_fold("Errored runs", str(len(row.errors)), errors, warn=True))
     sources = "".join(f"<li><code>{_e(s)}</code></li>" for s in row.sources[:_SHOW_SOURCES])
     more = len(row.sources) - _SHOW_SOURCES
     if more > 0:
         sources += f"<li>… and {more} more</li>"
-    parts.append(f'<section><h3>Runs from</h3><ul class="sources">{sources}</ul></section>')
+    parts.append(_fold("Runs from", str(len(row.sources)), f'<ul class="sources">{sources}</ul>'))
     return "".join(parts)
 
 
@@ -327,6 +339,15 @@ th small { font-weight: 400; }
 .facts { margin: 0 0 .8rem; color: var(--ink-2); font-weight: 500; }
 .split { display: grid; gap: 1.25rem; max-width: 900px; }
 h3 { margin: .2rem 0 .4rem; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.fold > summary { display: flex; align-items: baseline; gap: .5rem; cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: "▸"; width: .8em; color: var(--muted); font-size: 11px; transition: transform .12s; }
+.fold[open] > summary::before { transform: rotate(90deg); }
+.fold > summary h3 { margin: .2rem 0; }
+.fold > summary:hover h3 { color: var(--ink); }
+.fold > summary:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 2px; border-radius: 3px; }
+.fold[open] > summary { margin-bottom: .3rem; }
+.count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sub { table-layout: fixed; }
 .sub th:nth-child(2) { width: 14rem; } .sub th:nth-child(3) { width: 4.5rem; }
 .sub th:nth-child(4) { width: 4.5rem; } .sub th:nth-child(5) { width: 4rem; }

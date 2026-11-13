@@ -549,3 +549,14 @@ def test_an_unrecorded_agent_config_is_matched_by_model_name(tmp_path, monkeypat
     assert command.agent == "the-one" and command.agent_guessed
     assert "is the one in <code>config/agent/</code>" in P.Page(results, 0).html()
     reproduce.guess_agent_config.cache_clear()
+
+
+def test_the_drilldown_reads_configuration_then_reproduce_with_lists_folded(tmp_path):
+    sweep_runs(tmp_path, ["todo_add", "todo_check"], [[], DARK])
+    html = P.Page(R.collect([tmp_path]), background_seed=0).html()
+    configuration, reproduce_ = html.index("<h3>Configuration</h3>"), html.index("<h3>Reproduce</h3>")
+    assert configuration < reproduce_
+    for title, count in [("By task", "2 tasks"), ("By variation", "2 variations"), ("Runs from", "1")]:
+        assert (f'<details class="fold"><summary><h3>{title}</h3>'
+                f'<span class="count">{count}</span></summary>') in html  # fmt: skip
+    assert "<details open" not in html
