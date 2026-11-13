@@ -22,7 +22,7 @@ the config, if the run saved one, for the Reproduce command). From ``summary_inf
 web app never came up, the model server timed out -- not an agent failure).
 From ``config.yaml``: the agent (``model_pretty_name``, else ``model_name``),
 ``task_name``, ``app_overrides`` (the app variation) and the seeds, plus the
-few keys the drill-down's Reproduce and Configuration sections show (see
+few keys the details page's Reproduce and Configuration sections show (see
 :mod:`open_apps.results_preview.reproduce`), read once per config file.
 
 Re-runs of one cell -- the same (agent, task, variation, seed) -- count once:
@@ -84,7 +84,7 @@ class Run:
     n_steps: Optional[int]
     started: float  # epoch seconds; orders re-runs of one cell
     exp_dir: str
-    source: str  # the sweep (or single run) it came from, for the drill-down
+    source: str  # the sweep (or single run) it came from, for the details page
     error: Optional[str] = None
     overrides: tuple[str, ...] = ()  # the app variation's overrides, as launched
     #: How its job was set up (shared by every run of one config file).
@@ -290,7 +290,7 @@ def find_runs(
                 except Exception as exc:  # noqa: BLE001 -- skip, don't sink the page
                     configs[config_path] = exc
                 else:
-                    try:  # only the drill-down's description: never skip for it
+                    try:  # only the details page's description: never skip for it
                         setups[config_path] = setup_from_config(
                             configs[config_path], config_path
                         )

@@ -7,7 +7,9 @@ LICENSE file in the root directory of this source tree.
 The results page: one self-contained HTML file, served from memory.
 
 Everything -- styles, the few lines of script, the halftone background -- is
-inline, so the saved file opens from disk and fetches nothing. The server
+inline, so the saved file opens from disk and fetches nothing. Each model's
+details page is part of the same file, shown in place of the table when the
+URL ends in ``#model/<name>``, so the saved file has them too. The server
 (:func:`serve`) answers ``/`` (the page with its two save links),
 ``/results.html`` (the file to keep) and ``/results.pdf`` (rendered by
 Playwright's Chromium on first request), and nothing else.
@@ -18,6 +20,7 @@ from __future__ import annotations
 import base64
 import html
 import os
+import re
 import socket
 import sys
 import threading
@@ -28,7 +31,7 @@ from typing import Optional, Sequence
 
 from open_apps.results_preview import reproduce
 from open_apps.results_preview.halftone import tile_png
-from open_apps.results_preview.runs import ModelRow, Results, Tally
+from open_apps.results_preview.runs import ModelRow, Results, Run, Tally
 
 DEFAULT_PORT = 8765
 TITLE = "OpenApps results · local preview"
@@ -78,18 +81,53 @@ def _rate_cell(t: Tally, compact: bool = False) -> str:
     )
 
 
-def _fold(title: str, count: str, body: str, warn: bool = False) -> str:
-    """A section that starts folded: its heading and a count are the summary."""
+def _fold(title: str, count: str, body: str, warn: bool = False, open_: bool = False) -> str:
+    """A section that folds: its heading and a count are the summary."""
     return (
-        f'<section><details class="fold"><summary><h3>{_e(title)}</h3>'
+        f'<section><details class="fold"{" open" if open_ else ""}><summary><h3>{_e(title)}</h3>'
         f'<span class="count{" warn" if warn else ""}">{_e(count)}</span></summary>'
         f"{body}</details></section>"
     )
 
 
-def _breakdown(title: str, tallies: Sequence[Tally]) -> str:
+def short_variation(label: str) -> str:
+    """A variation label that reads at a glance: ``apps/`` dropped, the default
+    theme left out beside other overrides, and one setting made in several apps
+    said once (``content=german ×7 apps``)."""
+    parts = [p.strip() for p in label.split(",") if p.strip()]
+    if len(parts) > 1:
+        parts = [p for p in parts if p != "apps/theme=default"]
+    groups: dict[str, list[str]] = {}
+    for part in parts:
+        key, _, value = part.partition("=")
+        bits = key.split("/")
+        if len(bits) == 3 and bits[0] == "apps" and value:
+            groups.setdefault(f"{bits[2]}={value}", []).append(bits[1])
+        else:
+            groups.setdefault(part.removeprefix("apps/"), [])
+    out = []
+    for setting, apps in groups.items():
+        if len(apps) > 1:
+            out.append(f"{setting} ×{len(apps)} apps")
+        elif apps:
+            out.append(f"{apps[0]} {setting}")
+        else:
+            out.append(setting)
+    return ", ".join(out) or label
+
+
+def _name_cell(label: str) -> str:
+    return f'<td class="name">{_breakable(label)}</td>'
+
+
+def _variation_cell(label: str) -> str:
+    return f'<td class="name" title="{_e(label)}">{_breakable(short_variation(label))}</td>'
+
+
+def _breakdown(title: str, tallies: Sequence[Tally], open_: bool = False) -> str:
+    name = _variation_cell if title == "By variation" else _name_cell
     rows = "".join(
-        f'<tr><td class="name">{_breakable(t.label)}</td>'
+        f"<tr>{name(t.label)}"
         f"<td>{_rate_cell(t, compact=True)}</td>"
         f'<td class="num">{t.successes}/{t.episodes}</td>'
         f'<td class="num{" warn" if t.errored else ""}">{t.errored or ""}</td>'
@@ -104,7 +142,7 @@ def _breakdown(title: str, tallies: Sequence[Tally]) -> str:
         f'<th class="num">Steps</th></tr></thead>'
         f"<tbody>{rows}</tbody></table>"
     )
-    return _fold(title, plural(len(tallies), word), table)
+    return _fold(title, plural(len(tallies), word), table, open_=open_)
 
 
 def plural(n: int, word: str) -> str:
@@ -205,8 +243,61 @@ def _configuration(row: ModelRow) -> str:
     return f'<section class="configuration"><h3>Configuration</h3>{body}</section>'
 
 
-def _drilldown(row: ModelRow, rid: str = "m") -> str:
+def _outcome(run: Run) -> str:
+    if run.errored:
+        return '<span class="outcome errored">errored</span>'
+    if run.success:
+        return '<span class="outcome passed">passed</span>'
+    return '<span class="outcome failed">failed</span>'
+
+
+def _job_dir(run: Run) -> str:
+    """The run's job directory under its sweep (``run-x/12``) without
+    BrowserGym's long experiment dir; the full path is the cell's tooltip."""
+    rel = os.path.relpath(os.path.dirname(run.exp_dir), run.source) if run.source else ".."
+    return run.exp_dir if rel.startswith("..") or rel == "." else rel
+
+
+def _episodes(row: ModelRow) -> str:
+    """Every run the row counts (and its errored ones), by task then variation."""
+    runs = sorted(row.runs, key=lambda r: (r.task, r.variation, r.seed))
+    body = "".join(
+        f"<tr>{_name_cell(r.task)}{_variation_cell(r.variation)}"
+        f"<td>{_outcome(r)}</td>"
+        f'<td class="num">{"" if r.n_steps is None else r.n_steps}</td>'
+        f'<td class="num">{_e(r.seed)}</td>'
+        f'<td class="path" title="{_e(r.exp_dir)}"><code>{_e(_job_dir(r))}</code></td></tr>'
+        for r in runs
+    )
+    table = (
+        '<table class="sub episodes"><thead><tr><th>Task</th><th>Variation</th>'
+        '<th>Outcome</th><th class="num">Steps</th><th class="num">Seed</th>'
+        f"<th>Job <small>(under Runs from)</small></th></tr></thead><tbody>{body}</tbody></table>"
+    )
+    return _fold("Episodes", str(len(runs)), table)
+
+
+def _stats(row: ModelRow) -> str:
+    return (
+        '<div class="sheet"><table class="board stats"><thead><tr>'
+        '<th>Success <small>(95% CI)</small></th><th class="num">Episodes</th>'
+        '<th class="num">Tasks</th>'
+        '<th class="num" title="Infrastructure errors, excluded from the rate">Errored</th>'
+        '<th class="num">Mean steps</th></tr></thead><tbody><tr class="main">'
+        f"<td>{_rate_cell(row)}</td>"
+        f'<td class="num">{row.episodes}</td>'
+        f'<td class="num">{row.tasks}</td>'
+        f'<td class="num{" warn" if row.errored else ""}">{row.errored}</td>'
+        f'<td class="num">{_steps(row.mean_steps)}</td>'
+        "</tr></tbody></table></div>"
+    )
+
+
+def _model_page(row: ModelRow, slug: str, rid: str = "m") -> str:
+    """A model's details page: its numbers, how its runs were configured and
+    how to re-run them, success per task and per variation, and every episode."""
     facts = [
+        f"rank {row.rank}",
         f"{plural(row.episodes, 'episode')} of {plural(row.tasks, 'task')}",
         plural(len(row.by_variation), "variation"),
     ]
@@ -214,15 +305,18 @@ def _drilldown(row: ModelRow, rid: str = "m") -> str:
         facts.append(f"{row.errored} errored (not counted)")
     if row.replaced:
         facts.append(f"{plural(row.replaced, 're-run')} replaced")
-    parts = [f'<p class="facts">{" · ".join(map(_e, facts))}</p>']
-    parts.append(
-        '<div class="split">'
-        + _breakdown("By task", row.by_task)
-        + _breakdown("By variation", row.by_variation)
-        + "</div>"
-    )
-    parts.append(_configuration(row))
-    parts.append(_reproduce(row, rid))
+    parts = [
+        '<nav class="back"><a href="#">← All models</a></nav>',
+        '<header><p class="eyebrow">OpenApps · local preview · model</p>'
+        f'<h1>{_e(row.label)}</h1><p class="meta">{" · ".join(map(_e, facts))}</p></header>',
+        _stats(row),
+        '<div class="sheet page-body">',
+        _configuration(row),
+        _reproduce(row, rid),
+        _breakdown("By task", row.by_task, open_=True),
+        _breakdown("By variation", row.by_variation, open_=True),
+        _episodes(row),
+    ]
     if row.errors:
         items = "".join(
             f"<li><b>{_e(task)}</b> {_e(msg) or 'error'}<br><code>{_e(where)}</code></li>"
@@ -238,26 +332,40 @@ def _drilldown(row: ModelRow, rid: str = "m") -> str:
     if more > 0:
         sources += f"<li>… and {more} more</li>"
     parts.append(_fold("Runs from", str(len(row.sources)), f'<ul class="sources">{sources}</ul>'))
-    return "".join(parts)
+    parts.append("</div>")
+    return (
+        f'<article class="model-page" id="page-{rid}" data-model="{_e(slug)}" '
+        f'data-title="{_e(row.label)}" hidden>' + "".join(parts) + "</article>"
+    )
 
 
-def _table(results: Results) -> str:
+def model_slugs(rows: Sequence[ModelRow]) -> list[str]:
+    """One URL-safe name per row (``#model/<name>``), unique on the page."""
+    slugs: list[str] = []
+    for row in rows:
+        base = re.sub(r"[^A-Za-z0-9._-]+", "-", row.label).strip("-") or f"m{row.rank}"
+        slug, n = base, 2
+        while slug in slugs:
+            slug, n = f"{base}-{n}", n + 1
+        slugs.append(slug)
+    return slugs
+
+
+def _table(results: Results, slugs: Sequence[str]) -> str:
     bodies = []
-    for row in results.rows:
-        rid = f"m{row.rank}"
+    for row, slug in zip(results.rows, slugs):
         bodies.append(
             '<tbody class="model">'
             '<tr class="main">'
             f'<td class="rank">{row.rank}</td>'
-            f'<td class="name"><button type="button" class="toggle" aria-expanded="false" '
-            f'aria-controls="{rid}">{_e(row.label)}</button></td>'
+            f'<td class="name"><a class="model-link" href="#model/{_e(slug)}">'
+            f"{_e(row.label)}</a></td>"
             f"<td>{_rate_cell(row)}</td>"
             f'<td class="num">{row.episodes}</td>'
             f'<td class="num">{row.tasks}</td>'
             f'<td class="num{" warn" if row.errored else ""}">{row.errored}</td>'
             f'<td class="num">{_steps(row.mean_steps)}</td>'
             "</tr>"
-            f'<tr class="detail" id="{rid}" hidden><td colspan="7">{_drilldown(row, rid)}</td></tr>'
             "</tbody>"
         )
     return (
@@ -318,13 +426,22 @@ th small { font-weight: 400; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rank { width: 2.5rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .warn { color: var(--warn); font-weight: 600; }
-.toggle {
-  all: unset; cursor: pointer; font-weight: 600; color: var(--ink); overflow-wrap: break-word;
-}
+.model-link { font-weight: 600; color: var(--ink); text-decoration: none; overflow-wrap: break-word; }
+.model-link::after { content: " →"; color: var(--muted); }
+.model-link:hover, .model-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .board .main td.name { min-width: 12rem; }
-.toggle::before { content: "▸"; display: inline-block; width: 1em; color: var(--muted); transition: transform .12s; }
-.toggle[aria-expanded="true"]::before { transform: rotate(90deg); }
-.toggle:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 3px; border-radius: 3px; }
+.back { margin-bottom: .25rem; font-size: 13px; }
+.back a { color: var(--muted); text-decoration: none; }
+.back a:hover, .back a:focus-visible { color: var(--ink); }
+.page-body { margin-top: 1rem; padding: 1rem 1.25rem 1.25rem; }
+.stats .main td { border-bottom: 0; }
+.episodes th:nth-child(1) { width: 32%; } .episodes th:nth-child(2) { width: auto; }
+.episodes th:nth-child(3) { width: 5.5rem; } .episodes th:nth-child(4) { width: 4rem; }
+.episodes th:nth-child(5) { width: 5rem; } .episodes th:nth-child(6) { width: 10rem; }
+.episodes td.path code { font-size: 11px; color: var(--muted); }
+.outcome.passed { color: var(--ink); font-weight: 600; }
+.outcome.failed { color: var(--muted); }
+.outcome.errored { color: var(--warn); font-weight: 600; }
 .rate { display: inline-grid; grid-template-columns: 4.2em 11rem 4.5em; align-items: center; gap: .6rem; }
 .rate.compact { grid-template-columns: 3.8em 6rem 4em; gap: .45rem; }
 .pct { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
@@ -335,9 +452,6 @@ th small { font-weight: 400; }
 .ci::before, .ci::after { content: ""; position: absolute; top: -4px; width: 1.5px; height: 10px; background: var(--whisker); }
 .ci::before { left: 0; } .ci::after { right: 0; }
 .none { color: var(--muted); font-style: italic; }
-.detail > td { background: var(--detail); padding: .9rem 1rem 1.2rem 3.3rem; border-bottom: 1px solid var(--line-strong); }
-.facts { margin: 0 0 .8rem; color: var(--ink-2); font-weight: 500; }
-.split { display: grid; gap: 1.25rem; max-width: 900px; }
 h3 { margin: .2rem 0 .4rem; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .fold > summary { display: flex; align-items: baseline; gap: .5rem; cursor: pointer; list-style: none; }
 .fold > summary::-webkit-details-marker { display: none; }
@@ -353,8 +467,7 @@ h3 { margin: .2rem 0 .4rem; font-size: 12px; text-transform: uppercase; letter-s
 .sub th:nth-child(4) { width: 4.5rem; } .sub th:nth-child(5) { width: 4rem; }
 .sub th, .sub td { padding: .28rem .45rem; border-bottom: 1px solid var(--line); }
 .sub td.name { overflow-wrap: break-word; }
-section + section, .split + section { margin-top: 1rem; }
-.split > section { margin-top: 0; min-width: 0; }
+section + section { margin-top: 1rem; }
 ul.errors, ul.sources { margin: 0; padding-left: 1.1rem; color: var(--ink-2); }
 ul.errors li { margin-bottom: .35rem; }
 .note { margin: 0 0 .45rem; color: var(--ink-2); max-width: 90ch; }
@@ -382,19 +495,32 @@ dl.config dd { margin: 0; color: var(--ink); }
 footer { margin-top: 1.25rem; color: var(--muted); font-size: 12.5px; max-width: 80ch; }
 footer p { margin: .3rem 0; }
 @media print {
-  .save, .copy { display: none; } .sheet { backdrop-filter: none; }
+  .save, .copy, .back { display: none; } .sheet { backdrop-filter: none; }
   pre.code { max-height: none; padding-right: .8rem; }
 }
 """
 
 _JS = """
-for (const button of document.querySelectorAll(".toggle")) {
-  button.addEventListener("click", () => {
-    const open = button.getAttribute("aria-expanded") !== "true";
-    button.setAttribute("aria-expanded", String(open));
-    document.getElementById(button.getAttribute("aria-controls")).hidden = !open;
-  });
+// #model/<name> shows that model's page in place of the table; anything else
+// shows the table, back where it was scrolled to.
+const board = document.getElementById("board"), baseTitle = document.title;
+let boardScroll = 0;
+function route() {
+  const match = location.hash.match(/^#model\\/(.+)$/);
+  const name = match ? decodeURIComponent(match[1]) : null;
+  let shown = null;
+  for (const page of document.querySelectorAll(".model-page")) {
+    page.hidden = page.dataset.model !== name;
+    if (!page.hidden) shown = page;
+  }
+  if (shown && !board.hidden) boardScroll = window.scrollY;
+  const wasBoard = !board.hidden;
+  board.hidden = Boolean(shown);
+  document.title = shown ? `${shown.dataset.title} · ${baseTitle}` : baseTitle;
+  window.scrollTo(0, shown ? 0 : (wasBoard ? window.scrollY : boardScroll));
 }
+window.addEventListener("hashchange", route);
+route();
 // Copy a command. The clipboard API needs a secure context (https, or
 // localhost); elsewhere -- a saved file, a forwarded host -- select the text
 // and fall back to the legacy copy command, leaving it selected if that fails.
@@ -500,7 +626,11 @@ class Page:
             extra.append(f"{len(r.skipped)} skipped (unreadable or no config.yaml)")
         if extra:
             notes.append(" · ".join(map(_e, extra)) + ".")
-        body = _table(r) if r.rows else '<div class="sheet empty">No runs found.</div>'
+        slugs = model_slugs(r.rows)
+        body = _table(r, slugs) if r.rows else '<div class="sheet empty">No runs found.</div>'
+        pages = "".join(
+            _model_page(row, slug, f"m{row.rank}") for row, slug in zip(r.rows, slugs)
+        )
         return (
             "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -510,13 +640,15 @@ class Page:
             f'--tile: url("{self._tiles["dark"]}"); }} }}\n'
             "</style>\n</head>\n<body>\n<main>\n"
             + (_TOOLBAR.format(name=self.name) if toolbar else "")
-            + '<header><p class="eyebrow">OpenApps · local preview</p>'
+            + '<div id="board"><header><p class="eyebrow">OpenApps · local preview</p>'
             "<h1>Task success by model</h1>"
             f'<p class="meta">{meta}</p><p class="meta">Runs under {where}</p></header>\n'
             + body
             + "\n<footer>"
             + "".join(f"<p>{n}</p>" for n in notes)
-            + "</footer>\n</main>\n"
+            + "</footer></div>\n"
+            + pages
+            + "\n</main>\n"
             f"<script>{_JS}</script>\n</body>\n</html>\n"
         )
 

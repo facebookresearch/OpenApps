@@ -8,7 +8,7 @@ How a model's runs were set up, and the command that runs them again.
 
 :func:`setup_from_config` reduces a job's saved ``config.yaml`` (already cut
 down to a few top-level keys by :func:`open_apps.results_preview.runs.read_config`)
-to a small, hashable :class:`Setup`, once per config file. The drill-down then
+to a small, hashable :class:`Setup`, once per config file. The details page then
 shows, from the runs of one model:
 
 * :func:`commands` -- ``launch_parallel_agents.py`` invocations that re-run

@@ -551,12 +551,33 @@ def test_an_unrecorded_agent_config_is_matched_by_model_name(tmp_path, monkeypat
     reproduce.guess_agent_config.cache_clear()
 
 
-def test_the_drilldown_reads_configuration_then_reproduce_with_lists_folded(tmp_path):
+def test_each_model_links_to_its_details_page_in_the_same_file(tmp_path):
     sweep_runs(tmp_path, ["todo_add", "todo_check"], [[], DARK])
     html = P.Page(R.collect([tmp_path]), background_seed=0).html()
-    configuration, reproduce_ = html.index("<h3>Configuration</h3>"), html.index("<h3>Reproduce</h3>")
-    assert configuration < reproduce_
-    for title, count in [("By task", "2 tasks"), ("By variation", "2 variations"), ("Runs from", "1")]:
-        assert (f'<details class="fold"><summary><h3>{title}</h3>'
-                f'<span class="count">{count}</span></summary>') in html  # fmt: skip
-    assert "<details open" not in html
+    assert '<a class="model-link" href="#model/Model-A">Model-A</a>' in html
+    page = html[html.index('<article class="model-page"'):html.index("</article>")]
+    assert 'data-model="Model-A"' in page and " hidden>" in page
+    assert '<a href="#">← All models</a>' in page and "<h1>Model-A</h1>" in page
+    # Configuration, then Reproduce, then the breakdowns (open) and every episode (folded).
+    order = [page.index(h) for h in ("<h3>Configuration</h3>", "<h3>Reproduce</h3>",
+                                     "<h3>By task</h3>", "<h3>By variation</h3>", "<h3>Episodes</h3>")]  # fmt: skip
+    assert order == sorted(order)
+    assert '<details class="fold" open><summary><h3>By task</h3><span class="count">2 tasks</span>' in page
+    assert '<details class="fold"><summary><h3>Episodes</h3><span class="count">4</span>' in page
+    assert page.count('<span class="outcome ') == 4
+
+
+def test_model_slugs_are_url_safe_and_unique():
+    rows = [R.ModelRow(label=label, rank=i + 1) for i, label in enumerate(["a b/c", "a b/c", "+++"])]
+    assert P.model_slugs(rows) == ["a-b-c", "a-b-c-2", "m3"]
+
+
+def test_variation_labels_are_shortened_for_reading():
+    german = ", ".join(["apps/theme=default"] + [f"apps/{a}/content=german" for a in ("todo", "maps")])
+    assert P.short_variation(german) == "content=german ×2 apps"
+    assert P.short_variation("apps/theme=default, apps/todo/layout=grouped_sections") == (
+        "todo layout=grouped_sections"
+    )
+    assert P.short_variation("apps/theme=default, device=phone") == "device=phone"
+    assert P.short_variation("apps/theme=dark") == "theme=dark"
+    assert P.short_variation("default") == "default"

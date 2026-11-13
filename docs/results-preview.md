@@ -12,10 +12,12 @@ uv run -m open_apps.results_preview log_outputs --agent 'Qwen*' --task 'todo_*'
 ```
 
 Each row shows the success rate with its 95% (Wilson) interval, the episodes and distinct
-tasks behind it, how many runs errored, and the mean number of steps. Click a model to drill
-down: "N episodes of M tasks", then success per task and per app variation, how to reproduce
-the runs and how they were configured, any errored runs with their error, and the directories
-the runs came from.
+tasks behind it, how many runs errored, and the mean number of steps. Click a model for its
+details page: how its runs were configured and how to reproduce them, success per task and per
+app variation, every episode with its outcome, steps and job directory, any errored runs with
+their error, and the directories the runs came from. The details pages are part of the same
+file (the URL ends in `#model/<name>`), so a saved copy has them too, and the browser's Back
+button returns to the table.
 
 ## Reproduce and Configuration
 
