@@ -13,8 +13,9 @@ from fasthtml.common import (
     HighlightJS, database, dataclass)
 from datetime import datetime, timedelta
 from itertools import groupby
+from open_apps import i18n
 from open_apps.frontend import local_hdrs
-from open_apps.theme import render_theme_css, resolve_theme
+from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 import calendar
 import os
 import logging
@@ -38,16 +39,63 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 # the config, so this block is built once at import instead of rebuilt in
 # `set_environment`.
 _COMPONENT_CSS = """
-    /* Base styles */
+    /* Page frame. Pico paints <html> (`:where(:root)`) from its own palette,
+       so without `html` here a dark theme leaves a white band below short
+       content. */
+    html, body {
+        background-color: var(--color-bg);
+    }
+    /* Base styles, plus a bridge from Pico's variables onto the theme tokens
+       (as todo and the shop do). On <body> rather than `:root`: Pico sets its
+       palette on `:root:not([data-theme=dark])`, which out-ranks `:root`,
+       while a value set on <body> simply shadows it for everything inside.
+       Without it Pico's fixed, near-black `--pico-h1-color` painted the
+       "OpenCalendar" header near-invisible on the dark theme. */
     body {
         font-family: var(--font-family);
         font-size: var(--font-size-base);
         color: var(--color-fg);
-        background-color: var(--color-bg);
+        --pico-background-color: var(--color-bg);
+        --pico-color: var(--color-fg);
+        --pico-muted-color: var(--color-muted);
+        --pico-muted-border-color: var(--color-border);
+        --pico-h1-color: var(--color-fg);
+        --pico-h2-color: var(--color-fg);
+        --pico-h3-color: var(--color-fg);
+        --pico-h4-color: var(--color-fg);
+        --pico-h5-color: var(--color-fg);
+        --pico-h6-color: var(--color-fg);
+        --pico-font-family: var(--font-family);
+        --pico-border-radius: var(--radius);
+        --pico-primary: var(--color-primary);
+        --pico-primary-background: var(--color-primary);
+        --pico-primary-border: var(--color-primary);
+        --pico-primary-hover: var(--color-primary-hover);
+        --pico-primary-inverse: var(--color-on-primary);
+        --pico-primary-focus: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-secondary-background: var(--color-neutral);
+        --pico-secondary-border: var(--color-neutral);
+        --pico-secondary-inverse: var(--color-btn-fg);
+        --pico-form-element-background-color: var(--color-bg);
+        --pico-form-element-selected-background-color: var(--color-bg);
+        --pico-form-element-border-color: var(--color-border);
+        --pico-form-element-color: var(--color-fg);
+        --pico-form-element-placeholder-color: var(--color-muted);
+        --pico-form-element-active-background-color: var(--color-bg);
+        --pico-form-element-active-border-color: var(--color-primary);
+        --pico-form-element-focus-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-card-background-color: var(--color-surface);
+        --pico-card-sectioning-background-color: var(--color-surface);
+        --pico-card-box-shadow: 0 0 0 1px var(--color-border);
+        --pico-modal-overlay-background-color: color-mix(in srgb, var(--color-bg) 75%, transparent);
+        --pico-table-border-color: var(--color-border);
+        --pico-code-background-color: var(--color-surface);
+        --pico-code-color: var(--color-fg);
     }
 
     h1, h2, h3, h4, h5, h6 {
         font-family: var(--font-heading);
+        color: var(--color-fg);
     }
 
     h1 {
@@ -493,6 +541,110 @@ def resolve_view(view: str | None) -> str:
     return view if view in _VIEWS else default_view()
 
 
+# ---- UI language -------------------------------------------------------
+# The app's own strings live in its content packs as flat `*_label` keys
+# (`config/apps/calendar/content/`), the pattern openbanking set: English in
+# `default.yaml`, overridden by `german.yaml` / `mandarin.yaml`. Every lookup
+# falls back to the English text, so a pack that predates a key (the
+# adversarial pack does not inherit `default`) still renders the reference
+# page. Strings every app shares ("Return to List of Apps", "Close") come from
+# `open_apps.i18n.t`. Event titles are data, not UI: they stay as the packs
+# give them, because the calendar tasks match events by title.
+
+
+def _content():
+    config = getattr(app, "config", None)
+    return config.calendar if config is not None else None
+
+
+def language() -> str:
+    return i18n.language_of(_content())
+
+
+def L(key: str, default: str) -> str:
+    """This app's UI string `key` in the active pack's language."""
+    return i18n.label(_content(), key, default)
+
+
+def shared(key: str) -> str:
+    """A string every app shares (`open_apps.i18n.SHARED`)."""
+    return i18n.t(key, language())
+
+
+def _names(key: str, default) -> list[str]:
+    """A pack-provided list of month/day names, or the stdlib's English ones.
+
+    `calendar.month_name` and friends follow the process locale, which is
+    English on every eval host and says nothing about the content pack, so
+    the localized names come from the pack. A list of the wrong length is
+    ignored rather than shifting every month by one.
+    """
+    cfg = _content()
+    value = cfg.get(key) if cfg is not None and hasattr(cfg, "get") else None
+    default = [str(n) for n in default]
+    if value is None or len(value) != len(default):
+        return default
+    return [str(v) for v in value]
+
+
+def month_name(month: int) -> str:
+    return _names("month_names", list(calendar.month_name)[1:])[month - 1]
+
+
+def month_abbr(month: int) -> str:
+    return _names("month_abbr", list(calendar.month_abbr)[1:])[month - 1]
+
+
+def day_name(weekday: int) -> str:
+    """Monday is 0, as in `date.weekday()`."""
+    return _names("day_names", list(calendar.day_name))[weekday]
+
+
+def day_abbr(weekday: int) -> str:
+    return _names("day_abbr", list(calendar.day_abbr))[weekday]
+
+
+def day_initial(weekday: int) -> str:
+    """The mini-month's one-letter column heads. A list of its own: the first
+    character of a Mandarin abbreviation is 周 for every day."""
+    return _names("day_initials", [a[0] for a in calendar.day_abbr])[weekday]
+
+
+def month_year(month: int, year: int) -> str:
+    """"May 2026" / "Mai 2026" / "2026年5月"."""
+    return L("month_year_format", "{month} {year}").format(
+        month=month_name(month), year=year
+    )
+
+
+def recurrence_label(value: str, default: str) -> str:
+    """The pack's name for a recurrence ("weekly" -> "Wöchentlich")."""
+    cfg = _content()
+    options = cfg.get("recurrence_options") if cfg is not None else None
+    text = options.get(value) if options is not None and hasattr(options, "get") else None
+    return str(text) if text else default
+
+
+def _html_attrs(req):
+    """`<html lang>` from the pack's language and `data-theme` from the
+    theme's tone, set per request so a live reconfigure lands too.
+
+    `data-theme` pins Pico to the palette the theme means instead of letting
+    `prefers-color-scheme` pick one: without it a light theme on a dark-mode
+    OS got Pico's dark form fields and canvas. The token bridge in
+    `_COMPONENT_CSS` then overrides Pico's colours either way.
+    """
+    config = getattr(app, "config", None)
+    if config is None:
+        return
+    req.htmlkw["lang"] = i18n.html_lang(language())
+    tone = theme_asset(config, "calendar", "tone", "light")
+    req.htmlkw["data-theme"] = "dark" if tone == "dark" else "light"
+
+
+app.before.append(_html_attrs)
+
+
 def update_db_from_hydra():
 
     for event in app.config.calendar.events:
@@ -515,8 +667,7 @@ def update_db_from_hydra():
 # Helper functions
 def get_month_calendar(year, month):
     cal = calendar.monthcalendar(year, month)
-    month_name = calendar.month_name[month]
-    return cal, month_name
+    return cal, month_name(month)
 
 
 def generate_rss_feed():
@@ -543,7 +694,7 @@ def add_event_button():
     footer shows it unless `sidebar_nav` has promoted it to the top of the
     rail, so there is only ever one on a page."""
     return A(
-        "Add Event",
+        L("add_event_label", "Add Event"),
         href="/calendar/create_event/",
         target="_blank",
         role="button",
@@ -562,7 +713,7 @@ def create_footer(hide_add_button=False):
     return_cls = "outline calendar-return"
     if current_layout() == "default":
         return_cls += " calendar-return-prominent"
-    return_to_apps = A("Return to List of Apps", href="/", role="button", cls=return_cls)
+    return_to_apps = A(shared("return_to_apps"), href="/", role="button", cls=return_cls)
 
     footer_buttons = Div(
         add_button, return_to_apps, cls="button-container"
@@ -739,11 +890,11 @@ def show_main_layout(year, month, view="calendar", event_id=None):
             event.title,
             Div(
                 H3(event.title),
-                P(f"Date: {event.date}"),
-                P(f"Location: {event.location}") if event.location else "",
+                P(f"{L('date_label', 'Date')}: {event.date}"),
+                P(f"{L('location_label', 'Location')}: {event.location}") if event.location else "",
                 P(event.description),
                 A(
-                    "Back to Calendar",
+                    L("back_to_calendar_label", "Back to Calendar"),
                     href=f"/calendar/calendar_content/{year}/{month}?view={view}",
                     role="button",
                     cls="outline",
@@ -758,29 +909,30 @@ def show_main_layout(year, month, view="calendar", event_id=None):
     # name them) and gain a tooltip; the styling makes them compact toolbar
     # controls rather than full-width buttons.
     prev_link = A(
-        "< Prev",
+        L("prev_label", "< Prev"),
         href=f"/calendar/calendar_content/{year}/{month}?direction=prev&view={view}",
         role="button",
         cls="outline calendar-step",
-        title="Previous month",
+        title=L("prev_title", "Previous month"),
     )
-    month_title = H2(f"{calendar.month_name[month]} {year}", id="current-month-year")
+    month_title = H2(month_year(month, year), id="current-month-year")
     next_link = A(
-        "Next >",
+        L("next_label", "Next >"),
         href=f"/calendar/calendar_content/{year}/{month}?direction=next&view={view}",
         role="button",
         cls="outline calendar-step",
-        title="Next month",
+        title=L("next_title", "Next month"),
     )
     # `/calendar` always opens on the current month, so "Today" is a link to
     # an existing route rather than new navigation state.
     today_link = A(
-        "Today",
+        L("today_label", "Today"),
         href=f"/calendar?view={view}",
         role="button",
         cls="outline calendar-today",
-        title=f"{calendar.day_name[today.weekday()]}, "
-        f"{calendar.month_name[today.month]} {today.day}",
+        title=L("today_title_format", "{weekday}, {month} {day}").format(
+            weekday=day_name(today.weekday()), month=month_name(today.month), day=today.day
+        ),
     )
 
     def view_link(name, label):
@@ -796,8 +948,8 @@ def show_main_layout(year, month, view="calendar", event_id=None):
             aria_current="page" if selected else None,
         )
 
-    calendar_link = view_link("calendar", "Calendar")
-    agenda_link = view_link("agenda", "Agenda")
+    calendar_link = view_link("calendar", L("calendar_view_label", "Calendar"))
+    agenda_link = view_link("agenda", L("agenda_view_label", "Agenda"))
 
     # `agenda_first` leads with the agenda, so the toggle has to lead with it
     # too -- otherwise the highlighted button would sit second on arrival.
@@ -806,7 +958,9 @@ def show_main_layout(year, month, view="calendar", event_id=None):
         if layout == "agenda_first"
         else (calendar_link, agenda_link)
     )
-    view_toggle = Div(*toggle_links, cls="view-toggle", role="group", aria_label="View")
+    view_toggle = Div(
+        *toggle_links, cls="view-toggle", role="group", aria_label=L("view_group_label", "View")
+    )
 
     cal, _ = get_month_calendar(year, month)
     month_events = get_events_for_month(year, month)
@@ -865,17 +1019,18 @@ def show_main_layout(year, month, view="calendar", event_id=None):
         id="calendar-container",
     )
 
+    close = shared("close")
     event_dialog = Container(
         Div(id="event-dialog-content"),
-        header=Div(Button("x", aria_label="Close", _="on click hide #event-dialog")),
-        footer=Div(Button("Close", cls="secondary", _="on click hide #event-dialog")),
+        header=Div(Button("x", aria_label=close, _="on click hide #event-dialog")),
+        footer=Div(Button(close, cls="secondary", _="on click hide #event-dialog")),
         id="event-dialog",
     )
 
     about_dialog = Container(
         Div(id="about-dialog-content", cls="marked"),
-        header=Div(Button("x", aria_label="Close", _="on click hide #about-dialog")),
-        footer=Div(Button("Close", cls="secondary", _="on click hide #about-dialog")),
+        header=Div(Button("x", aria_label=close, _="on click hide #about-dialog")),
+        footer=Div(Button(close, cls="secondary", _="on click hide #about-dialog")),
         id="about-dialog",
     )
 
@@ -896,6 +1051,13 @@ def get(req):
     view = resolve_view(req.query_params.get("view"))
     # Get error message if present
     error_message = req.query_params.get("error")
+    if error_message:
+        # The redirects carry the English message in the URL (kept as-is so
+        # existing links and checks still match); the pack translates it.
+        content = _content()
+        messages = content.get("error_messages") if content is not None else None
+        if messages and error_message in messages:
+            error_message = str(messages[error_message])
     error_div = Div(error_message, cls="error-message") if error_message else ""
 
     return (
@@ -981,7 +1143,7 @@ def mini_month(year, month, cal, month_events, today):
     day numbers to read.
     """
     busy = {e.date for e in month_events}
-    head = Tr(*[Th(calendar.day_abbr[i][0]) for i in range(7)])
+    head = Tr(*[Th(day_initial(i)) for i in range(7)])
     rows = []
     for week in cal:
         cells = []
@@ -1002,7 +1164,7 @@ def mini_month(year, month, cal, month_events, today):
 def month_grid(year, month, cal, month_events, today):
     weekday_headers = [
         Th(
-            calendar.day_abbr[i],
+            day_abbr(i),
             scope="col",
             cls="weekend" if i in _WEEKEND_COLUMNS else None,
         )
@@ -1049,8 +1211,13 @@ def agenda(year, month, upcoming_events, today):
         # even for an empty month.
         return Ul(
             Li(
-                P(f"No events in {calendar.month_name[month]} {year}", cls="agenda-empty-title"),
-                P("Use Add Event to schedule one, or Next > to look ahead."),
+                P(
+                    L("agenda_empty_title", "No events in {month_year}").format(
+                        month_year=month_year(month, year)
+                    ),
+                    cls="agenda-empty-title",
+                ),
+                P(L("agenda_empty_hint", "Use Add Event to schedule one, or Next > to look ahead.")),
                 cls="agenda-empty",
             ),
             cls="agenda-list",
@@ -1065,7 +1232,9 @@ def agenda(year, month, upcoming_events, today):
                 Span(str(day.day), cls="agenda-day-number"),
                 " ",
                 Span(
-                    f"{calendar.month_abbr[day.month]}, {calendar.day_abbr[day.weekday()]}",
+                    L("agenda_date_format", "{month}, {weekday}").format(
+                        month=month_abbr(day.month), weekday=day_abbr(day.weekday())
+                    ),
                     cls="agenda-date-label",
                 ),
                 datetime=iso,
@@ -1075,7 +1244,7 @@ def agenda(year, month, upcoming_events, today):
         )
         rows = [
             Li(
-                Span("All day", cls="agenda-time"),
+                Span(L("all_day_label", "All day"), cls="agenda-time"),
                 Div(
                     A(e.title, href=f"/calendar/event/{e.id}", cls="agenda-event-link"),
                     Span(e.location, cls="agenda-location") if e.location else "",
@@ -1105,16 +1274,23 @@ def get_calendar_content(year, month, view, cal, month_events):
 @rt("/calendar/event/{id}")
 def get(id: int):
     event = events[id]
-    event_url = A("Event Link", href=event.url, target="_blank") if event.url else ""
+    event_url = (
+        A(L("event_link_label", "Event Link"), href=event.url, target="_blank")
+        if event.url
+        else ""
+    )
 
     # Display recurring information
     recurring_info = ""
     if event.recurring:
-        recurring_info = P(f"Recurring: {event.recurring.capitalize()}")
+        recurring_info = P(
+            f"{L('recurring_label', 'Recurring')}: "
+            f"{recurrence_label(event.recurring, event.recurring.capitalize())}"
+        )
 
     # Create delete form
     delete_form = Form(
-        Button("Delete Event", type="submit", cls="outline error"),
+        Button(L("delete_event_label", "Delete Event"), type="submit", cls="outline error"),
         method="post",
         action=f"/calendar/event/{id}/delete",
     )
@@ -1126,8 +1302,8 @@ def get(id: int):
             logo_title_container,
             Article(
                 H3(event.title),
-                P(f"Date: {event.date}"),
-                P(f"Location: {event.location}") if event.location else "",
+                P(f"{L('date_label', 'Date')}: {event.date}"),
+                P(f"{L('location_label', 'Location')}: {event.location}") if event.location else "",
                 recurring_info,
                 Div(event.description, cls="marked"),
                 event_url,
@@ -1182,43 +1358,43 @@ def get():
 
         return attrs
 
-    return (Title("Creating a new event"),
+    return (Title(L("create_event_page_title", "Creating a new event")),
             Container(
         styles,
         calendar_theme(),
         logo_title_container,
         Form(
-            H3("Create New Event"),
+            H3(L("create_event_heading", "Create New Event")),
 
-            Label("Title", For="title"),
+            Label(L("title_field_label", "Title"), For="title"),
             Input(**get_input_attrs('title', {'type': 'text', 'id': 'title', 'name': 'title', 'required': True})),
 
-            Label("Date", For="date"),
+            Label(L("date_field_label", "Date"), For="date"),
             Input(**get_input_attrs('date', {'type': 'text', 'id': 'date', 'name': 'date', 'required': True})),
 
-            Label("Description", For="description"),
+            Label(L("description_field_label", "Description"), For="description"),
             Textarea(**get_input_attrs('description', {'id': 'description', 'name': 'description'})),
 
-            Label("URL", For="url"),
+            Label(L("url_field_label", "URL"), For="url"),
             Input(**get_input_attrs('url', {'type': 'url', 'id': 'url', 'name': 'url'})),
 
-            Label("Invitees", For="invitees"),
+            Label(L("invitees_field_label", "Invitees"), For="invitees"),
             Input(**get_input_attrs('invitees', {'type': 'text', 'id': 'invitees', 'name': 'invitees'})),
 
-            Label("Location", For="location"),
+            Label(L("location_field_label", "Location"), For="location"),
             Input(**get_input_attrs('location', {'type': 'text', 'id': 'location', 'name': 'location'})),
 
-            Label("Recurring", For="recurring"),
+            Label(L("recurring_field_label", "Recurring"), For="recurring"),
             Select(
-                Option("Not Recurring", value="none", selected=True),
-                Option("Weekly", value="weekly"),
-                Option("Monthly", value="monthly"),
-                Option("Yearly", value="yearly"),
+                Option(recurrence_label("none", "Not Recurring"), value="none", selected=True),
+                Option(recurrence_label("weekly", "Weekly"), value="weekly"),
+                Option(recurrence_label("monthly", "Monthly"), value="monthly"),
+                Option(recurrence_label("yearly", "Yearly"), value="yearly"),
                 id="recurring",
                 name="recurring"
             ),
 
-            Button("Submit", type="submit"),
+            Button(L("submit_label", "Submit"), type="submit"),
             method="post",
             action="/calendar/create_event/save_text"
         ),

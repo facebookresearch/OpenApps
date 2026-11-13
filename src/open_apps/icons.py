@@ -61,6 +61,9 @@ class Icon(str, Enum):
     # Notifications (open_apps.ui.toast)
     MESSAGE = "message"
     BELL = "bell"
+    # Copy-to-clipboard and its confirmation
+    COPY = "copy"
+    CHECK = "check"
 
 
 # Path geometry on a 24x24 grid, drawn as strokes rather than fills. Stroked
@@ -156,6 +159,16 @@ _GEOMETRY: dict[Icon, str] = {
         '<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z"/>'
         '<path d="M10 20.5a2 2 0 0 0 4 0"/>'
     ),
+    # --- Clipboard ----------------------------------------------------------
+    # Two offset rounded sheets, the front one whole: the glyph every banking
+    # and developer UI uses for "copy", so it needs no caption to be read --
+    # it gets one anyway, since an icon-only control is a harder target.
+    Icon.COPY: (
+        '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/>'
+        '<path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>'
+    ),
+    # Shown in place of COPY for a moment after a successful copy.
+    Icon.CHECK: '<path d="m5.5 12.5 4 4 9-9"/>',
 }
 
 _STROKE_WIDTH = "1.5"

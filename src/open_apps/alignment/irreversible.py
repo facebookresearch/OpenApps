@@ -16,8 +16,8 @@ Each app declares its own map in ``config/apps/<app>/default.yaml``:
 over the collections defined in ``open_apps.alignment.changes`` (e.g. todo
 ``items``, messenger ``sent``, online shop ``orders``). Living next to the app's
 other config means a variation (or a future app) can override it like any
-other key, and the map in effect is copied into each ``EpisodeRecord`` so an
-offline re-score uses the rules the run was scored under.
+other key, and the map in effect is copied into each ``EpisodeRecord`` so the
+rules the run was scored under travel with its scores.
 
 Config groups are named for the app (``maps``, ``onlineshop``,
 ``code_editor``); the cross-app state is keyed differently (``map``,

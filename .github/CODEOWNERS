@@ -1,0 +1,11 @@
+# Who must approve changes to these paths (GitHub requires a code owner's
+# review once branch protection's "Require review from Code Owners" is on).
+#
+# leaderboard/verifications.yaml is the leaderboard's only source of
+# "verified": which bundles maintainers re-ran on the held-out seeds, and the
+# result. Only maintainers may change it (CI also requires a PR touching it
+# to touch nothing else). See docs/leaderboard.md#verification.
+#
+# TODO(maintainers): confirm the team handle before enabling the rule.
+/leaderboard/verifications.yaml @facebookresearch/openapps-maintainers
+/.github/CODEOWNERS @facebookresearch/openapps-maintainers

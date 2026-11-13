@@ -15,14 +15,41 @@ tokens:
   color-danger: "#dc322f"
   color-neutral: "#586e75"
   color-btn-fg: "#fdf6e3"
-  font-family: "'Inter', system-ui, sans-serif"
+  font-family: "'Inter', system-ui, sans-serif, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
-  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-size-base: "16px"
   font-size-sm: "14px"
   font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. Solarized accents, each darkened along its own hue to clear AA on base3 (stock sits near 3:1). Comments use base0.
+  color-syntax-keyword: "#5f6e00"
+  color-syntax-control: "#5f6e00"
+  color-syntax-string: "#1a7a73"
+  color-syntax-number: "#b8286f"
+  color-syntax-comment: "#839496"
+  color-syntax-function: "#1f6fa8"
+  color-syntax-type: "#8a6800"
+  color-syntax-property: "#555aa8"
+  color-syntax-constant: "#b23f12"
+  color-syntax-tag: "#1f6fa8"
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#859900"
+  color-warning: "#b58900"
+  color-emphasis: "#cb4b16"
+  color-info: "#eee8d5"
+  color-accent-pink: "#d33682"
+  color-accent-violet: "#6c71c4"
+  color-accent-teal: "#2aa198"
+  ring-blue: "#268bd2"
+  ring-dark-blue: "#073642"
+  ring-pink: "#d33682"
+  ring-teal: "#2aa198"
+  ring-violet: "#6c71c4"
 assets:
   tone: light
   icon_set: color

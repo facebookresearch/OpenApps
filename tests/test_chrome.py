@@ -41,9 +41,9 @@ from open_apps.ui.chrome import AgentCursor, ChromeApp, Dock, TitleBar, chrome_p
 CONFIG_DIR = str((Path(__file__).resolve().parent.parent / "config").resolve())
 
 APPS = [
-    ChromeApp("todo", "OpenTodos", "/todo", "/assets/icons/real_icons/todo.png"),
-    ChromeApp("calendar", "OpenCalendar", "/calendar", "/assets/icons/real_icons/calendar.png"),
-    ChromeApp("maps", "OpenMaps", "/maps", "/assets/icons/real_icons/maps.png"),
+    ChromeApp("todo", "OpenTodos", "/todo", "/assets/icons/real_icons/todo.svg"),
+    ChromeApp("calendar", "OpenCalendar", "/calendar", "/assets/icons/real_icons/calendar.svg"),
+    ChromeApp("maps", "OpenMaps", "/maps", "/assets/icons/real_icons/maps.svg"),
 ]
 
 
@@ -281,6 +281,8 @@ def test_theme_tokens_can_be_scoped_to_a_subtree():
 # so the chrome serves that page without naming it as the current app.
 APP_PAGES = [
     "/todo", "/calendar", "/messages", "/maps", "/codeeditor", "/onlineshop", "/openbanking",
+    "/files",
+    "/contacts",
 ]
 
 
@@ -375,6 +377,57 @@ def test_dock_follows_desktop_pins_and_exclusions(client, chrome_state):
         start_page._desktop_state["pinned"] = saved
 
 
+def _oob_dock(markup: str) -> str:
+    """The out-of-band dock in a pin response, up to its all-apps panel."""
+    start = markup.index('id="oa-dock"')
+    nav_open = markup.rindex("<nav", 0, start)
+    assert 'hx-swap-oob="true"' in markup[nav_open:start + 200]
+    return markup[nav_open:markup.index('id="oa-dock-panel"', start)]
+
+
+def test_pin_toggle_swaps_a_fresh_dock_in_alongside_the_shell(client, chrome_state):
+    """The dock is the desktop's pinned list, and it sits outside
+    #desktop-shell, so a pin change has to send it back out of band --
+    otherwise unpinning leaves the icon in the dock until a reload."""
+    from open_apps.apps.start_page import main as start_page
+
+    saved = list(start_page._desktop_state["pinned"])
+    try:
+        start_page._desktop_state["pinned"] = ["todo", "calendar"]
+        unpinned = client.post("/desktop/pin/todo", headers={"HX-Request": "true"}).text
+        assert 'id="desktop-shell"' in unpinned
+        dock = _oob_dock(unpinned)
+        assert "dock-calendar" in dock and "dock-todo" not in dock
+
+        pinned = client.post("/desktop/pin/maps", headers={"HX-Request": "true"}).text
+        dock = _oob_dock(pinned)
+        assert "dock-calendar" in dock and "dock-maps" in dock
+        # Renumbered with the pins: the shortcut follows the item, not the slot.
+        assert re.search(r'aria-keyshortcuts="Alt\+2"[^>]*data-testid="dock-maps"', dock)
+    finally:
+        start_page._desktop_state["pinned"] = saved
+
+
+def test_pin_toggle_sends_no_dock_when_the_desktop_draws_none(client, chrome_state, monkeypatch):
+    from open_apps.apps.start_page import main as start_page
+
+    monkeypatch.setattr(start_page, "_chrome_config", lambda: None)
+    response = client.post("/desktop/pin/todo", headers={"HX-Request": "true"}).text
+    client.post("/desktop/pin/todo", headers={"HX-Request": "true"})  # restore the pin
+    assert 'id="desktop-shell"' in response and 'id="oa-dock"' not in response
+
+
+def test_dock_script_binds_by_delegation_not_to_load_time_elements():
+    """A swapped-in dock must work without re-binding: the all-apps button
+    and the Alt+N shortcuts are resolved per event, never captured at load."""
+    from open_apps.ui.chrome import chrome_js
+
+    js = chrome_js()
+    assert "initLauncher();" in js and "initShortcuts();" in js
+    assert "new Map()" not in js  # the old load-time shortcut table
+    assert 'document.getElementById("oa-dock")' in js[js.index("function initShortcuts"):]
+
+
 @pytest.mark.parametrize("route", ["/", *APP_PAGES, "/codeeditor/script.py"])
 def test_no_page_falls_back_to_fastHTML_page_title(client, route):
     # Not chrome, but checked here because this module already stands up the
@@ -382,3 +435,92 @@ def test_no_page_falls_back_to_fastHTML_page_title(client, route):
     # used to reach the agent's observation as the name of every page.
     titles = re.findall(r"<title>(.*?)</title>", client.get(route).text)
     assert titles and "FastHTML page" not in titles and "main-page" not in titles
+
+
+# --------------------------------------------------------------------------
+# Content language: the chrome speaks the session's (start page's) language
+# --------------------------------------------------------------------------
+
+
+class TestLanguage:
+    def test_english_is_the_default_and_unchanged(self):
+        markup = parts().body
+        assert 'aria-label="Close OpenTodos"' in markup
+        assert 'aria-label="Window controls"' in markup
+        assert 'aria-label="Dock"' in markup
+        assert ">Desktop<" in markup and ">All apps<" in markup
+
+    def test_german_window_controls_and_dock(self):
+        markup = parts(language="german").body
+        assert 'aria-label="OpenTodos schließen"' in markup
+        assert 'aria-label="OpenTodos minimieren"' in markup
+        assert 'aria-label="OpenTodos maximieren"' in markup
+        assert 'title="Schließen"' in markup
+        assert 'aria-label="Fenstersteuerung"' in markup
+        assert ">Schreibtisch<" in markup and ">Alle Apps<" in markup
+        assert "Close OpenTodos" not in markup and ">All apps<" not in markup
+
+    def test_mandarin_restore_and_unlabelled_dock(self):
+        cfg = compose_chrome("apps.chrome.dock.labels=false")
+        markup = parts(cfg, language="mandarin", maximized=True).body
+        assert 'aria-label="还原OpenTodos"' in markup
+        # Unlabelled, the names move to aria-label -- in the same language.
+        assert 'aria-label="桌面"' in markup and 'aria-label="所有应用"' in markup
+
+    def test_ids_and_routes_do_not_change_with_the_language(self):
+        assert ids(parts().body) == ids(parts(language="german").body)
+        assert re.findall(r'action="([^"]+)"', parts().body) == re.findall(
+            r'action="([^"]+)"', parts(language="mandarin").body
+        )
+
+
+def _served(tmp_path_factory, name: str, *overrides: str) -> TestClient:
+    """The real server under ``overrides`` (a fresh database dir each)."""
+    from open_apps.apps.start_page.main import app, initialize_routes_and_configure_task
+
+    logs_dir = tmp_path_factory.mktemp(name)
+    if GlobalHydra.instance().is_initialized():
+        GlobalHydra.instance().clear()
+    with initialize_config_dir(version_base=None, config_dir=CONFIG_DIR):
+        config = compose(config_name="config", overrides=[f"logs_dir={logs_dir}", *overrides])
+    Path(config.logs_dir).mkdir(parents=True, exist_ok=True)
+    Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+    initialize_routes_and_configure_task(config.apps)
+    return TestClient(app)
+
+
+def _chrome_block(html: str) -> str:
+    """The token block scoped to the chrome layer (not chrome.css's own
+    ``#oa-chrome { display: contents; }`` rule, which comes first)."""
+    match = re.search(r"#oa-chrome \{(\s*--.*?)\}", html, flags=re.S)
+    assert match, "no #oa-chrome token block"
+    return match.group(1)
+
+
+def test_served_pages_carry_lang_and_pico_theme(client):
+    """English default: lang="en", and Pico pinned to the light palette
+    rather than left to follow the host's prefers-color-scheme."""
+    html = client.get("/todo").text
+    assert re.search(r'<html lang="en" data-theme="light"', html)
+    # The code editor's own default theme is vscode_dark.
+    assert re.search(r'<html lang="en" data-theme="dark"', client.get("/codeeditor/").text)
+
+
+@pytest.mark.parametrize("theme,bg", [("dark", "#121212"), ("challenging_font", "#ffffff")])
+def test_dock_follows_a_selected_theme(tmp_path_factory, theme, bg):
+    """apps/theme beats the shell's own light/dark Meta pair: the dock over a
+    dark app is dark, and challenging_font reaches the dock's labels."""
+    served = _served(tmp_path_factory, f"chrome_{theme}", f"apps/theme={theme}")
+    for route in ("/", "/todo"):
+        block = _chrome_block(served.get(route).text)
+        assert f"--color-bg: {bg};" in block
+        if theme == "challenging_font":
+            assert "--font-family: 'OpenApps Script'" in block
+
+
+def test_german_session_localizes_the_served_chrome(tmp_path_factory):
+    served = _served(tmp_path_factory, "chrome_german", "apps/start_page/content=german",
+                     "apps/todo/content=german")
+    html = served.get("/todo").text
+    assert re.search(r'<html lang="de"', html)
+    assert 'aria-label="Fenstersteuerung"' in html and ">Schreibtisch<" in html

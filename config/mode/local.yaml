@@ -5,3 +5,19 @@ logs_dir: ${hydra:runtime.cwd}/log_outputs/${now:%Y-%m-%d_%H-%M-%S}-${oc.env:USE
 databases_dir: ${logs_dir}/databases
 
 cluster: local
+
+# Split one local sweep across several processes on this machine (see
+# run_locally in launch_parallel_agents.py): run N copies with
+# shard_index=0..N-1 num_shards=N and the same absolute logs_dir=...
+# scripts/benchmark_one.sbatch does exactly that.
+shard_index: 0
+num_shards: 1
+# Keep going when one run raises (web app never came up, agent crash) instead
+# of aborting the sweep. The failed job ids are printed at the end and the
+# process exits non-zero; pack reports their cells as missing.
+continue_on_error: false
+# Before the first episode (after composing every run, which takes minutes for
+# a suite), wait until this URL answers 200 -- e.g. a vLLM server's /health
+# that is still loading. null: don't wait.
+wait_for_url: null
+wait_for_url_timeout_s: 5400

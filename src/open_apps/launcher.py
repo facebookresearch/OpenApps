@@ -42,6 +42,7 @@ from omegaconf import DictConfig, OmegaConf, open_dict
 # Project-specific imports
 from open_apps.apps.availability import (
     onlineshop_unavailable_reason,
+    require_files,
     task_needs_onlineshop,
 )
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
@@ -150,8 +151,11 @@ class OpenAppsLauncher:
         self.config = merge_plus_keys(self.config)
         random.seed(self.config.seed)
 
-        self.web_app_port = self.pick_empty_port(
-            start_port=5001 + self._job_port_offset()
+        configured_port = self.config.get("web_app_port")
+        self.web_app_port = (
+            int(configured_port)
+            if configured_port is not None
+            else self.pick_empty_port(start_port=5001 + self._job_port_offset())
         )
         print(f"Using port {self.web_app_port} for the web app")
         self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
@@ -251,7 +255,7 @@ class OpenAppsLauncher:
         Returns:
             int: An available port.
         """
-        port_range = list(range(start_port, start_port + 1000))
+        port_range = list(range(start_port, min(start_port + 1000, 65536)))
         port_range = self._remove_unsafe_ports(port_range)
 
         for port in port_range:
@@ -317,7 +321,8 @@ class OpenAppsLauncher:
             f"source '{venv_activate_script}' && "
             f"cd '{file_dir}' && "
             f"uv run launch.py --config-path '{config_dir_for_subprocess}' "
-            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True"
+            f"--config-name '{config_name_for_subprocess}' use_wandb=False headless=True "
+            f"++web_app_port={self.web_app_port}"
         )
         print("Launching web app with command: ", command)
         # Redirect the web app's output to a file rather than an unread PIPE.
@@ -707,7 +712,12 @@ class AgentLauncher(OpenAppsLauncher):
     def _record_alignment(
         self, exp_args: ExpArgs, exp_result=None
     ) -> tuple[Optional[Path], Optional[object]]:
-        """Write ``<exp_dir>/episode.json`` and score it.
+        """Score the episode and write ``<exp_dir>/episode.json``.
+
+        Scored here, from the app states in memory, because the record does
+        not keep them: ``episode.json`` carries the scores instead (see
+        ``open_apps.alignment.record``). A record whose scoring failed is
+        still written, with ``scores: null``.
 
         Best-effort by design: alignment scoring is an observer of the run,
         so any failure is printed and the run carries on exactly as before.
@@ -735,20 +745,24 @@ class AgentLauncher(OpenAppsLauncher):
                 fallback_final_state=self._probe_final_state,
                 exp_result=exp_result,
             )
-            path = save_record(record, exp_args.exp_dir)
-            print(f"Episode record saved to {path}")
         except Exception as exc:  # noqa: BLE001 -- see docstring
             print(f"Alignment: could not build episode record ({type(exc).__name__}: {exc})")
             return None, None
+        scores = None
         try:
-            from open_apps.alignment.score import score
+            from open_apps.alignment.score import score_record
 
-            scores = score(record, self.task)
+            scores = score_record(record, self.task)
             print("Alignment scores:", scores.summary())
-            return path, scores
         except Exception as exc:  # noqa: BLE001
             print(f"Alignment: could not score episode ({type(exc).__name__}: {exc})")
-            return path, None
+        try:
+            path = save_record(record, exp_args.exp_dir)
+            print(f"Episode record saved to {path}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"Alignment: could not save episode record ({type(exc).__name__}: {exc})")
+            return None, scores
+        return path, scores
 
     def _probe_final_state(self) -> tuple[dict, list[str]]:
         """``(state, failed_apps)`` from the still-running apps."""
@@ -774,7 +788,8 @@ class AgentLauncher(OpenAppsLauncher):
                         int(value) if isinstance(value, bool) else value
                     )
             if record_path is not None:
-                identity = json.loads(Path(record_path).read_text())["identity"]
+                saved = json.loads(Path(record_path).read_text())
+                identity = saved["identity"]
                 provenance = {
                     k: identity.get(k)
                     for k in ("task_name", "git_commit", "git_dirty", "command")
@@ -786,22 +801,67 @@ class AgentLauncher(OpenAppsLauncher):
                 artifact = wandb.Artifact(
                     name=f"episode-{wandb.run.id}",
                     type="episode_record",
-                    metadata={"record_version": 1, **provenance},
+                    metadata={"record_version": saved.get("record_version"), **provenance},
                 )
                 artifact.add_file(str(record_path))
                 wandb.run.log_artifact(artifact)
         except Exception as exc:  # noqa: BLE001 -- never fail a run over logging
             print(f"Alignment: could not log to W&B ({type(exc).__name__}: {exc})")
 
-    def cleanup(self, apps_process: subprocess.Popen):
+    def cleanup(self, apps_process: subprocess.Popen | None):
         if self.config.use_wandb:
             wandb.finish()
-        stop_process_group(apps_process)
+        if apps_process is not None:
+            stop_process_group(apps_process)
         print("OpenApps successfully stopped.")
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
             webapp_log_fh.close()
             self._webapp_log_fh = None
+
+    #: Web-app starts to try when the chosen port turns out to be taken.
+    APP_START_ATTEMPTS = 3
+
+    def _webapp_log_says_port_taken(self, offset: int) -> bool:
+        """Whether this attempt's part of ``webapp.log`` (from ``offset``)
+        reports a bind failure on its port."""
+        log = Path(self.config.logs_dir) / "webapp.log"
+        try:
+            with open(log, errors="replace") as fh:
+                fh.seek(offset)
+                return "address already in use" in fh.read()
+        except OSError:
+            return False
+
+    def start_apps(self) -> subprocess.Popen:
+        """Start the web app and wait until it serves, on a fresh port if the
+        chosen one was taken in the meantime.
+
+        ``pick_empty_port`` only checks that a port is free; nothing holds it
+        until the server binds, ~30 s later. Two jobs on one node with the
+        same job id scan from the same port (``_job_port_offset``), so both can
+        pick it and the second server dies on bind. Any other startup failure
+        still raises at once.
+        """
+        log = Path(self.config.logs_dir) / "webapp.log"
+        for attempt in range(1, self.APP_START_ATTEMPTS + 1):
+            offset = log.stat().st_size if log.exists() else 0
+            apps_process = self.launch_apps_via_shell()
+            try:
+                self.wait_until_apps_start(apps_process)
+                return apps_process
+            except RuntimeError:
+                taken = apps_process.poll() is not None and self._webapp_log_says_port_taken(offset)
+                stop_process_group(apps_process)
+                if getattr(self, "_webapp_log_fh", None) is not None:
+                    self._webapp_log_fh.close()
+                    self._webapp_log_fh = None
+                if not taken or attempt == self.APP_START_ATTEMPTS:
+                    raise
+                self.web_app_port = self.pick_empty_port(start_port=self.web_app_port + 1)
+                self.web_app_url = f"http://{self.web_app_host}:{self.web_app_port}"
+                print(f"Port was taken before the web app bound it; retrying on {self.web_app_url}")
+        raise AssertionError("unreachable")
 
     def wait_until_apps_start(self, apps_process, times_to_wait: int = 10):
         is_app_running = False
@@ -829,12 +889,15 @@ class AgentLauncher(OpenAppsLauncher):
             )
 
     def check_task_can_run(self):
-        """Refuse a task that needs the shop when this run does not serve it.
+        """Refuse a run without Files, or a task that needs the shop when this
+        run does not serve it.
 
         Otherwise the agent spends every step looking for an app whose routes
-        were never registered, and the run reads as a model failure. Checked
+        were never registered (or buys correctly and is scored on a receipt
+        nowhere to be written), and the run reads as a model failure. Checked
         before the web app starts, so the mistake costs nothing.
         """
+        require_files(self.config.apps)
         task_name = self.config.get("task_name")
         task_cfg = self.config.tasks.get(task_name) if task_name else None
         if not task_needs_onlineshop(task_cfg):
@@ -852,12 +915,12 @@ class AgentLauncher(OpenAppsLauncher):
         Launches open apps environment and orchestrates agent to perform the task.
         """
         self.check_task_can_run()
-        apps_process = self.launch_apps_via_shell()
+        apps_process = None
         # `finally`, so the web app is stopped on every way out: a server that
         # never came up, an agent error, and Ctrl-C, which raises
         # KeyboardInterrupt and so slips past `except Exception`.
         try:
-            self.wait_until_apps_start(apps_process)
+            apps_process = self.start_apps()
             # TODO: check if agent model is available in case of VLLM or API
             self.launch_agent()
         except Exception as e:

@@ -125,8 +125,10 @@ class TestEveryLayout:
         assert 'class="place-icon" aria-hidden="true"' in js
         assert (
             '<button class="delete-btn" onclick="deletePopup(\'${name}\')" '
-            'aria-label="Delete ${name}">×</button>'
+            'aria-label="${fmt(TEXT.delete_place_aria_label, { name })}">×</button>'
         ) in js
+        # ...whose accessible name is still "Delete <name>" in English.
+        assert '"delete_place_aria_label": "Delete {name}"' in js
 
     def test_no_hex_colors_in_page_css(self, pages, layout):
         css = re.search(r"<style>(.*?)</style>", pages[layout], re.S).group(1)
@@ -215,6 +217,30 @@ class TestLayerControl:
 
     def test_unknown_layout_falls_back_to_default_controls(self):
         assert map_main.map_controls("nope") == map_main.map_controls("default")
+
+
+class TestBasemaps:
+    """The basemap list is a closed set: every name config can select must be
+    defined in the template, and none of them may come from CartoDB, whose
+    tiles were dropped from the app entirely."""
+
+    def test_no_cartodb_layers(self, pages):
+        for html in pages.values():
+            assert "cartocdn" not in html.lower()
+            assert "CartoDB" not in html
+
+    @pytest.mark.parametrize("theme", ["dark", "mono"])
+    def test_tone_keeps_a_defined_layer(self, theme):
+        """Dark and mono theme the default street map with a CSS filter
+        (`filter_by_tone`) rather than swapping basemaps, so whatever layer
+        loads must still be one the template defines."""
+        js = script(render(theme=theme))
+        selected = re.search(r"\(layers\['([^']+)'\]", js).group(1)
+        assert f"'{selected}': L.tileLayer(" in js
+
+    def test_layer_by_tone_still_wins_when_set(self):
+        js = script(render(theme="dark", extra=("+apps.maps.layer_by_tone.dark=ESRI Dark Gray",)))
+        assert "(layers['ESRI Dark Gray']" in js
 
 
 class TestBottomSheetDropdowns:

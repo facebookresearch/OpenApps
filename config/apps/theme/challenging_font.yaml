@@ -3,7 +3,11 @@
 # typography as a variation axis: identical colors and layout to `default`,
 # so any change in agent success is attributable to legibility alone.
 name: challenging_font
-import_url: ""
+# The bundled faces (src/open_apps/apps/assets/webfonts/challenging_font/):
+# served by the app itself, so this is no egress and renders the same on
+# every node. Every page also links it from <head> (render_document in the
+# start page), so it loads even where an app embeds the token block mid-sheet.
+import_url: "/assets/webfonts/challenging_font/fonts.css"
 tokens:
   color-bg: "#ffffff"
   color-surface: "#f4f5f7"
@@ -17,17 +21,53 @@ tokens:
   color-danger: "#b22222"
   color-neutral: "#36454f"
   color-btn-fg: "#ffffff"
-  font-family: "'Brush Script MT', cursive"
+  # Bundled faces first, so the axis does not depend on the host: Great Vibes
+  # for Latin ('OpenApps Script') and Zhi Mang Xing, a running-script brush
+  # face, for Chinese ('OpenApps Script CJK') -- a Latin script font has no
+  # CJK glyphs, and without one Mandarin would fall back to a perfectly
+  # legible face and quietly defeat the axis. Then the system script faces
+  # the theme used before (Brush Script MT on macOS/Windows; the URW faces
+  # Ghostscript installs on Linux, ahead of `cursive`, which Chromium maps to
+  # a plain sans there), CJK brush faces a host may have for characters the
+  # bundled subset lacks, and a readable CJK set last so nothing is tofu.
+  font-family: "'OpenApps Script', 'OpenApps Script CJK', 'Brush Script MT', 'Z003', 'URW Chancery L', 'TeX Gyre Chorus', 'Apple Chancery', cursive, 'Zhi Mang Xing', 'Liu Jian Mao Cao', 'Ma Shan Zheng', 'STXingkai', 'Xingkai SC', 'HanziPen SC', 'LXGW WenKai', 'STKaiti', 'Kaiti SC', 'KaiTi', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
   # The editor stays monospace on purpose -- a script face in a code pane
   # destroys column alignment, which is a different perturbation than the
   # legibility one this theme is meant to isolate.
-  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-size-base: "16px"
   font-size-sm: "14px"
   font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. VS Code Light+.
+  color-syntax-keyword: "#0000ff"
+  color-syntax-control: "#af00db"
+  color-syntax-string: "#a31515"
+  color-syntax-number: "#098658"
+  color-syntax-comment: "#008000"
+  color-syntax-function: "#795e26"
+  color-syntax-type: "#267f99"
+  color-syntax-property: "#001080"
+  color-syntax-constant: "#0000ff"
+  color-syntax-tag: "#800000"
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#16a34a"
+  color-warning: "#d97706"
+  color-emphasis: "#ea580c"
+  color-info: "#dbeafe"
+  color-accent-pink: "#db2777"
+  color-accent-violet: "#7c3aed"
+  color-accent-teal: "#0d9488"
+  ring-blue: "#2563eb"
+  ring-dark-blue: "#1d4ed8"
+  ring-pink: "#db2777"
+  ring-teal: "#0d9488"
+  ring-violet: "#7c3aed"
 assets:
   tone: light
   icon_set: color

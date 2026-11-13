@@ -24,6 +24,9 @@ nav:
   - Agents: agents.md
   - Tasks: tasks.md
   - "Inspecting the Databases": inspecting_databases.md
+  - Leaderboard: leaderboard.md
+  - "Benchmarking Models": benchmarking.md
+  - "Contributing Benchmarks": contributing-benchmarks.md
 
 markdown_extensions:
   - codehilite

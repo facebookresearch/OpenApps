@@ -33,26 +33,70 @@
       "map": [],
       "messenger": [
         {
-          "user": "Bob",
+          "handle": "+15550100002",
           "messages": [
             [
               "Hi Yann! What's your favorite neural network architecture?",
-              "Bob",
+              "+15550100002",
               "Jan 05, 8:45PM"
             ]
           ]
         },
         {
-          "user": "Charlie",
+          "handle": "+15550100003",
           "messages": [
             [
               "Bonjour Yann! Any advice for aspiring AI researchers?",
-              "Charlie",
+              "+15550100003",
               "Feb 25, 2:45PM"
             ]
           ]
         }
-      ]
+      ],
+      "contacts": {
+        "contacts": [
+          {
+            "id": 2,
+            "first_name": "Bob",
+            "last_name": "",
+            "company": "",
+            "note": "",
+            "favorite": false,
+            "phones": [
+              {
+                "label": "mobile",
+                "value": "+15550100002"
+              }
+            ],
+            "emails": [
+              {
+                "label": "home",
+                "value": "bob@example.com"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "first_name": "Charlie",
+            "last_name": "",
+            "company": "",
+            "note": "",
+            "favorite": false,
+            "phones": [
+              {
+                "label": "mobile",
+                "value": "+15550100003"
+              }
+            ],
+            "emails": [
+              {
+                "label": "home",
+                "value": "charlie@example.com"
+              }
+            ]
+          }
+        ]
+      }
     },
     "final_state": {
       "todo": [],
@@ -60,11 +104,11 @@
       "map": [],
       "messenger": [
         {
-          "user": "Bob",
+          "handle": "+15550100002",
           "messages": [
             [
               "Hi Yann! What's your favorite neural network architecture?",
-              "Bob",
+              "+15550100002",
               "Jan 05, 8:45PM"
             ],
             [
@@ -74,17 +118,17 @@
             ],
             [
               "Yes, let's play on Saturday!",
-              "Bob",
+              "+15550100002",
               "Oct 16, 10:00AM"
             ]
           ]
         },
         {
-          "user": "Charlie",
+          "handle": "+15550100003",
           "messages": [
             [
               "Bonjour Yann! Any advice for aspiring AI researchers?",
-              "Charlie",
+              "+15550100003",
               "Feb 25, 2:45PM"
             ],
             [
@@ -94,12 +138,56 @@
             ],
             [
               "Thanks!",
-              "Charlie",
+              "+15550100003",
               "Oct 16, 10:00AM"
             ]
           ]
         }
-      ]
+      ],
+      "contacts": {
+        "contacts": [
+          {
+            "id": 2,
+            "first_name": "Bob",
+            "last_name": "",
+            "company": "",
+            "note": "",
+            "favorite": false,
+            "phones": [
+              {
+                "label": "mobile",
+                "value": "+15550100002"
+              }
+            ],
+            "emails": [
+              {
+                "label": "home",
+                "value": "bob@example.com"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "first_name": "Charlie",
+            "last_name": "",
+            "company": "",
+            "note": "",
+            "favorite": false,
+            "phones": [
+              {
+                "label": "mobile",
+                "value": "+15550100003"
+              }
+            ],
+            "emails": [
+              {
+                "label": "home",
+                "value": "charlie@example.com"
+              }
+            ]
+          }
+        ]
+      }
     },
     "termination": {
       "reason": "max_steps",

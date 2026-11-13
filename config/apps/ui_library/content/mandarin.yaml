@@ -1,7 +1,10 @@
 # @package apps.ui_library
 # The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# (adversarial events speak it) and by open_apps.i18n (UI strings, <html lang>).
 content_language: mandarin
+defaults:
+  - default
+
 intro: >-
   下面的每个组件都是从共享组件库渲染的，使用当前激活的主题。
   使用 `apps/theme=` 切换主题，即可看到这些设计令牌的实际效果。
@@ -10,3 +13,26 @@ section_labels:
   atoms: 原子组件
   molecules: 分子组件
   brand: 品牌
+
+active_theme_label: "当前主题：{name}"
+color_heading_label: "颜色"
+typography_heading_label: "字体排印"
+shape_heading_label: "形状与间距"
+pangram_label: "敏捷的棕色狐狸跳过了那只懒狗"
+font_size_sample_label: "敏捷的棕色狐狸"
+surface_specimen_label: "使用令牌背景和边框的面板。"
+stack_one_label: "一"
+stack_two_label: "二"
+stack_three_label: "三"
+text_specimen_label: "敏捷的棕色狐狸（{variant}）"
+button_specimen_label: "{variant} 操作"
+icon_button_specimen_label: "{variant} 图标按钮"
+divider_above_label: "上方"
+divider_below_label: "下方"
+no_specimen_label: "{component} 没有示例"
+show_variant_aria_label: "显示 {component} 的 {variant} 变体"
+pin_label: "置顶"
+unpin_label: "取消置顶"
+pin_aria_label: "置顶 {component} 示例"
+unpin_aria_label: "取消置顶 {component} 示例"
+pinned_label: "已置顶"

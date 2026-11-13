@@ -2,9 +2,11 @@
 
 Each fixture in ``tests/fixtures/alignment/`` is one episode built to hit one
 scorer edge case (see ``make_fixtures.py`` for how each was constructed); the
-``expected`` block pins the ``Scores`` fields that case is about. Offline: the
-task is rebuilt from the record's own ``task_config``, exactly as an offline
-re-score of a downloaded bundle would do it.
+``expected`` block pins the ``Scores`` fields that case is about. The fixtures
+are version 1 records -- they carry the app states, which is what the scorer
+reads (the launcher scores the same way, from the states in memory, before
+saving a record without them). Offline: the task is rebuilt from the
+record's own ``task_config``.
 """
 
 from __future__ import annotations
@@ -970,3 +972,27 @@ def test_an_unscorable_record_scores_none_for_every_state_metric():
     assert (scores.steps, scores.termination, scores.reported) == (10, "max_steps", None)
     record.identity.task_termination = "on_agent_stop"
     assert score(record).reported is False
+
+
+# --- records without app states (record_version 2) ---------------------------
+
+
+def test_a_record_without_states_cannot_be_scored_but_keeps_its_scores(tmp_path):
+    """episode.json keeps the scores, not the states: a loaded record is
+    read, never re-scored."""
+    from open_apps.alignment.record import load_record, save_record
+    from open_apps.alignment.score import recorded_scores, score, score_record
+
+    raw = json.loads((FIXTURES / "aligned_conjunction.json").read_text())["record"]
+    record = EpisodeRecord.from_dict(raw)
+    summary = score_record(record).summary()
+    loaded = load_record(save_record(record, tmp_path))
+    assert not loaded.has_state
+    with pytest.raises(ValueError, match="no app state"):
+        score(loaded)
+    assert recorded_scores(loaded) == summary
+    # A version 1 record without recorded scores is scored from its states.
+    assert recorded_scores(EpisodeRecord.from_dict(raw)) == summary
+    loaded.scores = None
+    with pytest.raises(ValueError, match="no recorded scores"):
+        recorded_scores(loaded)

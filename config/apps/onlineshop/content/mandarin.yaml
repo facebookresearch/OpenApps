@@ -1,0 +1,132 @@
+# @package apps.onlineshop
+# The pack's language. It sets the shop's `<html lang>` (zh-Hans) and is read
+# by open_apps.alignment.events.content_languages (adversarial events speak
+# it) and by open_apps.i18n for the strings every app shares.
+content_language: mandarin
+# On top of `webshop`, not `default`: this pack varies the chrome and keeps
+# the catalog. `default` is chrome only (`products: []`), and an empty
+# catalog hides the shop.
+defaults:
+  - webshop
+
+
+description: |
+  您值得信赖的开放商城
+
+promotional_message: |
+  在这里，每一位顾客都很重要。
+
+# As in `german`: category labels are navigation chrome and translate; the
+# catalog (titles, bullets, descriptions, breadcrumbs, option names) stays
+# English. The purchase tasks name products by their catalog title
+# ("find the 'Vhomes Lights Reclaimed Wood Console Table ...'") and the
+# rewards pin the sku and price, so a translated catalog would make those
+# tasks unwinnable as written. Override `products` here if a sweep needs a
+# fully Chinese catalog -- and give it tasks of its own.
+categories:
+  electronics: '电子产品'
+  home_kitchen: '家居厨房'
+  furniture: '家具'
+  apparel: '服装'
+  outdoors: '户外'
+  beauty: '美妆'
+  grocery: '食品杂货'
+  office: '办公用品'
+
+# UI strings. The English reference, and what each key covers, is in
+# `default.yaml`. Prices keep the `$1,234.56` form so the figure an agent
+# reads off the page is identical in every language.
+
+# Store bar, departments, breadcrumb
+shop_label: '商城'
+orders_label: '订单'
+cart_label: '购物车'
+cart_items_one_label: '购物车，{count} 件商品'
+cart_items_label: '购物车，{count} 件商品'
+search_placeholder_label: '搜索商品'
+departments_label: '商品分类'
+home_label: '首页'
+
+# Listings and search
+featured_label: '精选商品'
+results_for_label: '“{terms}”的结果'
+search_results_for_label: '“{terms}”的搜索结果'
+product_count_one_label: '{count} 件商品'
+product_count_label: '{count} 件商品'
+view_details_label: '查看详情'
+view_label: '查看'
+product_column_label: '商品'
+department_column_label: '分类'
+rating_column_label: '评分'
+price_column_label: '价格'
+rating_title_label: '{rating} 星（满分 5 星）'
+no_results_label: '没有匹配的商品。请尝试更少或更宽泛的关键词。'
+browse_all_label: '浏览全部商品'
+previous_label: '上一页'
+next_label: '下一页'
+page_of_label: '第 {page} 页，共 {last} 页'
+pages_label: '分页'
+
+# Product page and imagery
+not_found_label: '未找到该商品。它可能已从商品目录中移除。'
+back_to_shop_label: '返回商城'
+quantity_label: '数量'
+add_to_cart_label: '加入购物车'
+about_item_label: '商品详情'
+image_label: '图片 {n}'
+show_image_label: '显示第 {n} 张图片，共 {total} 张'
+image_alt_label: '{title}（第 {n} 张图片，共 {total} 张）'
+
+# Cart
+your_cart_label: '您的购物车'
+cart_empty_label: '您的购物车是空的。'
+browse_products_label: '浏览商品'
+each_label: '单价 {price}'
+not_selected_label: '未选中结算'
+quantity_for_label: '{title} 的数量'
+update_label: '更新'
+select_label: '选中'
+deselect_label: '取消选中'
+remove_label: '删除'
+order_summary_label: '订单摘要'
+items_count_label: '商品（{count}）'
+lines_not_selected_one_label: '{count} 项未选中'
+lines_not_selected_label: '{count} 项未选中'
+selected_total_label: '已选商品合计'
+proceed_to_checkout_label: '去结算'
+
+# Checkout and payment
+checkout_label: '结算'
+nothing_selected_label: '没有选中要结算的商品。'
+back_to_cart_label: '返回购物车'
+shipping_heading_label: '收货地址'
+full_name_label: '姓名'
+shipping_address_label: '详细地址'
+payment_label: '付款'
+card_number_label: '卡号'
+card_expiry_label: '有效期（MM/YY）'
+card_expiry_placeholder_label: 'MM/YY'
+card_cvv_label: '安全码（CVV）'
+card_name_label: '持卡人姓名'
+place_order_label: '提交订单'
+order_total_label: '订单总额'
+edit_cart_label: '编辑购物车'
+card_unavailable_label: '暂时无法使用银行卡付款。'
+card_brand_refused_label: '不接受 {brand} 卡。可用：{allowed}。'
+expiry_format_label: '请按 MM/YY 格式输入卡的有效期。'
+expiry_passed_label: '该有效期已过。请检查银行卡后重试。'
+
+# Orders
+your_orders_label: '您的订单'
+no_orders_label: '您还没有订单。'
+order_placed_label: '下单时间'
+total_label: '总额'
+ship_to_label: '收货人'
+paid_with_label: '支付方式'
+card_ending_label: '尾号 {last4} 的银行卡'
+order_heading_label: '订单 {order_id}'
+receipt_label: '收据'
+receipt_for_label: '订单 {order_id} 的收据'
+status_processing_label: '处理中'
+status_shipping_label: '运输中'
+status_delivered_label: '已送达'

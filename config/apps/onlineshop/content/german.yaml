@@ -1,6 +1,7 @@
 # @package apps.onlineshop
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# The pack's language. It sets the shop's `<html lang>` and is read by
+# open_apps.alignment.events.content_languages (adversarial events speak it)
+# and by open_apps.i18n for the strings every app shares.
 content_language: german
 # On top of `webshop`, not `default`: this pack varies the chrome and keeps
 # the catalog. `default` is chrome only (`products: []`), and an empty
@@ -29,3 +30,101 @@ categories:
   beauty: 'Schönheit'
   grocery: 'Lebensmittel'
   office: 'Büro'
+
+# UI strings. The English reference, and what each key covers, is in
+# `default.yaml`. Prices keep the `$1,234.56` form: a task parses them, and a
+# German decimal comma would change the figure an agent reads off the page.
+
+# Store bar, departments, breadcrumb
+shop_label: 'Shop'
+orders_label: 'Bestellungen'
+cart_label: 'Warenkorb'
+cart_items_one_label: 'Warenkorb, {count} Artikel'
+cart_items_label: 'Warenkorb, {count} Artikel'
+search_placeholder_label: 'Produkte suchen'
+departments_label: 'Abteilungen'
+home_label: 'Startseite'
+
+# Listings and search
+featured_label: 'Ausgewählte Produkte'
+results_for_label: 'Ergebnisse für „{terms}“'
+search_results_for_label: 'Suchergebnisse für „{terms}“'
+product_count_one_label: '{count} Produkt'
+product_count_label: '{count} Produkte'
+view_details_label: 'Details ansehen'
+view_label: 'Ansehen'
+product_column_label: 'Produkt'
+department_column_label: 'Abteilung'
+rating_column_label: 'Bewertung'
+price_column_label: 'Preis'
+rating_title_label: '{rating} von 5 Sternen'
+no_results_label: 'Keine passenden Produkte. Versuchen Sie weniger oder allgemeinere Begriffe.'
+browse_all_label: 'Alle Produkte durchsuchen'
+previous_label: 'Zurück'
+next_label: 'Weiter'
+page_of_label: 'Seite {page} von {last}'
+pages_label: 'Seiten'
+
+# Product page and imagery
+not_found_label: 'Produkt nicht gefunden. Es wurde möglicherweise aus dem Sortiment entfernt.'
+back_to_shop_label: 'Zurück zum Shop'
+quantity_label: 'Menge'
+add_to_cart_label: 'In den Warenkorb'
+about_item_label: 'Über diesen Artikel'
+image_label: 'Bild {n}'
+show_image_label: 'Bild {n} von {total} anzeigen'
+image_alt_label: '{title} (Bild {n} von {total})'
+
+# Cart
+your_cart_label: 'Ihr Warenkorb'
+cart_empty_label: 'Ihr Warenkorb ist leer.'
+browse_products_label: 'Produkte durchsuchen'
+each_label: '{price} pro Stück'
+not_selected_label: 'Nicht für die Kasse ausgewählt'
+quantity_for_label: 'Menge für {title}'
+update_label: 'Aktualisieren'
+select_label: 'Auswählen'
+deselect_label: 'Abwählen'
+remove_label: 'Entfernen'
+order_summary_label: 'Bestellübersicht'
+items_count_label: 'Artikel ({count})'
+lines_not_selected_one_label: '{count} Position nicht ausgewählt'
+lines_not_selected_label: '{count} Positionen nicht ausgewählt'
+selected_total_label: 'Summe der Auswahl'
+proceed_to_checkout_label: 'Zur Kasse gehen'
+
+# Checkout and payment
+checkout_label: 'Kasse'
+nothing_selected_label: 'Es sind keine Artikel für die Kasse ausgewählt.'
+back_to_cart_label: 'Zurück zum Warenkorb'
+shipping_heading_label: 'Lieferadresse'
+full_name_label: 'Vollständiger Name'
+shipping_address_label: 'Anschrift'
+payment_label: 'Zahlung'
+card_number_label: 'Kartennummer'
+card_expiry_label: 'Gültig bis (MM/JJ)'
+card_expiry_placeholder_label: 'MM/JJ'
+card_cvv_label: 'Prüfnummer (CVV)'
+card_name_label: 'Name auf der Karte'
+place_order_label: 'Bestellung aufgeben'
+order_total_label: 'Gesamtbetrag'
+edit_cart_label: 'Warenkorb bearbeiten'
+card_unavailable_label: 'Kartenzahlungen sind derzeit nicht verfügbar.'
+card_brand_refused_label: '{brand} wird nicht akzeptiert. Akzeptiert: {allowed}.'
+expiry_format_label: 'Geben Sie das Ablaufdatum der Karte als MM/JJ ein.'
+expiry_passed_label: 'Dieses Ablaufdatum ist bereits vergangen. Prüfen Sie die Karte und versuchen Sie es erneut.'
+
+# Orders
+your_orders_label: 'Ihre Bestellungen'
+no_orders_label: 'Sie haben noch keine Bestellungen.'
+order_placed_label: 'Bestellt am'
+total_label: 'Summe'
+ship_to_label: 'Lieferung an'
+paid_with_label: 'Bezahlt mit'
+card_ending_label: 'Karte mit Endziffern {last4}'
+order_heading_label: 'Bestellung {order_id}'
+receipt_label: 'Beleg'
+receipt_for_label: 'Beleg für Bestellung {order_id}'
+status_processing_label: 'In Bearbeitung'
+status_shipping_label: 'Im Versand'
+status_delivered_label: 'Zugestellt'

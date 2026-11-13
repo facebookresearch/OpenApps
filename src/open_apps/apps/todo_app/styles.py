@@ -74,6 +74,9 @@ styles = Style("""
         border: 1px solid var(--color-primary);
         color: var(--color-on-primary);
         font-weight: 600;
+        /* CJK text may break between any two characters; keep "添加" on
+           one line inside the input group. */
+        white-space: nowrap;
     }
     /* Mixed toward the foreground rather than `--color-primary-hover`: the
        dark theme pairs a near-black hover fill with black on-primary text. */
@@ -365,6 +368,119 @@ styles = Style("""
     }
     .kanban-header-edit input {
         margin: 0;
+    }
+
+    /* ---- Grouped sections layout -------------------------------------- */
+    /* Open and Completed as two headed groups (Reminders / Google Tasks):
+       one line per item, checkbox, title and actions side by side, with the
+       actions at the right edge rather than beneath the title. */
+    .todo-page--sections {
+        max-width: 860px;
+        margin: 0 auto;
+    }
+    .todo-sections {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--space) * 2.5);
+    }
+    .todo-sections-add, .todo-sections-add fieldset {
+        margin: 0;
+    }
+    .todo-section {
+        margin: 0;
+        border-top: 2px solid var(--color-fg);
+    }
+    .todo-section--done {
+        border-top-color: var(--color-border);
+    }
+    .todo-section-header {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space);
+        padding: calc(var(--space) * 1) 0 calc(var(--space) * 0.5);
+    }
+    .todo-section-title {
+        margin: 0;
+        font-family: var(--font-heading);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-fg);
+    }
+    .todo-section--done .todo-section-title {
+        color: var(--color-muted);
+    }
+    .todo-section-count {
+        color: var(--color-muted);
+        font-size: var(--font-size-sm);
+    }
+    .todo-section-list {
+        margin: 0;
+        padding: 0;
+    }
+    .todo-section-list > li {
+        list-style: none;
+        margin: 0;
+    }
+    .todo-line {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--space) * 1.25);
+        padding: calc(var(--space) * 0.75) calc(var(--space) * 0.5);
+        border-bottom: 1px solid var(--color-border);
+    }
+    .todo-line:hover, .todo-line:focus-within {
+        background-color: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    }
+    .todo-line input[type=checkbox] {
+        flex: none;
+        width: 1.1em;
+        height: 1.1em;
+        margin: 0;
+        border-width: 2px;
+    }
+    .todo-line .todo-title {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .todo-line.is-done .todo-title {
+        color: var(--color-muted);
+    }
+    .todo-line-actions {
+        flex: none;
+        display: flex;
+        gap: calc(var(--space) * 0.5);
+    }
+    .todo-line-actions .todo-btn:not(:hover):not(:focus-visible) {
+        color: var(--color-muted);
+    }
+    .todo-line:hover .todo-line-actions .todo-btn:not(:hover):not(:focus-visible),
+    .todo-line:focus-within .todo-line-actions .todo-btn:not(:hover):not(:focus-visible) {
+        color: var(--color-fg);
+    }
+    .todo-line--editing {
+        display: block;
+    }
+    .todo-line-edit {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space);
+        margin: 0;
+    }
+    .todo-line-edit input:not([type=checkbox]) {
+        flex: 1 1 16rem;
+        margin: 0;
+    }
+    .todo-line-edit label {
+        margin: 0;
+    }
+    .todo-section-empty {
+        margin: 0;
+        padding: calc(var(--space) * 1.25) calc(var(--space) * 0.5);
+        color: var(--color-muted);
+        font-size: var(--font-size-sm);
     }
 
     /* ---- Chrome ------------------------------------------------------- */

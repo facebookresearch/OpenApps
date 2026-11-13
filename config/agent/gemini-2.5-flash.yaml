@@ -4,8 +4,12 @@ defaults:
 
 model_name: "gemini-2.5-flash"
 model_pretty_name: "gemini-2.5-flash"
-hostname: null
+# client_type gemini sends OpenAI-style requests to http://${hostname}:${port}/
+# (an OpenAI-compatible Gemini proxy). Both come from the environment (or .env)
+# so nothing secret or site-specific is committed; agent.api_key=... and
+# agent.hostname=... on the command line still win.
+hostname: ${oc.env:GEMINI_HOSTNAME,null}
 # primary key
-api_key: ""
+api_key: ${oc.env:GEMINI_API_KEY,""}
 client_type: "gemini"
 port: "80"

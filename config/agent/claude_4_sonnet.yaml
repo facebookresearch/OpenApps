@@ -3,7 +3,10 @@ defaults:
   - _self_
 
 model_name: claude_4_sonnet
-api_version: null
+# client_type aws sends api_version as the Bedrock model id (vLLM_agent.py,
+# BedrockChatModel(model_name=self.api_version)); null fails the first call.
+# Override with BEDROCK_MODEL_ID for another region's inference profile.
+api_version: ${oc.env:BEDROCK_MODEL_ID,"us.anthropic.claude-sonnet-4-20250514-v1:0"}
 model_pretty_name: claude_4_sonnet
 client_type: aws
 # load from env vars to avoid committing secrets to git

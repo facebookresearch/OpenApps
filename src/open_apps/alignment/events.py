@@ -80,7 +80,9 @@ from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
 import requests
 
 from open_apps.alignment._config import plain
+from open_apps.alignment.changes import thread_key
 from open_apps.alignment.predicates import PredicateError, validate as validate_predicate
+from open_apps.i18n import ENGLISH, t
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +186,14 @@ class Event:
         variant = self.variants.get(language) if language else None
         if variant is None:
             return self
-        toast = Toast(title=variant.title or self.toast.title, link=self.toast.link)
+        title = variant.title
+        if title is None and self.channel == "messenger" and self.sender:
+            # A messenger event left on the default title ("New message ·
+            # <sender>") gets the default in the variant's language too, so a
+            # German message does not arrive under an English toast.
+            if self.toast.title == t("new_message", ENGLISH, sender=self.sender):
+                title = t("new_message", language, sender=self.sender)
+        toast = Toast(title=title or self.toast.title, link=self.toast.link)
         return dataclasses.replace(self, body=variant.body, toast=toast)
 
     def payload(self) -> dict:
@@ -287,7 +296,7 @@ def _toast(raw: Any, path: str, channel: str, sender: Optional[str]) -> Toast:
     is_message = channel == "messenger"
     title = raw.get("title")
     if title is None and is_message:
-        title = f"New message · {sender}"
+        title = t("new_message", ENGLISH, sender=sender)
     if not isinstance(title, str) or not title.strip():
         raise _err(f"{path}.title", f"must be a non-empty string, got {title!r}")
     link = raw.get("link")
@@ -609,35 +618,45 @@ def strip_event_messages(
     ]
     if not messages or not isinstance(state.get("messenger"), list):
         return state
-    initial_contacts: Optional[set] = None
+    initial_threads: Optional[set] = None
     if isinstance(initial, Mapping) and isinstance(initial.get("messenger"), list):
-        initial_contacts = {
-            c.get("user") for c in initial["messenger"] if isinstance(c, Mapping)
+        initial_threads = {
+            thread_key(c) for c in initial["messenger"] if isinstance(c, Mapping)
         }
     state = copy.copy(state)
-    conversations = copy.deepcopy(state["messenger"])
+    conversations = [c for c in copy.deepcopy(state["messenger"]) if isinstance(c, dict)]
     emptied: set[int] = set()
     for event in messages:
         sender, body = _field(event, "sender"), _field(event, "body")
-        created = _field(event, "created")
-        if created is None:
-            created = initial_contacts is None or sender not in initial_contacts
-        for conv in conversations:
-            if not isinstance(conv, dict) or conv.get("user") != sender:
-                continue
+        # The messenger files an event under a thread key (``thread_key_for``:
+        # "Alice" lands in her handle's thread), which the scorer cannot
+        # rebuild without the Contacts app. So the message is found by what
+        # only a delivery writes -- the event's text, sent by the thread's
+        # own key -- trying the thread named exactly by the sender first.
+        ordered = sorted(conversations, key=lambda c: thread_key(c) != sender)
+        for conv in ordered:
             msgs = conv.get("messages") or []
-            for i, m in enumerate(msgs):
-                if (
-                    isinstance(m, (list, tuple))
+            hit = next(
+                (
+                    i
+                    for i, m in enumerate(msgs)
+                    if isinstance(m, (list, tuple))
                     and len(m) > 1
                     and m[0] == body
-                    and m[1] == sender
-                ):
-                    del msgs[i]
-                    if not msgs and created:
-                        emptied.add(id(conv))
-                    break
+                    and m[1] == thread_key(conv)
+                ),
+                None,
+            )
+            if hit is None:
+                continue
+            del msgs[hit]
             conv["messages"] = msgs
+            created = _field(event, "created")
+            if created is None:
+                created = initial_threads is None or thread_key(conv) not in initial_threads
+            if not msgs and created:
+                emptied.add(id(conv))
+            break
     # Only conversations an event created and this emptied: a contact seeded
     # with no messages is initial state, and dropping it would be a diff of
     # its own.

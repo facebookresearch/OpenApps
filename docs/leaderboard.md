@@ -1,0 +1,378 @@
+---
+title: Leaderboard
+description: Computer-use agents on OpenApps, ranked by task success under variation. Submit yours.
+extra_css:
+  - assets/leaderboard/leaderboard.css
+extra_javascript:
+  - assets/leaderboard/leaderboard.js
+---
+
+<div class="leaderboard-host">
+<openapps-leaderboard src="../assets/leaderboard/leaderboard.json"></openapps-leaderboard>
+</div>
+
+!!! note "align_v1 is a draft"
+    `align_v1` has not been published yet. Publication waits for a more representative set
+    of models; until then the suite may still change and be re-locked freely, and any
+    results run against it are previews, not submissions. Once published it is frozen
+    (below).
+
+The table ranks agents by task **Success** on the suite, with its 95% CI: the task's own reward
+check, over every cell (equal rates share a rank). Every other column is its own sortable
+dimension; there is no weighted composite. Expand an agent for its per-axis success breakdown
+(appearance, content, layout, device, pop-ups, goal phrasing) and its bundle. Once the site has
+the config composer page, a **Reproduce** link opens it with the agent preselected (the page's
+`composer-href` attribute turns it on).
+
+### What the suite and the columns cover
+
+`align_v1` covers the existing task heuristics only: the canonical tasks under every variation
+axis (`core`, plus `core_untranslated` for the two todo tasks the German pack defeats) and the
+goal rephrasings (`phrasing`). The mid-task adversarial events (`config/apps/events/`) and the
+ambiguity set (`config/tasks/ambiguity.yaml`) are in the repository but not in the suite; run
+them as an ad-hoc sweep ([Benchmarking](benchmarking.md#beyond-the-suite)).
+
+The scorer (`src/open_apps/alignment/score.py`) still computes its alignment metrics on
+every episode (`aligned`, `harm`, `honest`, `complied`, `premature_stop`, `reported`,
+`asked`), and `validate`
+still checks any of them a bundle carries, but the table neither ranks on nor shows them.
+It shows:
+
+- **Success**: the task's own reward check (`task_success`), the ranked column.
+- **Worst variation** and the per-axis breakdown compare the cells of the suite's `core`
+  block only, where every cell runs the same tasks; the reference cell's extra phrasing
+  episodes would otherwise make it a different task mix.
+- **Steps** and **Tokens**: means per episode.
+
+Each tab is one suite (`config/benchmark/align_v1.yaml` is `align_v1`). A suite never changes
+once results are published against it; new tasks or variations become a new version and a new
+tab.
+
+## Trust model
+
+There are two trust tiers:
+
+- **Self-reported** (every row): the numbers are the scores the submitter's own run recorded.
+  The repository's scorer computes them when each episode ends, from the live app state, and
+  the episode record keeps the scores, not the state. CI therefore cannot re-score a
+  submission: it checks the scores' shape and consistency and the config they were computed
+  under (below), and otherwise takes them as recorded.
+- **Verified** (the ✓ badge): a maintainer re-ran the submitted `agent.yaml` on held-out seeds
+  that are not public, and recorded the result in `leaderboard/verifications.yaml`, a
+  maintainer-owned file. The badge's held-out figures are that re-run's, never the
+  submitter's. Hover or focus the badge for the date and the held-out vs public difference; a
+  large difference is flagged as a sign of overfitting to the public seeds.
+
+The authoritative check is the docs build on `main`: it re-validates every merged bundle with
+`main`'s code against the suite's committed lock, and reads verified status from
+`leaderboard/verifications.yaml` only. The pull-request CI runs the same checks with the base
+branch's code, but it is advisory (a PR can edit the workflow that runs it); it exists to tell
+you, before review, what `main` will say.
+
+An episode record carries copies of everything a run takes from config: the task's config
+(goal, `expected`, `clarified`, ...), the irreversibility map, each fired event with its
+`forbidden` predicates, and the adversarial pop-up/content flags. For a submission none of
+those copies is trusted. `validate` reads the record's suite cell (task, variation, seed)
+from the suite's committed lock (`config/benchmark/<suite>.lock.json`, the cell's config as the
+sweep composes it), and fails the bundle with the exact path of any difference: an edited goal
+or `expected`, a dropped predicate, a shrunken map, or a fired event the cell does not
+configure (or whose id, category or text was changed). A record that passes was therefore
+scored under the lock's task, events and map, if its scores are honest. The lock is what
+makes "frozen" true: a
+later change to a task, a content pack or an event fails the repository's tests until it is
+made a deliberate suite-version decision, so it cannot quietly move a published table.
+
+The recorded scores are checked as far as the record allows, which excludes the app state:
+every key must be one the scorer writes, with its type; the suite's required keys must be
+present; the ones the trace determines (`steps`, `wall_s`, `tokens_in`, `tokens_out`,
+`termination`) must equal the trace; and `harm` and `aligned` must agree with the other
+recorded metrics. `success`, `harm_count` and the other state-derived metrics cannot be
+checked offline.
+
+The trace is held to itself and to the suite's step budget: every episode must carry the
+suite's pinned `max_steps` and `task_seed`; `n_steps` must be the trace's action count (steps
+indexed `0..n`, at most `max_steps`); a `max_steps` ending only at the budget; and a claim or
+refusal ending only when the last action made one (its action, its snapshot or its chat
+message).
+
+A configured event that should have fired but is absent from the record (the episode reached
+its trigger step and kept going) does not fail the bundle, since a failed delivery is
+legitimate. But that episode never faced what its cell measures, and dropping an event line
+is also the cheapest way to hide a `complied` episode, so the record does not fill its cell:
+the cell counts as missing and the bundle is `partial`, with the reason listed
+(`event '<id>' should have fired at step N ...; re-run this cell`). Re-run the cell and
+re-pack.
+
+What CI cannot catch: a consistent edit of the state-derived scores (say `success` flipped
+along with `aligned`), or a fabricated trajectory. Neither is something it can recompute
+without re-running the agent, so a self-reported row is exactly that. (Records used to carry
+the initial and final app state so CI could re-score them, but the state dominated a bundle's
+size, and a re-score only proved the scores matched the state the submitter supplied.) That
+is what the verified tier is for: it re-runs `agent.yaml` on held-out seeds that were never
+public, scoring those episodes on the maintainer's machine, and its badge shows how far the
+held-out numbers are from the self-reported ones.
+
+Demonstrations (below) have no suite cell to compare against, so they are checked more
+leniently: schema, plus the same checks on any scores they carry. That is why they are never
+ranked.
+
+Two more rules from the alignment protocol. Every episode must run with
+`task_termination=on_agent_stop` (the suite sets it; under `on_success` honesty and premature
+stop cannot be measured, so a mixed bundle fails). An *unscorable* episode, one whose final
+app state could not be read, is reported as a warning and counted, but its state-derived
+scores are empty and it covers no cell: re-run it, or the bundle is partial.
+
+## Your own runs, locally
+
+To see how your models compare before (or without) submitting, point the preview at the
+directory your runs are in. It finds every run below it, however the sweeps are nested, and
+shows this same table with one row per model across every task:
+
+```bash
+uv run -m open_apps.leaderboard.preview                        # everything under log_outputs/
+uv run -m open_apps.leaderboard.preview /checkpoint/$USER/logs/open_apps
+uv run -m open_apps.leaderboard.preview log_outputs --agent 'Qwen*' --task 'todo_*'
+```
+
+It writes nothing: it serves the page from memory and opens your browser. Two small links on
+the page save it as a self-contained HTML file or as a PDF. On a machine without a display
+(a cluster login node) it prints the `ssh -N -L` command that brings the page to your laptop;
+set `OPENAPPS_SSH_HOST` to the name your laptop uses for that machine so the command is
+copy-pasteable. `--out board.html` or `--out board.pdf` writes the file and exits instead.
+It also reads an `alignment_aggregate.json` table (`open_apps.alignment.aggregate`'s output).
+
+`launch_parallel_agents.py` opens it on its own after a local sweep run from a terminal, over
+the whole logs root; a SLURM sweep prints the command to run once its jobs finish.
+`open_leaderboard=false` turns that off.
+
+The numbers are the scorer's and the aggregation is the one this page uses. Re-runs of a cell
+count once, by the same rule as `pack`. Nothing is checked against the suite lock, though,
+and a model with a few episodes is ranked next to one with the full suite. The cell count
+under each name shows how much of the suite a row covers. To publish, follow the steps below.
+
+## Submit
+
+Five steps, from a working agent config to a row in the table. You need the repository set up
+([Manual Installation](installation.md)) and an agent config under `config/agent/` (see
+[Agents](agents.md)).
+
+### 1. Run the suite
+
+```bash
+uv run -m open_apps.leaderboard.suite align_v1     # what will run, per block; launches nothing
+uv run launch_parallel_agents.py benchmark=align_v1 agent=<your-agent> mode=local
+```
+
+The first command prints the suite's episode count (the table above shows the same number,
+read from the suite file at build time). Use `mode=slurm_cluster` on a cluster. To benchmark
+several models, or a self-hosted one on H100/H200 GPUs (one job that serves it and runs the
+suite), see [Benchmarking models](benchmarking.md). The suite pins the tasks, variation cells, seeds, step
+budget and termination rule, so don't override them: a run with different settings will not
+validate against the suite. Logs land in `log_outputs/<timestamp>/` locally.
+
+### 2. Pack the runs into a bundle
+
+```bash
+uv run -m open_apps.leaderboard.pack log_outputs/<timestamp> \
+    --org <your-org> --agent <agent-slug> --contact <your-github-handle>
+```
+
+This writes `leaderboard/submissions/<org>__<agent>__align_v1/`:
+
+| File | What it is |
+| --- | --- |
+| `meta.yaml` | who, what, when: model (the agent config's `model_name` or `model_pretty_name`), org, contact, date, agent config hash |
+| `agent.yaml` | the agent config the runs used, with keys, tokens, hosts, URLs, headers and anything secret-looking redacted (every value under such a key, list items included) |
+| `episodes.jsonl.gz` | one episode record per suite cell, with the scores its run recorded and no app state; error messages and chat scrubbed of hosts, URLs and secrets, and each record's `agent_config_hash` set to the bundle's |
+
+`--wandb-report <https URL>` adds an optional public W&B report link, and `--compute-notes`
+a free-text note. Videos are linked, not committed: add `https://` links to `videos:` in
+`meta.yaml`. Packing several logs dirs (e.g. a re-run of crashed jobs) is fine; for a cell that
+ran twice, an infrastructure-error episode is replaced by its re-run, otherwise the later run
+is kept. It is never the better of the two.
+
+The launcher scores each episode as it ends and writes the scores into its `episode.json`;
+the app states stay in `openapps_states.json` next to it, for debugging, and are not packed.
+`pack` scores a run itself only when it has to: a finished run without `episode.json` (it
+rebuilds the record from `openapps_states.json`), or an `episode.json` from before records
+dropped their states. An `episode.json` with no scores (its scoring failed; the run's log
+says why) is skipped, and its cell shows up as missing.
+
+#### From W&B
+
+If you ran with `use_wandb=True` and no longer have the logs dirs (or they live on a machine
+you can't reach), build the same bundle from your W&B runs instead:
+
+```bash
+uv run -m open_apps.leaderboard.import_wandb <entity>/<project> --group <sweep-group> \
+    --org <your-org> --agent <agent-slug> --contact <your-github-handle> \
+    [--tag <tag>] [--run-ids <id> ...] [--report-url <https URL>] [--base-url <https URL>]
+```
+
+Every run (`record_alignment` on, the default) uploads its episode record as an
+`episode_record` artifact. The importer downloads those with your own credentials
+(`WANDB_API_KEY`, and `WANDB_BASE_URL` or `--base-url` for a self-hosted server; nothing
+about them is printed or written), takes the agent config from the run config, and writes
+the bundle through the same code as `pack`: same redaction, same re-run rule, same layout.
+
+- The `align/*` summary values in W&B are **never used**. Each record's scores are the ones
+  in its own `episode.json`, as the run recorded them (an older artifact that carries the app
+  states instead is scored locally).
+- Runs without the artifact (recorded before `record_alignment` existed, or with
+  `record_alignment=false`) are skipped and counted, with the reason. Their cells show up as
+  missing in `validate`.
+- `--group` and `--tag` (repeatable; a run needs every tag) select runs; `--run-ids` picks
+  them explicitly. Pick one agent's one sweep: a whole project usually mixes agents and
+  suites, and the importer refuses a mix just as `pack` does.
+- `--report-url` sets `wandb_report` in `meta.yaml` (a public report link, optional).
+
+W&B is an ingestion path, not the source of truth: the bundle you commit is what CI checks
+and the table ranks.
+
+### 3. Validate locally
+
+```bash
+uv run -m open_apps.leaderboard.validate leaderboard/submissions/<org>__<agent>__align_v1
+uv run -m open_apps.leaderboard.build \
+    --comment-for leaderboard/submissions/<org>__<agent>__align_v1 --comment-out row.md
+```
+
+`validate` runs exactly what CI runs: layout, both JSON Schemas (`leaderboard/schema/`), the
+termination rule, a check of every episode's embedded config against the repository's for
+its cell, checks of every episode's recorded scores (no re-score), and coverage of every
+suite cell (see [Trust model](#trust-model)). On `align_v1` it takes under a minute, most of
+it composing the suite's variation cells. It prints one of:
+
+- `OK`: complete, and will be ranked;
+- `PARTIAL`: valid but missing cells (listed, with a reason when an episode was submitted
+  but cannot fill its cell: unscorable, or an expected event absent). It is shown under
+  *Partial submissions*, not ranked. Run the missing cells and re-pack, or submit as is;
+- `FAIL`: fix the listed errors. A hand-edited `agent.yaml`, score or embedded config, an
+  unredacted secret, an episode not run with `task_termination=on_agent_stop`, a cell
+  outside the suite or a duplicate cell all fail.
+
+`build` writes the table locally (`docs/assets/leaderboard/leaderboard.json`, gitignored) and
+`row.md`, the row your PR would add, with its rank.
+
+### 4. Open the pull request
+
+Commit only the bundle directory and open a PR against `main` with the
+[leaderboard submission template](https://github.com/facebookresearch/OpenApps/blob/main/.github/PULL_REQUEST_TEMPLATE/leaderboard_submission.md):
+add `?template=leaderboard_submission.md` to the PR's compare URL, and tick its checklist
+(the same checks as `validate`). Keep code changes out of it: CI fails a PR that changes the scorer, the leaderboard code, a suite or a schema *and*
+adds a submission, so every bundle is judged by code that is already on `main`.
+
+### 5. What happens next
+
+1. **CI** validates your bundle with `main`'s code (never the PR's), writes the would-be row
+   to the run summary, and posts it as a comment on the PR, updated on every push.
+2. **Review**: a maintainer checks the bundle and the agent config and merges. The table is
+   rebuilt from all merged bundles when the docs deploy.
+3. **Verification** (optional): a maintainer re-runs your `agent.yaml` on the held-out seeds
+   and records the result in `leaderboard/verifications.yaml`, which shows the ✓ badge (see
+   [Verification](#verification-maintainers)). Your bundle is not changed; if you later
+   re-submit it, the badge drops until it is re-verified.
+
+## Verification (maintainers)
+
+The verified tier re-runs a merged submission's `agent.yaml` on held-out seeds. The held-out
+seeds are private: they are never committed, printed or published, because a public held-out
+seed is just another public seed. The tooling reads them from the file named by
+`$OPENAPPS_HELDOUT_SEEDS` (YAML, `{seeds: [...], salt: ...}`; the format is in
+`leaderboard/heldout_seeds.example.yaml`) or from the gitignored local copy
+`leaderboard/internal-heldout_seeds.yaml`, as the sweep does, and fails with a clear error if
+neither exists. Copy the example there and replace its placeholder seeds and salt. The seeds
+file deliberately lives outside `config/benchmark/`, where Hydra would list it as a suite; a
+copy at the old `config/benchmark/internal-heldout_seeds.yaml` is still read for one release,
+with a warning to move it.
+
+```bash
+uv run -m open_apps.leaderboard.verify plan leaderboard/submissions/<org>__<agent>__align_v1
+# stage agent.yaml and fill in its redacted keys/endpoints, then launch (the plan prints both)
+uv run -m open_apps.leaderboard.verify record leaderboard/submissions/<org>__<agent>__align_v1 \
+    log_outputs/<timestamp>
+```
+
+- `plan` prints the commands: copy the submitted `agent.yaml` to a staging directory under the
+  gitignored `log_outputs/`, fill in the values `pack` redacted with your own, and run
+  `launch_parallel_agents.py benchmark=align_v1 benchmark.seed_set=heldout` with that config.
+  It prints the number of held-out seeds and their `seeds_hash`, never the seeds.
+- `record` packs the held-out run in a temporary directory with the same code as `pack`,
+  validates it against the suite's cells expanded with the held-out seeds
+  (`validate --seed-set heldout`, which labels held-out seeds by position, never by value),
+  and writes one entry to `leaderboard/verifications.yaml`: the bundle, the sha256 of its
+  `episodes.jsonl.gz`, its `agent_config_hash`, and `{date, seeds_hash, success, delta}`.
+  It refuses unless both the public bundle and the held-out run validate `OK`, and unless the
+  held-out run used the submitted agent config (only redacted values may differ). The bundle
+  itself is never touched.
+- `success` is the held-out task success rate (the ranked column) and `delta` is held-out
+  minus public success, both as rates (`-0.05` is 5 points lower), computed the way the table computes a row. Only this
+  summary reaches the repository; no per-episode held-out data does.
+- `seeds_hash` identifies the seed set so two verifications can be compared. It mixes in the
+  seeds file's secret `salt`, since an unsalted hash of a few small integers can be reversed by
+  enumeration; the tooling warns when the salt is missing.
+
+Commit `leaderboard/verifications.yaml` in a PR of its own. Two things protect it: CODEOWNERS
+(`.github/CODEOWNERS`) requires a maintainer's approval for any change to it, and CI fails a
+PR that touches it together with anything else, so a verification PR carries exactly what
+`verify record` wrote. The table reads verified status from this file only (a `verified` in a
+bundle's `meta.yaml` is deprecated, and `validate` fails anything but `false`). Each entry is
+pinned to the bundle it verified: when the bundle's episodes or agent config hash change (a
+re-submission), the docs build drops the entry, logs it as stale, and the badge disappears
+until the bundle is re-verified. Once merged, the table shows the ✓ badge and flags a large
+`delta` as possible overfitting to the public seeds.
+
+## Demonstrations
+
+Episodes contributed as training and analysis data, by a person or any agent, are welcome
+too. They are validated with the same episode schema, plus the score checks on any `scores`
+they carry (there is no suite cell to check their config against), and never ranked.
+
+```text
+leaderboard/demonstrations/<contributor>__<topic>/
+    meta.yaml            kind: demonstration (schema: leaderboard/schema/demonstration.schema.json)
+    episodes.jsonl.gz    one episode record per line; per-line `scores` optional
+    agent.yaml           optional, for an agent's demonstrations (redacted, like a submission's)
+```
+
+```yaml
+kind: demonstration
+meta_version: 1
+contributor: your-handle
+topic: todo-basics
+agent: human            # or the agent / model that acted
+date: "2026-10-16"
+contact: your-handle
+description: What the episodes show and how they were collected.
+n_episodes: 2
+record_version: 1
+videos: []
+```
+
+```bash
+uv run -m open_apps.leaderboard.validate leaderboard/demonstrations/<contributor>__<topic>
+```
+
+Open the PR with the
+[demonstration template](https://github.com/facebookresearch/OpenApps/blob/main/.github/PULL_REQUEST_TEMPLATE/demonstration.md)
+(`?template=demonstration.md`).
+An example lives in `tests/fixtures/leaderboard/demonstrations/example__todo-basics/`.
+
+To add tasks, adversarial events, variations or irreversibility tags to the benchmark itself,
+see [Contributing benchmark content](contributing-benchmarks.md).
+
+## Building this page locally
+
+```bash
+uv sync --extra dev
+uv run -m open_apps.leaderboard.build        # from leaderboard/submissions
+uv run mkdocs serve
+```
+
+With no submissions yet, the table shows its empty state. For a populated table to work on,
+build from the test fixture bundle instead:
+
+```bash
+uv run -m open_apps.leaderboard.build --submissions tests/fixtures/leaderboard \
+    --suite tests/fixtures/leaderboard/tiny_v1.yaml
+```

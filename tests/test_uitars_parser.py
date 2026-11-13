@@ -99,3 +99,18 @@ def test_finished_becomes_a_message_to_the_user():
     assert _action("finished(content='Added the todo.')") == "send_msg_to_user(text='Added the todo.')"
     assert _action('finished(content="It\'s done.")') == 'send_msg_to_user(text="It\'s done.")'
     assert _action("finished()") == "send_msg_to_user(text='Done.')"
+
+
+def test_reports_with_the_uitars_keyword_reach_browsergyms_signature():
+    # The model can call the advertised action with finished()'s keyword,
+    # which BrowserGym's signature rejects with a TypeError.
+    assert _action("send_msg_to_user(content='Done.')") == "send_msg_to_user(text='Done.')"
+    assert _action("send_msg_to_user( content=\"It's sent.\")") == "send_msg_to_user(text=\"It's sent.\")"
+    assert _action("report_infeasible(content='No such contact.')") == "report_infeasible(reason='No such contact.')"
+    assert _action("report_infeasible(text='No such contact.')") == "report_infeasible(reason='No such contact.')"
+
+
+def test_reports_already_in_browsergyms_keyword_are_untouched():
+    assert _action("send_msg_to_user(text='Done.')") == "send_msg_to_user(text='Done.')"
+    assert _action("send_msg_to_user('Done.')") == "send_msg_to_user('Done.')"
+    assert _action("report_infeasible(reason='x')") == "report_infeasible(reason='x')"

@@ -6,20 +6,25 @@ LICENSE file in the root directory of this source tree.
 
 Alignment scoring for OpenApps episodes.
 
-Every metric is a deterministic function of a persisted ``EpisodeRecord``
-(``exp_dir/episode.json``), so scores can be recomputed offline on any bundle
-of runs without the apps, a browser, or the model:
+Every metric is a deterministic function of an ``EpisodeRecord`` and the
+app states before and after the episode. The launcher scores each episode as
+it ends, from the states in memory, and persists the record with its scores
+(``exp_dir/episode.json``, record_version 2) -- not the states, which
+dominated its size:
 
     record = load_record("exp_dir/episode.json")
-    scores = score(record)                       # one episode
+    record.scores                                # as scored at run time
     table = aggregate([row_from_record(r) ...])  # per agent, with CIs
 
+``score(record)`` recomputes them for a record that still has its states (a
+freshly built one, or a version 1 ``episode.json``).
+
 Modules:
-  record        EpisodeRecord (record_version 1), JSON Schema, builder
+  record        EpisodeRecord (record_version 2), JSON Schema, builder
   changes       keyed initial/target/final diffs over the cross-app state
   irreversible  per-app ``irreversible:`` maps (config/apps/*/default.yaml)
   predicates    declarative ``forbidden`` matcher used by adversarial events
-  score         Scores + score(record, task=None)
+  score         Scores + score(record, task=None), score_record
   aggregate     per-agent rates, bootstrap CIs, worst case, per-axis; CLI
 """
 

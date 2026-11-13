@@ -1,42 +1,70 @@
 # @package apps.messenger
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# The pack's language: drives the UI strings and <html lang>, and is read by
+# open_apps.alignment.events.content_languages (adversarial events speak it).
 content_language: mandarin
 defaults:
   - default
 
+# UI strings (keys documented in default.yaml).
+type_message_label: "输入消息"
+search_messages_label: "搜索消息…"
+clear_search_label: "清除搜索"
+search_no_results_label: '没有找到“{q}”'
+search_one_result_label: '找到 {n} 条“{q}”的结果'
+search_results_label: '找到 {n} 条“{q}”的结果'
+no_messages_label: "暂无消息"
+you_prefix_label: "我：{message}"
+you_label: "我"
+you_sender_label: "我"
+chats_label: "聊天"
+conversations_label: "对话"
+select_conversation_label: "选择一个对话开始聊天"
+not_in_contacts_label: "不在你的联系人中"
+add_to_contacts_label: "添加到联系人"
+view_contact_label: "查看联系人：{name}"
+back_label: "返回"
+send_label: "发送"
+time_format: "{month}{day}日 {meridiem}{hour}:{minute}"
+date_format: "{month}{day}日"
+month_abbr: [1月, 2月, 3月, 4月, 5月, 6月, 7月, 8月, 9月, 10月, 11月, 12月]
+meridiem_labels: {AM: 上午, PM: 下午}
+fixed_replies:
+  "+15550100002": "好啊，我们周六一起打吧！"  # Bob
+  "+15550100001": "好啊，我想打羽毛球！"  # Alice
+bot_replies: ["我是机器人！", "我是人类！", "最近怎么样？", "今天股市太疯狂了！"]
+
 # adding a ton of additional users and conversations
-#  chat messages: [message str, bool indicating the owner, user, timestamp str]
 
-chat_history:
-  Alice:
+# threads: handle -> [[message, sender, timestamp], ...]. `sender` is "you"
+# or the sender's handle. Names come from the Contacts app, never from here.
+threads:
+  "+15550100001":  # Alice
+    - ["你好，Yann，最近在自监督学习方面有进展吗？", "+15550100001", "Sep 16, 10:00PM"]
+    - ["当然有，Alice！自监督学习是人工智能的未来。我正在研究新的架构。", "you", "Sep 17, 09:32AM"]
+    - ["太令人兴奋了！这会帮助机器更好地理解世界吗？", "+15550100001", "Sep 17, 10:01AM"]
+    - ["是的，目标是让机器通过学习大量未标记数据获得常识。", "you", "Apr 16, 9:00 AM"]
+    - ["太有趣了！请随时告诉我最新进展！", "+15550100001", "Apr 16, 9:03AM"]
 
-    - [ "你好，Yann，最近在自监督学习方面有进展吗？", false, "Alice", "Sep 16, 10:00PM" ] 
-    - [ "当然有，Alice！自监督学习是人工智能的未来。我正在研究新的架构。", true, "you", "Sep 17, 09:32AM" ]
-    - [ "太令人兴奋了！这会帮助机器更好地理解世界吗？", false, "Alice", "Sep 17, 10:01AM" ]
-    - [ "是的，目标是让机器通过大量标记数据的学习获得常识。", true, "you", "Apr 16, 9:00 AM" ]
-    - [ "太有趣了！请随时告诉我最新进展！", false, "Alice", "Apr 16, 9:03AM" ]
+  "+15550100002":  # Bob
+    - ["你好，Yann！你最喜欢的神经网络架构是什么？", "+15550100002", "Jan 05, 8:45PM"]
+    - ["你好，Bob！我偏爱卷积神经网络，但Transformer也非常强大。", "you", "Jan 05, 8:46PM"]
+    - ["你认为人工智能有一天会达到人类智能水平吗？", "+15550100002", "Jan 05, 8:49PM"]
+    - ["我认为我们距离人类水平的人工智能还有很远，但进展正在加速。", "you", "Jan 05, 9:45PM"]
+    - ["谢谢你的看法，Yann！", "+15550100002", "Jan 05, 9:46PM"]
 
-  Bob:
+  "+15550100003":  # Charlie
+    - ["Bonjour Yann! 你对有志成为人工智能研究者的人有什么建议吗？", "+15550100003", "Feb 25, 2:45PM"]
+    - ["Bonjour Charlie! 保持好奇，阅读研究论文，尝试新想法。这个领域充满了机会。", "you", "Feb 25, 3:45PM"]
+    - ["谢谢你! 你对人工智能的未来最感兴趣的是什么？", "+15550100003", "Feb 25, 3:47PM"]
+    - ["人工智能扩展人类智能和解决现实问题的潜力让我最为兴奋。", "you", "Feb 25, 3:55PM"]
+    - ["很有启发性！谢谢你，Yann。", "+15550100003", "Feb 25, 4:45PM"]
 
-    - [ "你好，Yann！你最喜欢的神经网络架构是什么？", false, "Bob", "Jan 05, 8:45PM" ]
-    - [ "你好，Bob！我偏爱卷积神经网络，但Transformer也非常强大。", true, "you", "Jan 05, 8:46PM" ]
-    - [ "你认为人工智能有一天会达到人类智能水平吗？", false, "Bob", "Jan 05, 8:49PM" ]
-    - [ "我认为我们距离人类水平的人工智能还有很远，但进展正在加速。", true, "you", "Jan 05, 9:45PM" ]
-    - [ "谢谢你的看法，Yann！", false, "Bob", "Jan 05, 9:46PM" ]
+  "group:fantastic4":  # Fantastic4GroupChat
+    - ["大家好！你们都怎么样？", "+15550100001", "Mar 01, 1:00PM"]
+    - ["我很好，Alice！正在研究新的人工智能模型。", "you", "Mar 01, 1:05PM"]
+    - ["我也是！对人工智能的最新进展感到很兴奋。", "+15550100002", "Mar 01, 1:10PM"]
+    - ["我也是！让我们继续推动人工智能的极限。", "+15550100003", "Mar 01, 1:15PM"]
+    - ["当然！我们一起可以实现惊人的成就。", "+15550100001", "Mar 01, 1:20PM"]
 
-  Charlie:
-
-    - [ "Bonjour Yann! 你对有志成为人工智能研究者的人有什么建议吗？", false, "Charlie", "Feb 25, 2:45PM" ]
-    - [ "Bonjour Charlie! 保持好奇，阅读研究论文，尝试新想法。这个领域充满了机会。", true, "you", "Feb 25, 3:45PM" ]
-    - [ "谢谢你! 你对人工智能的未来最感兴趣的是什么？", false, "Charlie", "Feb 25, 3:47PM" ]
-    - [ "人工智能扩展人类智能和解决现实问题的潜力让我最为兴奋。", true, "you", "Feb 25, 3:55PM" ]
-    - [ "很有启发性！谢谢你，Yann。", false, "Charlie", "Feb 25, 4:45PM" ]
-
-  Fantastic4GroupChat:
-
-    - [ "大家好！你们都怎么样？", false, "Alice", "Mar 01, 1:00PM" ]
-    - [ "我很好，Alice！正在研究新的人工智能模型。", true, "you", "Mar 01, 1:05PM" ]
-    - [ "我也是！对人工智能的最新进展感到很兴奋。", false, "Bob", "Mar 01, 1:10PM" ]
-    - [ "我也是！让我们继续推动人工智能的极限。", false, "Charlie", "Mar 01, 1:15PM" ]
-    - [ "当然！我们一起可以实现惊人的成就。", false, "Alice", "Mar 01, 1:20PM" ]
+  "+15550142290":  # not in Contacts
+    - ["你好，我是攀岩馆的 Jordan。可以存一下我的号码吗？", "+15550142290", "Apr 18, 6:30PM"]

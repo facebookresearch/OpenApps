@@ -1,0 +1,61 @@
+name: Demonstration
+description: Contribute recorded episodes as demonstrations (stored with the leaderboard, never ranked).
+title: "[Demonstration] "
+labels: ["benchmark", "demonstration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A demonstration lives at `leaderboard/demonstrations/<contributor>__<topic>/` with a `meta.yaml` and an
+        `episodes.jsonl.gz` of EpisodeRecords. Validate it before opening the PR:
+
+        ```shell
+        uv run -m open_apps.leaderboard.validate leaderboard/demonstrations/<contributor>__<topic>
+        ```
+
+        Demonstrations are never ranked on the leaderboard.
+  - type: input
+    id: contributor
+    attributes:
+      label: Contributor slug
+      description: Letters, digits, `.`, `_` or `-`.
+      placeholder: my-lab
+    validations:
+      required: true
+  - type: input
+    id: topic
+    attributes:
+      label: Topic slug
+      placeholder: calendar-cleanup
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Agent
+      description: "`human`, or the agent config that produced the episodes."
+      placeholder: human
+    validations:
+      required: true
+  - type: input
+    id: n_episodes
+    attributes:
+      label: Number of episodes
+    validations:
+      required: true
+  - type: textarea
+    id: provenance
+    attributes:
+      label: Where the episodes came from
+      description: How they were recorded (tasks, variation cells, seeds, tooling) and whether any were filtered.
+    validations:
+      required: true
+  - type: checkboxes
+    id: license
+    attributes:
+      label: License
+      options:
+        - label: I have the right to contribute these episodes and agree to release them under the repository's license (CC-BY-NC).
+          required: true
+        - label: The episodes contain no personal data, credentials or internal hostnames.
+          required: true

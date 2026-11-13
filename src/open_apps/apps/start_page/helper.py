@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 from open_apps.frontend import local_hdrs
+from open_apps.i18n import ENGLISH, t
 from open_apps.ui.brand import Wordmark
 
 # src/proficiency_playground/playground_server
@@ -128,7 +129,6 @@ def Gallery(
     fade_in=False,
     random_tile_reoder: bool = False,
     has_descriptions: bool = False,
-    light_glyphs: bool = False,
     config=None,
 ):
     """
@@ -143,8 +143,6 @@ def Gallery(
             grid from icon-and-label tiles to wider cards, the way a store or
             settings listing lays out apps it describes -- a paragraph squeezed
             under a launcher icon is unreadable.
-        light_glyphs: The icons are black line art on a dark single fill (the
-            `bw` icon set under a non-light tone), so draw them inverted.
         config: Configuration dictionary with styling options
     """
     # Override defaults with config if provided
@@ -162,8 +160,6 @@ def Gallery(
         classes.append(size)
     if has_descriptions:
         classes.append("has-descriptions")
-    if light_glyphs:
-        classes.append("glyphs-light")
     if fade_in:
         classes.append("onscroll-fade-in")
     if config and config.get('item_hover_effect') is False:
@@ -196,8 +192,13 @@ scripts = [
     for js in scr_fns
 ]
 
-def Modal(content, id="modal", title="Notice", button_title="Close", link_button=None, link_url=None, cls=None):
+def Modal(content, id="modal", title=None, button_title=None, link_button=None, link_url=None, cls=None,
+          language=ENGLISH):
+    """A pop-up. ``title`` and ``button_title`` default to "Notice" and
+    "Close" in ``language`` (the session's, ``open_apps.i18n.shell_language``)."""
     modal_classes = f"modal {cls or ''}".strip()
+    title = title or t("notice", language)
+    button_title = button_title or t("close", language)
 
     # Create footer buttons with improved styling
     footer_buttons = [Button(button_title, cls="close-modal",
@@ -428,9 +429,8 @@ LAUNCHER_CSS = """
         object-fit: contain;
         border-radius: 0;
     }
-    #wrapper .launcher.glyphs-light .tile-icon img {
-        filter: invert(1);
-    }
+    /* No dark-tone inversion: every icon carries its own tile with a white
+       glyph (scripts/build_app_icons.py), so it reads on any fill as is. */
 
     /* Label and description */
     #wrapper .launcher > .item h3 {
@@ -621,6 +621,17 @@ def PageWrapper(title, *content, config=None, theme_css=""):
                 float: right;
                 cursor: pointer;
             }}
+            /* The Story template (main.css) draws buttons in a fixed dark
+               ink with a dark outline, which vanishes on a dark theme's
+               surface. Ink and outline from the tokens instead. */
+            .modal-content .close-modal {{
+                color: var(--color-fg);
+                box-shadow: inset 0 0 0 2px var(--color-border);
+            }}
+            .modal-content .close-modal:hover {{
+                box-shadow: inset 0 0 0 2px var(--color-primary);
+                color: var(--color-fg);
+            }}
             .modal-footer {{
                 display: flex;
                 justify-content: flex-end;
@@ -638,7 +649,10 @@ def PageWrapper(title, *content, config=None, theme_css=""):
             }}
 
             {LAUNCHER_CSS}
-
+        </style>
+        <style>
+            /* Its own sheet: a theme's `import_url` is an @import, which is
+               only valid at the top of a stylesheet. */
             {theme_css}
         </style>
         <script>
@@ -706,17 +720,27 @@ def get_app(hdrs=None, *args, **kwargs):
     kwargs.setdefault("title", "OpenApps")
     app = FastHTML(hdrs=hdrs, *args, default_hdrs=False, **kwargs)
 
-    @app.get("/{fname:path}.{ext:static}")
+    # Scoped to /assets/. Unscoped, `/{fname:path}.{ext:static}` claimed every
+    # URL ending in a static extension on the whole server -- including
+    # `/codeeditor/demo.yaml`, `/codeeditor/app.js` and `/codeeditor/site.css`
+    # -- and answered the ones it had no file for with an empty 200, so those
+    # files opened in the code editor as a blank page. Every static URL the
+    # apps emit is under /assets/, so nothing else needs this route.
+    assets_root = os.path.realpath(os.path.join(BASE_DIR, "assets"))
+
+    @app.get("/assets/{fname:path}.{ext:static}")
     def static(fname: str, ext: str):
-        full_path = os.path.join(BASE_DIR, f"{fname}.{ext}")
-        if os.path.exists(full_path):
+        full_path = os.path.realpath(os.path.join(assets_root, f"{fname}.{ext}"))
+        # realpath + prefix test: `..` segments must not climb out of assets/.
+        if full_path.startswith(assets_root + os.sep) and os.path.isfile(full_path):
             return FileResponse(full_path)
+        return Response(status_code=404)
 
     return app, app.route
 
 
-def footer():
-    links = A("main-page", href="/")
+def footer(language=ENGLISH):
+    links = A(t("main_page", language), href="/")
     return Footer(Div(links, cls="inner"), cls="wrapper style1 align-center")
 
 def create_logo_header(app_config, base_url: str, current_file_path: str):

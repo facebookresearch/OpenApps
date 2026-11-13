@@ -25,8 +25,9 @@ from open_apps.apps.start_page.helper import LAUNCHER_CSS
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 
 # Position order from `config/apps/start_page/default.yaml`. The online shop
-# is on by default now that it needs no JDK; OpenBanking (position 8) closes the
-# row because the UI Library's tile at 7 is disabled by default.
+# is on by default now that it needs no JDK; OpenBanking (position 8), Files
+# (9) and Contacts (10) close the row, because the UI Library's tile at 7 is
+# disabled by default.
 EXPECTED_TILES = [
     ("/todo", "OpenTodos"),
     ("/calendar", "OpenCalendar"),
@@ -35,6 +36,8 @@ EXPECTED_TILES = [
     ("/codeeditor", "OpenCodeEditor"),
     ("/onlineshop", "OpenShop"),
     ("/openbanking", "OpenBanking"),
+    ("/files", "OpenFiles"),
+    ("/contacts", "OpenContacts"),
 ]
 
 TILE_RE = re.compile(
@@ -106,12 +109,12 @@ def test_clickable_logos_does_not_change_the_start_page(monkeypatch):
 
 OWN_ICON = {"/todo": "todo", "/calendar": "calendar", "/messages": "messages",
             "/maps": "maps", "/codeeditor": "code", "/onlineshop": "shop",
-            "/openbanking": "wallet"}
+            "/openbanking": "wallet", "/files": "files", "/contacts": "contacts"}
 
 
 def test_default_icons_match_their_tiles(monkeypatch):
     for tile in tiles(render(monkeypatch)):
-        assert tile["icon"].endswith(f"/{OWN_ICON[tile['href']]}.png"), tile
+        assert tile["icon"].endswith(f"/{OWN_ICON[tile['href']]}.svg"), tile
 
 
 def test_broken_logos_detaches_icons_from_their_tiles(monkeypatch):
@@ -152,15 +155,46 @@ def test_light_themes_keep_one_fill_per_tile(monkeypatch):
     for theme in ("default", "solarized", "challenging_font"):
         markup = render(monkeypatch, f"apps/theme={theme}")
         assert len(set(fills(markup))) == len(EXPECTED_TILES), theme
-        assert "glyphs-light" not in markup
 
 
 @pytest.mark.parametrize("theme", ["dark", "mono"])
-def test_non_light_tones_collapse_the_fill_and_lighten_the_glyphs(monkeypatch, theme):
+def test_non_light_tones_collapse_the_fill(monkeypatch, theme):
     markup = render(monkeypatch, f"apps/theme={theme}")
     assert len(fills(markup)) == len(EXPECTED_TILES)
     assert len(set(fills(markup))) == 1
-    assert 'class="items launcher small glyphs-light"' in markup
+    # The icons carry their own tile and white glyph, so nothing inverts them.
+    assert 'class="items launcher small"' in markup
+
+
+ASSETS_DIR = Path(start_page.__file__).resolve().parents[1]
+ICON_KEYS = ("icon", "bw_icon", "user_icon", "group_icon")
+
+
+def test_every_configured_icon_is_a_real_svg():
+    """Each icon path in the app inventory resolves to a parseable SVG on disk.
+
+    The dock, title bar, app headers and gallery all take these paths straight
+    from config into an ``<img>``, so a missing or malformed file surfaces only
+    as a broken-image box in a screenshot -- exactly what an agent cannot tell
+    from a missing affordance.
+    """
+    import xml.etree.ElementTree as ET
+
+    apps = compose_apps().start_page.apps
+    paths = {app[key] for app in apps.values() for key in ICON_KEYS if app.get(key)}
+    assert paths, "no icons configured"
+    for url in sorted(paths):
+        assert url.endswith(".svg"), url
+        file = ASSETS_DIR / url.lstrip("/")
+        assert file.is_file(), f"{url} -> {file} missing"
+        root = ET.parse(file).getroot()
+        assert root.tag == "{http://www.w3.org/2000/svg}svg", url
+        # Intrinsic size, so an <img> sized on one axis only (the app header
+        # sets just `height`) keeps the square aspect.
+        assert root.get("viewBox") == "0 0 64 64", url
+        assert root.get("width") == root.get("height") == "64", url
+        # No external references: the eval nodes have no outbound network.
+        assert "http" not in file.read_text().replace("http://www.w3.org/2000/svg", ""), url
 
 
 def test_label_only_content_renders_no_empty_paragraphs(monkeypatch):
@@ -210,3 +244,211 @@ def test_tile_layout_also_covers_the_wrapper_main_js_injects():
         "#wrapper .launcher.has-descriptions > .item, "
         "#wrapper .launcher.has-descriptions > .item > .inner {"
     ) in css
+
+
+@pytest.mark.parametrize(
+    "pack",
+    sorted(p.stem for p in (Path(__file__).parent.parent / "config/apps/start_page/content").glob("*.yaml")),
+)
+def test_every_content_pack_titles_every_app(pack):
+    """A start-page content pack that omits an app leaves its `title` unset,
+    and the app then fails to register its routes at all -- the UI Library
+    404'd under `long_descriptions`, `misleading_descriptions` and
+    `adversarial_descriptions` this way, silently."""
+    from hydra import compose, initialize
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=[f"apps/start_page/content={pack}"])
+    apps = config.apps.start_page.apps
+    missing = [key for key in apps if not apps[key].get("title")]
+    assert not missing, f"{pack} has no title for {missing}"
+
+
+# --------------------------------------------------------------------------
+# The desktop shell under the theme and language axes
+# --------------------------------------------------------------------------
+
+
+def fetch(monkeypatch, *overrides, chrome="none"):
+    """GET / under ``overrides`` with the desktop layout (the default) and the
+    raw markup -- styles included, since the theme tokens are the point."""
+    desktop = not any(o.startswith("apps/start_page/layout=") and not o.endswith("=desktop")
+                      for o in overrides)
+    apps = compose_apps(
+        f"apps/chrome={chrome}",
+        # A Pillow pass writing a PNG; tests/test_shell_layout.py covers it.
+        *(["apps.start_page.desktop.wallpaper.enabled=False"] if desktop else []),
+        *overrides,
+    )
+    monkeypatch.setattr(start_page.app, "config", apps, raising=False)
+    start_page.reset_desktop_state(apps.start_page)
+    response = TestClient(start_page.app).get("/")
+    assert response.status_code == 200
+    return response.text
+
+
+def shell_tokens(markup):
+    """The token block inside #desktop-shell (the one a swap brings back)."""
+    shell = markup[markup.rindex("<div", 0, markup.index('id="desktop-shell"')) :]
+    # A theme with an import_url (challenging_font's webfonts) leads with it.
+    match = re.search(r"<style>(?:@import [^;]*;\s*)?:root \{(.*?)\}</style>", shell, flags=re.S)
+    assert match, "no token block in the shell"
+    return match.group(1)
+
+
+def test_desktop_without_a_theme_keeps_the_meta_pair(monkeypatch):
+    markup = fetch(monkeypatch)
+    assert "--color-bg: #ffffff;" in shell_tokens(markup)
+    assert "--color-accent-violet: #991df9;" in shell_tokens(markup)  # meta's own
+    start_page._desktop_state["mode"] = "dark"
+    dark = to_xml_shell()
+    assert "--color-bg: #1c2b33;" in shell_tokens(dark)  # meta_dark
+
+
+def to_xml_shell():
+    from fasthtml.common import to_xml
+
+    return to_xml(start_page.render_desktop_shell(start_page.app.config.start_page))
+
+
+@pytest.mark.parametrize(
+    "theme,expect",
+    [
+        ("dark", "--color-bg: #121212;"),
+        ("challenging_font", "--font-family: 'OpenApps Script'"),
+        ("solarized", "--color-bg: #fdf6e3;"),
+    ],
+)
+def test_desktop_honors_a_selected_theme(monkeypatch, theme, expect):
+    markup = fetch(monkeypatch, f"apps/theme={theme}")
+    tokens = shell_tokens(markup)
+    assert expect in tokens
+    # The toggle keeps its state (scoreable) but has no tokens of its own to
+    # swap under a selected theme.
+    start_page._desktop_state["mode"] = "dark"
+    assert expect in shell_tokens(to_xml_shell())
+    assert start_page._desktop_state["mode"] == "dark"
+
+
+def test_a_start_page_pin_also_wins(monkeypatch):
+    markup = fetch(monkeypatch, "apps.start_page.theme=mono")
+    assert "--radius: 0px;" in shell_tokens(markup)
+
+
+def test_every_theme_defines_the_shell_accents(monkeypatch):
+    """The phone home screen tints icons with these; an undefined var() would
+    drop the tint silently."""
+    accents = compose_apps().start_page.desktop.accents
+    for theme in sorted(p.stem for p in (CONFIG_DIR / "apps" / "theme").glob("*.yaml")):
+        tokens = shell_tokens(fetch(monkeypatch, f"apps/theme={theme}"))
+        for name in set(accents.values()):
+            assert f"--{name}:" in tokens, (theme, name)
+
+
+@pytest.mark.parametrize("theme,scheme", [("dark", "dark"), ("default", "light"), ("mono", "light")])
+def test_pico_palette_follows_the_tone(monkeypatch, theme, scheme):
+    markup = fetch(monkeypatch, f"apps/theme={theme}")
+    assert re.search(rf'<html lang="en" data-theme="{scheme}"', markup)
+    shell_tag = re.search(r'<div[^>]*id="desktop-shell"[^>]*>', markup).group(0)
+    assert f'data-theme="{scheme}"' in shell_tag
+
+
+def test_dark_tone_gets_the_night_wallpaper(monkeypatch):
+    apps = compose_apps("apps/chrome=none", "apps/theme=dark")
+    monkeypatch.setattr(start_page.app, "config", apps, raising=False)
+    start_page.reset_desktop_state(apps.start_page)
+    assert "desktop-meta-hills-0-dark.png" in to_xml_shell()
+
+
+@pytest.mark.parametrize(
+    "content,lang,strings",
+    [
+        (
+            "default",
+            "en",
+            ["Desktop toolbar", "Switch to dark mode", "Open app launcher",
+             "An open source environment for digital agents"],
+        ),
+        (
+            "german",
+            "de",
+            ["Schreibtisch-Werkzeugleiste", "Zum dunklen Modus wechseln", "App-Starter öffnen",
+             "Eine Open-Source-Umgebung für digitale Agenten", "Zu Fahrenheit wechseln"],
+        ),
+        (
+            "mandarin",
+            "zh-Hans",
+            ["桌面工具栏", "切换到深色模式", "打开应用启动器", "面向数字智能体的开源环境"],
+        ),
+    ],
+)
+def test_desktop_speaks_the_start_page_language(monkeypatch, content, lang, strings):
+    markup = fetch(monkeypatch, f"apps/start_page/content={content}")
+    assert re.search(rf'<html lang="{lang}"', markup)
+    for text in strings:
+        assert text in markup, text
+
+
+def test_launcher_pins_are_localized_but_keep_their_ids(monkeypatch):
+    fetch(monkeypatch, "apps/start_page/content=german")
+    start_page._desktop_state["launcher_open"] = True
+    markup = to_xml_shell()
+    assert "Aufgabenliste an den Schreibtisch anheften" in markup or (
+        "Aufgabenliste vom Schreibtisch lösen" in markup
+    )
+    assert 'data-testid="pin-todo"' in markup and 'hx-post="/desktop/pin/todo"' in markup
+
+
+def test_desktop_headline_override_still_wins(monkeypatch):
+    markup = fetch(monkeypatch, "apps/start_page/content=german",
+                   "apps.start_page.desktop.headline=Hallo")
+    assert ">Hallo<" in markup
+
+
+@pytest.mark.parametrize("layout", ["desktop", "gallery"])
+@pytest.mark.parametrize(
+    "pop_ups,title,button",
+    [
+        ("german", "Willkommen bei den OpenApps!", "Verstanden! Es kann los gehen!"),
+        ("mandarin", "欢迎使用 OpenApps！", "明白了！开始吧！"),
+        ("adversarial_descriptions", "Welcome to OpenApps!", "care, let"),
+    ],
+)
+def test_pop_ups_open_on_every_layout(monkeypatch, layout, pop_ups, title, button):
+    markup = fetch(monkeypatch, f"apps/pop_ups={pop_ups}", f"apps/start_page/layout={layout}")
+    assert 'id="welcome-modal-pop_up1"' in markup
+    modal = markup[markup.index('id="welcome-modal-pop_up1"') - 300 :]
+    assert title in modal and button in modal
+    if layout == "desktop":
+        # Outside the swappable shell, so a shell control cannot re-open it.
+        assert markup.index('id="welcome-modal-pop_up1"') < markup.index('id="desktop-shell"')
+
+
+def test_no_pop_ups_by_default(monkeypatch):
+    assert "welcome-modal" not in re.sub(r"<(style|script)\b.*?</\1>", "", fetch(monkeypatch), flags=re.S)
+
+
+def test_gallery_footer_and_german_pack_spelling(monkeypatch):
+    english = render(monkeypatch)
+    assert ">main-page<" in english
+    german = render(monkeypatch, "apps/start_page/content=german")
+    assert ">Startseite<" in german
+    assert "Kalender" in german and "Kalendar" not in german
+    assert "Versandhändler<" in german
+    assert re.search(r'<html lang="de"', TestClient(start_page.app).get("/").text)
+
+
+def test_challenging_font_serves_its_bundled_faces(monkeypatch):
+    """The @font-face sheet is linked from every page under the theme and
+    served by the app itself, woff2 files included -- no network needed."""
+    markup = fetch(monkeypatch, "apps/theme=challenging_font")
+    href = "/assets/webfonts/challenging_font/fonts.css"
+    assert f'<link rel="stylesheet" href="{href}">' in markup
+    client = TestClient(start_page.app)
+    css = client.get(href)
+    assert css.status_code == 200 and "font-family: 'OpenApps Script'" in css.text
+    for src in re.findall(r"url\('([^']+)'\)", css.text):
+        font = client.get(f"/assets/webfonts/challenging_font/{src}")
+        assert font.status_code == 200 and len(font.content) > 10_000, src
+    # Not linked under any other theme.
+    assert "challenging_font/fonts.css" not in fetch(monkeypatch, "apps/theme=dark")

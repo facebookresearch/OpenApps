@@ -1,6 +1,7 @@
 # @package apps.openbanking
 # The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# (adversarial events speak it), and by the app for `<html lang>` and the
+# shared strings (open_apps.i18n).
 content_language: german
 defaults:
   - default
@@ -27,6 +28,9 @@ account_number_label: "Kontonummer"
 routing_number_label: "Bankleitzahl"
 show_number_label: "Vollständige Nummer anzeigen"
 hide_number_label: "Nummer ausblenden"
+copy_label: "Kopieren"
+copied_label: "Kopiert"
+copy_failed_label: "Kopieren fehlgeschlagen"
 
 card_number_label: "Kartennummer"
 card_expires_label: "Gültig bis"
@@ -41,6 +45,14 @@ current_balance_label: "Aktueller Saldo"
 credit_limit_label: "Kreditrahmen"
 
 transactions_heading: "Umsätze"
+statements_label: "Kontoauszüge"
+statements_heading: "Kontoauszüge"
+view_label: "Anzeigen"
+download_label: "Herunterladen"
+saved_to_files_label: "In Dateien gespeichert"
+already_in_files_label: "Bereits in Dateien"
+open_in_files_label: "In Dateien öffnen"
+no_statements_label: "Noch keine Kontoauszüge."
 showing_label: "Anzeige"
 showing_options:
   - "Alle Umsätze"

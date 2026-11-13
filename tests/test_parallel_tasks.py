@@ -133,6 +133,21 @@ def test_create_configs_count_all_longer_horizon(monkeypatch):
     assert len(configs) == len(task_names) * len(app_variations)
 
 
+def _app_groups(name: str) -> set[str]:
+    defaults = OmegaConf.to_container(OmegaConf.load(config_dir() / name).defaults)
+    return {k for entry in defaults if isinstance(entry, dict) for k in entry if k.startswith("apps/")}
+
+
+@pytest.mark.parametrize(
+    "name", ["config_parallel_tasks.yaml", "config_parallel_tasks_across_goal_variations.yaml"]
+)
+def test_parallel_configs_launch_every_app(name):
+    """A parallel run composes its own defaults list, so an app added to
+    config.yaml alone is missing from every sweep -- and an app other apps
+    resolve through (Contacts, for messenger names) breaks them."""
+    assert _app_groups("config.yaml") <= _app_groups(name)
+
+
 class TestVariationOverridesCompose:
     """The variation grids are raw Hydra override strings -- data, not code.
 
@@ -233,3 +248,50 @@ class TestCommandLineOverridesReachEveryRun:
             assert raw["record_video_dir"] == "/frozen/recordings"
             # Still an interpolation, so it resolves per job on the node.
             assert raw["logs_dir"] == raw_parent["logs_dir"]
+
+
+# --------------------------------------------------------------------------
+# device as a cell axis
+# --------------------------------------------------------------------------
+
+
+class TestDeviceInCells:
+    """A cell's ``device=`` override must reach the run.
+
+    ``device`` is a root-level group, not under ``apps``: when
+    ``create_configs`` swapped in only the composed ``apps`` subtree, a
+    ``device=phone`` cell came out on the parent's desktop. Composing each
+    run whole fixes that by construction; this pins it, since align_v1's
+    phone cells depend on it -- the viewport, input model and ``apps.device``
+    all interpolate ``${device}`` from the root. Composes for real.
+    """
+
+    @staticmethod
+    def _configs(app_variations):
+        from hydra import compose, initialize_config_dir
+        from hydra.core.global_hydra import GlobalHydra
+
+        GlobalHydra.instance().clear()
+        with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+            parent = compose(config_name="config_parallel_tasks")
+            cfg = AppVariationParallelTasksConfig(
+                app_variations=app_variations, task_names=["navigate_to_todo"]
+            )
+            return cfg.create_configs(default_config=parent)
+
+    def test_device_override_reaches_the_run(self):
+        desktop, phone = self._configs([["apps/theme=default"], ["device=phone"]])
+        assert desktop.device.name == "desktop"
+        assert phone.device.name == "phone"
+        # Everything that interpolates ${device} follows the cell.
+        assert phone.apps.device.form_factor == "phone"
+        assert list(phone.browsergym_env_args.task_kwargs.screen_resolution) == [
+            390,
+            844,
+        ]
+        assert phone.app_overrides == ["device=phone"]
+
+    def test_cells_without_device_keep_the_parent_device(self):
+        (only,) = self._configs([["apps/theme=dark"]])
+        assert only.device.name == "desktop"
+

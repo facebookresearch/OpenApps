@@ -21,12 +21,18 @@ defaults:
   - apps/todo: default
   - apps/openbanking: default
   - apps/onlineshop: default
+  - apps/files: default
   - apps/ui_library: default
+  - apps/contacts: default
   - apps/pop_ups: default
   # Mid-task adversarial events; none by default (config/apps/events/).
   - apps/events: default
   - apps/chrome: default
   - _self_
+  # A frozen leaderboard suite (config/benchmark/), e.g. `benchmark=align_v1`.
+  # After _self_ on purpose: a suite pins parallel_tasks, seeds, max_steps and
+  # task_termination, so it must win over this file's ad-hoc defaults.
+  - benchmark: null
 
 # runs multiple tasks for each app variation in parallel
 parallel_tasks:
@@ -69,6 +75,13 @@ apps:
 
 # useful to debug configs without launching jobs
 use_wandb: False
+
+# After a local sweep, serve a leaderboard of every run under the logs root
+# (one row per model, across every task) and open it in a browser, until
+# Ctrl-C; without a display it prints the ssh command to view it. SLURM sweeps
+# print the command to run once their jobs finish. See
+# open_apps.leaderboard.preview.
+open_leaderboard: True
 
 # Sweeps are never interactive. Also required to exist: the launcher starts
 # each job's web app with a `headless=True` override (launcher.py), which

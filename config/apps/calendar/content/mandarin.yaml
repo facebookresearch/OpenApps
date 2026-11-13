@@ -1,6 +1,7 @@
 # @package apps.calendar
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# The pack's language: drives the calendar's UI strings and <html lang>, and
+# is read by open_apps.alignment.events.content_languages (adversarial events
+# speak it).
 content_language: mandarin
 defaults:
   - default
@@ -22,3 +23,54 @@ style:
           url: '活动网址'
           invitees: '活动参与者'
           location: '活动地点'
+
+# UI strings (keys documented in default.yaml). The event list itself is
+# inherited from default.yaml: the calendar tasks remove and check events by
+# their English title (config/tasks/*.yaml), so translating titles would make
+# those rewards unreachable under this pack.
+add_event_label: "添加活动"
+prev_label: "< 上个月"
+next_label: "下个月 >"
+prev_title: "上个月"
+next_title: "下个月"
+today_label: "今天"
+today_title_format: "{month}{day}日 {weekday}"
+calendar_view_label: "日历"
+agenda_view_label: "日程"
+view_group_label: "视图"
+month_year_format: "{year}年{month}"
+agenda_date_format: "{month} {weekday}"
+all_day_label: "全天"
+agenda_empty_title: "{month_year}没有活动"
+agenda_empty_hint: "点击“添加活动”来安排，或点击“下个月 >”向后查看。"
+date_label: "日期"
+location_label: "地点"
+recurring_label: "重复"
+event_link_label: "活动链接"
+delete_event_label: "删除活动"
+back_to_calendar_label: "返回日历"
+create_event_page_title: "新建活动"
+create_event_heading: "创建新活动"
+title_field_label: "标题"
+date_field_label: "日期"
+description_field_label: "描述"
+url_field_label: "网址"
+invitees_field_label: "参与者"
+location_field_label: "地点"
+recurring_field_label: "重复"
+submit_label: "提交"
+recurrence_options:
+  none: "不重复"
+  weekly: "每周"
+  monthly: "每月"
+  yearly: "每年"
+error_messages:
+  "Failed to delete event": "删除活动失败"
+  "No content provided": "标题和日期为必填项"
+  "Invalid date format": "日期格式无效（应为 年-月-日）"
+  "Failed to process form": "表单处理失败"
+month_names: [1月, 2月, 3月, 4月, 5月, 6月, 7月, 8月, 9月, 10月, 11月, 12月]
+month_abbr: [1月, 2月, 3月, 4月, 5月, 6月, 7月, 8月, 9月, 10月, 11月, 12月]
+day_names: [星期一, 星期二, 星期三, 星期四, 星期五, 星期六, 星期日]
+day_abbr: [周一, 周二, 周三, 周四, 周五, 周六, 周日]
+day_initials: [一, 二, 三, 四, 五, 六, 日]

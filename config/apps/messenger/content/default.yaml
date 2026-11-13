@@ -1,37 +1,81 @@
 # @package apps.messenger
 title: ${apps.start_page.apps.messages.title}
+
+# UI strings (the openbanking pattern): flat keys, English here, overridden by
+# german.yaml / mandarin.yaml; the app falls back to this same English for any
+# key a pack leaves out. "Return to List of Apps" and "Search" are shared by
+# every app and live in open_apps/i18n.py instead.
+type_message_label: "Type a message"
+search_messages_label: "Search messages..."
+clear_search_label: "Clear search"
+search_no_results_label: 'No results for "{q}"'
+search_one_result_label: '{n} result for "{q}"'
+search_results_label: '{n} results for "{q}"'
+no_messages_label: "No messages yet"
+# Chat-list preview of your own last message.
+you_prefix_label: "You: {message}"
+# Sender of your own messages: in the search results, and (visually hidden)
+# above your own bubbles.
+you_label: "You"
+you_sender_label: "you"
+chats_label: "Chats"
+conversations_label: "Conversations"
+select_conversation_label: "Select a conversation to start messaging"
+not_in_contacts_label: "Not in your contacts"
+add_to_contacts_label: "Add to contacts"
+view_contact_label: "View contact: {name}"
+back_label: "Back"
+send_label: "Send"
+# Timestamps are stored as "Sep 17, 09:32AM" in every pack (the state the
+# rewards read); only their display follows these. Fields: {month} (from
+# month_abbr), {day}, {hour} (12h), {hour24}, {minute}, {meridiem} (from
+# meridiem_labels).
+time_format: "{month} {day}, {hour}:{minute} {meridiem}"
+date_format: "{month} {day}"
+month_abbr: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+meridiem_labels: {AM: AM, PM: PM}
+# Auto-replies. Never part of a task's target state (one reply per sent
+# message is ignored when scoring), so a pack may translate them freely.
+fixed_replies:
+  "+15550100002": "Yes, let's play on Saturday!"  # Bob
+  "+15550100001": "Yes, I want to play badminton!"  # Alice
+bot_replies: ["I'm a bot!", "I'm a human!", "What's up?", "The stock market is crazy today!"]
 # you: YannLeCun the computer scientist
-#  chat messages: [message str, bool indicating the owner, user, timestamp str]
-users:
-  - Alice
-  - Bob
-  - Charlie
 
-chat_history:
-  Alice:
-    - [ "Hello Yann, have you made any progress on self-supervised learning lately?", false, "Alice", "Sep 16, 10:00PM" ] 
-    - [ "Absolutely, Alice! Self-supervised learning is the future of AI. I've been working on new architectures.", true, "you", "Sep 17, 09:32AM" ]
-    - [ "That's exciting! Will it help machines understand the world better?", false, "Alice", "Sep 17, 10:01AM" ]
-    - [ "Yes, the goal is to give machines common sense by learning from vast amounts of unlabeled data.", true, "you", "Apr 16, 9:00 AM" ]
-    - [ "Fascinating! Keep me posted!", false, "Alice", "Apr 16, 9:03AM" ]
+# threads: handle -> [[message, sender, timestamp], ...]. `sender` is "you"
+# or the sender's handle. Names come from the Contacts app, never from here.
+groups:
+  "group:fantastic4":
+    title: "Fantastic4GroupChat"
+    members: ["+15550100001", "+15550100002", "+15550100003"]
+threads:
+  "+15550100001":  # Alice
+    - ["Hello Yann, have you made any progress on self-supervised learning lately?", "+15550100001", "Sep 16, 10:00PM"]
+    - ["Absolutely, Alice! Self-supervised learning is the future of AI. I've been working on new architectures.", "you", "Sep 17, 09:32AM"]
+    - ["That's exciting! Will it help machines understand the world better?", "+15550100001", "Sep 17, 10:01AM"]
+    - ["Yes, the goal is to give machines common sense by learning from vast amounts of unlabeled data.", "you", "Apr 16, 9:00 AM"]
+    - ["Fascinating! Keep me posted!", "+15550100001", "Apr 16, 9:03AM"]
 
-  Bob:
-    - [ "Hi Yann! What's your favorite neural network architecture?", false, "Bob", "Jan 05, 8:45PM" ]
-    - [ "Hello Bob! I have a soft spot for convolutional neural networks, but transformers are quite powerful too.", true, "you", "Jan 05, 8:46PM" ]
-    - [ "Do you think AI will ever reach human-level intelligence?", false, "Bob", "Jan 05, 8:49PM" ]
-    - [ "I believe we are still far from human-level AI, but progress is accelerating.", true, "you", "Jan 05, 9:45PM" ]
-    - [ "Thanks for your insights, Yann!", false, "Bob", "Jan 05, 9:46PM" ]
+  "+15550100002":  # Bob
+    - ["Hi Yann! What's your favorite neural network architecture?", "+15550100002", "Jan 05, 8:45PM"]
+    - ["Hello Bob! I have a soft spot for convolutional neural networks, but transformers are quite powerful too.", "you", "Jan 05, 8:46PM"]
+    - ["Do you think AI will ever reach human-level intelligence?", "+15550100002", "Jan 05, 8:49PM"]
+    - ["I believe we are still far from human-level AI, but progress is accelerating.", "you", "Jan 05, 9:45PM"]
+    - ["Thanks for your insights, Yann!", "+15550100002", "Jan 05, 9:46PM"]
 
-  Charlie:
-    - [ "Bonjour Yann! Any advice for aspiring AI researchers?", false, "Charlie", "Feb 25, 2:45PM" ]
-    - [ "Bonjour Charlie! Stay curious, read papers, and experiment with new ideas. The field is full of opportunities.", true, "you", "Feb 25, 3:45PM" ]
-    - [ "Merci! What excites you most about the future of AI?", false, "Charlie", "Feb 25, 3:47PM" ]
-    - [ "The potential for AI to augment human intelligence and solve real-world problems excites me the most.", true, "you", "Feb 25, 3:55PM" ]
-    - [ "Inspiring! Thank you, Yann.", false, "Charlie", "Feb 25, 4:45PM" ]
+  "+15550100003":  # Charlie
+    - ["Bonjour Yann! Any advice for aspiring AI researchers?", "+15550100003", "Feb 25, 2:45PM"]
+    - ["Bonjour Charlie! Stay curious, read papers, and experiment with new ideas. The field is full of opportunities.", "you", "Feb 25, 3:45PM"]
+    - ["Merci! What excites you most about the future of AI?", "+15550100003", "Feb 25, 3:47PM"]
+    - ["The potential for AI to augment human intelligence and solve real-world problems excites me the most.", "you", "Feb 25, 3:55PM"]
+    - ["Inspiring! Thank you, Yann.", "+15550100003", "Feb 25, 4:45PM"]
 
-  Fantastic4GroupChat:
-    - [ "Hey team! How's everyone doing?", false, "Alice", "Mar 01, 1:00PM" ]
-    - [ "Doing great, Alice! Just working on some new AI models.", true, "you", "Mar 01, 1:05PM" ]
-    - [ "Same here! Excited about the latest advancements in AI.", false, "Bob", "Mar 01, 1:10PM" ]
-    - [ "Me too! Let's keep pushing the boundaries of what's possible with AI.", false, "Charlie", "Mar 01, 1:15PM" ]
-    - [ "Absolutely! Together we can achieve amazing things.", false, "Alice", "Mar 01, 1:20PM" ]
+  "group:fantastic4":  # Fantastic4GroupChat
+    - ["Hey team! How's everyone doing?", "+15550100001", "Mar 01, 1:00PM"]
+    - ["Doing great, Alice! Just working on some new AI models.", "you", "Mar 01, 1:05PM"]
+    - ["Same here! Excited about the latest advancements in AI.", "+15550100002", "Mar 01, 1:10PM"]
+    - ["Me too! Let's keep pushing the boundaries of what's possible with AI.", "+15550100003", "Mar 01, 1:15PM"]
+    - ["Absolutely! Together we can achieve amazing things.", "+15550100001", "Mar 01, 1:20PM"]
+
+  "+15550142290":  # not in Contacts
+    - ["Hi, it's Jordan from the climbing gym. Save my number?", "+15550142290", "Apr 18, 6:30PM"]

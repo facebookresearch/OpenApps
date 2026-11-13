@@ -7,19 +7,27 @@ LICENSE file in the root directory of this source tree.
 ``EpisodeRecord``: everything needed to score one agent episode, persisted to
 ``exp_dir/episode.json``.
 
-The record is the contract between a run and every metric computed on it:
-``open_apps.alignment.score`` reads nothing else, so any bundle of
-``episode.json`` files can be re-scored offline (no apps, no browser, no
-model). It is versioned (``record_version``) and published as JSON Schema
+The record is the contract between a run and every metric computed on it.
+It is versioned (``record_version``) and published as JSON Schema
 (``uv run -m open_apps.alignment.record --schema``) for consumers outside this
 repo.
 
-Building a record needs two things BrowserGym does not persist: the cross-app
-state before the first step and after the last one. ``OpenAppsTask`` writes
-those to ``exp_dir/openapps_states.json`` (initial at ``setup``, final at
+Scoring needs two things BrowserGym does not persist: the cross-app state
+before the first step and after the last one. ``OpenAppsTask`` writes those
+to ``exp_dir/openapps_states.json`` (initial at ``setup``, final at
 ``teardown`` -- the last moment the apps are guaranteed to still be up), and
 :func:`build_episode_record` stitches them together with BrowserGym's own
-step pickles and ``summary_info.json``.
+step pickles and ``summary_info.json``. The record holds the states in
+memory only: the launcher scores it right there
+(``open_apps.alignment.score.score_record``) and writes the ``scores``, not
+the states, to ``episode.json`` (record_version 2). The states dominated a
+record's size; ``openapps_states.json`` stays next to it for debugging
+(and so ``leaderboard.pack`` can rebuild and score a record whose launcher
+never wrote one).
+
+Version 1 records carried ``initial_state`` / ``final_state`` and no
+``scores``; they still load (the states come back in memory, so they can
+still be scored offline).
 """
 
 from __future__ import annotations
@@ -37,7 +45,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Optional, Sequence
 
-RECORD_VERSION = 1
+RECORD_VERSION = 2
+# Versions this reader loads. 1 carried the app states and no scores.
+SUPPORTED_RECORD_VERSIONS = (1, 2)
+# Fields that live in memory only: never written by ``to_dict``, never in the
+# schema. Read back when an older (version 1) record carries them.
+_IN_MEMORY_FIELDS = ("initial_state", "final_state")
 EPISODE_FILENAME = "episode.json"
 # Written by OpenAppsTask; see the module docstring.
 STATES_FILENAME = "openapps_states.json"
@@ -201,9 +214,6 @@ class Termination:
 @dataclass
 class EpisodeRecord:
     identity: Identity
-    # The same cross-app JSON ``OpenAppsTask.reward()`` diffs.
-    initial_state: dict
-    final_state: dict
     termination: Termination
     final_url: Optional[str] = None
     steps: list[StepRecord] = field(default_factory=list)
@@ -222,26 +232,48 @@ class EpisodeRecord:
     # ``aggregate`` leaves the episode out. None (and omitted from the JSON)
     # when the final state is sound.
     unscorable: Optional[list[str]] = None
+    # ``open_apps.alignment.score.Scores.summary()``, computed from the live
+    # states when the record was built (``score.score_record``). None when
+    # scoring failed (the launcher prints why).
+    scores: Optional[dict] = None
     record_version: int = RECORD_VERSION
+    # The cross-app JSON ``OpenAppsTask.reward()`` diffs, before the first
+    # step and after the last. In memory only (see ``_IN_MEMORY_FIELDS``):
+    # the scorer reads them, ``to_dict`` drops them.
+    initial_state: Optional[dict] = None
+    final_state: Optional[dict] = None
 
     def to_dict(self) -> dict:
-        data = dataclasses.asdict(self)
+        # Cleared before asdict, which would deep-copy them only to drop them.
+        data = dataclasses.asdict(
+            dataclasses.replace(self, **{name: None for name in _IN_MEMORY_FIELDS})
+        )
+        for name in _IN_MEMORY_FIELDS:
+            data.pop(name)
         if data.get("unscorable") is None:
             # Optional and usually absent: omitting it keeps sound records
             # byte-identical to what readers that predate the field accept.
             data.pop("unscorable", None)
         # record_version first, so a reader can dispatch before parsing more.
-        return {"record_version": data.pop("record_version"), **data}
+        # Always the current version: what is written is this version's shape.
+        data.pop("record_version")
+        return {"record_version": RECORD_VERSION, **data}
 
     @classmethod
     def from_dict(cls, data: dict) -> "EpisodeRecord":
         version = data.get("record_version")
-        if version != RECORD_VERSION:
+        if version not in SUPPORTED_RECORD_VERSIONS:
             raise ValueError(
                 f"Unsupported record_version {version!r}; this reader handles "
-                f"{RECORD_VERSION}."
+                f"{', '.join(map(str, SUPPORTED_RECORD_VERSIONS))}."
             )
         return _from_value(cls, data)
+
+    @property
+    def has_state(self) -> bool:
+        """Whether the app states are in memory (a freshly built record, or a
+        version 1 record that carried them), i.e. whether it can be scored."""
+        return self.initial_state is not None and self.final_state is not None
 
 
 # --- (de)serialization ---------------------------------------------------------
@@ -274,8 +306,8 @@ def save_record(record: EpisodeRecord, exp_dir: str | Path) -> Path:
     path = Path(exp_dir) / EPISODE_FILENAME
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
-    # default=str: states come from JSON endpoints, but a stray Path/numpy
-    # scalar in a trace must not cost the whole record.
+    # default=str: a stray Path/numpy scalar in a trace must not cost the
+    # whole record.
     tmp.write_text(json.dumps(record.to_dict(), indent=2, default=str) + "\n")
     tmp.replace(path)
     return path
@@ -297,7 +329,13 @@ def json_schema() -> dict:
     dataclasses so it cannot drift from what ``to_dict`` writes."""
     defs: dict[str, dict] = {}
     root = _schema_for(EpisodeRecord, defs, root=True)
-    root["properties"]["record_version"] = {"const": RECORD_VERSION}
+    for name in _IN_MEMORY_FIELDS:
+        root["properties"].pop(name)
+        if name in root["required"]:
+            root["required"].remove(name)
+    # Older versions stay valid (their extra keys, the states, are allowed
+    # and ignored); what is written is always RECORD_VERSION.
+    root["properties"]["record_version"] = {"enum": list(SUPPORTED_RECORD_VERSIONS)}
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": f"https://facebookresearch.github.io/OpenApps/schemas/episode-record-v{RECORD_VERSION}.json",

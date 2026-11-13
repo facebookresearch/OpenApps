@@ -15,15 +15,27 @@ theme: null
 # Show Leaflet's basemap switcher. Off hides the tile layer from the agent.
 enable_layer_control: True
 # Basemap used on page load. Tiles are raster images from a CDN, so no CSS
-# variable can recolor them -- the theme instead picks one via its `tone`
-# (see `layer_by_tone`). Must name a key defined in templates/map.html.
+# variable can recolor them -- the theme's `tone` reaches them through
+# `filter_by_tone` (and optionally `layer_by_tone`). Must name a key defined
+# in templates/map.html.
 default_layer: 'OpenStreetMap'
 # Basemap per theme tone; anything not listed falls back to `default_layer`.
-# This is what makes `apps/theme=dark` darken the map itself and not just
-# the sidebar around it.
-layer_by_tone:
-  dark: 'CartoDB Dark'
-  mono: 'CartoDB Positron'
+#
+# Empty by default: swapping in a separate dark basemap made the dark map a
+# different map (ESRI's grey canvases have no place labels and stop at zoom
+# 16; CartoDB's dark style answered every tile with "API KEY REQUIRED").
+# `filter_by_tone` below themes the default layer instead. A name added here
+# still wins over the filter's layer choice, e.g.
+#   +apps.maps.layer_by_tone.dark='ESRI Dark Gray'
+layer_by_tone: {}
+# CSS `filter` per theme tone, drawn over the street-map tiles only -- never
+# the markers, popups or controls, and not the satellite/terrain/canvas
+# layers in the switcher, which opt out. Inverting OSM and rotating the hue
+# back keeps water blue and parks green on a dark ground, with every label
+# the light map has. Tones not listed (light) get no filter.
+filter_by_tone:
+  dark: 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)'
+  mono: 'grayscale(1)'
 # 'automatic' places a styled marker on save; 'diy' leaves styling to the user.
 popup_display_rule: 'automatic'
 zoom: 12

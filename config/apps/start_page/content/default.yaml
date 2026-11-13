@@ -1,5 +1,8 @@
 # @package apps.start_page
 headline: "Welcome to OpenApps!"
+# The desktop shell's centred line (layout=desktop); the gallery shows
+# `headline` instead. See `desktop_headline` in apps/start_page/main.py.
+desktop_headline: "An open source environment for digital agents"
 sub_header: ""
 
 # Apps configuration
@@ -28,3 +31,9 @@ apps:
   openbanking:
     title: "OpenBanking"
     description: # "Review your accounts and transactions"
+  files:
+    title: "OpenFiles"
+    description: # "Browse and manage your documents"
+  contacts:
+    title: "OpenContacts"
+    description: # "Keep your contacts in one place"

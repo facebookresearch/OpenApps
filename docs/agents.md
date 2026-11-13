@@ -4,39 +4,53 @@
 
 ### Prerequisites
 
-To use GPT-5-1 to complete tasks, set your OpenAI API key:
+The GPT-5.5 configs (`config/agent/GPT-5.5-*.yaml`) read their key from
+`GPT55_API_KEY`:
 
 ```bash
-export OPENAI_API_KEY=YOUR_KEY
+export GPT55_API_KEY=YOUR_KEY     # or put it in .env (see .env.example)
 ```
 
-Alternatively, edit the corresponding line in `config/agent/GPT-5-1.yaml`.
+To use another variable, point the config at it on the command line:
+`'agent.api_key=${oc.env:OPENAI_API_KEY}'`. The variables every shipped config needs
+(Bedrock credentials for `claude_4_sonnet`, `GEMINI_API_KEY`/`GEMINI_HOSTNAME` for
+`gemini-2.5-flash`, nothing for vLLM models) are listed in
+[Benchmarking models](benchmarking.md#prerequisites).
 
 ### Supported Clients
 
 We support multiple client types:
 
 - vLLM
-- OpenAI 
+- OpenAI
 - Azure
-- AWS
+- AWS (Bedrock)
+- Gemini (an OpenAI-compatible proxy)
 
-To use a different client, change the `client_type` argument in your configuration. Check out `/src/open_apps/agent/vLLM_agent.py` Line 49 and following for specifics about how these clients are called internally.
+To use a different client, change the `client_type` argument in your configuration. See
+`make_model` in `src/open_apps/agent/vLLM_agent.py` for how each client is called.
 
 ### Running Your Agent
 
 ```bash
-uv run launch_agent.py agent=GPT-4o
+uv run launch_agent.py agent=GPT-5.5-computer-use
 ```
-To run a local model with [vLLM](https://docs.vllm.ai/en/latest/), 
 
-1. Launch your local vLLM model: `vllm serve [MODEL_NAME]`. VLLM will tell you your hostname.
+To run a local model with [vLLM](https://docs.vllm.ai/en/latest/):
 
-2. Launch your agent
+1. Serve the model under the name its config asks for (`model_name`), with the key every
+   vLLM config sends (`$VLLM_API_KEY`, default `AMI_RULZ`):
+   `vllm serve ByteDance-Seed/UI-TARS-1.5-7B --host 0.0.0.0 --api-key AMI_RULZ`.
+   `scripts/serve_vllm.sbatch` does this as a SLURM job.
+
+2. Launch your agent against the node serving it:
 
 ```bash
-uv run launch_agent.py agent=AGENT_CONFIG agent.hostname=VLLM_HOSTNAME
+uv run launch_agent.py agent=UI-TARS-1.5-7B agent.hostname=VLLM_HOSTNAME
 ```
+
+To benchmark agents on the leaderboard suite, including many models and self-hosted ones on
+H100/H200 GPUs, see [Benchmarking models](benchmarking.md).
 
 ## Configuring Your Policy
 
@@ -69,6 +83,30 @@ Here are some key flags you can configure in your agent's YAML file:
 - `prompt_txt.think_prompt`: Define custom thinking/reasoning instructions
 
 For the complete set of configuration options, see `config/agent/default.yaml`.
+
+**Protected state endpoints:**
+
+Each app serves its raw state at `/<app>_all` (`/todo_all`, `/calendar_all`,
+`/onlineshop_all`, ...), and the map at `/maps/landmarks`; rewards are
+computed from these. The agent's `goto` action, defined in
+`src/open_apps/agent/utils.py`, refuses them so an agent can't read the
+state it is scored on:
+
+- The url is resolved by the page's own URL parser, so the check sees exactly
+  what Chromium will request: `/todo_all/.`, `/todo_all/%2e`,
+  `/x/../todo_all` and `/x\..\todo_all` are all refused.
+- Any path segment ending in `_all`, and anything under `/maps/landmarks`, is
+  refused.
+- Only `http:` and `https:` are allowed, so a `data:` or `javascript:` url
+  can't load an endpoint in an iframe or script.
+
+A refused `goto` raises an error, which the agent sees as the action's error.
+The reward code is unaffected: it reads these endpoints over HTTP, not
+through the agent's browser.
+
+The guard covers `goto` only. It does not cover the MCP server's `goto`
+(`src/open_apps/mcp/actions.py`) or other ways the page itself could request
+these urls.
 
 
 ## Ending an Episode
@@ -123,6 +161,11 @@ The workflow consists of two jobs:
 1. A persistent **vLLM GPU job** that serves the model on `:8000`.
 2. An **eval CPU job** (`sbatch scripts/conduct_slurm.sh`) that auto-discovers the vLLM node and runs the worker pool against it.
 
+`conduct_slurm.sh` runs individual `launch_agent.py` episodes. To run the `align_v1`
+leaderboard suite instead, for one model in a single GPU job
+(`scripts/benchmark_one.sbatch`) or for many models (`scripts/benchmark_sweep.py`), see
+[Benchmarking models](benchmarking.md).
+
 ### One-time cluster setup
 
 The repo needs to live on shared storage (e.g. `/example/dir/$USER`
@@ -147,7 +190,7 @@ uv run playwright install-deps chromium   # system deps (may need sudo/module)
 
 # Secrets — do NOT commit this file
 cat > .env <<'EOF'
-OPENAI_API_KEY=sk-...
+GPT55_API_KEY=...
 WANDB_BASE_URL=...
 WANDB_API_KEY=...
 EOF
@@ -174,7 +217,7 @@ cp config/mode/slurm_cluster.yaml config/mode/internal-slurm_cluster.yaml
 # @package _global_
 project: open_apps
 
-logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}-${agent.model_name}/${job_id}
+logs_dir: /your/checkpoint/path/${oc.env:USER}/logs/${project}/${now:%Y-%m-%d_%H-%M-%S}
 databases_dir: ${logs_dir}/databases
 
 cluster: slurm
@@ -192,6 +235,11 @@ slurm_sweep_launcher:
   slurm_srun_args: ["-vv", "--cpu-bind", "none"]
   slurm_comment: "parallel agent tasks"
 ```
+
+For the parallel launcher, `logs_dir` is a sweep-level root resolved once in
+the parent. Results go under `logs_dir/run-<id>/<job_id>/`, and each job's saved
+config records its agent. Do not include `${job_id}` or `${agent.*}` references
+in the root: they use the parent's values for every job and trigger a warning.
 
 Select it like any other Hydra mode:
 
@@ -242,10 +290,10 @@ runs `scripts/conduct.sh` pointed at it with `use_wandb=True`:
 
 ```bash
 # smoke test (1 run)
-AGENTS=gemma-4-e2b-it COUNT=1 sbatch scripts/conduct_slurm.sh
+AGENTS=gemma-4-2B-computer-use COUNT=1 sbatch scripts/conduct_slurm.sh
 
 # larger sweep
-AGENTS="gemma-4-e2b-it" COUNT=20 MAX_PARALLEL=4 sbatch scripts/conduct_slurm.sh
+AGENTS="gemma-4-2B-computer-use" COUNT=20 MAX_PARALLEL=4 sbatch scripts/conduct_slurm.sh
 ```
 
 **Discovery:** the wrapper lists your running jobs (`squeue --me`), expands their
@@ -257,7 +305,7 @@ model*, so it doesn't matter how the vLLM job was started (e.g. a `bash`-named
 **Override:** skip discovery by pinning the node:
 
 ```bash
-VLLM_HOST=example_host AGENTS=gemma-4-e2b-it COUNT=1 sbatch scripts/conduct_slurm.sh
+VLLM_HOST=example_host AGENTS=gemma-4-2B-computer-use COUNT=1 sbatch scripts/conduct_slurm.sh
 ```
 
 **Account/QOS/partition:** the `#SBATCH` lines in `scripts/conduct_slurm.sh` are
@@ -265,7 +313,7 @@ placeholders. Override them at submit time rather than editing the script — th
 command line takes precedence:
 
 ```bash
-AGENTS=gemma-4-e2b-it COUNT=1 \
+AGENTS=gemma-4-2B-computer-use COUNT=1 \
   sbatch --account=... --qos=... --partition=... scripts/conduct_slurm.sh
 ```
 
@@ -291,7 +339,7 @@ vLLM job's own allocation and talk to it over localhost:
 
 ```bash
 srun --overlap --jobid=<vllm-job> \
-  env AGENTS=gemma-4-e2b-it COUNT=1 VLLM_HOST=localhost \
+  env AGENTS=gemma-4-2B-computer-use COUNT=1 VLLM_HOST=localhost \
   ./scripts/conduct.sh agent.hostname=localhost use_wandb=True
 ```
 

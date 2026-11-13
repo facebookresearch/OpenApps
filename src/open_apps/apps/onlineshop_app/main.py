@@ -30,6 +30,12 @@ What replaced it:
 
 The scoring surface is ``/onlineshop_all``, which returns the cart and the
 order history as plain JSON for ``open_apps.state.get_current_state``.
+
+Every order also has a PDF receipt in the shared file store
+(``Receipts/OpenShop order <order_id>.pdf``): written at checkout, and at seed
+time for the seeded history. The receipt is rendered from the order row alone
+-- no clock -- so a seeded receipt is byte-identical on every launch, and the
+Orders page serves the same bytes from the same row.
 """
 import json
 import re
@@ -43,9 +49,13 @@ from fasthtml.common import *
 # Svg/Rect/Text are not re-exported by fasthtml.common.
 from fasthtml.svg import Circle, G, Path, Rect, Svg
 
+from open_apps import files_store
+from open_apps import i18n
+from open_apps.apps.availability import require_files
+from open_apps.apps.onlineshop_app import receipts
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
-from open_apps.theme import theme_style
+from open_apps.theme import theme_asset, theme_style
 
 
 # --------------------------------------------------------------------------
@@ -682,6 +692,7 @@ styles = Style("""
         font-weight: 600;
     }
     .order-id .status-pill { align-self: flex-end; }
+    .order-id .order-receipt { align-self: flex-end; font-weight: 600; }
 
     /* default layout keeps "Return to List of Apps" a full-size outlined
        button, as the other apps do: the cross-app navigation tasks need a
@@ -733,6 +744,64 @@ def shop_theme():
     """The active theme's ``:root`` token block, resolved per-request so live
     ``reconfigure`` theme swaps take effect."""
     return theme_style(app.config, "onlineshop")
+
+
+def language() -> str:
+    """The shop's UI language, from its content pack's ``content_language``.
+
+    English before ``set_environment`` has run, so a component rendered in
+    isolation still has text.
+    """
+    config = getattr(app, "config", None)
+    return i18n.language_of(config.onlineshop) if config is not None else i18n.ENGLISH
+
+
+def L(key: str, default: str, **fmt) -> str:
+    """One of the shop's own UI strings, from its content pack.
+
+    The English text lives twice on purpose: in ``content/default.yaml``
+    (which every pack composes on top of, so it is always present) and here
+    as the fallback, so a hand-built config without the key -- or a component
+    rendered before ``set_environment`` -- still reads the reference English.
+    ``fmt`` fills ``{name}`` placeholders after lookup, so a translation can
+    move them.
+    """
+    config = getattr(app, "config", None)
+    text = i18n.label(config.onlineshop if config is not None else None, key, default)
+    return text.format(**fmt) if fmt else text
+
+
+def L_count(key: str, count: int, one: str, many: str) -> str:
+    """A counted phrase: ``<key>_one_label`` for exactly one, ``<key>_label``
+    otherwise. German and English need both forms; Mandarin sets them equal."""
+    if count == 1:
+        return L(f"{key}_one_label", one, count=count)
+    return L(f"{key}_label", many, count=count)
+
+
+def _set_html_lang(req):
+    """``<html lang>`` from the content pack, so the browser picks CJK glyph
+    variants under ``mandarin`` and the accessibility tree names the language.
+
+    Beforeware rather than a per-handler argument: FastHTML deep-copies the
+    app's ``htmlkw`` onto every request before this runs, so setting it here
+    reaches every page, and the start page merging these routes into its own
+    table does not change which app's beforeware they run.
+    """
+    req.htmlkw["lang"] = i18n.html_lang(language())
+
+
+app.before.append(Beforeware(_set_html_lang))
+
+
+def _thumb_tone() -> str:
+    """``light`` | ``dark`` | ``mono``: the active theme's tone, which picks
+    the placeholder thumbnails' palette (see ``_glyph_svg``)."""
+    config = getattr(app, "config", None)
+    if config is None:
+        return "light"
+    tone = str(theme_asset(config, "onlineshop", "tone", "light"))
+    return tone if tone in ("dark", "mono") else "light"
 
 
 def _currency():
@@ -916,7 +985,7 @@ def _seed_orders(config):
                 name=str(raw.get("name", "")),
                 address=str(raw.get("address", "")),
                 date=str(raw.get("date", "")),
-                status=str(raw.get("status", "Processing")),
+                status=str(raw.get("status", NEW_ORDER_STATUS)),
                 # Prefer the configured total when given, so a fixture can pin
                 # a historical price that no longer matches the catalog.
                 total=float(raw["total"]) if raw.get("total") is not None else round(total, 2),
@@ -934,6 +1003,102 @@ def _seed_orders(config):
                     unit_price=unit_price,
                 )
             )
+
+
+# --------------------------------------------------------------------------
+# Receipts
+# --------------------------------------------------------------------------
+
+RECEIPTS_FOLDER = "Receipts"
+SHOP_NAME = "OpenShop"
+
+
+def receipt_name(order_id: str) -> str:
+    """``OpenShop order <order_id>.pdf`` -- the id exactly as the order stores
+    it, so a scorer can swap it for its token by plain substitution."""
+    return f"{SHOP_NAME} order {order_id}.pdf"
+
+
+def receipt_path(order_id: str) -> str:
+    return f"{RECEIPTS_FOLDER}/{receipt_name(order_id)}"
+
+
+def _option_text(options_key: str) -> str:
+    chosen = json.loads(options_key or "{}")
+    return ", ".join(f"{k}: {v}" for k, v in sorted(chosen.items()))
+
+
+def receipt_pdf(order) -> bytes:
+    """The order's receipt, rendered from the order and its lines only."""
+    lines = []
+    for row in _lines_for(order.order_id):
+        product = _row(products, row.sku)
+        title = product.title if product else row.sku
+        options = _option_text(row.options)
+        lines.append([
+            f"{title} ({options})" if options else title,
+            str(row.quantity),
+            money(row.unit_price),
+            money(row.unit_price * row.quantity),
+        ])
+    return receipts.render(
+        {
+            "shop": SHOP_NAME,
+            "order_id": order.order_id,
+            "placed": order.date,
+            "status": order.status,
+            "name": order.name,
+            "address": order.address,
+            "card_last4": order.card_last4,
+            "lines": lines,
+            "total": money(order.total),
+        }
+    )
+
+
+def _point_store_at_files() -> None:
+    """Point the shared store at this run's Files root.
+
+    The Files app configures it at launch, and this is a no-op then. Doing it
+    here too keeps a shop stood up on its own (its tests, a standalone run)
+    writing into its own run's store rather than whichever one was configured
+    last in the process. A config without Files is refused: every checkout
+    writes a receipt (see ``availability.require_files``).
+    """
+    config = app.config
+    require_files(config)
+    code = getattr(getattr(config, "code_editor", None), "database_path", None)
+    files_store.configure(config.files.root, code, config.files.today)
+
+
+def write_receipt(order, *, dated_by_order: bool = False) -> str:
+    """Save the order's receipt into Files; returns its path.
+
+    A seeded order's receipt is dated by the order (``dated_by_order``); one
+    written at checkout gets the store's pinned today, like any new file --
+    the order row itself carries the wall-clock checkout time.
+
+    Idempotent: a receipt already there with these bytes is left alone, so
+    re-seeding the shop over a store the Files app didn't reset doesn't grow
+    " (2)" copies.
+    """
+    _point_store_at_files()
+    data = receipt_pdf(order)
+    path = receipt_path(order.order_id)
+    if files_store.exists(path) and files_store.read(path) == data:
+        return path
+    return files_store.save(
+        RECEIPTS_FOLDER, receipt_name(order.order_id), data,
+        modified=order.date if dated_by_order else None,
+    )
+
+
+def seed_receipts():
+    """A receipt for every order in the shop. Public because a Files-only
+    re-seed empties the store: a full reset re-runs the shop after Files,
+    and anything resetting Files alone calls this to put receipts back."""
+    for order in orders():
+        write_receipt(order, dated_by_order=True)
 
 
 def set_environment(config):
@@ -963,6 +1128,7 @@ def set_environment(config):
     _build_fts()
     _seed_cart(config)
     _seed_orders(config)
+    seed_receipts()
 
     logo_title_container = create_logo_header(
         app_config=config.start_page.apps.onlineshop,
@@ -1190,6 +1356,26 @@ def _glyph_for(product) -> list:
     return _GLYPHS[_CATEGORY_GLYPHS.get(product.category, "notebook")]
 
 
+def _swatch_colors(hue: int) -> tuple[str, str]:
+    """(tile fill, line colour) for a thumbnail, by the theme's ``tone``.
+
+    The swatch is painted in the SVG itself, not through a CSS token, so it
+    has to ask the theme which way to go: a pale pastel tile on a dark page
+    is the brightest thing on screen and reads as a hole in the theme.
+
+    * ``light`` -- pale tile, dark line (the reference rendering)
+    * ``dark``  -- deep tile, light line, same hue
+    * ``mono``  -- white tile, black line, no hue at all, matching a theme
+      whose point is that colour carries no information
+    """
+    tone = _thumb_tone()
+    if tone == "dark":
+        return f"hsl({hue}, 28%, 22%)", f"hsl({hue}, 60%, 78%)"
+    if tone == "mono":
+        return "#ffffff", "#000000"
+    return f"hsl({hue}, 42%, 88%)", f"hsl({hue}, 55%, 28%)"
+
+
 def _glyph_svg(product, size: int = 120):
     """A deterministic line-art thumbnail for a product.
 
@@ -1204,7 +1390,7 @@ def _glyph_svg(product, size: int = 120):
     two products in the same category still look distinct.
     """
     hue = _SWATCH_HUES[sum(product.sku.encode()) % len(_SWATCH_HUES)]
-    stroke = f"hsl({hue}, 55%, 28%)"
+    fill, stroke = _swatch_colors(hue)
     marks = []
     for item in _glyph_for(product):
         if isinstance(item, tuple):
@@ -1215,7 +1401,10 @@ def _glyph_svg(product, size: int = 120):
             marks.append(Path(d=item, fill="none", stroke=stroke, stroke_width=5,
                               stroke_linecap="round", stroke_linejoin="round"))
     return Svg(
-        Rect(x=0, y=0, width=100, height=100, rx=10, fill=f"hsl({hue}, 42%, 88%)"),
+        Rect(x=0, y=0, width=100, height=100, rx=10, fill=fill,
+             # mono's tile is the page colour, so it needs an edge to exist.
+             stroke=stroke if _thumb_tone() == "mono" else None,
+             stroke_width=2 if _thumb_tone() == "mono" else None),
         G(*marks),
         width=size, height=size,
         viewBox="0 0 100 100",
@@ -1288,7 +1477,8 @@ def _image_carousel(product, urls: list[str], size: int):
         slides.append(
             Img(
                 src=url,
-                alt=f"{product.title} (image {index + 1} of {len(urls)})",
+                alt=L("image_alt_label", "{title} (image {n} of {total})",
+                      title=product.title, n=index + 1, total=len(urls)),
                 width=size, height=size,
                 loading="lazy",
                 cls="carousel-slide",
@@ -1300,8 +1490,9 @@ def _image_carousel(product, urls: list[str], size: int):
                 "",
                 _for=slide_id,
                 cls="carousel-dot",
-                title=f"Image {index + 1}",
-                aria_label=f"Show image {index + 1} of {len(urls)}",
+                title=L("image_label", "Image {n}", n=index + 1),
+                aria_label=L("show_image_label", "Show image {n} of {total}",
+                             n=index + 1, total=len(urls)),
             )
         )
 
@@ -1347,7 +1538,7 @@ def rating_stars(rating: float):
         Span("★" * filled + "☆" * (5 - filled), aria_hidden="true"),
         Span(f" {rating:.1f}", cls="rating-value"),
         cls="rating",
-        title=f"{rating:.1f} out of 5 stars",
+        title=L("rating_title_label", "{rating} out of 5 stars", rating=f"{rating:.1f}"),
     )
 
 
@@ -1393,7 +1584,8 @@ def page_shell(*content):
         Div(
             logo_title_container,
             *content,
-            Div(A("Return to List of Apps", href="/", role="button", cls="shop-return"),
+            Div(A(i18n.t("return_to_apps", language()), href="/", role="button",
+                  cls="shop-return"),
                 cls="shop-footer"),
             cls="shop-page",
         ),
@@ -1409,26 +1601,31 @@ def search_bar(value: str = ""):
     defaults to false -- navigation must not depend on a difficulty knob.
     """
     count = sum(row.quantity for row in _cart_rows())
-    cart_label = f"Cart, {count} item{'s' if count != 1 else ''}" if count else "Cart"
+    cart_text = L("cart_label", "Cart")
+    cart_label = (
+        L_count("cart_items", count, "Cart, {count} item", "Cart, {count} items")
+        if count else cart_text
+    )
+    search_hint = L("search_placeholder_label", "Search products")
     return Div(
-        A("Shop", href="/onlineshop", cls="btn"),
+        A(L("shop_label", "Shop"), href="/onlineshop", cls="btn"),
         Form(
             Input(
                 type="search",
                 name="search_query",
-                placeholder="Search products",
+                placeholder=search_hint,
                 value=value,
-                aria_label="Search products",
+                aria_label=search_hint,
             ),
-            Button("Search", cls="btn btn-primary", type="submit"),
+            Button(i18n.t("search", language()), cls="btn btn-primary", type="submit"),
             action="/onlineshop/search",
             method="post",
             role="search",
             cls="shop-search",
         ),
         Div(
-            A("Orders", href="/onlineshop/orders", cls="btn"),
-            A("Cart", Span(str(count), cls="cart-count") if count else "",
+            A(L("orders_label", "Orders"), href="/onlineshop/orders", cls="btn"),
+            A(cart_text, Span(str(count), cls="cart-count") if count else "",
               href="/onlineshop/cart", cls="btn", aria_label=cart_label),
             cls="shop-bar-links",
         ),
@@ -1446,12 +1643,15 @@ def category_strip(active: str = ""):
         )
         for slug, label in _categories().items()
     ]
-    return Nav(*links, cls="shop-departments", aria_label="Departments") if links else ""
+    return (
+        Nav(*links, cls="shop-departments", aria_label=L("departments_label", "Departments"))
+        if links else ""
+    )
 
 
 def breadcrumb(*crumbs):
     """``Home / ...``; a crumb is text, or an ``(label, href)`` pair."""
-    parts = [A("Home", href="/onlineshop")]
+    parts = [A(L("home_label", "Home"), href="/onlineshop")]
     for crumb in crumbs:
         parts.append(" / ")
         parts.append(A(crumb[0], href=crumb[1]) if isinstance(crumb, tuple) else Span(crumb))
@@ -1486,7 +1686,7 @@ def product_card(product, keywords: str = ""):
                 price_tag(product.price),
                 option_summary(product),
                 P(truncate(product.description, 160), cls="card-desc"),
-                A("View details", href=href, cls="btn"),
+                A(L("view_details_label", "View details"), href=href, cls="btn"),
                 cls="product-body",
             ),
             cls="product-row",
@@ -1508,8 +1708,10 @@ def product_table(products_page, keywords: str = ""):
     """
     rated = any(product.rating for product in products_page)
     header = Thead(Tr(
-        Th("Product"), Th("Department"), Th("Rating") if rated else "",
-        Th("Price", cls="num"), Th(""),
+        Th(L("product_column_label", "Product")),
+        Th(L("department_column_label", "Department")),
+        Th(L("rating_column_label", "Rating")) if rated else "",
+        Th(L("price_column_label", "Price"), cls="num"), Th(""),
     ))
     rows = [
         Tr(
@@ -1517,7 +1719,7 @@ def product_table(products_page, keywords: str = ""):
             Td(_categories().get(product.category, product.category), cls="muted"),
             Td(rating_stars(product.rating)) if rated else "",
             Td(money(product.price), cls="num"),
-            Td(A("View", href=item_href(product, keywords), cls="btn")),
+            Td(A(L("view_label", "View"), href=item_href(product, keywords), cls="btn")),
         )
         for product in products_page
     ]
@@ -1528,8 +1730,8 @@ def product_listing(products_page, keywords: str = ""):
     """Render a page of products in whichever layout is configured."""
     if not products_page:
         return Div(
-            P("No products matched. Try fewer or more general words."),
-            A("Browse all products", href="/onlineshop", cls="btn"),
+            P(L("no_results_label", "No products matched. Try fewer or more general words.")),
+            A(L("browse_all_label", "Browse all products"), href="/onlineshop", cls="btn"),
             cls="empty-state",
         )
     layout = current_layout()
@@ -1545,21 +1747,25 @@ def pagination(base: str, page: int, total: int):
     last = max(1, (total + _per_page() - 1) // _per_page())
     if last == 1:
         return ""
+    previous, following = L("previous_label", "Previous"), L("next_label", "Next")
     prev_link = (
-        A("Previous", href=f"{base}/{page - 1}", cls="btn")
-        if page > 1 else Span("Previous", cls="btn is-disabled", aria_disabled="true")
+        A(previous, href=f"{base}/{page - 1}", cls="btn")
+        if page > 1 else Span(previous, cls="btn is-disabled", aria_disabled="true")
     )
     next_link = (
-        A("Next", href=f"{base}/{page + 1}", cls="btn")
-        if page < last else Span("Next", cls="btn is-disabled", aria_disabled="true")
+        A(following, href=f"{base}/{page + 1}", cls="btn")
+        if page < last else Span(following, cls="btn is-disabled", aria_disabled="true")
     )
-    return Nav(prev_link, Span(f"Page {page} of {last}", cls="muted"), next_link,
-               cls="pagination", aria_label="Pages")
+    return Nav(prev_link,
+               Span(L("page_of_label", "Page {page} of {last}", page=page, last=last),
+                    cls="muted"),
+               next_link,
+               cls="pagination", aria_label=L("pages_label", "Pages"))
 
 
 def _results_label(count: int) -> str:
     """``"224 products"``, or nothing when the empty state already says so."""
-    return f"{count} product{'s' if count != 1 else ''}" if count else ""
+    return L_count("product_count", count, "{count} product", "{count} products") if count else ""
 
 
 # --------------------------------------------------------------------------
@@ -1577,7 +1783,7 @@ def get():
         category_strip(),
         Div(promo, cls="shop-promo") if promo else "",
         P(intro, cls="shop-intro") if intro else "",
-        section_head("Featured products"),
+        section_head(L("featured_label", "Featured products")),
         product_listing(featured),
     )
 
@@ -1598,8 +1804,9 @@ def get(keywords: str, page: int):
     return page_shell(
         search_bar(terms),
         category_strip(),
-        breadcrumb(f'Results for "{terms}"'),
-        section_head(f'Search results for "{terms}"', _results_label(len(matched))),
+        breadcrumb(L("results_for_label", 'Results for "{terms}"', terms=terms)),
+        section_head(L("search_results_for_label", 'Search results for "{terms}"', terms=terms),
+                     _results_label(len(matched))),
         product_listing(paginate(matched, page), keywords),
         pagination(f"/onlineshop/search/{_url_keywords(keywords)}", page, len(matched)),
     )
@@ -1624,8 +1831,10 @@ def get(sku: str, keywords: str = ""):
     if product is None:
         return page_shell(
             search_bar(),
-            Div(P("Product not found. It may have been removed from the catalog."),
-                A("Back to shop", href="/onlineshop", cls="btn"), cls="empty-state"),
+            Div(P(L("not_found_label",
+                    "Product not found. It may have been removed from the catalog.")),
+                A(L("back_to_shop_label", "Back to shop"), href="/onlineshop", cls="btn"),
+                cls="empty-state"),
         )
 
     available = json.loads(product.options)
@@ -1667,14 +1876,15 @@ def get(sku: str, keywords: str = ""):
                     *option_inputs,
                     Div(
                         Input(type="number", name="quantity", value="1", min="1",
-                              max="99", aria_label="Quantity"),
-                        Button("Add to Cart", cls="btn btn-primary btn-lg", type="submit"),
+                              max="99", aria_label=L("quantity_label", "Quantity")),
+                        Button(L("add_to_cart_label", "Add to Cart"),
+                               cls="btn btn-primary btn-lg", type="submit"),
                         cls="product-buy",
                     ),
                     action=f"/onlineshop/cart/add/{product.sku}",
                     method="post",
                 ),
-                Div(H2("About this item"), *about, cls="about-item")
+                Div(H2(L("about_item_label", "About this item")), *about, cls="about-item")
                 if any(about) else "",
                 cls="buy-box product-body",
             ),
@@ -1765,25 +1975,29 @@ def cart_line(row):
             Div(
                 H3(A(product.title, href=item_href(product)), cls="card-title"),
                 option_chips(row.options),
-                Span(f"{money(product.price)} each", cls="line-note"),
-                Span("Not selected for checkout", cls="line-note")
+                Span(L("each_label", "{price} each", price=money(product.price)),
+                     cls="line-note"),
+                Span(L("not_selected_label", "Not selected for checkout"), cls="line-note")
                 if not row.selected else "",
                 Div(
                     Form(
                         Input(type="number", name="quantity", value=str(row.quantity),
-                              min="1", max="99", aria_label=f"Quantity for {product.title}"),
-                        Button("Update", cls="btn", type="submit"),
+                              min="1", max="99",
+                              aria_label=L("quantity_for_label", "Quantity for {title}",
+                                           title=product.title)),
+                        Button(L("update_label", "Update"), cls="btn", type="submit"),
                         action=f"/onlineshop/cart/quantity/{row.id}",
                         method="post",
                     ),
                     Form(
-                        Button("Deselect" if row.selected else "Select",
+                        Button(L("deselect_label", "Deselect") if row.selected
+                               else L("select_label", "Select"),
                                cls="btn", type="submit"),
                         action=f"/onlineshop/cart/toggle/{row.id}",
                         method="post",
                     ),
                     Form(
-                        Button("Remove", cls="btn btn-danger", type="submit"),
+                        Button(L("remove_label", "Remove"), cls="btn btn-danger", type="submit"),
                         action=f"/onlineshop/cart/remove/{row.id}",
                         method="post",
                     ),
@@ -1804,10 +2018,11 @@ def get():
     if not rows:
         return page_shell(
             search_bar(),
-            H1("Your cart", cls="page-title"),
+            H1(L("your_cart_label", "Your cart"), cls="page-title"),
             Div(
-                P("Your cart is empty."),
-                A("Browse products", href="/onlineshop", cls="btn btn-primary"),
+                P(L("cart_empty_label", "Your cart is empty.")),
+                A(L("browse_products_label", "Browse products"), href="/onlineshop",
+                  cls="btn btn-primary"),
                 cls="empty-state",
             ),
         )
@@ -1816,17 +2031,21 @@ def get():
     held_back = len(rows) - len(selected)
     return page_shell(
         search_bar(),
-        H1("Your cart", cls="page-title"),
+        H1(L("your_cart_label", "Your cart"), cls="page-title"),
         Div(
             Div(*[cart_line(row) for row in rows], cls="cart-lines"),
             Aside(
-                H2("Order summary"),
-                Div(Span(f"Items ({count})"), Span(money(_cart_total())), cls="summary-row"),
-                Div(Span(f"{held_back} line{'s' if held_back != 1 else ''} not selected"),
+                H2(L("order_summary_label", "Order summary")),
+                Div(Span(L("items_count_label", "Items ({count})", count=count)),
+                    Span(money(_cart_total())), cls="summary-row"),
+                Div(Span(L_count("lines_not_selected", held_back,
+                                 "{count} line not selected", "{count} lines not selected")),
                     cls="summary-row muted") if held_back else "",
-                Div(Span("Selected total"), Span(money(_cart_total()), cls="cart-total"),
+                Div(Span(L("selected_total_label", "Selected total")),
+                    Span(money(_cart_total()), cls="cart-total"),
                     cls="summary-row summary-total"),
-                A("Proceed to Checkout", href="/onlineshop/checkout",
+                A(L("proceed_to_checkout_label", "Proceed to Checkout"),
+                  href="/onlineshop/checkout",
                   cls="btn btn-primary btn-lg btn-block"),
                 cls="summary",
             ),
@@ -1925,10 +2144,11 @@ def get(error: str = ""):
     if not selected:
         return page_shell(
             search_bar(),
-            H1("Checkout", cls="page-title"),
+            H1(L("checkout_label", "Checkout"), cls="page-title"),
             Div(
-                P("No items are selected for checkout."),
-                A("Back to cart", href="/onlineshop/cart", cls="btn btn-primary"),
+                P(L("nothing_selected_label", "No items are selected for checkout.")),
+                A(L("back_to_cart_label", "Back to cart"), href="/onlineshop/cart",
+                  cls="btn btn-primary"),
                 cls="empty-state",
             ),
         )
@@ -1940,20 +2160,21 @@ def get(error: str = ""):
     card_fields = ""
     if _card_check_on():
         card_fields = Fieldset(
-            Legend("Payment"),
-            Div(Label("Card Number", _for="card_number"),
+            Legend(L("payment_label", "Payment")),
+            Div(Label(L("card_number_label", "Card Number"), _for="card_number"),
                 Input(id="card_number", name="card_number", required=True,
                       autocomplete="off", placeholder="0000 0000 0000 0000"),
                 cls="option-group"),
-            Div(Label("Expiry (MM/YY)", _for="card_expiry"),
+            Div(Label(L("card_expiry_label", "Expiry (MM/YY)"), _for="card_expiry"),
                 Input(id="card_expiry", name="card_expiry", required=True,
-                      autocomplete="off", placeholder="MM/YY"),
+                      autocomplete="off",
+                      placeholder=L("card_expiry_placeholder_label", "MM/YY")),
                 cls="option-group"),
-            Div(Label("CVV", _for="card_cvv"),
+            Div(Label(L("card_cvv_label", "CVV"), _for="card_cvv"),
                 Input(id="card_cvv", name="card_cvv", required=True,
                       autocomplete="off", placeholder="000"),
                 cls="option-group"),
-            Div(Label("Name on Card", _for="card_name"),
+            Div(Label(L("card_name_label", "Name on Card"), _for="card_name"),
                 Input(id="card_name", name="card_name", required=True,
                       autocomplete="off"),
                 cls="option-group"),
@@ -1961,20 +2182,21 @@ def get(error: str = ""):
 
     return page_shell(
         search_bar(),
-        H1("Checkout", cls="page-title"),
+        H1(L("checkout_label", "Checkout"), cls="page-title"),
         Div(
             Div(
                 P(error, cls="form-error", role="alert") if error else "",
                 Form(
-                    H2("Shipping address"),
-                    Div(Label("Full Name", _for="name"),
+                    H2(L("shipping_heading_label", "Shipping address")),
+                    Div(Label(L("full_name_label", "Full Name"), _for="name"),
                         Input(id="name", name="name", required=True,
                               autocomplete="name"), cls="option-group"),
-                    Div(Label("Shipping Address", _for="address"),
+                    Div(Label(L("shipping_address_label", "Shipping Address"), _for="address"),
                         Input(id="address", name="address", required=True,
                               autocomplete="street-address"), cls="option-group"),
                     card_fields,
-                    Button("Place Order", cls="btn btn-primary btn-lg", type="submit"),
+                    Button(L("place_order_label", "Place Order"),
+                           cls="btn btn-primary btn-lg", type="submit"),
                     action="/onlineshop/checkout",
                     method="post",
                 ),
@@ -1984,11 +2206,12 @@ def get(error: str = ""):
             # selected" and a total, the cart's contents seemed to vanish
             # between the cart and the confirmation.
             Aside(
-                H2("Order summary"),
+                H2(L("order_summary_label", "Order summary")),
                 *[checkout_line(row) for row in selected],
-                Div(Span("Order total"), Span(money(_cart_total()), cls="cart-total"),
+                Div(Span(L("order_total_label", "Order total")),
+                    Span(money(_cart_total()), cls="cart-total"),
                     cls="summary-row summary-total"),
-                A("Edit cart", href="/onlineshop/cart", cls="text-link"),
+                A(L("edit_cart_label", "Edit cart"), href="/onlineshop/cart", cls="text-link"),
                 cls="summary",
             ),
             cls="checkout-layout",
@@ -2018,7 +2241,8 @@ def post(
     if _card_check_on():
         bank = _bank()
         if bank is None:
-            return _checkout_error("Card payments are unavailable right now.")
+            return _checkout_error(
+                L("card_unavailable_label", "Card payments are unavailable right now."))
 
         # Brand allow-list first, off the card on file rather than off anything
         # the shopper typed -- a shop knows which networks it takes before it
@@ -2027,7 +2251,8 @@ def post(
         card = bank.find_card(card_number)
         if card is not None and allowed and card.card_brand not in allowed:
             return _checkout_error(
-                f"{card.card_brand} is not accepted. Allowed: {', '.join(allowed)}."
+                L("card_brand_refused_label", "{brand} is not accepted. Allowed: {allowed}.",
+                  brand=card.card_brand, allowed=", ".join(allowed))
             )
 
         # Expiry is checked here, before the issuer is asked, the way a real
@@ -2035,9 +2260,12 @@ def post(
         # file -- only that what they typed is not a date that is still good.
         expiry = bank.parse_expiry(card_expiry)
         if expiry is None:
-            return _checkout_error("Enter the card's expiry date as MM/YY.")
+            return _checkout_error(
+                L("expiry_format_label", "Enter the card's expiry date as MM/YY."))
         if bank.expiry_has_passed(expiry):
-            return _checkout_error("That expiry date has passed. Check the card and try again.")
+            return _checkout_error(
+                L("expiry_passed_label",
+                  "That expiry date has passed. Check the card and try again."))
 
         descriptor = str(getattr(_cfg(), "card_descriptor", "ONLINE SHOP {order_id}"))
         result = bank.authorize_card_purchase(
@@ -2060,8 +2288,8 @@ def post(
             order_id=order_id,
             name=name,
             address=address,
-            date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            status="Processing",
+            date=_order_timestamp(),
+            status=NEW_ORDER_STATUS,
             total=total,
             card_last4=card_last4,
         )
@@ -2079,11 +2307,44 @@ def post(
             )
         )
         cart_items.delete(row.id)
+    write_receipt(_row(orders, order_id))
     return RedirectResponse(url="/onlineshop/orders", status_code=303)
+
+
+# A new order ships for the rest of the episode. Nothing advances it: a status
+# that moved with the wall clock would make /onlineshop_all -- and every
+# purchase reward -- depend on how long the episode ran.
+NEW_ORDER_STATUS = "Shipping"
+
+
+def _order_timestamp() -> str:
+    """When a new order was placed, on the run's pinned calendar.
+
+    The day is the one Files dates new files by (``apps.files.today``, which
+    follows the bank's ``as_of_date``), so an order, its receipt and the card
+    charge all agree; the time of day is the real one, so orders placed in one
+    episode still sort. Plain wall-clock time when neither app is configured.
+    """
+    now = datetime.now()
+    config = getattr(app, "config", None)
+    for section, key in (("files", "today"), ("openbanking", "as_of_date")):
+        node = getattr(config, section, None) if config is not None else None
+        day = node.get(key) if node is not None else None
+        if day:
+            return f"{day} {now:%H:%M:%S}"
+    return now.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _lines_for(order_id: str) -> list:
     return [row for row in order_items() if row.order_id == order_id]
+
+
+def status_label(status: str) -> str:
+    """An order status as displayed. The stored value (``Shipping``,
+    ``Delivered``) is what ``/onlineshop_all`` and the rewards see and never
+    changes with the language; only the pill reads ``status_<slug>_label``."""
+    slug = re.sub(r"[^a-z0-9]+", "_", (status or "").lower()).strip("_")
+    return L(f"status_{slug}_label", status) if slug else status
 
 
 def order_card(order):
@@ -2106,15 +2367,24 @@ def order_card(order):
         )
     return Div(
         Div(
-            Div(Span("Order placed", cls="order-label"), Span(order.date)),
-            Div(Span("Total", cls="order-label"), Span(money(order.total), cls="cart-total")),
-            Div(Span("Ship to", cls="order-label"), Span(order.name),
+            Div(Span(L("order_placed_label", "Order placed"), cls="order-label"),
+                Span(order.date)),
+            Div(Span(L("total_label", "Total"), cls="order-label"),
+                Span(money(order.total), cls="cart-total")),
+            Div(Span(L("ship_to_label", "Ship to"), cls="order-label"), Span(order.name),
                 Span(order.address, cls="muted")),
-            Div(Span("Paid with", cls="order-label"),
-                Span(f"Card ending {order.card_last4}"))
+            Div(Span(L("paid_with_label", "Paid with"), cls="order-label"),
+                Span(L("card_ending_label", "Card ending {last4}", last4=order.card_last4)))
             if order.card_last4 else "",
-            Div(H3(f"Order {order.order_id}", cls="card-title"),
-                Span(order.status, cls="status-pill"), cls="order-id"),
+            Div(H3(L("order_heading_label", "Order {order_id}", order_id=order.order_id),
+                   cls="card-title"),
+                Span(status_label(order.status), cls="status-pill"),
+                A(L("receipt_label", "Receipt"), href=files_store.pdf_view_url(
+                      f"/onlineshop/orders/{order.order_id}/receipt", receipt_name(order.order_id)),
+                  target="_blank", rel="noopener", cls="order-receipt text-link",
+                  aria_label=L("receipt_for_label", "Receipt for order {order_id}",
+                               order_id=order.order_id)),
+                cls="order-id"),
             cls="order-head",
         ),
         Div(*lines, cls="order-lines"),
@@ -2128,15 +2398,30 @@ def get():
     if not all_orders:
         return page_shell(
             search_bar(),
-            H1("Your orders", cls="page-title"),
-            Div(P("You have no orders yet."),
-                A("Browse products", href="/onlineshop", cls="btn btn-primary"),
+            H1(L("your_orders_label", "Your orders"), cls="page-title"),
+            Div(P(L("no_orders_label", "You have no orders yet.")),
+                A(L("browse_products_label", "Browse products"), href="/onlineshop",
+                  cls="btn btn-primary"),
                 cls="empty-state"),
         )
     return page_shell(
         search_bar(),
-        H1("Your orders", cls="page-title"),
+        H1(L("your_orders_label", "Your orders"), cls="page-title"),
         *[order_card(order) for order in reversed(all_orders)],
+    )
+
+
+@rt("/onlineshop/orders/{order_id}/receipt")
+def get(order_id: str):
+    """The receipt PDF, inline, for a new tab -- rendered from the order, so
+    it opens even if the copy in Files was moved or deleted."""
+    order = _row(orders, order_id)
+    if order is None:
+        return Response("", status_code=404)
+    return Response(
+        receipt_pdf(order),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{receipt_name(order.order_id)}"'},
     )
 
 

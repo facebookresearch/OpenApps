@@ -15,14 +15,41 @@ tokens:
   color-danger: "#dc3545"
   color-neutral: "#6c757d"
   color-btn-fg: "#ffffff"
-  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
-  font-mono: "SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+  font-mono: "SFMono-Regular, Menlo, Monaco, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-size-base: "16px"
   font-size-sm: "14px"
   font-size-heading: "1.5rem"
   radius: "0.375rem"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. VS Code Light+.
+  color-syntax-keyword: "#0000ff"
+  color-syntax-control: "#af00db"
+  color-syntax-string: "#a31515"
+  color-syntax-number: "#098658"
+  color-syntax-comment: "#008000"
+  color-syntax-function: "#795e26"
+  color-syntax-type: "#267f99"
+  color-syntax-property: "#001080"
+  color-syntax-constant: "#0000ff"
+  color-syntax-tag: "#800000"
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#198754"
+  color-warning: "#ffc107"
+  color-emphasis: "#fd7e14"
+  color-info: "#cff4fc"
+  color-accent-pink: "#d63384"
+  color-accent-violet: "#6f42c1"
+  color-accent-teal: "#20c997"
+  ring-blue: "#0d6efd"
+  ring-dark-blue: "#0a58ca"
+  ring-pink: "#d63384"
+  ring-teal: "#20c997"
+  ring-violet: "#6f42c1"
 assets:
   tone: light
   icon_set: color

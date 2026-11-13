@@ -1,5 +1,8 @@
 # @package apps.start_page
 headline: "Welcome to OpenApps!"
+# The desktop shell's centred line (layout=desktop); the gallery shows
+# `headline` instead. See `desktop_headline` in apps/start_page/main.py.
+desktop_headline: "An open source environment for digital agents"
 sub_header: |
   Together, these apps form a powerful toolkit to help you manage your daily life, work, and communication. The to-do list and calendar keep you organized and on schedule, ensuring you never miss a task or appointment. The map service helps you navigate the world around you, providing directions and real-time updates so you can reach your destinations efficiently. For those who code, the code editor streamlines your development process with helpful features and integrations, making it easier to bring your ideas to life. The online shop offers a convenient way to browse and purchase products or services from anywhere, saving you time and effort. Finally, the instant messenger keeps you connected with friends, family, and colleagues, enabling real-time communication and collaboration. By using these apps together, you can boost your productivity, stay organized, and enjoy a more connected and efficient lifestyle.
 
@@ -29,7 +32,19 @@ apps:
     title: "OpenShop"
     description: |
       An online shop is a digital platform where you can browse, select, and purchase products or services from the comfort of your own home. With an online shop, you have access to a wide variety of items—from clothing and electronics to groceries and gifts—often with detailed descriptions, customer reviews, and images to help you make informed choices. Shopping online saves you time and effort, allowing you to compare prices, find deals, and place orders at any time that suits you. Most online shops offer secure payment options and convenient delivery services, so your purchases are shipped directly to your doorstep. Many platforms also provide features like wish lists, order tracking, and easy returns, making the shopping experience smooth and user-friendly. By using an online shop, you can enjoy a flexible, efficient, and personalized way to meet your shopping needs, all without leaving your home.
+  uilibrary:
+    title: "OpenUI"
+    description: |
+      A component library is the catalogue a design team keeps of every building block its products are made from. Each component -- a button, a badge, a toolbar, a clock -- has a story card showing how it looks, the variants it comes in, and the code that renders it, alongside the colour swatches and type specimens of the active theme. Browsing it is how designers and engineers agree on what a control should look like before it ships, and pinning a story keeps the components you are working on at the top of the page.
   openbanking:
     title: "OpenBanking"
     description: |
       An online banking dashboard is where you review the money moving through your accounts. It lists each account you hold along with its available and present balance, and for any account you open it shows a statement of recent transactions: the date each one posted, a description identifying the merchant or counterparty, the type of transaction such as a card purchase, an ACH credit or a wire, the amount added or withdrawn, and the running balance afterwards. Pending items appear at the top before they post, without a settled balance. You can narrow the statement to deposits or withdrawals only, or search the descriptions to locate a particular charge. Reviewing these records regularly helps you reconcile your books, catch a charge you did not authorise, and understand where your money actually goes.
+  files:
+    title: "OpenFiles"
+    description: |
+      A file browser is where your documents live: medical records, a lease, tax forms, the statements your bank issues and the receipts a shop emails you. It shows them in folders, previews a PDF, an image or a text file without opening another program, and lets you rename a file, move it to another folder, make a copy, or delete it. Deleted files wait in Recently Deleted for thirty days, so a mistake can be undone; you can restore one there or remove it for good. Other apps save into it too, so a downloaded statement or a photo someone sent you ends up here.
+  contacts:
+    title: "OpenContacts"
+    description: |
+      An address book is where you keep the people you deal with: their names, the company they work for, every phone number and email address they use, and a note to jog your memory. Other apps look names up here, so a number saved as a contact shows up by name in your messages instead of as a string of digits. You can search it, mark the people you contact most as favourites, and edit or remove an entry when someone changes their number.

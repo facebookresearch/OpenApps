@@ -6,6 +6,10 @@ model_pretty_name: UI-TARS-1.5-7B
 hostname: null
 host_name_updated_on: null
 client_type: vllm
+# A cap on each reply. UI-TARS can loop on one token; with no cap that runs
+# until the context is full and the next request fails. Its ordinary replies
+# are far shorter than the cap.
+max_tokens: 1024
 custom_actions:
 - mouse_click
 - mouse_dblclick
