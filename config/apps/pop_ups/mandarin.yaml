@@ -1,3 +1,5 @@
+# A Mandarin welcome pop-up on the start page describing the apps, with a
+# single dismiss button and no link that could lead the agent away.
 pop_up1:
   title: ${apps.start_page.headline}
   content: |

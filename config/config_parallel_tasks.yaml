@@ -1,5 +1,8 @@
 # @package _global_
-# used to launch multiple tasks in parallel
+# Primary config for sweeps (`launch_parallel_agents.py`): every task in
+# `parallel_tasks.task_names` is run once per entry of
+# `parallel_tasks.app_variations`, locally one after another or as SLURM jobs.
+# The lists below are a small demo grid; set both on the command line.
 defaults:
   - mode: local
   - agent: dummy

@@ -1,4 +1,7 @@
 # @package apps.calendar
+# German add-event form: translates the placeholders and aria labels only.
+# The events themselves come from `default` unchanged, so tasks that name an
+# event still find it.
 defaults:
   - default
 

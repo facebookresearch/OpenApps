@@ -1,4 +1,7 @@
 # @package apps.messenger
+# Appends 17 more contacts and their conversations to the default messenger
+# (`+users`, `+chat_history`): a longer contact list to find the task's
+# recipient in.
 defaults:
   - default
 

@@ -1,4 +1,6 @@
 # @package apps.todo
+# Appends 50 more todo items to the default list (`+init_todos`): a longer
+# list to scroll and search.
 defaults:
   - default
 

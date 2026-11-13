@@ -1,3 +1,8 @@
+# label: Gemma 4 2B computer use
+# Gemma 4 E2B served by vLLM as a screenshot-only computer-use agent:
+# coordinate mouse/keyboard actions, no AXTree or HTML. `hostname` is null on
+# purpose -- pass `agent.hostname=<node>`, or submit with
+# scripts/conduct_slurm.sh, which discovers the node serving the model.
 defaults:
   - default
   - _self_

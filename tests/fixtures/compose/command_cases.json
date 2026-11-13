@@ -1,0 +1,340 @@
+{
+  "about": "Shared fixtures for open_apps.compose.command (Python reference) and the docs-site JS port. Each case: a normalized selection, the exact command render() must produce, and the UI labels of the chosen values (checked against the catalog). render(selection) == command and parse(command) == selection.",
+  "cases": [
+    {
+      "name": "repo defaults",
+      "selection": {},
+      "command": "uv run launch_agent.py",
+      "labels": {}
+    },
+    {
+      "name": "dummy smoke test",
+      "selection": {"choices": {"agent": ["dummy"]}},
+      "command": "uv run launch_agent.py agent=dummy",
+      "labels": {"agent": ["Dummy / smoke test"]}
+    },
+    {
+      "name": "single run, several axes",
+      "selection": {
+        "choices": {
+          "agent": ["GPT-5.5-computer-use"],
+          "device": ["phone"],
+          "apps/theme": ["dark"],
+          "apps/todo/layout": ["kanban_board"],
+          "task_name": ["mark_water_plants_as_done"],
+          "browsergym_env_args.max_steps": [40],
+          "use_wandb": [true],
+          "record_video": [true]
+        }
+      },
+      "command": "uv run launch_agent.py agent=GPT-5.5-computer-use device=phone apps/theme=dark apps/todo/layout=kanban_board task_name=mark_water_plants_as_done browsergym_env_args.max_steps=40 use_wandb=True record_video=True",
+      "labels": {
+        "agent": ["GPT-5.5 computer use"],
+        "device": ["Phone"],
+        "apps/theme": ["Dark"],
+        "apps/todo/layout": ["Kanban board"],
+        "task_name": ["Mark 'Water plants' as done in my todo list."]
+      }
+    },
+    {
+      "name": "append-only group",
+      "selection": {"choices": {"agent": ["dummy"], "experiment": ["phone"]}},
+      "command": "uv run launch_agent.py agent=dummy +experiment=phone",
+      "labels": {"agent": ["Dummy / smoke test"], "experiment": ["Phone"]}
+    },
+    {
+      "name": "longer-horizon task with a raised step budget",
+      "selection": {
+        "choices": {
+          "agent": ["dummy"],
+          "tasks": ["longer_horizon"],
+          "task_name": ["plan_elena_birthday_todo_message"],
+          "browsergym_env_args.max_steps": [40]
+        }
+      },
+      "command": "uv run launch_agent.py agent=dummy tasks=longer_horizon task_name=plan_elena_birthday_todo_message browsergym_env_args.max_steps=40",
+      "labels": {
+        "agent": ["Dummy / smoke test"],
+        "tasks": ["Longer horizon"],
+        "task_name": ["Add 'Elena's Birthday' to my calendar for November 20th, 2026."]
+      }
+    },
+    {
+      "name": "extra overrides are kept verbatim",
+      "selection": {
+        "choices": {"agent": ["gemma-4-2B-computer-use"]},
+        "extra": ["agent.hostname=node-001", "apps.todo.title=Super Todo"]
+      },
+      "command": "uv run launch_agent.py agent=gemma-4-2B-computer-use agent.hostname=node-001 'apps.todo.title=Super Todo'",
+      "labels": {"agent": ["Gemma 4 2B computer use"]}
+    },
+    {
+      "name": "sweep over two app axes and two tasks",
+      "selection": {
+        "choices": {
+          "apps/theme": ["default", "dark"],
+          "apps/todo/layout": ["default", "kanban_board"],
+          "task_name": ["add_call_mom_to_my_todo", "mark_water_plants_as_done"]
+        }
+      },
+      "command": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[\"apps/theme=default\",\"apps/todo/layout=default\"],[\"apps/theme=default\",\"apps/todo/layout=kanban_board\"],[\"apps/theme=dark\",\"apps/todo/layout=default\"],[\"apps/theme=dark\",\"apps/todo/layout=kanban_board\"]]' 'parallel_tasks.task_names=[add_call_mom_to_my_todo,mark_water_plants_as_done]'",
+      "labels": {
+        "apps/theme": ["Default", "Dark"],
+        "apps/todo/layout": ["Default", "Kanban board"],
+        "task_name": ["Add 'Call Mom' to my todo list.", "Mark 'Water plants' as done in my todo list."]
+      }
+    },
+    {
+      "name": "sweep folds single-valued app choices into every cell",
+      "selection": {
+        "choices": {
+          "agent": ["claude_4_sonnet"],
+          "apps/theme": ["dark", "mono"],
+          "apps/todo/content": ["german"]
+        }
+      },
+      "command": "uv run launch_parallel_agents.py agent=claude_4_sonnet 'parallel_tasks.app_variations=[[\"apps/theme=dark\",\"apps/todo/content=german\"],[\"apps/theme=mono\",\"apps/todo/content=german\"]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+      "labels": {
+        "agent": ["Claude 4 Sonnet (Bedrock)"],
+        "apps/theme": ["Dark", "Mono"],
+        "apps/todo/content": ["German"]
+      }
+    },
+    {
+      "name": "every task in the group",
+      "selection": {"choices": {"tasks": ["longer_horizon"], "task_name": ["all"]}},
+      "command": "uv run launch_parallel_agents.py tasks=longer_horizon 'parallel_tasks.app_variations=[[]]' parallel_tasks.task_names=all",
+      "labels": {"tasks": ["Longer horizon"]}
+    },
+    {
+      "name": "sweep on SLURM",
+      "selection": {
+        "choices": {"mode": ["slurm_cluster"], "apps/pop_ups": ["default", "adversarial_descriptions"]}
+      },
+      "command": "uv run launch_parallel_agents.py mode=slurm_cluster 'parallel_tasks.app_variations=[[\"apps/pop_ups=default\"],[\"apps/pop_ups=adversarial_descriptions\"]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+      "labels": {"mode": ["Slurm cluster"], "apps/pop_ups": ["Default", "Adversarial descriptions"]}
+    },
+    {
+      "name": "forced sweep target with one cell",
+      "selection": {"target": "sweep", "choices": {"apps/theme": ["dark"]}},
+      "command": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[\"apps/theme=dark\"]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+      "labels": {"apps/theme": ["Dark"]}
+    },
+    {
+      "name": "worker pool over two agents",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 6, "max_parallel": 2},
+      "command": "AGENTS='dummy claude_4_sonnet' COUNT=6 MAX_PARALLEL=2 ./scripts/conduct.sh",
+      "labels": {"agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"]}
+    },
+    {
+      "name": "repeat count with a visible browser",
+      "selection": {
+        "choices": {"agent": ["UI-TARS-1.5-7B"], "browsergym_env_args.headless": [false], "seed": [1], "use_wandb": [true]},
+        "count": 3,
+        "extra": ["agent.hostname=node-001"]
+      },
+      "command": "AGENTS=UI-TARS-1.5-7B COUNT=3 HEADLESS=False ./scripts/conduct.sh seed=1 use_wandb=True agent.hostname=node-001",
+      "labels": {"agent": ["UI-TARS 1.5 7B"]}
+    },
+    {
+      "name": "worker pool on SLURM",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"]}, "count": 20},
+      "command": "AGENTS=gemma-4-2B-computer-use COUNT=20 sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
+    },
+    {
+      "name": "single run on SLURM goes through the worker pool",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "device": ["laptop"]}},
+      "command": "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh device=laptop",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"], "device": ["Laptop"]}
+    },
+    {
+      "name": "SLURM pool defaults to W&B on, so turning it off is explicit",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "use_wandb": [false]}},
+      "command": "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh use_wandb=False",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
+    },
+    {
+      "name": "unknown env vars and sbatch flags are kept",
+      "selection": {
+        "choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"]},
+        "env": ["VLLM_HOST=node-007"],
+        "sbatch_args": ["--account=my_account", "--qos=my_qos"]
+      },
+      "command": "AGENTS=gemma-4-2B-computer-use VLLM_HOST=node-007 sbatch --account=my_account --qos=my_qos scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
+    },
+    {
+      "name": "worker pool on SLURM spells out the agent, even conduct.sh's default",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy"]}},
+      "command": "AGENTS=dummy sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test"]}
+    },
+    {
+      "name": "worker pool spells out the agent equal to the script's default",
+      "selection": {"target": "pool", "choices": {"agent": ["dummy"]}},
+      "command": "AGENTS=dummy ./scripts/conduct.sh",
+      "labels": {"agent": ["Dummy / smoke test"]}
+    },
+    {
+      "name": "worker pool on SLURM with no agent picked runs config.yaml's, not the script's",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["default"]}},
+      "command": "AGENTS=default sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Base agent (no model)"]}
+    },
+    {
+      "name": "worker pool on SLURM runs every agent once, not conduct_slurm.sh's COUNT=1",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy", "claude_4_sonnet"]}},
+      "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
+      "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"]}
+    },
+    {
+      "name": "two task groups combine into one inventory",
+      "selection": {"choices": {"agent": ["dummy"], "tasks": ["all_tasks", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
+      "command": "uv run launch_agent.py agent=dummy 'tasks=[all_tasks,openbanking]' task_name=message_bob_the_savings_balance",
+      "labels": {
+        "agent": ["Dummy / smoke test"],
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "task_name": ["In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
+      }
+    },
+    {
+      "name": "every task of two combined groups is a sweep",
+      "selection": {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["all"]}},
+      "command": "uv run launch_parallel_agents.py 'tasks=[all_tasks,openbanking]' 'parallel_tasks.app_variations=[[]]' parallel_tasks.task_names=all",
+      "labels": {"tasks": ["Paper tasks (original + goal variations)", "OpenBanking"]}
+    },
+    {
+      "name": "a sweep picks tasks from both combined groups",
+      "selection": {
+        "choices": {
+          "tasks": ["all_tasks", "openbanking"],
+          "apps/theme": ["default", "dark"],
+          "task_name": ["add_call_mom_to_my_todo", "message_bob_the_savings_balance"]
+        }
+      },
+      "command": "uv run launch_parallel_agents.py 'tasks=[all_tasks,openbanking]' 'parallel_tasks.app_variations=[[\"apps/theme=default\"],[\"apps/theme=dark\"]]' 'parallel_tasks.task_names=[add_call_mom_to_my_todo,message_bob_the_savings_balance]'",
+      "labels": {
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "apps/theme": ["Default", "Dark"],
+        "task_name": ["Add 'Call Mom' to my todo list.", "In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
+      }
+    },
+    {
+      "name": "a worker pool runs a combined inventory",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "tasks": ["longer_horizon", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
+      "command": "AGENTS='dummy claude_4_sonnet' ./scripts/conduct.sh 'tasks=[longer_horizon,openbanking]' task_name=message_bob_the_savings_balance",
+      "labels": {
+        "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"],
+        "tasks": ["Longer horizon", "OpenBanking"],
+        "task_name": ["In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
+      }
+    },
+    {
+      "name": "a SLURM worker pool runs a combined inventory",
+      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "tasks": ["all_tasks", "openbanking"], "task_name": ["navigate_to_openbanking"]}, "count": 4},
+      "command": "AGENTS=gemma-4-2B-computer-use COUNT=4 sbatch scripts/conduct_slurm.sh 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking",
+      "labels": {
+        "mode": ["Slurm cluster"],
+        "agent": ["Gemma 4 2B computer use"],
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "task_name": ["Navigate to the OpenBanking app."]
+      }
+    }
+  ],
+  "parse_cases": [
+    {
+      "name": "python instead of uv run, defaults spelled out",
+      "command": "python launch_agent.py agent=default seed=233 agent=dummy",
+      "selection": {"extra": ["agent=dummy"]},
+      "rendered": "uv run launch_agent.py agent=dummy"
+    },
+    {
+      "name": "line continuations",
+      "command": "uv run launch_agent.py \\\n  agent=dummy \\\n  device=tablet",
+      "selection": {"choices": {"agent": ["dummy"], "device": ["tablet"]}},
+      "rendered": "uv run launch_agent.py agent=dummy device=tablet"
+    },
+    {
+      "name": "hand-written app variations that are not a product stay verbatim",
+      "command": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[\"apps/start_page/content=default\",\"apps/calendar/content=default\"],[\"apps/theme=dark\"]]' parallel_tasks.task_names=[navigate_to_todo]",
+      "selection": {
+        "target": "sweep",
+        "choices": {"task_name": ["navigate_to_todo"]},
+        "extra": ["parallel_tasks.app_variations=[[\"apps/start_page/content=default\",\"apps/calendar/content=default\"],[\"apps/theme=dark\"]]"]
+      },
+      "rendered": "uv run launch_parallel_agents.py 'parallel_tasks.task_names=[navigate_to_todo]' 'parallel_tasks.app_variations=[[\"apps/start_page/content=default\",\"apps/calendar/content=default\"],[\"apps/theme=dark\"]]'"
+    },
+    {
+      "name": "an app override outside app_variations is a no-op in a sweep and stays an extra",
+      "command": "uv run launch_parallel_agents.py apps/theme=dark 'parallel_tasks.app_variations=[[]]' parallel_tasks.task_names=all",
+      "selection": {"choices": {"task_name": ["all"]}, "extra": ["apps/theme=dark"]},
+      "rendered": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[]]' parallel_tasks.task_names=all apps/theme=dark"
+    },
+    {
+      "name": "COUNT=1 pins the worker-pool target",
+      "command": "COUNT=1 AGENTS=dummy ./scripts/conduct.sh",
+      "selection": {"target": "pool", "choices": {"agent": ["dummy"]}, "count": 1},
+      "rendered": "AGENTS=dummy COUNT=1 ./scripts/conduct.sh"
+    },
+    {
+      "name": "a bare conduct.sh runs its own AGENTS default, now spelled out",
+      "command": "COUNT=2 ./scripts/conduct.sh",
+      "selection": {"choices": {"agent": ["dummy"]}, "count": 2},
+      "rendered": "AGENTS=dummy COUNT=2 ./scripts/conduct.sh"
+    },
+    {
+      "name": "a SLURM pool without COUNT runs once, as conduct_slurm.sh does, now spelled out",
+      "command": "AGENTS='dummy claude_4_sonnet' sbatch scripts/conduct_slurm.sh",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}, "count": 1},
+      "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=1 sbatch scripts/conduct_slurm.sh"
+    },
+    {
+      "name": "COUNT equal to the agents is the SLURM pool's default",
+      "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}},
+      "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh"
+    },
+    {
+      "name": "a combined tasks list in any order reads back in catalog order",
+      "command": "uv run launch_agent.py tasks=[openbanking,all_tasks] task_name=navigate_to_openbanking",
+      "selection": {"choices": {"tasks": ["all_tasks", "openbanking"], "task_name": ["navigate_to_openbanking"]}},
+      "rendered": "uv run launch_agent.py 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking"
+    },
+    {
+      "name": "a one-group tasks list is that group",
+      "command": "uv run launch_agent.py 'tasks=[openbanking]' task_name=navigate_to_openbanking",
+      "selection": {"choices": {"tasks": ["openbanking"], "task_name": ["navigate_to_openbanking"]}},
+      "rendered": "uv run launch_agent.py tasks=openbanking task_name=navigate_to_openbanking"
+    },
+    {
+      "name": "a tasks list naming no group stays verbatim",
+      "command": "uv run launch_agent.py 'tasks=[]'",
+      "selection": {"extra": ["tasks=[]"]},
+      "rendered": "uv run launch_agent.py 'tasks=[]'"
+    },
+    {
+      "name": "a tasks list with an unknown group stays verbatim",
+      "command": "uv run launch_agent.py 'tasks=[all_tasks,no_such_set]'",
+      "selection": {"extra": ["tasks=[all_tasks,no_such_set]"]},
+      "rendered": "uv run launch_agent.py 'tasks=[all_tasks,no_such_set]'"
+    }
+  ],
+  "errors": [
+    {
+      "name": "device is not a sweep axis",
+      "selection": {"choices": {"device": ["desktop", "phone"]}},
+      "match": "device"
+    },
+    {
+      "name": "several agents and an app sweep need one sweep per agent",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "apps/theme": ["default", "dark"]}},
+      "match": "apps/theme"
+    },
+    {
+      "name": "a forced single run cannot hold several values",
+      "selection": {"target": "single", "choices": {"apps/theme": ["default", "dark"]}},
+      "match": "apps/theme"
+    }
+  ]
+}

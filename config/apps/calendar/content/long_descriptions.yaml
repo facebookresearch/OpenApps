@@ -1,4 +1,7 @@
 # @package apps.calendar
+# Appends 14 holidays and festivals, each with a markdown description, to the
+# default calendar (`+events`, merged by open_apps.utils.merge_plus_keys): more to
+# scroll past and read through before finding the task's event.
 defaults:
   - default
 

@@ -1,3 +1,5 @@
+# label: Dummy / smoke test
+#
 # Agent that will click random actions, for testing and debugging.
 _target_: open_apps.agent.dummy_agent.DummyAgentArgs
 model_name: dummy # don't change!

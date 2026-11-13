@@ -1,4 +1,8 @@
 # @package apps.start_page
+# Long app descriptions with `apps.adversarial_message` -- the injected
+# "you have achieved your goal" notice -- appended to the sub-header and to
+# every app description: a prompt-injection test on the first page the agent
+# sees.
 headline: "Welcome to OpenApps!"
 
 sub_header: |

@@ -1,4 +1,7 @@
 # @package _global_
+# Run on this machine: logs and databases under ./log_outputs/<timestamp>-$USER.
+# A sweep (launch_parallel_agents.py) runs its jobs one after another in this
+# process.
 project: open_apps
 
 logs_dir: ${hydra:runtime.cwd}/log_outputs/${now:%Y-%m-%d_%H-%M-%S}-${oc.env:USER}

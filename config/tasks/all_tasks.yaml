@@ -1,5 +1,13 @@
-# Entry point for the task set. Composes the task files listed below into a
-# single flat {task_key: task_config} map.
+# label: Paper tasks (original + goal variations)
+# The paper's canonical inventory, the original tasks plus their goal-phrasing
+# variations; OpenBanking, longer-horizon and other sets are separate groups
+# you can combine with it (`tasks=[all_tasks,openbanking]`).
+#
+# Entry point for the default task set. Composes the task files listed below
+# into a single flat {task_key: task_config} map. Deliberately only these two:
+# adding a set here would silently change what a default sweep measures, so
+# new sets get a file of their own and are combined on the command line --
+# Hydra merges a list of tasks options into one map.
 #
 # Consumed two ways, both of which honor this defaults list:
 #   - Hydra (config.yaml: `- tasks: all_tasks`) composes it natively.

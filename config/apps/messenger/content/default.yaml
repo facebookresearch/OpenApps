@@ -1,4 +1,7 @@
 # @package apps.messenger
+# The messenger's seed data: you are Yann, chatting with Alice, Bob, Charlie
+# and a group chat. The message tasks send to these contacts; their
+# auto-replies are tolerated by the reward.
 title: ${apps.start_page.apps.messages.title}
 # you: YannLeCun the computer scientist
 

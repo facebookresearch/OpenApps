@@ -1,4 +1,6 @@
 # @package apps.messenger
+# Mandarin chat history: the default conversations translated, same
+# contacts, so the message tasks still address Alice, Bob and Charlie by name.
 defaults:
   - default
 

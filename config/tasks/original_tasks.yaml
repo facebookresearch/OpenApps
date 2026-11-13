@@ -1,3 +1,9 @@
+# The original single-goal tasks (31): add/remove calendar events,
+# add/mark/delete todos, send messages, save/remove map places, edit or create
+# a file in the code editor, and navigate between apps (including to the
+# shop). Each is scored from app state by its Task class
+# (open_apps.tasks.tasks). all_tasks.yaml composes this file with the
+# goal-phrasing variations.
 add_meeting_with_dennis:
   _target_: open_apps.tasks.tasks.AddEventTask
   goal: Go to the Calendar app and add my meeting with Dennis on April 1st of

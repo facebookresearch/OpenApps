@@ -1,3 +1,4 @@
+# label: OpenBanking
 # Cross-app tasks anchored on the OpenBanking app.
 #
 # Standalone file: run with `tasks=openbanking` (Hydra) or load directly.

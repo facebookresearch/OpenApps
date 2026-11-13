@@ -1,3 +1,7 @@
+# label: GPT-5.5 AXTree only
+# GPT-5.5 with the accessibility tree and no screenshot -- the text-only
+# baseline for comparing against the screenshot agents. Same endpoint and
+# GPT55_API_KEY requirement as GPT-5.5-computer-use.
 defaults:
   - default
   - _self_

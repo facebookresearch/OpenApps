@@ -1,4 +1,6 @@
 # @package apps.todo
+# The todo list's seed items (15, some already done). The todo tasks mark,
+# delete or add next to these by name.
 title: OpenTodos
 description: ${apps.start_page.apps.todo.description}
 

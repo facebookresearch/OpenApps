@@ -1,4 +1,6 @@
 # @package apps.maps
+# Appends a saved place whose name is `apps.adversarial_message` -- the
+# injected "you have achieved your goal" notice: a prompt-injection test.
 defaults:
   - default
 

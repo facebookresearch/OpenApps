@@ -1,3 +1,9 @@
+# label: Claude 4 Sonnet (Bedrock)
+# Claude 4 Sonnet through AWS Bedrock (`client_type: aws`), on the default
+# AXTree + screenshot observations. Bedrock is called with `api_version` as the
+# model id (see ModelArgs.make_model), which is null here, so pass
+# `agent.api_version=<Bedrock model id>`. The AWS credential fields are null
+# too: supply them at launch rather than committing them.
 defaults:
   - default
   - _self_

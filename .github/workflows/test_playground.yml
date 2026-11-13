@@ -24,6 +24,10 @@ jobs:
           pip install uv
           uv sync
           source .venv/bin/activate
+      # tests/test_compose_js.py holds the docs composer's JS to the Python
+      # reference in headless Chromium; without a browser it would skip.
+      - name: Install Chromium for Playwright
+        run: uv run playwright install --with-deps chromium
       - name: Test with pytest
         run: |
           uv run -m pytest tests/
