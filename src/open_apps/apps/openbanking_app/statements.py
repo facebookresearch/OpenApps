@@ -103,9 +103,23 @@ def parse_month(key: str) -> Optional[tuple[int, int]]:
     return int(m.group(1)), int(m.group(2))
 
 
-def month_label(month: tuple[int, int]) -> str:
-    """``(2026, 7)`` -> ``"July 2026"``."""
-    return f"{MONTH_NAMES[month[1] - 1]} {month[0]}"
+# Display-only month names for the Statements page under the german pack.
+# File names and the PDF stay English (see the module docstring).
+_DE_MONTH_NAMES = ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+                   "August", "September", "Oktober", "November", "Dezember")
+
+
+def month_label(month: tuple[int, int], language: str = "english") -> str:
+    """``(2026, 7)`` -> ``"July 2026"`` (``"Juli 2026"``, ``"2026年7月"``).
+
+    Only the Statements page passes ``language``; a statement's file name is
+    always built from the English label."""
+    year, mon = month
+    if language == "german":
+        return f"{_DE_MONTH_NAMES[mon - 1]} {year}"
+    if language == "mandarin":
+        return f"{year}年{mon}月"
+    return f"{MONTH_NAMES[mon - 1]} {year}"
 
 
 def statement_name(account_name: str, month: tuple[int, int]) -> str:
@@ -173,13 +187,19 @@ def build_statement(transactions, month: tuple[int, int]) -> Statement:
     )
 
 
-def period_label(month: tuple[int, int], today: date) -> str:
+def period_label(month: tuple[int, int], today: date, language: str = "english") -> str:
     """``Jul 1, 2026 - Jul 31, 2026``; the bank's current month stops at
-    ``today``, the way an online statement-to-date does."""
+    ``today``, the way an online statement-to-date does. ``language``
+    (Statements page only) writes it the way that pack writes dates."""
     year, mon = month
     last = calendar.monthrange(year, mon)[1]
     if (today.year, today.month) == (year, mon):
         last = today.day
+    if language == "german":
+        name = _DE_MONTH_NAMES[mon - 1]
+        return f"1. {name} {year} - {last}. {name} {year}"
+    if language == "mandarin":
+        return f"{year}年{mon}月1日 - {year}年{mon}月{last}日"
     abbr = MONTH_ABBR[mon - 1]
     return f"{abbr} 1, {year} - {abbr} {last}, {year}"
 

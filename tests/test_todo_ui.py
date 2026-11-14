@@ -4,7 +4,7 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Markup contracts for the todo app's two layouts.
+Markup contracts for the todo app's three layouts.
 
 Chromium can't run everywhere these tests do, so the realism pass is checked
 on the server-rendered HTML: the hooks the stylesheet relies on are present,
@@ -23,6 +23,8 @@ from starlette.testclient import TestClient
 
 from open_apps.apps.todo_app import main as todo_main
 
+LAYOUTS = ["default", "kanban_board", "grouped_sections"]
+
 
 def _client(tmp_path: Path, *overrides: str) -> TestClient:
     with initialize(version_base=None, config_path="../config/"):
@@ -36,8 +38,8 @@ def _client(tmp_path: Path, *overrides: str) -> TestClient:
 
 
 def _markup(html: str) -> str:
-    html = re.sub(r"<style.*?</style>", "", html, flags=re.S)
-    return re.sub(r"<script.*?</script>", "", html, flags=re.S)
+    html = re.sub(r"<style\b.*?</style\b[^>]*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<script\b.*?</script\b[^>]*>", "", html, flags=re.S | re.I)
 
 
 def _row(html: str, todo_id: int) -> str:
@@ -136,7 +138,11 @@ class TestBoardLayout:
 class TestChromeAndThemes:
     @pytest.mark.parametrize(
         "layout, cls",
-        [("default", "todo-home-button"), ("kanban_board", "todo-home-link")],
+        [
+            ("default", "todo-home-button"),
+            ("kanban_board", "todo-home-link"),
+            ("grouped_sections", "todo-home-link"),
+        ],
     )
     def test_home_link_keeps_text_href_and_role(self, tmp_path, layout, cls):
         client = _client(tmp_path, f"apps/todo/layout={layout}")
@@ -159,7 +165,7 @@ class TestChromeAndThemes:
         assert "todo-home-link" in board and "todo-home-button" not in board
 
     @pytest.mark.parametrize("theme", ["dark", "solarized", "mono", "challenging_font"])
-    @pytest.mark.parametrize("layout", ["default", "kanban_board"])
+    @pytest.mark.parametrize("layout", LAYOUTS)
     def test_renders_under_every_theme(self, tmp_path, theme, layout):
         client = _client(tmp_path, f"apps/theme={theme}", f"apps/todo/layout={layout}")
         response = client.get("/todo")

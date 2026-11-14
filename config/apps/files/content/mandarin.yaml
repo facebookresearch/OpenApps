@@ -1,4 +1,6 @@
 # @package apps.files
+# The pack's language: read by the app for <html lang> (open_apps.i18n).
+content_language: mandarin
 defaults:
   - default
 
@@ -88,6 +90,7 @@ ui:
   load_error: "无法显示此 PDF。请使用“在新标签页中打开”或“下载”。"
   needs_script: "显示 PDF 需要 JavaScript。"
   no_preview: "此类文件没有预览。"
+  bytes_label: "{n} 字节"
   date_format: "%Y-%m-%d"
   kinds:
     application/pdf: "PDF 文稿"
@@ -96,3 +99,14 @@ ui:
     text/plain: "纯文本"
     folder: "文件夹"
     other: "文稿"
+    image/gif: "GIF 图像"
+    image/svg+xml: "SVG 图像"
+    image/webp: "WebP 图像"
+    text/markdown: "Markdown 文稿"
+    text/csv: "CSV 电子表格"
+    application/json: "JSON"
+    text/yaml: "YAML"
+    text/html: "HTML"
+    text/css: "CSS"
+    text/javascript: "JavaScript"
+    text/x-python: "Python 脚本"

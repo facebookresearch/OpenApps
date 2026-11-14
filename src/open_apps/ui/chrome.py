@@ -38,6 +38,7 @@ from typing import Any
 from fasthtml.common import A, Button, Div, Form, Img, Nav, NotStr, Span, Style, to_xml
 
 from open_apps.chrome_middleware import ChromeParts
+from open_apps.i18n import ENGLISH, t
 from open_apps.icons import Icon, icon
 
 _HERE = Path(__file__).resolve().parent
@@ -97,12 +98,14 @@ _MAC_ORDER = ("close", "minimize", "maximize")
 _WINDOWS_ORDER = ("minimize", "maximize", "close")
 
 
-def _window_button(action: str, app: ChromeApp, style: str, maximized: bool):
+def _window_button(
+    action: str, app: ChromeApp, style: str, maximized: bool, language: str = ENGLISH
+):
     if action == "maximize":
-        verb = "Restore" if maximized else "Maximize"
+        verb = "restore" if maximized else "maximize"
         glyph = Icon.RESTORE if maximized else Icon.MAXIMIZE
     else:
-        verb = action.capitalize()
+        verb = action
         glyph = Icon.CLOSE if action == "close" else Icon.MINIMIZE
     # macOS draws the glyph inside a 12px light, so it is tiny; Windows draws
     # it bare in a 46px caption button.
@@ -113,8 +116,8 @@ def _window_button(action: str, app: ChromeApp, style: str, maximized: bool):
             Span(glyph_el) if style == "mac" else glyph_el,
             type="submit",
             cls=f"oa-win-btn is-{action}",
-            aria_label=f"{verb} {app.title}",
-            title=verb,
+            aria_label=t(f"{verb}_window", language, title=app.title),
+            title=t(verb, language),
             data_testid=f"window-{action}",
         ),
         method="post",
@@ -122,7 +125,9 @@ def _window_button(action: str, app: ChromeApp, style: str, maximized: bool):
     )
 
 
-def TitleBar(app: ChromeApp, style: str = "mac", maximized: bool = False):
+def TitleBar(
+    app: ChromeApp, style: str = "mac", maximized: bool = False, language: str = ENGLISH
+):
     """The window's title bar. ``style``: mac | windows.
 
     The three controls post to ``/chrome/<action>/<app>``; the server answers
@@ -132,10 +137,10 @@ def TitleBar(app: ChromeApp, style: str = "mac", maximized: bool = False):
     style = style if style in ("mac", "windows") else "mac"
     order = _MAC_ORDER if style == "mac" else _WINDOWS_ORDER
     controls = Div(
-        *(_window_button(a, app, style, maximized) for a in order),
+        *(_window_button(a, app, style, maximized, language) for a in order),
         cls="oa-window-controls",
         role="group",
-        aria_label="Window controls",
+        aria_label=t("window_controls", language),
     )
     title = Div(
         Img(src=app.icon, alt="", aria_hidden="true"),
@@ -207,7 +212,8 @@ def Dock(
     home: bool = True,
     launcher: bool = True,
     shortcuts: bool = True,
-    home_label: str = "Desktop",
+    home_label: str | None = None,
+    language: str = ENGLISH,
 ):
     """The dock.
 
@@ -222,7 +228,8 @@ def Dock(
     only place an agent reading the tree would find them.
 
     ``home_label`` names the way back to the start page: "Desktop" on a
-    desktop, "Home" over a phone or tablet home screen. The test id stays
+    desktop (in ``language``, when left unset), "Home" over a phone or tablet
+    home screen. The test id stays
     ``dock-desktop`` either way, so a selector does not depend on the device.
     """
     by_key = {a.key: a for a in apps}
@@ -233,7 +240,7 @@ def Dock(
     if home:
         items.append(
             DockItem(
-                home_label,
+                home_label or t("desktop", language),
                 "/",
                 glyph=Icon.HOME,
                 labels=labels,
@@ -259,19 +266,21 @@ def Dock(
         )
     if launcher:
         items.append(Div(cls="oa-dock-sep", aria_hidden="true"))
-        items.append(_Launcher(apps, current=current, labels=labels))
+        items.append(_Launcher(apps, current=current, labels=labels, language=language))
 
     return Nav(
         *items,
         id="oa-dock",
         cls="oa-dock" + ("" if labels else " is-unlabelled"),
-        aria_label="Dock",
+        aria_label=t("dock", language),
         data_shortcuts=str(shortcuts).lower(),
         data_testid="dock",
     )
 
 
-def _Launcher(apps: list[ChromeApp], *, current: str | None, labels: bool):
+def _Launcher(
+    apps: list[ChromeApp], *, current: str | None, labels: bool, language: str = ENGLISH
+):
     """The all-apps button and the panel it opens.
 
     The panel lists *every* enabled app, whatever the dock shows -- it is the
@@ -281,18 +290,18 @@ def _Launcher(apps: list[ChromeApp], *, current: str | None, labels: bool):
     return Div(
         Button(
             Div(icon(Icon.APPS, size=22), cls="oa-dock-icon is-glyph"),
-            Span("All apps", cls="oa-dock-label") if labels else None,
+            Span(t("all_apps", language), cls="oa-dock-label") if labels else None,
             type="button",
             id="oa-dock-launcher-btn",
             cls="oa-dock-item",
-            title="All apps",
-            aria_label=None if labels else "All apps",
+            title=t("all_apps", language),
+            aria_label=None if labels else t("all_apps", language),
             aria_expanded="false",
             aria_controls="oa-dock-panel",
             data_testid="dock-launcher",
         ),
         Div(
-            Span("All apps", cls="oa-dock-panel-title", aria_hidden="true"),
+            Span(t("all_apps", language), cls="oa-dock-panel-title", aria_hidden="true"),
             *(
                 DockItem(
                     a.title,
@@ -306,7 +315,7 @@ def _Launcher(apps: list[ChromeApp], *, current: str | None, labels: bool):
             id="oa-dock-panel",
             cls="oa-dock-panel",
             role="group",
-            aria_label="All apps",
+            aria_label=t("all_apps", language),
             hidden=True,
             data_testid="dock-panel",
         ),
@@ -403,6 +412,7 @@ def configured_dock(
     current: str | None,
     docked: list[str],
     running: list[str],
+    language: str = ENGLISH,
 ):
     """The :func:`Dock` as ``cfg`` (``apps.chrome``) configures it.
 
@@ -420,7 +430,8 @@ def configured_dock(
         home=bool(dock_cfg.get("home", True)),
         launcher=bool(dock_cfg.get("launcher", True)),
         shortcuts=bool(dock_cfg.get("shortcuts", True)),
-        home_label=str(dock_cfg.get("home_label") or "Desktop"),
+        home_label=dock_cfg.get("home_label") or None,
+        language=language,
     )
 
 
@@ -435,6 +446,7 @@ def chrome_parts(
     form_factor: str,
     shell_tokens_css: str,
     dock_overlay: bool = False,
+    language: str = ENGLISH,
 ) -> ChromeParts | None:
     """Everything the middleware splices into one page, or ``None`` for nothing.
 
@@ -442,6 +454,9 @@ def chrome_parts(
     shown, ``None`` on the start page -- which gets no title bar, because the
     desktop is not a window. ``shell_tokens_css`` is the shell theme's token
     block, already scoped to ``#oa-chrome``.
+
+    ``language`` is the session language (``open_apps.i18n.shell_language``):
+    the window controls' and the dock's names are spoken in it.
 
     ``dock_overlay`` floats the dock over the page instead of reserving space
     for it. Only for a page with nothing clickable under the dock -- the
@@ -467,9 +482,15 @@ def chrome_parts(
     style = str(titlebar_cfg.get("style", "mac"))
     colors = list(cursor_cfg.get("colors") or [])
 
-    titlebar = TitleBar(by_key[current], style=style, maximized=maximized) if show_titlebar else None
+    titlebar = (
+        TitleBar(by_key[current], style=style, maximized=maximized, language=language)
+        if show_titlebar
+        else None
+    )
     dock = (
-        configured_dock(cfg, apps=apps, current=current, docked=docked, running=running)
+        configured_dock(
+            cfg, apps=apps, current=current, docked=docked, running=running, language=language
+        )
         if show_dock
         else None
     )

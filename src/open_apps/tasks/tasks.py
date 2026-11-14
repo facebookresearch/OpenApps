@@ -2,13 +2,14 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
+import functools
 import hashlib
 import json
 import math
 import re
 from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
-from datetime import datetime
+from datetime import date, datetime
 import copy
 from deepdiff.helper import COLORED_COMPACT_VIEW
 from omegaconf.dictconfig import DictConfig
@@ -1055,6 +1056,42 @@ class RemoveEventTask(Task):
         return app_state_comparison.compare()
 
 
+@functools.lru_cache(maxsize=1)
+def _todo_translations() -> dict[str, tuple[str, ...]]:
+    """English todo title -> its rendering in every translated todo pack.
+
+    Read from the packs' ``todo_translations`` maps
+    (``config/apps/todo/content/*.yaml``). Tasks name todos in English; under
+    ``apps/todo/content=german`` the app renders "Oma besuchen" where the goal
+    says "Visit grandma", and the task has to target that row.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "todo" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("todo_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_todo(todos: list, name: str) -> Optional[int]:
+    """Index of the todo ``name`` refers to: an exact title match, else the
+    row carrying one of its translations (see :func:`_todo_translations`).
+    The last match wins, as the classes below always did."""
+    found = None
+    for i, item in enumerate(todos):
+        if item["title"] == name:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_todo_translations().get(name, ()))
+    for i, item in enumerate(todos):
+        if item["title"] in aliases:
+            found = i
+    return found
+
+
 @dataclass
 class AddToDoTask(Task):
     """
@@ -1097,14 +1134,13 @@ class MarkToDoDoneTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        target_idx = None
-        for i, todo_item in enumerate(target_state["todo"]):
-            if self.todo_name == todo_item["title"]:
-                new_todo_item = {"title": self.todo_name, "done": 1}
-                target_idx = i
+        # Under a translated todo pack the row carries the translated title;
+        # it keeps that title and only its done flag changes.
+        target_idx = _find_todo(target_state["todo"], self.todo_name)
         if target_idx is None:
             raise ValueError(f"Todo item {self.todo_name} not found")
-        target_state["todo"][target_idx] = new_todo_item
+        title = target_state["todo"][target_idx]["title"]
+        target_state["todo"][target_idx] = {"title": title, "done": 1}
         return target_state
 
     def check_if_task_is_complete(
@@ -1457,10 +1493,7 @@ class DeleteToDoTask(Task):
 
     def get_target_state(self, initial_state: dict) -> dict:
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, item in enumerate(target_state["todo"]):
-            if item["title"] == self.todo_name:
-                idx_to_remove = i
+        idx_to_remove = _find_todo(target_state["todo"], self.todo_name)
         if idx_to_remove is not None:
             target_state["todo"].pop(idx_to_remove)
         return target_state
@@ -1497,6 +1530,64 @@ class RemoveLandmarkTask(Task):
         return app_state_comparison.compare()
 
 
+# The English ledger wording the purchase tasks default to, keyed by the bank
+# content-pack key it mirrors (``config/apps/openbanking/content/default.yaml``).
+_BANK_ENGLISH_WORDING = {
+    "purchase_type": "Card",
+    "overlimit_type": "Fee",
+    "overlimit_description": "OVERLIMIT NOTICE - credit limit exceeded by {amount}",
+    "declined_type": "Declined",
+    "declined_description": "DECLINED - {merchant} {amount} - insufficient available credit",
+    # Not a pack key: the pack's ``posting_date_style`` spelling of the pinned
+    # ``as_of_date`` (``_bank_packs`` fills it in per pack).
+    "posting_date": BANK_POSTING_DATE,
+}
+
+
+@functools.lru_cache(maxsize=1)
+def _bank_packs() -> tuple[tuple[frozenset, dict], ...]:
+    """``(account holders, ledger wording)`` for every bank content pack that
+    restates its accounts and translates the payment rows (german, mandarin).
+
+    The holders identify a pack from a state: the translated packs name the
+    seeded businesses in their own language ("Cardinal Freight GmbH",
+    "Cardinal 货运有限公司"), while the noise packs append to the English ones.
+    """
+    from open_apps import config_dir
+    from open_apps.apps.openbanking_app import statements
+
+    packs = []
+    for path in sorted((config_dir() / "apps" / "openbanking" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        accounts = pack.get("accounts") or []
+        wording = {k: str(pack[k]) for k in _BANK_ENGLISH_WORDING if pack.get(k) is not None}
+        if not accounts or not wording or wording == _BANK_ENGLISH_WORDING:
+            continue
+        wording["posting_date"] = statements.format_posting_date(
+            date.fromisoformat(FILES_TODAY), str(pack.get("posting_date_style") or "en")
+        )
+        packs.append((frozenset(str(a.holder) for a in accounts), wording))
+    return tuple(packs)
+
+
+def _bank_wording(bank: dict) -> dict:
+    """The payment-row wording of the bank pack ``bank`` (an
+    ``/openbanking_all`` slice) was seeded from; English when no translated
+    pack's account holders are all present."""
+    holders = {str(a.get("holder")) for a in bank.get("accounts") or []}
+    for pack_holders, wording in _bank_packs():
+        if pack_holders <= holders:
+            return {**_BANK_ENGLISH_WORDING, **wording}
+    return dict(_BANK_ENGLISH_WORDING)
+
+
+def _worded(value: str, key: str, wording: dict) -> str:
+    """``value``, unless it is the English default for ``key`` -- then the
+    bank pack's own wording, so a task config written in English scores a
+    run on the german/mandarin bank. An explicit override is left alone."""
+    return wording[key] if value == _BANK_ENGLISH_WORDING[key] else value
+
+
 @dataclass
 class BuyWithCardTask(Task):
     """Cross-app task: buy ``sku`` in the shop, paying with a bank card.
@@ -1518,7 +1609,10 @@ class BuyWithCardTask(Task):
 
     ``descriptor`` and ``charge_type`` mirror ``apps.onlineshop.card_descriptor``
     and ``apps.openbanking.purchase_type``; a run that overrides either has to
-    override it here too, or the ledger row will not match.
+    override it here too, or the ledger row will not match. Left at their
+    English defaults, ``charge_type`` and the overlimit wording follow the
+    bank's content pack (german/mandarin, see ``_bank_wording``), so the same
+    task config scores a run in every language.
     """
 
     sku: str
@@ -1546,8 +1640,8 @@ class BuyWithCardTask(Task):
     # always going to approve.
     overlimit_grace: float = 10.0
     # Wording of that second row, mirroring ``overlimit_type`` and
-    # ``overlimit_description`` in the bank's content pack. A run on the
-    # german/mandarin packs has to override both.
+    # ``overlimit_description`` in the bank's content pack. At these English
+    # defaults the german/mandarin bank's wording is used (``_worded``).
     overlimit_type: str = "Fee"
     overlimit_description: str = "OVERLIMIT NOTICE - credit limit exceeded by {amount}"
     # The date the charge posts with, mirroring the bank's (see BANK_POSTING_DATE).
@@ -1574,6 +1668,7 @@ class BuyWithCardTask(Task):
         total = self.total
         options = dict(self.options or {})
         account = self._card_account(bank.get("accounts") or [])
+        wording = _bank_wording(bank)
 
         # Refuse to build a target for a charge the bank would decline. Past
         # the grace band `authorize_card_purchase` posts only a declined row
@@ -1641,9 +1736,9 @@ class BuyWithCardTask(Task):
                 "position": None,
                 # Posted at once, on the pinned day, with the card's running
                 # balance -- nothing in the bank is pending.
-                "date": self.posting_date,
+                "date": _worded(self.posting_date, "posting_date", wording),
                 "description": self.descriptor.format(order_id=order_id),
-                "type": self.charge_type,
+                "type": _worded(self.charge_type, "purchase_type", wording),
                 "amount": -total,
                 "balance": balance,
             }
@@ -1671,11 +1766,11 @@ class BuyWithCardTask(Task):
                     "id": None,
                     "account_id": account.get("id"),
                     "position": None,
-                    "date": self.posting_date,
-                    "description": self.overlimit_description.format(
-                        amount=_fmt_money(over_by)
-                    ),
-                    "type": self.overlimit_type,
+                    "date": _worded(self.posting_date, "posting_date", wording),
+                    "description": _worded(
+                        self.overlimit_description, "overlimit_description", wording
+                    ).format(amount=_fmt_money(over_by)),
+                    "type": _worded(self.overlimit_type, "overlimit_type", wording),
                     "amount": 0.0,
                     "balance": balance,
                 }
@@ -1743,8 +1838,8 @@ class DeclinedCardPurchaseTask(Task):
     overlimit_grace: float = 10.0
     # The declined row, mirroring `declined_type` / `declined_description` in
     # the bank's content pack and the shop's `card_descriptor` with the order
-    # id dropped. A run on the german/mandarin packs has to override the two
-    # strings, the same as BuyWithCardTask's overlimit wording.
+    # id dropped. At these English defaults the german/mandarin bank's wording
+    # is used, the same as BuyWithCardTask's overlimit wording (`_worded`).
     merchant: str = "OPENAPPS SHOP"
     declined_type: str = "Declined"
     declined_description: str = "DECLINED - {merchant} {amount} - insufficient available credit"
@@ -1788,6 +1883,7 @@ class DeclinedCardPurchaseTask(Task):
         total = self.total
         options = dict(self.options or {})
         account = self._card_account(bank.get("accounts") or [])
+        wording = _bank_wording(bank)
 
         # Refuse to build a target for a charge the bank would actually take.
         # Inside the grace band the purchase goes through and this target --
@@ -1833,11 +1929,11 @@ class DeclinedCardPurchaseTask(Task):
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
-                "date": self.posting_date,
-                "description": self.declined_description.format(
-                    merchant=self.merchant, amount=_fmt_money(total)
-                ),
-                "type": self.declined_type,
+                "date": _worded(self.posting_date, "posting_date", wording),
+                "description": _worded(
+                    self.declined_description, "declined_description", wording
+                ).format(merchant=self.merchant, amount=_fmt_money(total)),
+                "type": _worded(self.declined_type, "declined_type", wording),
                 "amount": 0.0,
                 # No money moved: the card's balance as it stood.
                 "balance": round(float(account.get("present_balance") or 0.0), 2),

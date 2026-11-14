@@ -18,6 +18,64 @@ style:
       invitees: 'Event invitees'
       location: 'Event location'
 
+# UI strings (the openbanking pattern): flat keys, English here, overridden by
+# german.yaml / mandarin.yaml. The app falls back to this same English text
+# for any key a pack leaves out. "Return to List of Apps" and "Close" are
+# shared by every app and live in open_apps/i18n.py instead.
+# "< Prev", "Next >", "Add Event", "Calendar" and "Agenda" are named by tasks
+# and UI questions, so the English must stay exactly as written.
+add_event_label: "Add Event"
+prev_label: "< Prev"
+next_label: "Next >"
+prev_title: "Previous month"
+next_title: "Next month"
+today_label: "Today"
+# Tooltip on "Today": {weekday}, {month}, {day}.
+today_title_format: "{weekday}, {month} {day}"
+calendar_view_label: "Calendar"
+agenda_view_label: "Agenda"
+view_group_label: "View"
+# Heading above the grid: {month} (from month_names) and {year}.
+month_year_format: "{month} {year}"
+# Agenda day header beside the day number: {month} (month_abbr), {weekday} (day_abbr).
+agenda_date_format: "{month}, {weekday}"
+all_day_label: "All day"
+agenda_empty_title: "No events in {month_year}"
+agenda_empty_hint: "Use Add Event to schedule one, or Next > to look ahead."
+date_label: "Date"
+location_label: "Location"
+recurring_label: "Recurring"
+event_link_label: "Event Link"
+delete_event_label: "Delete Event"
+back_to_calendar_label: "Back to Calendar"
+create_event_page_title: "Creating a new event"
+create_event_heading: "Create New Event"
+title_field_label: "Title"
+date_field_label: "Date"
+description_field_label: "Description"
+url_field_label: "URL"
+invitees_field_label: "Invitees"
+location_field_label: "Location"
+recurring_field_label: "Recurring"
+submit_label: "Submit"
+recurrence_options:
+  none: "Not Recurring"
+  weekly: "Weekly"
+  monthly: "Monthly"
+  yearly: "Yearly"
+# The error banner: the redirect URL carries the English message, mapped here.
+error_messages:
+  "Failed to delete event": "Failed to delete event"
+  "No content provided": "No content provided"
+  "Invalid date format": "Invalid date format"
+  "Failed to process form": "Failed to process form"
+# Month and weekday names (weeks start on Monday). Lists of exactly 12 / 7.
+month_names: [January, February, March, April, May, June, July, August, September, October, November, December]
+month_abbr: [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+day_names: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
+day_abbr: [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
+day_initials: [M, T, W, T, F, S, S]
+
 events:
   - title: WACV 2026 Abstract Deadline
     date: 2025-07-11

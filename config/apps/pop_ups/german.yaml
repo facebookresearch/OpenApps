@@ -1,5 +1,11 @@
 pop_up1:
-  title: ${apps.start_page.headline}
+  # The pop-up's language: the start page renders any text the pack leaves
+  # out (the default title and button) in it, whatever the start page speaks.
+  content_language: german
+  # Spelled out rather than borrowed from the start page's headline: with
+  # `apps/pop_ups=german` alone the start page is still English, and the
+  # pop-up would arrive half-translated.
+  title: "Willkommen bei den OpenApps!"
   content: |
     Zusammen bilden diese sechs Apps ein leistungsstarkes Werkzeug, das Ihnen hilft, Ihren Alltag, Ihre Arbeit und Ihre Kommunikation zu verwalten. Die To-Do-Liste und der Kalender halten Sie organisiert und im Zeitplan, damit Sie keine Aufgabe oder keinen Termin verpassen. Der Kartendienst hilft Ihnen bei der Navigation in Ihrer Umgebung, bietet Wegbeschreibungen und Echtzeit-Updates, damit Sie Ihre Ziele effizient erreichen können. Für Programmierer vereinfacht der Code-Editor Ihren Entwicklungsprozess mit hilfreichen Funktionen und Integrationen und macht es einfacher, Ihre Ideen zum Leben zu erwecken. Der Online-Shop bietet eine bequeme Möglichkeit, Produkte oder Dienstleistungen von überall zu durchsuchen und zu kaufen, was Zeit und Mühe spart. Und schließlich hält Sie der Instant Messenger mit Freunden, Familie und Kollegen in Verbindung und ermöglicht Kommunikation und Zusammenarbeit in Echtzeit. Durch die gemeinsame Nutzung dieser Apps können Sie Ihre Produktivität steigern, organisiert bleiben und einen vernetzteren und effizienteren Lebensstil genießen.
   button_title: "Verstanden! Es kann los gehen!"

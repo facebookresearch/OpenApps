@@ -17,11 +17,12 @@ from urllib.parse import quote
 from fastlite import NotFoundError
 from starlette.responses import RedirectResponse
 
+from open_apps import i18n
 from open_apps.apps.contacts_app import main as contacts_app
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.handles import format_handle, handle_kind, normalize_handle
-from open_apps.theme import theme_style
+from open_apps.theme import theme_asset, theme_style
 
 
 @dataclass
@@ -49,10 +50,16 @@ class Thread:
 _groups: dict[str, dict] = {}
 
 # Fixed replies, keyed by handle. Everyone else answers at random, as before.
+# A content pack may override both (`fixed_replies`, `bot_replies`) in its own
+# language; the reply is never part of a task's target state
+# (`AppStateComparison` drops one auto-reply per sent message), so
+# translating it cannot move a reward.
 FIXED_REPLIES = {
     "+15550100002": "Yes, let's play on Saturday!",  # Bob
     "+15550100001": "Yes, I want to play badminton!",  # Alice
 }
+
+BOT_REPLIES = ["I'm a bot!", "I'm a human!", "What's up?", "The stock market is crazy today!"]
 
 logo_title_container = None
 
@@ -182,7 +189,7 @@ _base_chat_script = (
             
             // Get the sender name from the chat-header
             const headerText = chatMessage.querySelector('.chat-header').textContent;
-            const sender = isUser ? 'You' : headerText.trim();
+            const sender = isUser ? (window.msgI18n || {}).you || 'You' : headerText.trim();
             
             // Include the timestamp in search results (now with date)
             const timestamp = chatMessage.querySelector('.chat-footer').textContent;
@@ -223,8 +230,16 @@ _base_chat_script = (
         });
         
         // The rest of the function remains the same
-        document.getElementById('search-results').textContent = 
-            matchCount > 0 ? `${matchCount} result${matchCount !== 1 ? 's' : ''} for "${searchTerm}"` : `No results for "${searchTerm}"`;
+        // Localized templates come from the page (`i18n_script`); the
+        // English ones are the fallback.
+        const t = window.msgI18n || {};
+        const template = matchCount === 0
+            ? (t.results_none || 'No results for "{q}"')
+            : matchCount === 1
+                ? (t.results_one || '{n} result for "{q}"')
+                : (t.results_many || '{n} results for "{q}"');
+        document.getElementById('search-results').textContent =
+            template.replace('{n}', matchCount).replace('{q}', searchTerm);
         
         const searchResultsContainer = document.getElementById('search-results-container');
         searchResultsContainer.innerHTML = '';
@@ -323,8 +338,62 @@ app = FastHTML(hdrs=_base_hdrs, cls=_DEFAULT_BODY_CLS, default_hdrs=False)
 # elements and would otherwise win.
 _COMPONENT_STYLES = Style(
     """
+    /* Page frame. Pico (`:where(:root)`) and daisyUI (`:root, [data-theme]`)
+       both paint the root element from their own palettes, and the body is a
+       `max-w-lg` column, so a dark theme used to sit in a white page.
+       `html:root` out-ranks both. */
+    html:root {
+        background-color: var(--color-bg);
+        color: var(--color-fg);
+        /* daisyUI 4 reads every base/brand colour as
+           `var(--fallback-XX, oklch(var(--XX)))`, so defining the fallbacks
+           routes all of them -- bg-base-*, text-base-content, btn, input --
+           to the theme tokens, in any CSS colour format. Without this daisyUI
+           also followed the OS dark preference on its own. */
+        --fallback-b1: var(--color-bg);
+        --fallback-b2: var(--color-surface);
+        --fallback-b3: color-mix(in srgb, var(--color-fg) 10%, var(--color-bg));
+        --fallback-bc: var(--color-fg);
+        --fallback-p: var(--color-primary);
+        --fallback-pc: var(--color-on-primary);
+        --fallback-s: var(--color-accent);
+        --fallback-sc: var(--color-bg);
+        --fallback-a: var(--color-accent);
+        --fallback-ac: var(--color-bg);
+        --fallback-n: var(--color-neutral);
+        --fallback-nc: var(--color-btn-fg);
+        --fallback-er: var(--color-danger);
+        --fallback-erc: var(--color-bg);
+    }
+    /* Pico's variables, bridged onto the tokens (as todo and the shop do). On
+       <body>: Pico declares them on `:root:not([data-theme=dark])`, which
+       out-ranks `:root`, while a value on <body> shadows it for everything
+       inside. */
     body {
         background-color: var(--color-bg);
+        color: var(--color-fg);
+        --pico-background-color: var(--color-bg);
+        --pico-color: var(--color-fg);
+        --pico-muted-color: var(--color-muted);
+        --pico-muted-border-color: var(--color-border);
+        --pico-h1-color: var(--color-fg);
+        --pico-h2-color: var(--color-fg);
+        --pico-h3-color: var(--color-fg);
+        --pico-font-family: var(--font-family);
+        --pico-border-radius: var(--radius);
+        --pico-primary: var(--color-primary);
+        --pico-primary-background: var(--color-primary);
+        --pico-primary-border: var(--color-primary);
+        --pico-primary-inverse: var(--color-on-primary);
+        --pico-primary-focus: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-form-element-background-color: var(--color-bg);
+        --pico-form-element-border-color: var(--color-border);
+        --pico-form-element-color: var(--color-fg);
+        --pico-form-element-placeholder-color: var(--color-muted);
+        --pico-form-element-active-background-color: var(--color-bg);
+        --pico-form-element-active-border-color: var(--color-primary);
+        --pico-form-element-focus-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-card-background-color: var(--color-surface);
     }
     /* Global text styling */
     h1, h2, h3, p, div {
@@ -436,6 +505,67 @@ def messenger_theme():
     return theme_style(app.config, "messenger")
 
 
+# ---- UI language -------------------------------------------------------
+# UI strings live in the content packs as flat `*_label` keys (the openbanking
+# pattern): English in `content/default.yaml`, overridden by `german.yaml` /
+# `mandarin.yaml`, with the English text as the fallback here so a pack that
+# predates a key still renders the reference page. Shared strings ("Return to
+# List of Apps", "Search") come from `open_apps.i18n`. Stored messages and
+# timestamps are never rewritten -- only how they are displayed -- so
+# `/messages_all` and every reward see the same state in every language.
+
+
+def _content():
+    config = getattr(app, "config", None)
+    return config.messenger if config is not None else None
+
+
+def language() -> str:
+    return i18n.language_of(_content())
+
+
+def L(key: str, default: str) -> str:
+    """This app's UI string `key` in the active pack's language."""
+    return i18n.label(_content(), key, default)
+
+
+def shared(key: str) -> str:
+    return i18n.t(key, language())
+
+
+def _pack_value(key):
+    cfg = _content()
+    return cfg.get(key) if cfg is not None and hasattr(cfg, "get") else None
+
+
+def i18n_script():
+    """The search script's strings (it runs in the browser, so it cannot
+    call `L`). English fallbacks live in the script itself."""
+    strings = {
+        "you": L("you_label", "You"),
+        "results_none": L("search_no_results_label", 'No results for "{q}"'),
+        "results_one": L("search_one_result_label", '{n} result for "{q}"'),
+        "results_many": L("search_results_label", '{n} results for "{q}"'),
+    }
+    return Script(f"window.msgI18n = {json.dumps(strings, ensure_ascii=False)};")
+
+
+def _html_attrs(req):
+    """`<html lang>` from the pack and `data-theme` from the theme's tone, per
+    request. `data-theme` pins both Pico and daisyUI to the theme's palette
+    rather than the OS's `prefers-color-scheme`; the bridges in
+    `_COMPONENT_STYLES` then map their colours onto the tokens."""
+    config = getattr(app, "config", None)
+    if config is None:
+        return
+    req.htmlkw["lang"] = i18n.html_lang(language())
+    tone = theme_asset(config, "messenger", "tone", "light")
+    req.htmlkw["data-theme"] = "dark" if tone == "dark" else "light"
+
+
+app.before.append(_html_attrs)
+
+
 def populate_database(config, db):
     """Seed the threads (and group metadata) from the content pack.
 
@@ -505,13 +635,40 @@ def _parse_timestamp(timestamp):
     return month.title(), int(day), int(hour), minute, meridiem.upper()
 
 
+_MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _time_fields(parsed):
+    """The format fields a pack's `time_format` / `date_format` can use.
+
+    `month` is the pack's `month_abbr` entry for the stored English
+    abbreviation; `hour` is 12-hour and `hour24` zero-padded 24-hour;
+    `meridiem` is the pack's `meridiem_labels` entry for AM/PM."""
+    month, day, hour, minute, meridiem = parsed
+    names = _pack_value("month_abbr")
+    if month in _MONTH_ABBR and names is not None and len(names) == 12:
+        month = str(names[_MONTH_ABBR.index(month)])
+    hour24 = hour % 12 + (12 if meridiem == "PM" else 0)
+    labels = _pack_value("meridiem_labels")
+    shown = labels.get(meridiem) if labels is not None and hasattr(labels, "get") else None
+    return {
+        "month": month,
+        "day": day,
+        "hour": hour,
+        "hour24": f"{hour24:02d}",
+        "minute": minute,
+        "meridiem": str(shown) if shown else meridiem,
+    }
+
+
 def display_time(timestamp):
-    """One consistent in-thread format: "Sep 17, 9:32 AM"."""
+    """One consistent in-thread format: "Sep 17, 9:32 AM" (or the pack's)."""
     parsed = _parse_timestamp(timestamp)
     if parsed is None:
         return timestamp or ""
-    month, day, hour, minute, meridiem = parsed
-    return f"{month} {day}, {hour}:{minute} {meridiem}"
+    return L("time_format", "{month} {day}, {hour}:{minute} {meridiem}").format(
+        **_time_fields(parsed)
+    )
 
 
 def short_date(timestamp):
@@ -523,8 +680,7 @@ def short_date(timestamp):
     parsed = _parse_timestamp(timestamp)
     if parsed is None:
         return timestamp or ""
-    month, day, *_ = parsed
-    return f"{month} {day}"
+    return L("date_format", "{month} {day}").format(**_time_fields(parsed))
 
 
 def is_group_chat(key):
@@ -537,7 +693,9 @@ def person_name(handle):
     labels a stranger. Falls back to formatting alone when the Contacts app
     has not been set up (the messenger served on its own)."""
     if handle == "you":
-        return "you"
+        # Lower-case: the label sits in the DOM (visually hidden) above each
+        # of your own bubbles, where it always read "you".
+        return L("you_sender_label", "you")
     if contacts_app.contacts is not None:
         return contacts_app.contact_name(handle)
     value = normalize_handle(handle)
@@ -566,7 +724,7 @@ def contact_link(label, contact, cls, testid):
         label,
         href=f"/contacts/{contact.id}",
         cls=cls,
-        aria_label=f"View contact: {label}",
+        aria_label=L("view_contact_label", "View contact: {name}").format(name=label),
         data_testid=testid,
     )
 
@@ -707,7 +865,7 @@ def ChatInput():
     return Input(
         name="msg",
         id="msg-input",
-        placeholder="Type a message",
+        placeholder=L("type_message_label", "Type a message"),
         cls="input msg-compose-input",
         hx_swap_oob="true",
     )
@@ -721,14 +879,14 @@ def SearchBar():
         Div(cls="msg-search-row")(
             Input(
                 id="search-input",
-                placeholder="Search messages...",
+                placeholder=L("search_messages_label", "Search messages..."),
                 cls="input msg-search-input",
                 onkeyup="searchMessages()"
             ),
             Button(
                 I(cls="fas fa-times", aria_hidden="true"),
                 cls="msg-icon-btn",
-                aria_label="Clear search",
+                aria_label=L("clear_search_label", "Clear search"),
                 onclick="clearSearch()",
                 type="button"
             )
@@ -1369,7 +1527,7 @@ def conversation_list(selected: str = None):
             
             # Add prefix to the last message
             if last_sender == "you":
-                message_preview = f"You: {last_message}"
+                message_preview = L("you_prefix_label", "You: {message}").format(message=last_message)
             elif is_group_chat(history.handle):
                 message_preview = f"{person_name(last_sender)}: {last_message}"
             else:
@@ -1384,7 +1542,7 @@ def conversation_list(selected: str = None):
         else:
             chats.append({
                 "key": history.handle,
-                "last_message": "No messages yet",
+                "last_message": L("no_messages_label", "No messages yet"),
                 "last_timestamp": "",
                 "members": [],
             })
@@ -1432,11 +1590,11 @@ def list_pane(selected: str = None):
     # A landmark, so the conversation list is reachable as a region of its
     # own rather than as anonymous divs beside the thread.
     return Nav(
-        H2("Chats", cls="msg-list-heading"),
+        H2(L("chats_label", "Chats"), cls="msg-list-heading"),
         Div(conversation_list(selected=selected), cls="msg-list-scroll"),
         return_to_apps_link(),
         cls="msg-list-pane",
-        aria_label="Conversations",
+        aria_label=L("conversations_label", "Conversations"),
     )
 
 
@@ -1450,14 +1608,14 @@ def return_to_apps_link():
     """
     if current_layout() == "default":
         return A(
-            "Return to List of Apps",
+            shared("return_to_apps"),
             href="/",
             role="button",
             cls="msg-apps-link is-prominent",
         )
     return A(
         I(cls="fas fa-chevron-left", aria_hidden="true"),
-        "Return to List of Apps",
+        shared("return_to_apps"),
         href="/",
         role="button",
         cls="msg-apps-link",
@@ -1478,7 +1636,10 @@ def index():
                 Div(
                     Div(
                         I(cls="far fa-comments msg-empty-icon", aria_hidden="true"),
-                        P("Select a conversation to start messaging", cls="msg-empty-text"),
+                        P(
+                            L("select_conversation_label", "Select a conversation to start messaging"),
+                            cls="msg-empty-text",
+                        ),
                         cls="msg-empty",
                     ),
                     cls="msg-thread-pane msg-empty-pane",
@@ -1500,6 +1661,7 @@ def index():
     # wrapper class is needed here.
     return Div(
         messenger_theme(),
+        i18n_script(),
         _LAYOUT_STYLES,
         logo_title_container,
         page,
@@ -1547,10 +1709,10 @@ def unknown_sender_banner(key):
         return None
     field = "email" if handle_kind(key) == "email" else "phone"
     return Div(
-        P("Not in your contacts"),
+        P(L("not_in_contacts_label", "Not in your contacts")),
         A(
             I(cls="fas fa-user-plus", aria_hidden="true"),
-            "Add to contacts",
+            L("add_to_contacts_label", "Add to contacts"),
             href=f"/contacts/new?{field}={quote(key, safe='')}",
             data_testid="add-to-contacts",
         ),
@@ -1590,7 +1752,7 @@ def index(key: str):
                     I(cls="fas fa-arrow-left", aria_hidden="true"),
                     href="/messages",
                     cls="thread-back msg-icon-btn",
-                    aria_label="Back",
+                    aria_label=L("back_label", "Back"),
                 ),
                 Avatar(title, members if group else None, size="header"),
                 Div(cls="msg-thread-name")(
@@ -1604,7 +1766,7 @@ def index(key: str):
                 id="search-toggle",
                 cls="msg-icon-btn",
                 type="button",
-                aria_label="Search",
+                aria_label=shared("search"),
             ),
         ),
         unknown_sender_banner(key),
@@ -1637,7 +1799,7 @@ def index(key: str):
                     I(cls="fas fa-paper-plane", aria_hidden="true"),
                     cls="msg-send",
                     type="submit",
-                    aria_label="Send",
+                    aria_label=L("send_label", "Send"),
                 ),
                 Hidden(key, name="interlocutor"),
                 cls="msg-composer-row",
@@ -1671,6 +1833,7 @@ def index(key: str):
 
     return Div(
         messenger_theme(),
+        i18n_script(),
         _LAYOUT_STYLES,
         logo_title_container,
         body,
@@ -1715,9 +1878,11 @@ def send(msg: str, interlocutor: str, messages: list[str] = None):
     continues_run = bool(previous) and previous[-1] == "you"
     add_new_message_to_history(interlocutor, msg.rstrip(), "you", current_time)
 
-    r = FIXED_REPLIES.get(interlocutor) or random.choice(
-        ["I'm a bot!", "I'm a human!", "What's up?", "The stock market is crazy today!"]
-    )
+    fixed = _pack_value("fixed_replies")
+    fixed = dict(fixed) if fixed is not None else FIXED_REPLIES
+    replies = _pack_value("bot_replies")
+    replies = [str(r) for r in replies] if replies else BOT_REPLIES
+    r = fixed.get(interlocutor) or random.choice(replies)
     # A group answers from one of its members (senders are always handles).
     if is_group_chat(interlocutor):
         members = _groups.get(interlocutor, {}).get("members") or group_members(previous)

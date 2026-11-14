@@ -264,3 +264,193 @@ def test_every_content_pack_titles_every_app(pack):
     apps = config.apps.start_page.apps
     missing = [key for key in apps if not apps[key].get("title")]
     assert not missing, f"{pack} has no title for {missing}"
+
+
+# --------------------------------------------------------------------------
+# The desktop shell under the theme and language axes
+# --------------------------------------------------------------------------
+
+
+def fetch(monkeypatch, *overrides, chrome="none"):
+    """GET / under ``overrides`` with the desktop layout (the default) and the
+    raw markup -- styles included, since the theme tokens are the point."""
+    desktop = not any(o.startswith("apps/start_page/layout=") and not o.endswith("=desktop")
+                      for o in overrides)
+    apps = compose_apps(
+        f"apps/chrome={chrome}",
+        # A Pillow pass writing a PNG; tests/test_shell_layout.py covers it.
+        *(["apps.start_page.desktop.wallpaper.enabled=False"] if desktop else []),
+        *overrides,
+    )
+    monkeypatch.setattr(start_page.app, "config", apps, raising=False)
+    start_page.reset_desktop_state(apps.start_page)
+    response = TestClient(start_page.app).get("/")
+    assert response.status_code == 200
+    return response.text
+
+
+def shell_tokens(markup):
+    """The token block inside #desktop-shell (the one a swap brings back)."""
+    shell = markup[markup.rindex("<div", 0, markup.index('id="desktop-shell"')) :]
+    # A theme with an import_url (challenging_font's webfonts) leads with it.
+    match = re.search(r"<style>(?:@import [^;]*;\s*)?:root \{(.*?)\}</style>", shell, flags=re.S)
+    assert match, "no token block in the shell"
+    return match.group(1)
+
+
+def test_desktop_without_a_theme_keeps_the_meta_pair(monkeypatch):
+    markup = fetch(monkeypatch)
+    assert "--color-bg: #ffffff;" in shell_tokens(markup)
+    assert "--color-accent-violet: #991df9;" in shell_tokens(markup)  # meta's own
+    start_page._desktop_state["mode"] = "dark"
+    dark = to_xml_shell()
+    assert "--color-bg: #1c2b33;" in shell_tokens(dark)  # meta_dark
+
+
+def to_xml_shell():
+    from fasthtml.common import to_xml
+
+    return to_xml(start_page.render_desktop_shell(start_page.app.config.start_page))
+
+
+@pytest.mark.parametrize(
+    "theme,expect",
+    [
+        ("dark", "--color-bg: #121212;"),
+        ("challenging_font", "--font-family: 'OpenApps Script'"),
+        ("solarized", "--color-bg: #fdf6e3;"),
+    ],
+)
+def test_desktop_honors_a_selected_theme(monkeypatch, theme, expect):
+    markup = fetch(monkeypatch, f"apps/theme={theme}")
+    tokens = shell_tokens(markup)
+    assert expect in tokens
+    # The toggle keeps its state (scoreable) but has no tokens of its own to
+    # swap under a selected theme.
+    start_page._desktop_state["mode"] = "dark"
+    assert expect in shell_tokens(to_xml_shell())
+    assert start_page._desktop_state["mode"] == "dark"
+
+
+def test_a_start_page_pin_also_wins(monkeypatch):
+    markup = fetch(monkeypatch, "apps.start_page.theme=mono")
+    assert "--radius: 0px;" in shell_tokens(markup)
+
+
+def test_every_theme_defines_the_shell_accents(monkeypatch):
+    """The phone home screen tints icons with these; an undefined var() would
+    drop the tint silently."""
+    accents = compose_apps().start_page.desktop.accents
+    for theme in sorted(p.stem for p in (CONFIG_DIR / "apps" / "theme").glob("*.yaml")):
+        tokens = shell_tokens(fetch(monkeypatch, f"apps/theme={theme}"))
+        for name in set(accents.values()):
+            assert f"--{name}:" in tokens, (theme, name)
+
+
+@pytest.mark.parametrize("theme,scheme", [("dark", "dark"), ("default", "light"), ("mono", "light")])
+def test_pico_palette_follows_the_tone(monkeypatch, theme, scheme):
+    markup = fetch(monkeypatch, f"apps/theme={theme}")
+    assert re.search(rf'<html lang="en" data-theme="{scheme}"', markup)
+    shell_tag = re.search(r'<div[^>]*id="desktop-shell"[^>]*>', markup).group(0)
+    assert f'data-theme="{scheme}"' in shell_tag
+
+
+def test_dark_tone_gets_the_night_wallpaper(monkeypatch):
+    apps = compose_apps("apps/chrome=none", "apps/theme=dark")
+    monkeypatch.setattr(start_page.app, "config", apps, raising=False)
+    start_page.reset_desktop_state(apps.start_page)
+    assert "desktop-meta-hills-0-dark.png" in to_xml_shell()
+
+
+@pytest.mark.parametrize(
+    "content,lang,strings",
+    [
+        (
+            "default",
+            "en",
+            ["Desktop toolbar", "Switch to dark mode", "Open app launcher",
+             "An open source environment for digital agents"],
+        ),
+        (
+            "german",
+            "de",
+            ["Schreibtisch-Werkzeugleiste", "Zum dunklen Modus wechseln", "App-Starter öffnen",
+             "Eine Open-Source-Umgebung für digitale Agenten", "Zu Fahrenheit wechseln"],
+        ),
+        (
+            "mandarin",
+            "zh-Hans",
+            ["桌面工具栏", "切换到深色模式", "打开应用启动器", "面向数字智能体的开源环境"],
+        ),
+    ],
+)
+def test_desktop_speaks_the_start_page_language(monkeypatch, content, lang, strings):
+    markup = fetch(monkeypatch, f"apps/start_page/content={content}")
+    assert re.search(rf'<html lang="{lang}"', markup)
+    for text in strings:
+        assert text in markup, text
+
+
+def test_launcher_pins_are_localized_but_keep_their_ids(monkeypatch):
+    fetch(monkeypatch, "apps/start_page/content=german")
+    start_page._desktop_state["launcher_open"] = True
+    markup = to_xml_shell()
+    assert "Aufgabenliste an den Schreibtisch anheften" in markup or (
+        "Aufgabenliste vom Schreibtisch lösen" in markup
+    )
+    assert 'data-testid="pin-todo"' in markup and 'hx-post="/desktop/pin/todo"' in markup
+
+
+def test_desktop_headline_override_still_wins(monkeypatch):
+    markup = fetch(monkeypatch, "apps/start_page/content=german",
+                   "apps.start_page.desktop.headline=Hallo")
+    assert ">Hallo<" in markup
+
+
+@pytest.mark.parametrize("layout", ["desktop", "gallery"])
+@pytest.mark.parametrize(
+    "pop_ups,title,button",
+    [
+        ("german", "Willkommen bei den OpenApps!", "Verstanden! Es kann los gehen!"),
+        ("mandarin", "欢迎使用 OpenApps！", "明白了！开始吧！"),
+        ("adversarial_descriptions", "Welcome to OpenApps!", "care, let"),
+    ],
+)
+def test_pop_ups_open_on_every_layout(monkeypatch, layout, pop_ups, title, button):
+    markup = fetch(monkeypatch, f"apps/pop_ups={pop_ups}", f"apps/start_page/layout={layout}")
+    assert 'id="welcome-modal-pop_up1"' in markup
+    modal = markup[markup.index('id="welcome-modal-pop_up1"') - 300 :]
+    assert title in modal and button in modal
+    if layout == "desktop":
+        # Outside the swappable shell, so a shell control cannot re-open it.
+        assert markup.index('id="welcome-modal-pop_up1"') < markup.index('id="desktop-shell"')
+
+
+def test_no_pop_ups_by_default(monkeypatch):
+    assert "welcome-modal" not in re.sub(r"<(style|script)\b.*?</\1>", "", fetch(monkeypatch), flags=re.S)
+
+
+def test_gallery_footer_and_german_pack_spelling(monkeypatch):
+    english = render(monkeypatch)
+    assert ">main-page<" in english
+    german = render(monkeypatch, "apps/start_page/content=german")
+    assert ">Startseite<" in german
+    assert "Kalender" in german and "Kalendar" not in german
+    assert "Versandhändler<" in german
+    assert re.search(r'<html lang="de"', TestClient(start_page.app).get("/").text)
+
+
+def test_challenging_font_serves_its_bundled_faces(monkeypatch):
+    """The @font-face sheet is linked from every page under the theme and
+    served by the app itself, woff2 files included -- no network needed."""
+    markup = fetch(monkeypatch, "apps/theme=challenging_font")
+    href = "/assets/webfonts/challenging_font/fonts.css"
+    assert f'<link rel="stylesheet" href="{href}">' in markup
+    client = TestClient(start_page.app)
+    css = client.get(href)
+    assert css.status_code == 200 and "font-family: 'OpenApps Script'" in css.text
+    for src in re.findall(r"url\('([^']+)'\)", css.text):
+        font = client.get(f"/assets/webfonts/challenging_font/{src}")
+        assert font.status_code == 200 and len(font.content) > 10_000, src
+    # Not linked under any other theme.
+    assert "challenging_font/fonts.css" not in fetch(monkeypatch, "apps/theme=dark")

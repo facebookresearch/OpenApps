@@ -1,0 +1,6 @@
+# @package apps.todo
+# Structure only -- colors/fonts come from the shared theme. Splits the list
+# into an "Open" and a "Completed" section, one line per item with the actions
+# at the right edge; ticking an item moves it to the other section. Select
+# with `apps/todo/layout=grouped_sections`.
+layout: grouped_sections
