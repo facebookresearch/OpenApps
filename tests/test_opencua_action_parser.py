@@ -107,9 +107,22 @@ def test_unfenced_code_lines_are_accepted(cua):
     assert cua.parse(reply, DESKTOP)["action"] == "mouse_click(x=960, y=540)"
 
 
-def test_the_last_code_block_wins(cua):
-    reply = _reply("pyautogui.click(x=0.1, y=0.1)") + "\n```python\npyautogui.click(x=0.5, y=0.5)\n```"
+def test_the_first_code_block_is_the_action(cua):
+    reply = _reply("pyautogui.click(x=0.5, y=0.5)") + "\n```python\npyautogui.click(x=0.1, y=0.1)\n```"
     assert cua.parse(reply, DESKTOP)["action"] == "mouse_click(x=960, y=540)"
+
+
+def test_a_runaway_reply_without_step_headers_is_cut_at_the_next_thought(cua):
+    # Seen in a smoke run: the code, the L2 sections again, then the next step.
+    reply = (
+        "## Thought:\nThe field is active. I should type.\n"
+        "```python\npyautogui.write(message=\"Let's meet\")\n```\n"
+        "## Action:\nType it.\n## Code:\n```python\npyautogui.write(message=\"Let's meet\")\n```\n"
+        "## Thought:\nNow send it.\n```python\npyautogui.click(x=1243, y=977)\n```"
+    )
+    out = cua.parse(reply, DESKTOP)
+    assert out["action"] == "keyboard_type(text=\"Let's meet\")"
+    assert out["think"] == "The field is active. I should type."
 
 
 def test_only_the_first_step_of_a_runaway_reply_counts(cua):

@@ -20,17 +20,19 @@ maps onto one action and anything else is a ParseError.
 
 Only the first step of a reply counts. Given its history as text in the user
 message rather than as earlier turns, OpenCUA sometimes writes the next step
-and goes on to imagine further ones ("# Step 3", "# Step 4", ...); the reply
-is cut at the second step header.
+and goes on to imagine further ones ("# Step 3", or just another "## Thought:"
+after the code); the reply is cut at the first such header after some code,
+and the first code block is the action.
 
 Coordinates: absolute pixels on the screenshot as the Qwen2.5-VL processor
 resizes it (``smart_resize``: multiples of 28 px per side, 1920x1080 ->
 1932x1092), as xlang-ai/OSWorld's ``qwen25`` coordinate type reads them, and
-unlike Fara-7B (see fara.py). Measured on synthetic targets served by vLLM:
-at 1920x1080, 1946x1050, 1440x900, 1280x800 and 2560x1440, clicks read as
-resized-image pixels were off by ~3-8 px and read as viewport pixels by
-~9-16 px, for OpenCUA-7B and -32B alike (at 390x844 the two readings differ
-by under 3 px). So ``rescale`` scales each axis by viewport / resized size.
+unlike Fara-7B (see fara.py). Measured on synthetic targets served by vLLM
+(mean click error, read as resized-image pixels vs as viewport pixels):
+OpenCUA-7B 6-8 vs 10 px at 1920x1080, 3-6 vs 9-15 px at 1946x1050, 1440x900,
+1280x800 and 2560x1440; OpenCUA-32B 5-7 vs 9-13 px at those four, 6-7 vs
+6-8 px at 1920x1080. At 390x844 the two readings differ by under 3 px. So
+``rescale`` scales each axis by viewport / resized size.
 A pair inside [0, 1] is relative, as OSWorld's projection treats it.
 
 The prompt lives in config/agent/OpenCUA-7B.yaml (and -32B).
@@ -48,7 +50,11 @@ from .base import ActionParser, ActionParserResult
 from .fara import _KEY_NAMES, smart_resize
 
 _CODE_BLOCK_RE = re.compile(r"```(?:code|python)?[ \t]*\n?(.*?)```", re.DOTALL | re.IGNORECASE)
-_STEP_HEADER_RE = re.compile(r"^[ \t]*#+[ \t]*Step\b[^\n]*$", re.MULTILINE | re.IGNORECASE)
+# Headers that start a new step: "# Step 3", "## Thought:", "Observation:".
+_STEP_HEADER_RE = re.compile(
+    r"^[ \t]*(?:#+[ \t]*Step\b[^\n]*|(?:#+[ \t]*)?(?:Observation|Thoughts?)[ \t]*:[^\n]*)$",
+    re.MULTILINE | re.IGNORECASE,
+)
 _CALL_LINE_RE = re.compile(r"^[ \t`]*(?:pyautogui|computer)\.", re.MULTILINE)
 # Section headers as OSWorld's parser reads them ("## Thought:"), plus the
 # bare "Thought:" the system prompt's format shows and the "### Thoughts:"
@@ -158,7 +164,7 @@ class OpenCUAActionParser(ActionParser):
 
     @staticmethod
     def _first_step(response: str) -> str:
-        """The reply up to its second "# Step N" header, if any."""
+        """The reply up to the first step header that follows some code."""
         headers = list(_STEP_HEADER_RE.finditer(response))
         for h in headers:
             # The first header that follows some code ends the step.
@@ -177,7 +183,7 @@ class OpenCUAActionParser(ActionParser):
     def _code(response: str) -> str:
         blocks = [b.strip() for b in _CODE_BLOCK_RE.findall(response) if b.strip()]
         if blocks:
-            return blocks[-1]
+            return blocks[0]
         # No fenced block (or an unclosed one): the agentnetbench fallback,
         # lines that start with a call.
         lines = [
