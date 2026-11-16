@@ -89,9 +89,25 @@ def test_thought_action_and_code_are_split(cua):
     )
     assert out["action"] == "mouse_click(x=960, y=540)"
     assert out["think"] == "The todo app is open."
-    assert out["displayed_action"] == (
-        'Click the "Add" button.\n```python\npyautogui.click(x=0.5, y=0.5)\n```'
+    # What the history replays: the Action line.
+    assert out["displayed_action"] == 'Click the "Add" button.'
+
+
+def test_without_an_action_line_the_history_shows_the_code(cua):
+    out = cua.parse("```python\npyautogui.click(x=0.5, y=0.5)\n```", DESKTOP)
+    assert out["displayed_action"] == "pyautogui.click(x=0.5, y=0.5)"
+
+
+def test_history_uses_opencuas_step_template(cua):
+    history = cua.render_history(["Open the todo app.", None], ["t1", None])
+    assert history == (
+        "\n# Step 1:\n## Action:\nOpen the todo app.\n"
+        "\n# Step 2:\n## Action:\n(no valid action)\n"
+        "\nPlease generate the next move according to the screenshot, task instruction "
+        "and previous steps (if provided).\n"
     )
+    assert "t1" not in history
+    assert cua.render_history([], []).strip().startswith("Please generate the next move")
 
 
 def test_bare_section_headers_and_code_fence(cua):
@@ -137,7 +153,7 @@ def test_only_the_first_step_of_a_runaway_reply_counts(cua):
     out = cua.parse(reply, DESKTOP)
     assert out["action"] == "keyboard_type(text='Call Mom')"
     assert out["think"] == "The field is focused."
-    assert out["displayed_action"] == "Type Call Mom.\n```python\npyautogui.write(message='Call Mom')\n```"
+    assert out["displayed_action"] == "Type Call Mom."
 
 
 def test_a_leading_step_header_is_kept(cua):
@@ -328,3 +344,11 @@ def test_agent_prompt_and_click_scaling(viewport, expected):
     assert system.startswith("You are a GUI agent.")
     assert "password" not in system
     assert action == "mouse_click(x={}, y={})".format(*expected)
+
+    # The next step's user message replays this one in OpenCUA's template.
+    agent.get_action(obs)
+    user = agent.chat_llm.messages[1]["content"]
+    text = "".join(part["text"] for part in user if part.get("type") == "text")
+    assert "# Step 1:\n## Action:\nDo the thing.\n" in text
+    assert "### Thoughts:" not in text
+    assert "Please generate the next move" in text

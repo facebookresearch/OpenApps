@@ -6,7 +6,8 @@
 # action_parsers/opencua.py.
 # OpenCUA was trained with the last three screenshots and earlier steps as
 # chat turns; here, as for every agent, the history is text in one user
-# message with the current screenshot.
+# message with the current screenshot, written in OpenCUA's own step template
+# (see action_parsers/opencua.py).
 # Serving: the tokenizer is remote code, and the one on the main branch fails
 # to load under Transformers v5; both checkpoints ship the same tokenizer
 # files, so load the OpenCUA-7B revision that fixes it (the one vLLM's own

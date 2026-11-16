@@ -24,6 +24,16 @@ and goes on to imagine further ones ("# Step 3", or just another "## Thought:"
 after the code); the reply is cut at the first such header after some code,
 and the first code block is the action.
 
+History: OpenCUA was trained with the last three screenshots and their steps
+as chat turns and older steps as text ("# Step N:" / "## Action:"), with a
+reflective Thought each turn. This harness sends one user message: the task,
+the earlier steps as text, the current screenshot. In the shared history
+format (each step's thought and action under "### Thoughts:" / "### Action:")
+OpenCUA copied that layout into its replies, often dropping the code and
+continuing into imagined steps, so ``render_history`` writes the earlier steps
+in OpenCUA's own text template (OSWorld's action_history: the Action line of
+each step) followed by its instruction line.
+
 Coordinates: absolute pixels on the screenshot as the Qwen2.5-VL processor
 resizes it (``smart_resize``: multiples of 28 px per side, 1920x1080 ->
 1932x1092), as xlang-ai/OSWorld's ``qwen25`` coordinate type reads them, and
@@ -67,6 +77,14 @@ _SECTION_RE = (
 )
 _THOUGHT_RE = re.compile(_SECTION_RE.format(name="Thought"), re.DOTALL | re.MULTILINE | re.IGNORECASE)
 _ACTION_RE = re.compile(_SECTION_RE.format(name="Action"), re.DOTALL | re.MULTILINE | re.IGNORECASE)
+
+# xlang-ai/OSWorld's OpenCUA prompt templates (STEP_TEMPLATE,
+# ACTION_HISTORY_TEMPLATE, INSTRUTION_TEMPLATE's closing line).
+_STEP_TEMPLATE = "# Step {n}:\n## Action:\n{action}\n"
+_NEXT_MOVE = (
+    "Please generate the next move according to the screenshot, task instruction "
+    "and previous steps (if provided).\n"
+)
 
 # One pyautogui.scroll click, in pixels: Chrome scrolls about this much per
 # wheel notch on Linux, where OpenCUA's OSWorld runs execute its code.
@@ -145,6 +163,13 @@ class OpenCUAActionParser(ActionParser):
             min(max(int(round(py)), 0), vh - 1),
         )
 
+    def render_history(self, actions: list, thoughts: list) -> str:
+        steps = [
+            _STEP_TEMPLATE.format(n=i + 1, action=a if a else "(no valid action)")
+            for i, a in enumerate(actions)
+        ]
+        return "\n" + "\n".join(steps + [_NEXT_MOVE])
+
     def parse(self, response: str, viewport: tuple[int, int]) -> ActionParserResult:
         response = (response or "").strip()
         if not response:
@@ -156,10 +181,8 @@ class OpenCUAActionParser(ActionParser):
         action_text = self._section(_ACTION_RE, response)
         calls = self._calls(code)
         action = self._to_browsergym(calls, thought, viewport)
-        # Replayed in the history; fenced, as the model writes code.
-        shown = f"```python\n{code}\n```"
-        if action_text:
-            shown = f"{action_text}\n{shown}"
+        # The history replays the Action line (the code when there is none).
+        shown = action_text or code
         return {"action": action, "displayed_action": shown, "think": thought}
 
     @staticmethod
