@@ -1,6 +1,7 @@
 """Real Hydra composition and backend boundaries for shared sweeps."""
 
 from contextlib import contextmanager
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -389,3 +390,55 @@ def test_wandb_labels_set_on_the_command_line_are_kept(catalogs):
     _, jobs = compose_jobs(catalogs, "wandb.group=mine", "wandb.job_type=baseline")
     assert parallel_launcher.label_wandb_runs(jobs, "run-abc") == "mine"
     assert {(job.wandb.group, job.wandb.job_type) for job in jobs} == {("mine", "baseline")}
+
+
+def test_auto_hostname_points_each_model_at_the_node_serving_it():
+    jobs = [
+        OmegaConf.create({"agent": {"hostname": "auto", "model_name": "org/a", "port": "8000"}}),
+        OmegaConf.create({"agent": {"hostname": "auto", "model_name": "org/a", "port": "8000"}}),
+        OmegaConf.create({"agent": {"hostname": "auto", "model_name": "org/b", "port": "9000"}}),
+        OmegaConf.create({"agent": {"hostname": "pinned", "model_name": "org/c"}}),
+    ]
+    looked_up = []
+
+    def find(model, port, api_key):
+        looked_up.append((model, port))
+        return {"org/a": "node-1", "org/b": "node-2"}[model]
+
+    found = parallel_launcher.resolve_auto_hostnames(jobs, find=find)
+    assert [j.agent.hostname for j in jobs] == ["node-1", "node-1", "node-2", "pinned"]
+    assert looked_up == [("org/a", "8000"), ("org/b", "9000")]  # once per model and port
+    assert found == {("org/a", "8000"): "node-1", ("org/b", "9000"): "node-2"}
+
+
+def test_find_vllm_host_picks_the_node_serving_the_model_and_says_when_none_does():
+    serving = {"gpu-2": "org/a"}
+    probe = lambda node, port, model, key: serving.get(node) == model  # noqa: E731
+    assert parallel_launcher.find_vllm_host("org/a", nodes=["gpu-1", "gpu-2"], probe=probe) == "gpu-2"
+    with pytest.raises(RuntimeError, match="none of your running jobs"):
+        parallel_launcher.find_vllm_host("org/z", nodes=["gpu-1", "gpu-2"], probe=probe)
+
+
+def test_serves_model_reads_the_vllm_model_list():
+    import http.server
+    import threading
+
+    class Models(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            body = json.dumps({"data": [{"id": "org/a"}]}).encode()
+            self.send_response(200 if self.path == "/v1/models" else 404)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Models)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        port = server.server_port
+        assert parallel_launcher.serves_model("127.0.0.1", port, "org/a")
+        assert not parallel_launcher.serves_model("127.0.0.1", port, "org/other")
+    finally:
+        server.shutdown()
+    assert not parallel_launcher.serves_model("127.0.0.1", port, "org/a", timeout=1)  # gone

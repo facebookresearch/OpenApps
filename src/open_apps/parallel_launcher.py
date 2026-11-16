@@ -6,10 +6,13 @@ import json
 import multiprocessing
 import os
 from pathlib import Path
+import socket
+import subprocess
 import sys
 import tempfile
 import traceback
 from typing import Callable, Optional, Sequence
+import urllib.request
 import warnings
 
 import hydra
@@ -122,6 +125,87 @@ def create_job_configs(
                 job_config.get("agent_config_name") or groups.get("agent")
             )
     return jobs
+
+
+#: ``agent.hostname=auto``: find the node serving the agent's model.
+AUTO_HOST = "auto"
+
+
+def running_job_nodes() -> list[str]:
+    """The nodes of this user's running SLURM jobs."""
+    listing = subprocess.run(
+        ["squeue", "--me", "-t", "R", "-h", "-o", "%N"],
+        capture_output=True, text=True, check=True,
+    ).stdout  # fmt: skip
+    nodes: set[str] = set()
+    for nodelist in filter(None, (line.strip() for line in listing.splitlines())):
+        expanded = subprocess.run(
+            ["scontrol", "show", "hostnames", nodelist],
+            capture_output=True, text=True, check=True,
+        ).stdout  # fmt: skip
+        nodes.update(expanded.split())
+    return sorted(nodes)
+
+
+def serves_model(
+    host: str, port: str | int, model: str, api_key: Optional[str] = None, timeout: float = 5
+) -> bool:
+    """Whether ``http://host:port/v1/models`` lists ``model``. Probed
+    directly: a proxy in the environment cannot reach cluster nodes."""
+    request = urllib.request.Request(f"http://{host}:{port}/v1/models")
+    if api_key:
+        request.add_header("Authorization", f"Bearer {api_key}")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            listed = json.load(response).get("data") or []
+    except (OSError, ValueError, AttributeError):
+        return False
+    return any(isinstance(m, dict) and m.get("id") == model for m in listed)
+
+
+def find_vllm_host(
+    model: str,
+    port: str | int = 8000,
+    api_key: Optional[str] = None,
+    nodes: Optional[Sequence[str]] = None,
+    probe: Callable[..., bool] = serves_model,
+) -> str:
+    """The first of this user's running job nodes serving ``model`` on
+    ``port``. It probes what each node serves, so it does not matter how the
+    vLLM job was started."""
+    if nodes is None:
+        try:
+            nodes = running_job_nodes()
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RuntimeError(f"agent.hostname=auto needs SLURM's squeue: {exc}") from exc
+    own = socket.gethostname().split(".")[0]
+    for node in [n for n in nodes if n != own] + [n for n in nodes if n == own]:
+        if probe(node, port, model, api_key):
+            return node
+    raise RuntimeError(
+        f"agent.hostname=auto: none of your running jobs ({', '.join(nodes) or 'none'}) "
+        f"serves {model!r} on port {port}. Is the vLLM job running (squeue --me)? "
+        "Or set agent.hostname=<node>."
+    )
+
+
+def resolve_auto_hostnames(
+    jobs: Sequence[DictConfig], find: Callable[..., str] = find_vllm_host
+) -> dict[tuple[str, str], str]:
+    """Point every job whose agent says ``hostname: auto`` at the node serving
+    its model, one lookup per (model, port). Returns what was found."""
+    found: dict[tuple[str, str], str] = {}
+    for job in jobs:
+        agent = job.get("agent")
+        if agent is None or agent.get("hostname") != AUTO_HOST:
+            continue
+        key = (str(agent.get("model_name")), str(agent.get("port") or 8000))
+        if key not in found:
+            found[key] = find(key[0], key[1], agent.get("api_key"))
+        with open_dict(agent):
+            agent.hostname = found[key]
+    return found
 
 
 def label_wandb_runs(jobs: Sequence[DictConfig], group: str) -> str:
@@ -288,6 +372,8 @@ def launch_parallel(
     Path(config.logs_dir).chmod(0o755)
     print(f"Run directory: {config.logs_dir}")
     jobs = create_job_configs(config)
+    for (model, port), host in resolve_auto_hostnames(jobs).items():
+        print(f"agent.hostname=auto: {model} is served on {host}:{port}")
     if config.get("use_wandb"):
         print(f"W&B group: {label_wandb_runs(jobs, Path(config.logs_dir).name)}")
     for job_config in jobs:
