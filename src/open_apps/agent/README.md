@@ -85,6 +85,11 @@ Each parser family carries a default (`uitars`: null, `qwen3vl`: 1000). Override
 per model in the agent yaml with `coord_scale: N`. Note this is one scalar applied
 against each viewport axis, which is what a *square* normalized grid means — it
 cannot express a model predicting in its own non-square resized image space.
+Fara-7B (a Qwen2.5-VL fine-tune) has its own parser, `fara`: its prompt states
+the screenshot size after the image processor's `smart_resize` (multiples of 28
+px, e.g. 1920x1080 -> 1932x1092) via `ActionParser.render_system_prompt`, as
+microsoft/fara's harness does, yet measured clicks come back in viewport pixels
+at common screen sizes, so the parser passes them through.
 
 The most reliable setup is to *declare* the grid in the prompt and set
 `coord_scale` to match, rather than reverse-engineering a checkpoint's native

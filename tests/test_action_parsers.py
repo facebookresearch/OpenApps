@@ -18,7 +18,7 @@ VIEWPORT = (1920, 1080)
 # ---------------------------------------------------------------------------
 
 def test_registry_lists_known_action_parsers():
-    assert set(REGISTRY) == {"uitars", "qwen3vl"}
+    assert set(REGISTRY) == {"uitars", "qwen3vl", "fara"}
 
 
 def test_get_action_parser_defaults_to_uitars_when_none():

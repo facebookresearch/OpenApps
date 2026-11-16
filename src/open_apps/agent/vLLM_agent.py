@@ -369,7 +369,9 @@ class VLLMAgent(Agent):
         )
 
         system_prompt = SystemMessage(
-            self.prompt_txt.system_prompt
+            self.action_parser.render_system_prompt(
+                self.prompt_txt.system_prompt, main_prompt.viewport
+            )
             if self.prompt_txt.system_prompt is not None
             else dp.SystemPrompt().prompt
         )
