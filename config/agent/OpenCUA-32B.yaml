@@ -1,0 +1,12 @@
+# XLANG OpenCUA-32B (Qwen2.5-VL-32B fine-tuned for computer use): the
+# OpenCUA-7B config (same prompt, action_parser and actions) on the larger
+# checkpoint.
+# Set hostname/port to your served model before running.
+defaults:
+- OpenCUA-7B
+- _self_
+model_name: xlangai/OpenCUA-32B
+model_pretty_name: OpenCUA-32B
+hostname: null
+host_name_updated_on: null
+client_type: vllm

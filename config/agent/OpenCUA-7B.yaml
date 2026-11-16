@@ -1,0 +1,111 @@
+# XLANG OpenCUA-7B (Qwen2.5-VL-7B fine-tuned for computer use), with its
+# native prompt and output grammar via the opencua action_parser.
+# The system prompt is xlang-ai/OSWorld's SYSTEM_PROMPT_V1_L2 for OpenCUA-7B
+# and -32B (L2 CoT: Thought, Action, then PyAutoGUI code), without the
+# computer's sudo password. Its coordinates are read as described in
+# action_parsers/opencua.py.
+# OpenCUA was trained with the last three screenshots and earlier steps as
+# chat turns; here, as for every agent, the history is text in one user
+# message with the current screenshot.
+# Serving: the tokenizer is remote code, and the one on the main branch fails
+# to load under Transformers v5; both checkpoints ship the same tokenizer
+# files, so load the OpenCUA-7B revision that fixes it (the one vLLM's own
+# tests pin). vLLM's OpenCUA processor needs vllm-project/vllm#60823 under
+# Transformers v5 (in vLLM >= 0.33):
+#   vllm serve xlangai/OpenCUA-7B --trust-remote-code \
+#     --tokenizer xlangai/OpenCUA-7B \
+#     --tokenizer-revision 50a22000cd3d3b8f187b307bfd3563714854425a
+# (the same flags serve xlangai/OpenCUA-32B).
+# Set hostname/port to your served model before running.
+defaults:
+- default
+- _self_
+model_name: xlangai/OpenCUA-7B
+model_pretty_name: OpenCUA-7B
+hostname: null
+host_name_updated_on: null
+client_type: vllm
+# OSWorld's OpenCUA runs sample at temperature 0 with a 2048-token cap; an L2
+# reply is a few hundred tokens.
+temperature: 0.0
+max_tokens: 2048
+
+use_axtree: false
+use_screenshot: true
+
+action_parser: opencua
+
+prompt_sections:
+- task
+- history
+
+# What the action_parser emits: click -> mouse_click, doubleClick ->
+# mouse_dblclick, rightClick -> mouse_click(button='right'), tripleClick /
+# computer.triple_click -> mouse_tripleclick, moveTo -> mouse_move, moveTo +
+# dragTo -> mouse_drag_and_drop, write -> keyboard_type (click_and_type when
+# it follows a click or precedes Enter), press / hotkey -> keyboard_press,
+# scroll / hscroll -> scroll, computer.wait -> noop, computer.terminate ->
+# send_msg_to_user (success) or report_infeasible (failure). press with a
+# count -> keyboard_press_repeat; scroll at a point (moveTo first, or x/y) ->
+# scroll_at.
+custom_actions:
+- mouse_click
+- mouse_dblclick
+- mouse_tripleclick
+- mouse_move
+- mouse_drag_and_drop
+- keyboard_type
+- keyboard_press
+- keyboard_press_repeat
+- click_and_type
+- scroll
+- scroll_at
+- noop
+- send_msg_to_user
+- report_infeasible
+
+prompt_txt:
+  system_prompt: |-
+    You are a GUI agent. You are given a task and a screenshot of the screen. You need to perform a series of pyautogui actions to complete the task. If the task is not possible to do, output the action computer.terminate(status='failure').
+
+    For each step, provide your response in this format:
+
+    Thought:
+      - Step by Step Progress Assessment:
+        - Analyze completed task parts and their contribution to the overall goal
+        - Reflect on potential errors, unexpected results, or obstacles
+        - If previous action was incorrect, predict a logical recovery step
+      - Next Action Analysis:
+        - List possible next actions based on current state
+        - Evaluate options considering current state and previous actions
+        - Propose most logical next action
+        - Anticipate consequences of the proposed action
+      - For Text Input Actions:
+        - Note current cursor position
+        - Consolidate repetitive actions (specify count for multiple keypresses)
+        - Describe expected final text outcome
+      - Use first-person perspective in reasoning
+
+    Action:
+      Provide clear, concise, and actionable instructions:
+      - If the action involves interacting with a specific target:
+        - Describe target explicitly without using coordinates
+        - Specify element names when possible (use original language if non-English)
+        - Describe features (shape, color, position) if name unavailable
+        - For window control buttons, identify correctly (minimize "—", maximize "□", close "X")
+      - if the action involves keyboard actions like 'press', 'write', 'hotkey':
+        - Consolidate repetitive keypresses with count
+        - Specify expected text outcome for typing actions
+
+    Finally, output the action as PyAutoGUI code or the following functions:
+    - {"name": "computer.triple_click", "description": "Triple click on the screen", "parameters": {"type": "object", "properties": {"x": {"type": "number", "description": "The x coordinate of the triple click"}, "y": {"type": "number", "description": "The y coordinate of the triple click"}}, "required": ["x", "y"]}}
+    - {"name": "computer.terminate", "description": "Terminate the current task and report its completion status", "parameters": {"type": "object", "properties": {"status": {"type": "string", "enum": ["success", "failure"], "description": "The status of the task"}}, "required": ["status"]}}
+
+  # User-message slots suppressed via prompt_sections above.
+  output_format: null
+  action_prompt: null
+  action_abstract_example: null
+  action_concrete_example: null
+  think_prompt: ""
+  think_abstract_example: ""
+  think_concrete_example: ""
