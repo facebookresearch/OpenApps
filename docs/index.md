@@ -376,13 +376,20 @@ Every app ships `german` and `mandarin` content packs beside the English
 * `<html lang>` (`en`, `de`, `zh-Hans`), so the browser picks CJK glyphs and the
   accessibility tree an agent reads names the language.
 
-The desktop shell (toolbar, dock, window chrome) follows the **start page's**
-pack, so switch every app together for a fully translated session:
+`apps/language` switches every app's pack at once. Use it
+for a fully translated session; the desktop shell (toolbar, dock, window
+chrome) follows the start page's pack, so it is translated too:
 
 ```shell
-uv run launch.py apps/start_page/content=german apps/todo/content=german \
-  apps/calendar/content=german apps/messenger/content=german
+uv run launch.py apps/language=german          # default | german | mandarin
+uv run launch_agent.py agent=dummy task_name=add_meeting_with_dennis apps/language=mandarin
 ```
+
+A per-app override still wins (`apps/language=german
+apps/todo/content=long_descriptions`), and one app alone is
+`apps/<app>/content=german`. In a sweep, `apps/language=default,german,mandarin`
+is a language axis with an English baseline cell. Pop-ups stay off:
+`apps/pop_ups=german` adds a German pop-up, a separate variation.
 
 Task goals stay English. Tasks whose target is a translated item (a todo
 title, a calendar event, a bank ledger row) resolve the English goal name to the pack's wording,
