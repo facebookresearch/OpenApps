@@ -27,9 +27,9 @@ def _groups_with(language: str) -> set[str]:
     return groups
 
 
-def _choices(*overrides: str) -> dict:
+def _choices(*overrides: str, config: str = "config") -> dict:
     with initialize_config_dir(version_base=None, config_dir=str(config_dir())):
-        cfg = compose("config", overrides=list(overrides), return_hydra_config=True)
+        cfg = compose(config, overrides=list(overrides), return_hydra_config=True)
     return dict(cfg.hydra.runtime.choices)
 
 
@@ -56,3 +56,14 @@ def test_default_is_the_same_as_no_language():
     }
     # English packs: `default` everywhere except the shop's `webshop`.
     assert all(baseline[g] in ("default", "webshop") for g in groups)
+
+
+@pytest.mark.parametrize(
+    "config", ["config_parallel_tasks", "config_parallel_tasks_across_goal_variations"]
+)
+def test_sweeps_take_the_switch_too(config):
+    """A sweep composes each app variation against its own primary config, so
+    `apps/language` has to be in that defaults list as well."""
+    choices = _choices("apps/language=mandarin", config=config)
+    groups = _groups_with("mandarin")
+    assert {g: choices.get(g) for g in groups} == {g: "mandarin" for g in groups}
