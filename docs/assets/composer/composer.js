@@ -1294,16 +1294,20 @@
         } else if (key === "extra") sel.extra.push(dec(value));
         else if (key === "env") sel.env.push(dec(value));
         else if (key === "sbatch") sel.sbatch_args.push(dec(value));
+        // Written under the catalog's own path, never the link's string: the
+        // key is only ever one the catalog already has.
         else if (has(this.catalog.groups, key)) {
-          const names = this.catalog.groups[key].options.map((o) => o.name);
+          const group = this.catalog.groups[key];
+          const names = group.options.map((o) => o.name);
           const values = value.split(",").map(dec).filter((v) => names.includes(v));
-          if (values.length) sel.choices[key] = values;
+          if (values.length) sel.choices[group.path] = values;
         } else if (has(this.catalog.scalars, key)) {
+          const scalar = this.catalog.scalars[key];
           const values = [];
           for (const v of value.split(",").map(dec)) {
-            try { values.push(parseScalar(v, this.catalog.scalars[key].type)); } catch (e) { /* skip */ }
+            try { values.push(parseScalar(v, scalar.type)); } catch (e) { /* skip */ }
           }
-          if (values.length) sel.choices[key] = values;
+          if (values.length) sel.choices[scalar.path] = values;
         }
       }
       this.raw = this.normalized(sel);
