@@ -139,8 +139,9 @@ posting_date_style: en
 # --- Send money -------------------------------------------------------------
 # The payment flow (`openbanking_app/send.py`): a form, a review, a confirm.
 # `send_description` and `send_type` are what a payment writes into the
-# ledger; the reward does not compare the description, which carries the
-# payee's name however it resolved, only the payee's handle.
+# ledger; the reward compares neither (the description carries the payee's
+# name however it resolved, the type is the pack's own word), only the
+# payee's handle.
 send_link_label: "Send money"
 send_heading: "Send money"
 send_from_label: "From"

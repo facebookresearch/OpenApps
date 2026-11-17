@@ -512,16 +512,20 @@ class AppStateComparison:
         payload on keys nobody set.
 
         On a payment (a row with a counterparty) ``id``, ``position``,
-        ``date``, ``description``, ``memo`` and ``balance`` go too. The first
-        two are the bank's numbering; the date is the pack's spelling of the
-        pinned day; the description carries the payee's name however it
-        resolved ("Zelle to Bob", "Zelle to bob@example.com"); the memo is
-        free text, already checked for what the task needs by
-        :func:`_reconcile_payments`; and the running balance depends on the
-        order two payments were made in, which a composite does not fix --
-        the account's own balances still have to come out right. What is
-        left -- account, amount, type, payee -- is what the payment did, and
-        payments sort on it, after the ledger's other rows.
+        ``date``, ``description``, ``type``, ``memo`` and ``balance`` go too.
+        The first two are the bank's numbering; the date is the pack's
+        spelling of the pinned day; the description carries the payee's name
+        however it resolved ("Zelle to Bob", "Zelle to bob@example.com");
+        the type is the pack's word for a payment -- only a send sets a
+        counterparty, so it says nothing the counterparty does not, and
+        comparing it would fail every payment task under a pack that
+        translates it; the memo is free text, already checked
+        for what the task needs by :func:`_reconcile_payments`; and the
+        running balance depends on the order two payments were made in,
+        which a composite does not fix -- the account's own balances still
+        have to come out right. What is left -- account, amount, payee -- is
+        what the payment did, and payments sort on it, after the ledger's
+        other rows.
         """
         bank = state.get("openbanking")
         if not isinstance(bank, dict) or not isinstance(bank.get("transactions"), list):
@@ -529,7 +533,7 @@ class AppStateComparison:
         txns = bank["transactions"]
         for txn in txns:
             if txn.get("counterparty") is not None:
-                for key in ("id", "position", "date", "description", "memo", "balance"):
+                for key in ("id", "position", "date", "description", "type", "memo", "balance"):
                     txn.pop(key, None)
             for key in ("counterparty", "memo"):
                 if key in txn and txn[key] is None:
@@ -2091,7 +2095,7 @@ class SendMoneyTask(Task):
     2" matches "unit-2 rent" but not "Unit 21"). An entry may be a list of
     alternatives, any one of which will do.
 
-    The row's date, description and memo are not compared as text (see
+    The row's date, description, type and memo are not compared as text (see
     ``AppStateComparison._normalize_bank``); the payee is compared exactly
     (see :func:`_reconcile_payments`).
     """
@@ -2103,9 +2107,6 @@ class SendMoneyTask(Task):
     memo_includes: list = field(default_factory=list)
     # {first_name, last_name?, company?} when the task also saves the payee.
     save_contact: Optional[dict] = None
-    # Mirrors `apps.openbanking.send_type`; a run that overrides it has to
-    # override this too.
-    send_type: str = "Zelle"
 
     def __post_init__(self) -> None:
         if (self.to is None) == (self.to_contact is None):
@@ -2152,14 +2153,14 @@ class SendMoneyTask(Task):
         account["available_balance"] = round(available - amount, 2)
         bank.setdefault("transactions", []).append(
             {
-                # id/position/date/description/memo/balance are dropped for payments
-                # by the normalizer -- see there.
+                # id/position/date/description/type/memo/balance are dropped
+                # for payments by the normalizer -- see there.
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
                 "date": None,
                 "description": None,
-                "type": self.send_type,
+                "type": None,
                 "amount": -amount,
                 "balance": balance,
                 "counterparty": handle,

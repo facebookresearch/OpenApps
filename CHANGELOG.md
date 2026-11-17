@@ -98,7 +98,8 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
 - `AppStateComparison` compares the files slice exactly (no fuzzy matching on
   file names).
 - `AppStateComparison` pairs payments before diffing, by exact payee, and
-  ignores a payment's date, description, memo and running balance. Null
+  ignores a payment's date, description, type, memo and running balance, so a
+  payment scores the same under every language pack. Null
   `counterparty`/`memo` keys are dropped, so targets that predate them match.
 - Contacts' New Contact form and the bank's Save to Contacts share one insert
   path (`contacts_app.add_contact`).
