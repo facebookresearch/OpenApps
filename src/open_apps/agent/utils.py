@@ -339,7 +339,6 @@ def translate_uitars_wait_action(action: str) -> str:
     return "noop(wait_ms=3000)"
 
 
-
 def translate_uitars_finished_action(action: str) -> str:
     """Translate UI-TARS ``finished(content='...')`` to BrowserGym
     ``send_msg_to_user(text='...')`` -- the agent telling the user it is done.
@@ -352,8 +351,11 @@ def translate_uitars_finished_action(action: str) -> str:
             f"Could not parse finished action: {action!r}. "
             "Expected finished(content='summary')."
         )
+    # Decode Python-style escapes (\\n, \\') without mangling non-ASCII: going
+    # through latin-1 with backslashreplace keeps "für" or "你好" intact, where
+    # a utf-8 round trip through unicode_escape would turn them into mojibake.
     try:
-        content = match.group(2).encode("utf-8").decode("unicode_escape")
+        content = match.group(2).encode("latin-1", "backslashreplace").decode("unicode_escape")
     except UnicodeDecodeError:
         content = match.group(2)
     return f"send_msg_to_user(text={content!r})"

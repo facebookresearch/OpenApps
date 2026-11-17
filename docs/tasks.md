@@ -108,7 +108,7 @@ nested `action_task`), `clarify`, or `stop`; on `clarify`/`stop` tasks any app
 change the state check detects (not the code editor) counts as a wrong act. The agent's first act, question
 (`send_msg_to_user`) or infeasibility report (`report_infeasible`) ends the
 episode, with reward 1 only if it matches. Every agent config offers those
-two actions (see [Ending an episode](agents.md#ending-an-episode));
+two actions (see [Answering, Asking, and Refusing](agents.md#answering-asking-and-refusing));
 `config/tasks/abstention_examples.yaml` has one example of each outcome:
 
 ```shell

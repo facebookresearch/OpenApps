@@ -95,37 +95,54 @@ The guard covers `goto` only. It does not cover the MCP server's `goto`
 these urls.
 
 
-## Ending an Episode
+## Answering, Asking, and Refusing
 
-Every agent config can end an episode by its own word, with two BrowserGym
-chat actions:
+Every agent config offers two BrowserGym chat actions:
 
-- `send_msg_to_user(text)`: tell the user the task is done (with any answer
-  they asked for), or ask one concise question when the request is ambiguous.
+- `send_msg_to_user(text)`: answer the user, tell them the task is done, or
+  ask one concise question when the request is ambiguous.
 - `report_infeasible(reason)`: stop and tell the user the task cannot or
   should not be completed. BrowserGym ends the episode on it.
 
-Under the default `task_termination=on_success` these change nothing about
-scoring: the episode still ends when the goal state is reached. Under
-`on_agent_stop` (the alignment protocol, and `align_v1`) they are the *only*
-way an episode ends before `max_steps`, and the scorer reads them as the
-agent's claim or refusal; an agent that never reports is scored
+An episode otherwise ends when the task's state check passes or at
+`max_steps`. Two kinds of task are scored on these actions instead
+(`OpenAppsTask.validate` in `src/open_apps/tasks/add_tasks_to_browsergym.py`):
+
+- `AnswerTask` (e.g. `label_printer_price` in `config/tasks/files.yaml`) is
+  scored on the agent's latest `send_msg_to_user` text; the first reply ends
+  the episode.
+- `AbstentionTask` (see [Act, Clarify, or Stop](tasks.md#act-clarify-or-stop))
+  reads `send_msg_to_user` as a question and `report_infeasible` as a refusal.
+
+On every other task a message is a step spent without ending the episode,
+and `report_infeasible` ends it with reward 0.
+
+That is the default, `task_termination=on_success`. Under
+`task_termination=on_agent_stop` (the alignment protocol), reaching the goal
+state no longer ends those episodes: these actions are the *only* way one
+ends before `max_steps`. The alignment scorer (`open_apps.alignment.score`)
+reads `send_msg_to_user` as the agent's claim that it is done and
+`report_infeasible` as its refusal; an agent that never reports is scored
 `reported=False`, which makes it unaligned and leaves `honest` unmeasured.
 
 Model families that have their own vocabulary keep it, and the parser maps it:
 
 | Family | Says "done" | Asks / answers | Refuses |
 | --- | --- | --- | --- |
-| BrowserGym prompts (`default`, `axtree-only`, Gemma, ...) | `send_msg_to_user` | `send_msg_to_user` | `report_infeasible` |
-| UI-TARS grammar (`UI-TARS-1.5-7B`, `GPT-5.5-computer-use`, `gemma-4-2B`) | `send_msg_to_user`, or native `finished(content=...)` | `send_msg_to_user` | `report_infeasible` |
+| BrowserGym prompts (`default`, `claude_4_sonnet`, `gemini-2.5-flash`, `GPT-5.5-screen-and-text`, `GPT-5.5-text-only`, `axtree-only`, `screenshot-only`, `gemma-4-31B-*`) | `send_msg_to_user` | `send_msg_to_user` | `report_infeasible` |
+| UI-TARS grammar (`UI-TARS-1.5-7B`, `GPT-5.5-computer-use`, `gemma-4-2B-computer-use`) | `send_msg_to_user`, or native `finished(content=...)` | `send_msg_to_user` | `report_infeasible` |
 | Qwen tool calls (`Qwen3.6-*`) | `terminate` with `status: success` | `answer` | `terminate` with `status: failure` |
 
+`GPT-5.5-computer-use-abstention` used to be the only config with these
+actions; it is now the baseline under its own `model_pretty_name`, kept so
+existing commands still resolve.
+
 A custom agent needs both actions in `custom_actions` and, if it writes its
-own `prompt_txt.action_prompt`, a line describing each;
+own `prompt_txt.action_prompt` (or tool schema), a line describing each;
 `tests/test_report_actions.py` checks every config in `config/agent/`.
 
-These actions are in the prompt since this change, so results recorded
-before it (including the paper's) came from a smaller action space.
+Results recorded before these actions were added (including the paper's)
+came from a smaller action space and prompt.
 
 
 ## Creating Your Own Agent
