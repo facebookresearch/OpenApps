@@ -112,7 +112,14 @@ def get_current_state(url: str, failed_apps: list[str] | None = None) -> dict:
     state: dict = {}
     for key, endpoint in STATE_ENDPOINTS:
         try:
-            value, ok = _get_json(url + endpoint)
+            # The reward path goes through safe_get_json, as it always has:
+            # tests swap that one function to route every probe into an
+            # in-process app. Only a caller that asks which probes failed
+            # needs the (json, ok) pair.
+            if failed_apps is None:
+                value, ok = safe_get_json(url + endpoint), True
+            else:
+                value, ok = _get_json(url + endpoint)
         except Exception:  # noqa: BLE001 -- e.g. a body that is not JSON
             if key != "online_shop":
                 raise
