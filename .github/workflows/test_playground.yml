@@ -11,9 +11,7 @@ permissions:
 
 jobs:
   build:
-    # 24.04, not ubuntu-latest: the pinned Playwright (1.44) predates 26.04, and
-    # `playwright install --with-deps` there asks for libasound2, which 26.04
-    # renamed (libasound2t64), so Chromium never installs.
+    # Pinned so the apt package names below (24.04's *t64 libraries) hold.
     runs-on: ubuntu-24.04
 
     steps:
@@ -30,7 +28,16 @@ jobs:
       # tests/test_compose_js.py holds the docs composer's JS to the Python
       # reference in headless Chromium; without a browser it would skip.
       - name: Install Chromium for Playwright
-        run: uv run playwright install --with-deps chromium
+        # Not `--with-deps`: Playwright 1.44 predates 24.04 and asks apt for
+        # pre-t64 names (libasound2) that no longer exist, so the libraries
+        # Chromium needs are installed by their current names instead.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libasound2t64 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
+            libgbm1 libnss3 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+            libxkbcommon0 libpango-1.0-0 libcairo2
+          uv run playwright install chromium
       - name: Test with pytest
         run: |
           uv run -m pytest tests/
