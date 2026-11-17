@@ -11,7 +11,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 24.04, not ubuntu-latest: the pinned Playwright (1.44) predates 26.04, and
+    # `playwright install --with-deps` there asks for libasound2, which 26.04
+    # renamed (libasound2t64), so Chromium never installs.
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
