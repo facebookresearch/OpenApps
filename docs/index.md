@@ -60,21 +60,21 @@ Appearance is split along two axes:
     ::bash
     uv run launch.py apps/theme=challenging_font
 
-![landing](images/landing-challenging-font.png)
+![Challenging font theme](images/theme-challenging-font.png)
 ///
 /// tab | dark theme
 
     ::bash
     uv run launch.py apps/theme=dark
 
-![landing](images/landing-dark.png)
+![Dark theme](images/theme-dark.png)
 ///
 /// tab | default
 
     ::bash
     uv run launch.py apps/theme=default
 
-![landing](images/landing.png)
+![Default theme](images/theme-default.png)
 
 ///
 
@@ -158,7 +158,7 @@ layout in play. Every app has `default`, plus:
 
 | App | Layouts | What changes |
 | --- | --- | --- |
-| `start_page` | `desktop` (default) | Toolbar, wallpaper and pinnable shortcuts; a home screen on a phone |
+| `start_page` | `desktop` (default) | Toolbar and wallpaper, pinned apps in the dock; a home screen on a phone |
 | | `gallery` | The original tile grid the paper's figures show |
 | | `broken_logos` | Gallery with icons detached from their tiles |
 | | `clickable_logos` | Gallery with tile logos as their own click targets |
@@ -172,6 +172,9 @@ layout in play. Every app has `default`, plus:
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| `files` | `icons` | Folder contents as a grid of first-page thumbnails |
+| `contacts` | `list_detail` | One pane at a time: the list, then a contact on its own page |
+| `passwords` | `list_detail` | One pane at a time: the vault list, then an item on its own page |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
 
@@ -179,8 +182,9 @@ The start page is the landing surface an agent sees first, so it carries the
 most:
 
 * **`desktop`** — the default. A toolbar (launcher, clock, weather, light/dark
-  toggle) over a generated wallpaper, with pinnable app shortcuts. On a phone
-  it renders as a home screen instead; see [Devices](#devices).
+  toggle) over a generated wallpaper. No icons on the desktop itself: pinned
+  apps sit in the window chrome's dock along the bottom edge. On a phone it
+  renders as a home screen instead; see [Devices](#devices).
 * **`gallery`** — the original html5up tile grid: five coloured tiles under a
   "Welcome to OpenApps!" headline. Still a single override away, and it is what
   the paper's figures show.
@@ -194,13 +198,13 @@ left a popover showing.
 
 ##### Pinning, and making the agent use the launcher
 
-Every app is pinned by default (`pinned: all`), so each one has a shortcut on
-the desktop and the launcher is a convenience. The launcher only *tests*
+Every app is pinned by default (`pinned: all`), so each one has an icon in the
+dock and the launcher is a convenience. The launcher only *tests*
 anything once something the agent needs is behind it, and that is one
 override — name the few to hide rather than re-listing the many to keep:
 
 ```bash
-# OpenMessages has no shortcut; the only route to it is the launcher menu
+# OpenMessages is not in the dock; the route to it is the launcher menu
 uv run launch_agent.py agent=dummy task_name=navigate_to_messenger \
     apps.start_page.desktop.unpinned=[messages]
 
@@ -342,23 +346,23 @@ other appearance axis.
 /// tab | german
 
     ::bash
-    uv run launch.py apps/start_page/content=german
+    uv run launch.py apps/todo/content=german
 
-![landing](images/landing-german.png)
+![German todo list](images/content-german.png)
 ///
 /// tab | long_descriptions
 
     ::bash
-    uv run launch.py apps/start_page/content=long_descriptions
+    uv run launch.py apps/onlineshop/content=long_descriptions
 
-![landing](images/landing-long-descriptions.png)
+![Online shop with long descriptions](images/content-long-descriptions.png)
 ///
 /// tab | pop-up
 
     ::bash
     uv run launch.py apps/pop_ups=adversarial_descriptions
 
-![landing](images/landing-popup.png)
+![Adversarial pop-up](images/landing-popup.png)
 
 ///
 
@@ -414,8 +418,8 @@ uv run openbanking-gen-txns --account 2043 --count 2 --max-amount 80 \
 ```
 
 The same `--seed` always produces the same rows, and nothing is written to the
-running database -- the app is read-only, and `/openbanking_all` has to stay
-byte-stable. `--types` and `--max-amount` are how you stay clear of the figures
+running database -- `/openbanking_all` has to stay byte-stable until an agent
+sends money or buys something. `--types` and `--max-amount` are how you stay clear of the figures
 `config/tasks/openbanking.yaml` reads off an account; re-run
 `pytest tests/test_openbanking.py` afterwards, which checks those.
 
@@ -454,7 +458,13 @@ To see the agent solving the task live:
 uv run launch_agent.py browsergym_env_args.headless=False
 ```
 
-![Live Agent](images/gif.gif)
+<video poster="images/agent-demo-poster.jpg" autoplay muted loop playsinline
+       style="display: block; width: 89.5%; margin: 2.5em auto 3.5em; border-radius: 7px;
+              box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 .5px 1px rgba(0,0,0,.3), 0 9px 22px rgba(0,0,0,.45);">
+  <source src="images/agent-demo.webm" type="video/webm">
+  <source src="images/agent-demo.mp4" type="video/mp4">
+  <a href="images/agent-demo.mp4">Watch the agent solve a task</a>
+</video>
 
 To record the full episode as a video instead:
 ```
@@ -527,10 +537,13 @@ One setting moves two things:
   layout can pick a composition for the form factor rather than only reflowing
   to the width.
 
-The start page's desktop shell does exactly that. On a phone it renders a home
-screen: status bar, wordmark widget, an icon grid of the apps that are **not**
-pinned, and a dock holding the ones that are — so pinning moves an app into the
-dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+The start page's desktop shell does exactly that. On a phone or tablet it
+renders a home screen: status bar, wordmark widget, a scrollable icon grid of
+the apps that are **not** pinned, and a dock holding at most four that are.
+There is no launcher menu — an app is on the home screen or in the dock — and
+over an app the chrome's dock shows the same four plus Home, with no window
+title bar. Pinning moves an app into the dock, where pinning on a desktop
+moves it into the desktop's dock. The routes,
 the test ids and `/desktop_all` are the same on both, so a task written against
 one scores unchanged on the other; what differs is what the agent can see and
 how far it has to travel. Which composition a form factor gets is config, not
@@ -539,6 +552,8 @@ code:
 ```bash
 # the control condition: the desktop composition, in a phone-sized window
 uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
+# a different dock size (the phone default is 4)
+uv run launch.py +experiment=phone apps.start_page.desktop.dock_size_by_variant.home_screen=3
 ```
 
 Adding a device is a file in `config/device/`; a form factor with no variant of
@@ -608,6 +623,90 @@ All logs are stored `log_outputs` will contain information about each run
 You can also enable logging to weights and biases by logging into your account and setting the flag: `use_wandb=True`.
 
 
+
+##### Files, statements and receipts
+
+Files is one store shared by every app (`open_apps.files_store`), so every
+run serves it: a config without it (`~apps/files`) is refused at launch.
+
+* the bank's Statements page saves PDFs to `Statements/<account> — <Month YYYY>.pdf`;
+* the shop writes `Receipts/OpenShop order <id>.pdf` on checkout and for seeded orders;
+* `Code/` *is* the code editor's workspace. It is left out of `/files_all`, so
+  `/codeeditor_all` stays the only state for code files.
+
+Seeded documents are committed files (`src/open_apps/apps/files_app/seed/`,
+named by each content pack's `source`), copied in on every launch and reset.
+Statements and receipts are drawn by `open_apps.pdf_writer` when they are
+saved (deterministic: the same ledger or order gives the same bytes). PDFs
+are read with the vendored pdf.js, so their text is in the accessibility tree
+once a document is open -- not in the thumbnails. Recently Deleted keeps items for 30 days counted from the pinned
+date (`apps.files.today`, the bank's `as_of_date`), and never empties itself.
+
+`/files_all` lists every file and trashed item by path, size and sha256, and is
+compared exactly: "lease 2026.pdf" is not "Lease 2026.pdf".
+
+File tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=files task_name=restore_w2_draft
+```
+
+##### Contacts, handles and names
+
+Names live in the Contacts app and nowhere else. Every other app reaches a
+person by a *handle* -- a phone number in E.164 (`+15550100001`) or a
+lowercased email -- and asks Contacts what to call them. The messenger stores
+handles only, so `/messages_all` looks like this:
+
+```json
+[{"handle": "+15550100001",
+  "messages": [["Hello Yann, ...", "+15550100001", "Sep 16, 10:00PM"],
+               ["Absolutely, Alice! ...", "you", "Sep 17, 09:32AM"]]}]
+```
+
+Renaming, adding or deleting a contact changes what a thread is *called*,
+never messenger state. A number with no contact renders as the formatted
+number with a "Not in your contacts" banner; the default seed has one, from
+`+1 (555) 014-2290`.
+
+Message tasks still name people (`to: Bob`). The name is resolved against the
+contacts slice of the initial state: a handle or `group:` key first, then an
+exact display name, then a unique first name -- so the decoy "Bob Smith" in the
+misleading packs does not make `to: Bob` ambiguous. A name matching several
+contacts, or none, raises when the target is built.
+
+Contact tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=contacts task_name=save_unknown_sender_as_jordan_lee
+```
+
+##### Passwords
+
+OpenPasswords (`/passwords`) is a password manager in the style of 1Password
+or Dashlane: one vault ("Personal") with logins, Wi-Fi networks and secure
+notes, a category sidebar, search, favourites, and a Recently Deleted bin that
+only empties when an item is deleted permanently. Passwords stay masked until
+Reveal is clicked, and usernames, passwords and websites have Copy pills. All seeded secrets are
+synthetic, and every website is on `.example`, which never resolves.
+
+It is in the all-apps launcher but not in the dock: the start page's
+`pinned: all` skips apps whose inventory entry says `pinned_by_default: false`.
+Dock it for a run with `apps.start_page.apps.passwords.pinned_by_default=true`,
+or with the pin button beside it in the launcher.
+
+`/passwords_all` serves the vault as `{"items": [...]}`, and the agent's
+`goto` refuses it like every other state endpoint, and `/environment_variables`
+leaves the seeded vault out of the config it serves. Passwords, usernames and
+a secure note's text are compared exactly ("Harbor-Light-42!" is not
+"harborlight42"); titles, websites and a login's notes compare loosely, like
+any other text.
+
+Password tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=passwords task_name=change_netflix_password
+```
 
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel

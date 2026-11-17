@@ -133,8 +133,8 @@ def wordmark_markup(height: int = 24, label: str = "OpenApps") -> str:
         f'</linearGradient>'
         f'</defs>'
         # One group so the ring and both rays share a stroke and cannot drift
-        # apart in weight. The class is a hook for the dark-mode flip in
-        # ui/styles.py -- flipping the <svg> itself would take the word with it.
+        # apart in weight. The class is a styling hook for the mark alone --
+        # anything applied to the <svg> itself would take the word with it.
         f'<g class="ui-wordmark-mark" fill="none"'
         f' stroke="url(#{_GRADIENT_ID})"'
         f' stroke-width="{_MARK_STROKE}" stroke-linecap="round">'

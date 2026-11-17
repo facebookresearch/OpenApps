@@ -1,0 +1,3 @@
+# @package apps.passwords
+# Three panes on desktop: categories, the item list, the selected item.
+layout: default

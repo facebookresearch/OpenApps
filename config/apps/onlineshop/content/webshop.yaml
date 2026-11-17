@@ -31468,3 +31468,34 @@ cart:
 - sku: B08R3XSC65
   options: {}
   quantity: 1
+
+# Order history, newest last. A shop account with nothing in its past reads as
+# freshly made, so two delivered orders ship by default. Placed by the same
+# persona and address the purchase tasks use (config/tasks/openbanking.yaml),
+# paid on the business card -- and dated before the earliest row in that
+# card's ledger (Jul 31, 2026), so no matching bank charge is expected and the
+# ledger's "exactly two Card transactions" invariant is untouched.
+orders:
+- order_id: 'a41f07c2'
+  name: 'Dana Reyes'
+  address: '44 Wharf Street Portland ME 04101'
+  date: '2026-06-12 14:08:51'
+  status: 'Delivered'
+  card_last4: '2043'
+  items:
+  - sku: B097PCJMP5
+    options: {}
+    quantity: 1
+- order_id: '7d93e5b0'
+  name: 'Dana Reyes'
+  address: '44 Wharf Street Portland ME 04101'
+  date: '2026-07-17 09:32:10'
+  status: 'Delivered'
+  card_last4: '2043'
+  items:
+  - sku: B07VT81LP5
+    options: {}
+    quantity: 2
+  - sku: B07Z397262
+    options: {}
+    quantity: 1

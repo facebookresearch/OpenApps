@@ -118,6 +118,11 @@ class TestRegistry:
         assert registry.list_variants("openbanking", "theme") == themes
         assert registry.list_variants("openbanking", "layout")[0] == "default"
         assert "card_list" in registry.list_variants("openbanking", "layout")
+        assert registry.list_variants("contacts", "layout") == ["default", "list_detail"]
+
+    def test_contacts_is_registered(self):
+        assert registry.url_path_for("contacts") == "/contacts"
+        assert registry.config_dir_for("contacts") == "contacts"
 
     def test_list_variants_rejects_removed_appearance_group(self):
         # Must not fall through to the missing-dir ``["default"]`` answer: a

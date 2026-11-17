@@ -23,6 +23,17 @@ tokens:
   font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. Solarized accents, each darkened along its own hue to clear AA on base3 (stock sits near 3:1). Comments use base0.
+  color-syntax-keyword: "#5f6e00"
+  color-syntax-control: "#5f6e00"
+  color-syntax-string: "#1a7a73"
+  color-syntax-number: "#b8286f"
+  color-syntax-comment: "#839496"
+  color-syntax-function: "#1f6fa8"
+  color-syntax-type: "#8a6800"
+  color-syntax-property: "#555aa8"
+  color-syntax-constant: "#b23f12"
+  color-syntax-tag: "#1f6fa8"
 assets:
   tone: light
   icon_set: color

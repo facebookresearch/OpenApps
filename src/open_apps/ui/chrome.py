@@ -207,6 +207,7 @@ def Dock(
     home: bool = True,
     launcher: bool = True,
     shortcuts: bool = True,
+    home_label: str = "Desktop",
 ):
     """The dock.
 
@@ -219,6 +220,10 @@ def Dock(
     Shortcuts number the items left to right: Alt+0 is the desktop, Alt+1..9
     the first nine apps. They are advertised in ``aria-keyshortcuts`` -- the
     only place an agent reading the tree would find them.
+
+    ``home_label`` names the way back to the start page: "Desktop" on a
+    desktop, "Home" over a phone or tablet home screen. The test id stays
+    ``dock-desktop`` either way, so a selector does not depend on the device.
     """
     by_key = {a.key: a for a in apps}
     slots = [by_key[k] for k in docked if k in by_key]
@@ -228,7 +233,7 @@ def Dock(
     if home:
         items.append(
             DockItem(
-                "Desktop",
+                home_label,
                 "/",
                 glyph=Icon.HOME,
                 labels=labels,
@@ -373,6 +378,52 @@ def AgentCursor(
 # --------------------------------------------------------------------------
 
 
+def _section_on(section: dict, form_factor: str) -> bool:
+    """A chrome section is drawn when enabled and listed for this device."""
+    return bool(section.get("enabled", True)) and form_factor in (
+        section.get("form_factors") or [form_factor]
+    )
+
+
+def dock_shown(cfg: dict, *, current: str | None, form_factor: str) -> bool:
+    """Whether the dock is drawn for this page: on every app page, and on the
+    desktop (``current is None``) unless ``dock.on_start_page`` is off."""
+    if not cfg.get("enabled", True):
+        return False
+    dock_cfg = cfg.get("dock") or {}
+    return _section_on(dock_cfg, form_factor) and (
+        current is not None or dock_cfg.get("on_start_page", True)
+    )
+
+
+def configured_dock(
+    cfg: dict,
+    *,
+    apps: list[ChromeApp],
+    current: str | None,
+    docked: list[str],
+    running: list[str],
+):
+    """The :func:`Dock` as ``cfg`` (``apps.chrome``) configures it.
+
+    Shared by :func:`chrome_parts` and by any server action that changes what
+    the dock shows -- the desktop's pin toggle re-renders it with this and
+    swaps it in out of band -- so the two renders cannot drift apart.
+    """
+    dock_cfg = cfg.get("dock") or {}
+    return Dock(
+        apps,
+        docked=docked,
+        running=running,
+        current=current,
+        labels=bool(dock_cfg.get("labels", True)),
+        home=bool(dock_cfg.get("home", True)),
+        launcher=bool(dock_cfg.get("launcher", True)),
+        shortcuts=bool(dock_cfg.get("shortcuts", True)),
+        home_label=str(dock_cfg.get("home_label") or "Desktop"),
+    )
+
+
 def chrome_parts(
     cfg: dict,
     *,
@@ -403,14 +454,12 @@ def chrome_parts(
     cursor_cfg = cfg.get("cursor") or {}
 
     def on(section: dict) -> bool:
-        return bool(section.get("enabled", True)) and form_factor in (
-            section.get("form_factors") or [form_factor]
-        )
+        return _section_on(section, form_factor)
 
     by_key = {a.key: a for a in apps}
     show_titlebar = on(titlebar_cfg) and current in by_key
-    show_dock = on(dock_cfg) and (current is not None or dock_cfg.get("on_start_page", True))
-    show_cursor = bool(cursor_cfg.get("enabled", True)) and cursor_cfg.get("show") != "never"
+    show_dock = dock_shown(cfg, current=current, form_factor=form_factor)
+    show_cursor = on(cursor_cfg) and cursor_cfg.get("show") != "never"
     if not (show_titlebar or show_dock or show_cursor):
         return None
 
@@ -420,16 +469,7 @@ def chrome_parts(
 
     titlebar = TitleBar(by_key[current], style=style, maximized=maximized) if show_titlebar else None
     dock = (
-        Dock(
-            apps,
-            docked=docked,
-            running=running,
-            current=current,
-            labels=labels,
-            home=bool(dock_cfg.get("home", True)),
-            launcher=bool(dock_cfg.get("launcher", True)),
-            shortcuts=bool(dock_cfg.get("shortcuts", True)),
-        )
+        configured_dock(cfg, apps=apps, current=current, docked=docked, running=running)
         if show_dock
         else None
     )

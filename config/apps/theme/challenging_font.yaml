@@ -28,6 +28,17 @@ tokens:
   font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. VS Code Light+.
+  color-syntax-keyword: "#0000ff"
+  color-syntax-control: "#af00db"
+  color-syntax-string: "#a31515"
+  color-syntax-number: "#098658"
+  color-syntax-comment: "#008000"
+  color-syntax-function: "#795e26"
+  color-syntax-type: "#267f99"
+  color-syntax-property: "#001080"
+  color-syntax-constant: "#0000ff"
+  color-syntax-tag: "#800000"
 assets:
   tone: light
   icon_set: color

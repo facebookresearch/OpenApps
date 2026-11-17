@@ -217,6 +217,24 @@ class TestLayerControl:
         assert map_main.map_controls("nope") == map_main.map_controls("default")
 
 
+class TestBasemaps:
+    """The basemap list is a closed set: every name config can select must be
+    defined in the template, and none of them may come from CartoDB, whose
+    tiles were dropped from the app entirely."""
+
+    def test_no_cartodb_layers(self, pages):
+        for html in pages.values():
+            assert "cartocdn" not in html.lower()
+            assert "CartoDB" not in html
+
+    @pytest.mark.parametrize("theme", ["dark", "mono"])
+    def test_tone_basemap_is_a_defined_layer(self, theme):
+        js = script(render(theme=theme))
+        selected = re.search(r"\(layers\['([^']+)'\]", js).group(1)
+        assert selected != "OpenStreetMap", "the tone fell back to the default layer"
+        assert f"'{selected}': L.tileLayer(" in js
+
+
 class TestBottomSheetDropdowns:
     """The sheet scrolls, so an absolutely positioned dropdown inside it is
     clipped at its edge; in bottom_sheet the dropdowns must flow inline."""

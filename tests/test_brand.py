@@ -93,8 +93,8 @@ class TestMarkup:
     def test_has_one_arc_and_two_rays(self):
         assert brand.wordmark_markup().count("<path") == 3
 
-    def test_carries_the_dark_mode_flip_hook(self):
-        """styles.py flips this class; without it dark mode silently does nothing."""
+    def test_carries_a_hook_for_the_mark_alone(self):
+        """A class on the mark group, so it can be styled without the word."""
         assert 'class="ui-wordmark-mark"' in brand.wordmark_markup()
 
     def test_gradient_runs_bottom_to_top(self):

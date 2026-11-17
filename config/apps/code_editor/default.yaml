@@ -75,8 +75,18 @@ list_of_editor_themes:
 # Not theme and not layout: these change what the editor *does*. They used to
 # come from the `appearance` group, which conflated all three.
 
-# Language mode the editor starts in.
+# Language mode the editor starts in, for a file whose extension does not
+# name one. A `.py` / `.yaml` / `.go` ... opens in its own language either way.
 mode: "python"
+# Colour the code with the built-in, offline highlighter. Separate from
+# `highlight` (CodeMirror) on purpose: CodeMirror comes from a CDN the eval
+# nodes cannot reach, and it replaces the #editor textarea with its own DOM.
+# This keeps the textarea as the input -- same element, same accessibility
+# tree, `fill()` still works -- and paints a highlighted copy behind its
+# transparent text (assets/js/code_highlight.js). Colours are theme tokens
+# (`color-syntax-*`). Off gives the plain monochrome textarea; ignored when
+# `highlight` is on.
+syntax_highlight: True
 # Load CodeMirror at all. False renders a plain <textarea> -- a meaningfully
 # different observation for an agent, so it is behaviour, not appearance.
 highlight: False

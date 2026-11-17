@@ -68,10 +68,21 @@ tokens:
   ring-pink: "#f24eed"
   ring-teal: "#00d1ae"
   ring-violet: "#931efa"
+  # Syntax colours for the code editor's highlight layer. VS Code Dark+: every hue but comments clears AA on #1c2b33.
+  color-syntax-keyword: "#569cd6"
+  color-syntax-control: "#c586c0"
+  color-syntax-string: "#ce9178"
+  color-syntax-number: "#b5cea8"
+  color-syntax-comment: "#6a9955"
+  color-syntax-function: "#dcdcaa"
+  color-syntax-type: "#4ec9b0"
+  color-syntax-property: "#9cdcfe"
+  color-syntax-constant: "#569cd6"
+  color-syntax-tag: "#569cd6"
 
 # App-agnostic hints each app maps onto its own concrete asset. Without these
 # the dark theme inherited the light/color defaults, leaving the code pane on a
-# light CodeMirror stylesheet and colour PNG icons on dark chrome.
+# light CodeMirror stylesheet and colour icons on dark chrome.
 assets:
   tone: dark
   icon_set: bw

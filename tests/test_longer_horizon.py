@@ -31,6 +31,7 @@ from open_apps.tasks.tasks import (
     CompositeTask,
     MarkToDoDoneTask,
     SendMessageTask,
+    resolve_thread,
 )
 
 _STATES_DIR = Path(__file__).parent / "states"
@@ -120,8 +121,8 @@ class TestCompositeTask:
         initial = _load_initial()
         observed = task.get_target_state(initial)
         for contact in observed["messenger"]:
-            if contact["user"] == "Charlie":
-                contact["messages"].append(["I'm a bot!", "Charlie", "Jan 01, 12:00PM"])
+            if contact["handle"] == resolve_thread("Charlie", initial):
+                contact["messages"].append(["I'm a bot!", contact["handle"], "Jan 01, 12:00PM"])
         assert _check(task, initial, observed)
 
     def test_spurious_message_fails(self):
@@ -130,12 +131,12 @@ class TestCompositeTask:
         initial = _load_initial()
         observed = task.get_target_state(initial)
         for contact in observed["messenger"]:
-            if contact["user"] == "Charlie":
+            if contact["handle"] == resolve_thread("Charlie", initial):
                 # the legitimate auto-reply ...
-                contact["messages"].append(["a reply", "Charlie", "x"])
+                contact["messages"].append(["a reply", contact["handle"], "x"])
                 # ... plus a spurious extra outgoing message + its reply
                 contact["messages"].append(["spurious extra message", "you", "x"])
-                contact["messages"].append(["another reply", "Charlie", "x"])
+                contact["messages"].append(["another reply", contact["handle"], "x"])
         assert not _check(task, initial, observed)
 
     def test_spurious_message_to_untargeted_contact_fails(self):
@@ -144,11 +145,11 @@ class TestCompositeTask:
         initial = _load_initial()
         observed = task.get_target_state(initial)
         for contact in observed["messenger"]:
-            if contact["user"] == "Charlie":
-                contact["messages"].append(["a reply", "Charlie", "x"])
-            if contact["user"] == "Bob":  # never targeted by this task
+            if contact["handle"] == resolve_thread("Charlie", initial):
+                contact["messages"].append(["a reply", contact["handle"], "x"])
+            if contact["handle"] == resolve_thread("Bob", initial):  # never targeted
                 contact["messages"].append(["unsolicited", "you", "x"])
-                contact["messages"].append(["bob reply", "Bob", "x"])
+                contact["messages"].append(["bob reply", contact["handle"], "x"])
         assert not _check(task, initial, observed)
 
     def test_wrong_message_content_fails(self):
@@ -235,12 +236,13 @@ class TestLongerHorizonSet:
 
     @pytest.mark.parametrize("key", _LH_KEYS)
     def test_message_contacts_are_seeded(self, key):
-        """Every messaged contact exists in the seed (else get_target_state raises)."""
-        seeded = {c["user"] for c in _load_initial()["messenger"]}
+        """Every messaged contact resolves to one seeded thread (else
+        get_target_state raises mid-episode)."""
+        initial = _load_initial()
         task = instantiate(_lh_cfg()[key])
         for sub in task.subtasks:
             if isinstance(sub, SendMessageTask):
-                assert sub.to in seeded, f"{key} messages unknown contact {sub.to!r}"
+                resolve_thread(sub.to, initial)
 
     @pytest.mark.parametrize("key", _LH_KEYS)
     def test_goal_specifies_agent_produced_values(self, key):

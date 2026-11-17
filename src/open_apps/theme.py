@@ -40,7 +40,7 @@ The ``tokens`` mapping is open-ended: every ``key: value`` becomes the CSS
 custom property ``--key: value``, so apps can introduce new tokens without
 touching this module.
 
-``assets`` covers what a CSS variable cannot reach: raster icons, Leaflet
+``assets`` covers what a CSS variable cannot reach: <img> icons, Leaflet
 tile layers, CodeMirror stylesheets. It is deliberately *app-agnostic* --
 a theme declares intent (``tone: dark``) and each app maps that onto its
 own concrete choice, so a shared theme file never has to grow a key for
@@ -208,7 +208,7 @@ def theme_assets(apps_config, app_name: str) -> dict:
     * ``tone``     -- ``light`` | ``dark`` | ``mono``. Apps map this onto their
       own concrete asset (maps picks a tile layer, the code editor picks a
       CodeMirror stylesheet, the start page picks a tile fill).
-    * ``icon_set`` -- ``color`` | ``bw``. Which raster icon directory to serve.
+    * ``icon_set`` -- ``color`` | ``bw``. Which app icon directory to serve.
 
     A theme that omits ``assets`` (or omits a key) gets the light/color
     defaults, so adding a new theme file never has to spell them out.
