@@ -59,15 +59,32 @@ def base():
         sys.modules.pop(name, None)
 
 
+ALICE_HANDLE = "+15550100001"
+ALICE = {
+    "id": 1,
+    "first_name": "Alice",
+    "last_name": "",
+    "company": "",
+    "note": "",
+    "favorite": False,
+    "phones": [{"label": "mobile", "value": ALICE_HANDLE}],
+    "emails": [],
+}
+
+
 def _state(todos=("a", "b"), messages=()) -> dict:
     return {
         "todo": [{"id": i, "title": t, "done": 0} for i, t in enumerate(todos)],
         "calendar": [],
         "map": [],
-        "messenger": [{"user": "Alice", "messages": [list(m) for m in messages]}],
+        # Threads are keyed by handle; "to: Alice" resolves through contacts.
+        "messenger": [{"handle": ALICE_HANDLE, "messages": [list(m) for m in messages]}],
         "codeeditor": {},
         "ui_library": [],
         "openbanking": {},
+        "files": {},
+        "contacts": {"contacts": [ALICE]},
+        "passwords": {},
         "online_shop": [],
     }
 

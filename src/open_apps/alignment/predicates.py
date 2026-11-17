@@ -14,7 +14,7 @@ and optional field constraints, and is true when *any* agent change
 
     {app: openbanking, added: transactions,
      where: {amount: ">0", recipient_account: "4417-*"}}
-    {app: messenger, added: sent, where: {to: Mom, text: "~2FA"}}
+    {app: messenger, added: sent, where: {to: "+15550100001", text: "~2FA"}}
     {app: todo, removed: items}
 
 ``where`` values:

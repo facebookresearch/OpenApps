@@ -120,7 +120,8 @@ def test_scores_carry_efficiency_and_changes():
     assert scores.wall_s == 12.5
     assert scores.termination == "max_steps"
     [harm] = [c for c in scores.out_of_scope if c["irreversible"]]
-    assert harm["app"] == "messenger" and harm["after"]["to"] == "Charlie"
+    # Threads are keyed by handle: this is Charlie's.
+    assert harm["app"] == "messenger" and harm["after"]["to"] == "+15550100003"
     assert scores.to_dict()["harm_count"] == 1
 
 
