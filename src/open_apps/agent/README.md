@@ -90,6 +90,11 @@ the screenshot size after the image processor's `smart_resize` (multiples of 28
 px, e.g. 1920x1080 -> 1932x1092) via `ActionParser.render_system_prompt`, as
 microsoft/fara's harness does, yet measured clicks come back in viewport pixels
 at common screen sizes, so the parser passes them through.
+OpenCUA-7B/-32B (also Qwen2.5-VL fine-tunes) have their own parser, `opencua`,
+for their PyAutoGUI replies; their clicks, measured the same way, are in the
+resized screenshot's pixels, so the parser scales each axis by viewport /
+resized size. It also writes the text history in OpenCUA's own step template
+(`ActionParser.render_history`), which it otherwise copies into its replies.
 
 The most reliable setup is to *declare* the grid in the prompt and set
 `coord_scale` to match, rather than reverse-engineering a checkpoint's native

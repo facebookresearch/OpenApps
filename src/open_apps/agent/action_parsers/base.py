@@ -34,6 +34,13 @@ class ActionParser:
         """
         return system_prompt
 
+    def render_history(self, actions: list, thoughts: list) -> str | None:
+        """The user message's history section, from the displayed actions and
+        thoughts of earlier steps. None keeps the shared format (vLLM_prompt.History);
+        a model trained on its own step template (OpenCUA) overrides this.
+        """
+        return None
+
     def parse(self, response: str, viewport: tuple[int, int]) -> ActionParserResult:
         """``viewport`` is (width, height) px. Raise ParseError on bad output."""
         raise NotImplementedError

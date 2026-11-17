@@ -7,11 +7,13 @@ from .coords import rescale_xy
 from .uitars import UITarsActionParser
 from .qwen3vl import Qwen3VLActionParser
 from .fara import FaraActionParser
+from .opencua import OpenCUAActionParser
 
 REGISTRY: dict[str, type[ActionParser]] = {
     "uitars": UITarsActionParser,
     "qwen3vl": Qwen3VLActionParser,
     "fara": FaraActionParser,
+    "opencua": OpenCUAActionParser,
 }
 
 
@@ -22,7 +24,7 @@ def get_action_parser(
 
     ``coord_scale`` overrides the family's default coordinate space when given;
     None keeps the subclass default (uitars: raw pixels, qwen3vl: 0-1000,
-    fara: viewport pixels).
+    fara: viewport pixels, opencua: see action_parsers/opencua.py).
     """
     if not name:
         name = "uitars"
