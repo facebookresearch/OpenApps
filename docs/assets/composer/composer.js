@@ -1001,7 +1001,7 @@
   // "Apps" for apps/*, "More options" otherwise -- so a group added under
   // config/ (A1's apps/events, A2's benchmark) needs no change in this file.
   const MAIN_KEYS = [
-    "agent", "device", "tasks", "task_name", "apps/theme", "apps/pop_ups",
+    "agent", "device", "tasks", "task_name", "apps/theme", "apps/language", "apps/pop_ups",
     "browsergym_env_args", "experiment",
   ];
   const RUN_KEYS = [
