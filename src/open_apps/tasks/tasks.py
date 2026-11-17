@@ -974,6 +974,44 @@ class AddEventTask(Task):
         return app_state_comparison.compare()
 
 
+@functools.lru_cache(maxsize=1)
+def _event_translations() -> dict[str, tuple[str, ...]]:
+    """English event title -> its rendering in every translated calendar pack.
+
+    Read from the packs' ``event_translations`` maps
+    (``config/apps/calendar/content/*.yaml``). Tasks name events in English;
+    under ``apps/calendar/content=german`` the app renders "Ottos Geburtstag"
+    where the goal says "Otto's Birthday", and the task has to target that
+    event. The todo pair below (:func:`_todo_translations`) works the same way.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "calendar" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("event_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_event(events: list, title: str, date: str) -> Optional[int]:
+    """Index of the event ``title`` on ``date`` refers to: an exact title
+    match, else the event carrying one of its translations (see
+    :func:`_event_translations`). The date always has to match, and the last
+    match wins, as :class:`RemoveEventTask` always did."""
+    found = None
+    for i, event in enumerate(events):
+        if event["title"] == title and event["date"] == date:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_event_translations().get(title, ()))
+    for i, event in enumerate(events):
+        if event["title"] in aliases and event["date"] == date:
+            found = i
+    return found
+
+
 @dataclass
 class RemoveEventTask(Task):
     """
@@ -990,10 +1028,9 @@ class RemoveEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, event in enumerate(target_state["calendar"]):
-            if event["title"] == self.title and event["date"] == self.date:
-                idx_to_remove = i
+        # Under a translated calendar pack the event carries the translated
+        # title; it is found through the pack's `event_translations`.
+        idx_to_remove = _find_event(target_state["calendar"], self.title, self.date)
         # remove the event to be deleted
         if idx_to_remove is not None:
             target_state["calendar"].pop(idx_to_remove)
