@@ -22,10 +22,7 @@ style:
           invitees: 'Veranstaltungsteilnehmende'
           location: 'Veranstaltungsort'
 
-# UI strings (keys documented in default.yaml). The event list itself is
-# inherited from default.yaml: the calendar tasks remove and check events by
-# their English title (config/tasks/*.yaml), so translating titles would make
-# those rewards unreachable under this pack.
+# UI strings (keys documented in default.yaml).
 add_event_label: "Termin hinzufügen"
 prev_label: "< Zurück"
 next_label: "Weiter >"
@@ -72,3 +69,559 @@ month_abbr: [Jan., Feb., März, Apr., Mai, Juni, Juli, Aug., Sept., Okt., Nov., 
 day_names: [Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag]
 day_abbr: [Mo, Di, Mi, Do, Fr, Sa, So]
 day_initials: [M, D, M, D, F, S, S]
+
+# Every event is translated, in the default pack's order and with its dates,
+# links, recurrence and invitees, so a task starts from the same calendar in
+# every language. Invitees are people and keep their names.
+events:
+  - title: "WACV 2026: Abstract-Frist"
+    date: 2025-07-11
+    description: |
+      # WACV 2026: Abstract-Frist
+
+      Einreichungsfrist für Abstracts der Winter Conference on Applications of Computer Vision.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 11. Juli 2025
+      - Paper-Frist: 18. Juli 2025
+
+      Abstracts über das Konferenzportal einreichen.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: "WACV 2026: Paper-Frist"
+    date: 2025-07-18
+    description: |
+      # WACV 2026: Frist für vollständige Paper
+
+      Letzte Frist für Einreichungen zur Winter Conference on Applications of Computer Vision.
+
+      Paper müssen im vorgeschriebenen Format und mit allen Zusatzmaterialien eingereicht werden.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: "AAAI 2026: Abstract-Frist"
+    date: 2025-07-25
+    description: |
+      # AAAI 2026: Frist für Abstracts
+
+      Einreichungsfrist für Abstracts der 40. AAAI Conference on Artificial Intelligence.
+
+      ## Zeitplan:
+      - Abstract-Frist: 25. Juli 2025
+      - Paper-Frist: 1. August 2025
+
+      Eine der führenden KI-Konferenzen, die alle Bereiche der künstlichen Intelligenz abdeckt.
+    url: https://aaai.org/conference/
+    location: Online
+    invitees: null
+
+  - title: "SIGKDD 2026: Abstract-Frist"
+    date: 2025-07-24
+    description: |
+      # SIGKDD 2026: Abstract-Frist
+
+      Einreichungsfrist für Abstracts der Conference on Knowledge Discovery and Data Mining.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 24. Juli 2025
+      - Paper-Frist: 31. Juli 2025
+
+      SIGKDD ist die führende Konferenz für Data Mining, Data Science und Wissensentdeckung.
+    url: https://kdd.org/
+    location: Online
+    invitees: null
+
+  - title: "AAAI 2026: Paper-Frist"
+    date: 2025-08-01
+    description: |
+      # AAAI 2026: Frist für vollständige Paper
+
+      Letzte Frist für Paper-Einreichungen zur 40. AAAI Conference on Artificial Intelligence.
+
+      Die AAAI ist eine der wichtigsten Konferenzen der KI-Forschung.
+    url: https://aaai.org/conference/
+    location: Online
+    invitees: null
+
+  - title: "SIGKDD 2026: Paper-Frist"
+    date: 2025-07-31
+    description: |
+      # SIGKDD 2026: Frist für vollständige Paper
+
+      Letzte Einreichungsfrist für Paper zur Conference on Knowledge Discovery and Data Mining.
+
+      Paper müssen den ACM-Formatvorgaben entsprechen und über das Konferenzsystem eingereicht werden.
+    url: https://kdd.org/
+    location: Online
+    invitees: null
+
+  - title: "UbiComp/ISWC 2025: Einreichungsfrist"
+    date: 2025-08-01
+    description: |
+      # UbiComp/ISWC 2025: Einreichungsfrist August
+
+      Einreichungsfrist im August für die ACM International Joint Conference on Pervasive and Ubiquitous Computing.
+
+      Die Konferenz hat fortlaufende Fristen; Einreichungen werden vierteljährlich angenommen.
+    url: https://www.ubicomp.org/
+    location: Online
+    invitees: null
+
+  - title: "WSDM 2026: Abstract-Frist"
+    date: 2025-08-07
+    description: |
+      # WSDM 2026: Abstract-Frist
+
+      Einreichungsfrist für Abstracts der Web Search and Data Mining Conference.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 7. August 2025
+      - Paper-Frist: 14. August 2025
+
+      Die WSDM ist eine der führenden Konferenzen für webbezogene Forschung.
+    url: https://www.wsdm-conference.org/
+    location: Online
+    invitees: null
+
+  - title: "WSDM 2026: Paper-Frist"
+    date: 2025-08-14
+    description: |
+      # WSDM 2026: Frist für vollständige Paper
+
+      Letzte Einreichungsfrist für Paper zur Web Search and Data Mining Conference.
+
+      Reiche deine Forschung zu Suche und Data Mining im Web und darüber hinaus ein.
+    url: https://www.wsdm-conference.org/
+    location: Online
+    invitees: null
+
+  - title: "3DV 2026: Einreichungsfrist"
+    date: 2025-08-18
+    description: |
+      # 3DV 2026: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur International Conference on 3D Vision.
+
+      Reiche deine Forschung zu allen Aspekten des 3D-Computersehens ein, darunter 3D-Rekonstruktion, Wahrnehmung und Analyse.
+    url: https://3dv2026.org/
+    location: Online
+    invitees: null
+
+  - title: "CHI 2026: Abstract-Frist"
+    date: 2025-09-04
+    description: |
+      # CHI 2026: Abstract-Frist
+
+      Einreichungsfrist für Abstracts der ACM CHI Conference on Human Factors in Computing Systems.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 4. September 2025
+      - Paper-Frist: 11. September 2025
+
+      Die CHI ist die führende internationale Konferenz für Mensch-Computer-Interaktion.
+    url: https://chi2026.acm.org/
+    location: Online
+    invitees: null
+
+  - title: "CHI 2026: Paper-Frist"
+    date: 2025-09-11
+    description: |
+      # CHI 2026: Frist für vollständige Paper
+
+      Letzte Einreichungsfrist für Paper zur ACM CHI Conference on Human Factors in Computing Systems.
+
+      Paper müssen anonymisiert sein und den Vorgaben der ACM-Vorlage folgen.
+    url: https://chi2026.acm.org/
+    location: Online
+    invitees: null
+
+  - title: "WACV 2026: Zweite Abstract-Frist"
+    date: 2025-09-12
+    description: |
+      # WACV 2026: Zweite Abstract-Frist
+
+      Einreichungsfrist für Abstracts der zweiten Runde der Winter Conference on Applications of Computer Vision.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 12. September 2025
+      - Paper-Frist: 19. September 2025
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: "WACV 2026: Zweite Paper-Frist"
+    date: 2025-09-19
+    description: |
+      # WACV 2026: Zweite Paper-Frist
+
+      Einreichungsfrist für vollständige Paper der zweiten Runde der Winter Conference on Applications of Computer Vision.
+
+      Dies ist die letzte Gelegenheit, Paper für die WACV 2026 einzureichen.
+    url: https://wacv2026.thecvf.com
+    location: Online
+    invitees: null
+
+  - title: "ICASSP 2026: Einreichungsfrist"
+    date: 2025-09-17
+    description: |
+      # ICASSP 2026: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur IEEE International Conference on Acoustics, Speech and Signal Processing.
+
+      Die ICASSP ist die weltweit größte Fachkonferenz für Signalverarbeitung und ihre Anwendungen.
+    url: https://2026.ieeeicassp.org/
+    location: Online
+    invitees: null
+
+  - title: "ICLR 2026: Abstract-Frist"
+    date: 2025-09-20
+    description: |
+      # ICLR 2026: Abstract-Frist
+
+      Einreichungsfrist für Abstracts der International Conference on Learning Representations.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 20. September 2025
+      - Paper-Frist: 25. September 2025
+
+      Die ICLR ist die führende Konferenz für Repräsentationslernen in der künstlichen Intelligenz.
+    url: https://iclr.cc/
+    location: Online
+    invitees: null
+
+  - title: "ICLR 2026: Paper-Frist"
+    date: 2025-09-25
+    description: |
+      # ICLR 2026: Frist für vollständige Paper
+
+      Letzte Einreichungsfrist für Paper zur International Conference on Learning Representations.
+
+      Die ICLR konzentriert sich auf Deep Learning und Ansätze des Repräsentationslernens in der KI.
+    url: https://iclr.cc/
+    location: Online
+    invitees: null
+
+  - title: "SATML 2026: Einreichungsfrist"
+    date: 2025-09-24
+    description: |
+      # SATML 2026: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur Conference on Secure and Trustworthy Machine Learning.
+
+      Die SATML bringt Forschende aus Sicherheit, Datenschutz, maschinellem Lernen und KI-Sicherheit zusammen.
+    url: https://satml.org/
+    location: Online
+    invitees: null
+
+  - title: "IUI 2026: Abstract-Frist"
+    date: 2025-10-03
+    description: |
+      # IUI 2026: Abstract-Frist
+
+      Einreichungsfrist für Abstracts der ACM Conference on Intelligent User Interfaces.
+
+      ## Wichtige Termine:
+      - Abstract-Frist: 3. Oktober 2025
+      - Paper-Frist: 10. Oktober 2025
+
+      Die IUI befasst sich mit der Interaktion zwischen Menschen und KI-Systemen.
+    url: https://iui.acm.org/2026/
+    location: Online
+    invitees: null
+
+  - title: "IUI 2026: Paper-Frist"
+    date: 2025-10-10
+    description: |
+      # IUI 2026: Frist für vollständige Paper
+
+      Letzte Einreichungsfrist für Paper zur ACM Conference on Intelligent User Interfaces.
+
+      Reiche deine Forschung zu innovativen Benutzeroberflächen ein, die KI-Technologien nutzen.
+    url: https://iui.acm.org/2026/
+    location: Online
+    invitees: null
+
+  - title: "LREC 2026: Einreichungsfrist"
+    date: 2025-10-17
+    description: |
+      # LREC 2026: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur Language Resources and Evaluation Conference.
+
+      Die LREC ist die wichtigste Veranstaltung zu Sprachressourcen und zur Evaluation von Sprachtechnologie.
+    url: https://lrec-conf.org/2026/
+    location: Online
+    invitees: null
+
+  - title: "UbiComp/ISWC 2025: Einreichungsfrist November"
+    date: 2025-11-01
+    description: |
+      # UbiComp/ISWC 2025: Einreichungsfrist November
+
+      Einreichungsfrist im November für die ACM International Joint Conference on Pervasive and Ubiquitous Computing.
+
+      Dies ist die vierte vierteljährliche Frist des fortlaufenden Einreichungsverfahrens.
+    url: https://www.ubicomp.org/
+    location: Online
+    invitees: null
+
+  - title: "CPAL 2025: Einreichungsfrist"
+    date: 2025-11-25
+    description: |
+      # CPAL 2025: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur Conference on Privacy, Accountability, and Legitimacy in AI.
+
+      Die CPAL befasst sich mit den gesellschaftlichen Auswirkungen und der Governance von KI-Technologien.
+    url: https://cpal-conference.org/
+    location: Online
+    invitees: null
+
+  - title: "IJCNN 2026: Einreichungsfrist"
+    date: 2026-01-31
+    description: |
+      # IJCNN 2026: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur International Joint Conference on Neural Networks.
+
+      Die IJCNN ist die führende Konferenz zu allen Themen rund um neuronale Netze und verwandte Gebiete.
+    url: https://www.ijcnn.org/
+    location: Online
+    invitees: null
+
+  - title: "InterSpeech 2026: Einreichungsfrist"
+    date: 2026-03-02
+    description: |
+      # InterSpeech 2026: Einreichungsfrist
+
+      Einreichungsfrist für Paper zur weltweit größten Konferenz für Sprachverarbeitung.
+
+      Reiche deine Forschung zu allen Aspekten der Sprachwissenschaft und Sprachtechnologie ein.
+    url: https://www.isca-speech.org/
+    location: Online
+    invitees: null
+
+  - title: "ECCV 2026: Paper-Frist"
+    date: 2026-03-06
+    description: |
+      # ECCV 2026: Frist für vollständige Paper
+
+      Einreichungsfrist für Paper zur European Conference on Computer Vision.
+
+      Die ECCV ist eine der wichtigsten Konferenzen der Computer-Vision-Forschung.
+    url: https://eccv2026.org/
+    location: Online
+    invitees: null
+
+  # Birthdays
+  - title: "Bobs Geburtstag"
+    date: 1980-04-15
+    description: |
+      # Bobs Geburtstag
+
+      Geschenk oder Karte nicht vergessen!
+    recurring: yearly
+    invitees: Bob
+
+  - title: "Alices Geburtstag"
+    date: 1982-06-23
+    description: |
+      # Alices Geburtstag
+
+      Anrufen und ihr alles Gute zum Geburtstag wünschen!
+    recurring: yearly
+    invitees: Alice
+
+  - title: "Charlies Geburtstag"
+    date: 1978-09-08
+    description: |
+      # Charlies Geburtstag
+    recurring: yearly
+    invitees: Charlie
+
+  - title: "Gottfrieds Geburtstag"
+    date: 1975-11-30
+    description: |
+      # Gottfrieds Geburtstag
+    recurring: yearly
+    invitees: Gottfried
+
+  - title: "Sieglines Geburtstag"
+    date: 1987-02-14
+    description: |
+      # Sieglines Geburtstag
+    recurring: yearly
+    invitees: Siegline
+
+  - title: "Hans' Geburtstag"
+    date: 1965-03-22
+    description: |
+      # Hans' Geburtstag
+    recurring: yearly
+    invitees: Hans
+
+  - title: "Gretas Geburtstag"
+    date: 1992-05-10
+    description: |
+      # Gretas Geburtstag
+    recurring: yearly
+    invitees: Greta
+
+  - title: "Geburtstag von Luka"
+    date: 1993-07-17
+    description: |
+      # Geburtstag von Luka
+    recurring: yearly
+    invitees: Luka
+
+  - title: "Annas Geburtstag"
+    date: 1985-08-03
+    description: |
+      # Annas Geburtstag
+    recurring: yearly
+    invitees: Anna
+
+  - title: "Franz' Geburtstag"
+    date: 1970-01-25
+    description: |
+      # Franz' Geburtstag
+    recurring: yearly
+    invitees: Franz
+
+  - title: "Josefs Geburtstag"
+    date: 1968-10-12
+    description: |
+      # Josefs Geburtstag
+    recurring: yearly
+    invitees: Josef
+
+  - title: "Karls Geburtstag"
+    date: 1972-12-05
+    description: |
+      # Karls Geburtstag
+    recurring: yearly
+    invitees: Karl
+
+  - title: "Helgas Geburtstag"
+    date: 1967-06-29
+    description: |
+      # Helgas Geburtstag
+    recurring: yearly
+    invitees: Helga
+
+  - title: "Ottos Geburtstag"
+    date: 1990-04-02
+    description: |
+      # Ottos Geburtstag
+    recurring: yearly
+    invitees: Otto
+
+  - title: "Zacks Geburtstag"
+    date: 1995-07-30
+    description: |
+      # Zacks Geburtstag
+    recurring: yearly
+    invitees: Zack
+
+  - title: "Papas Geburtstag"
+    date: 1960-02-28
+    description: |
+      # Papas Geburtstag
+
+      Nicht vergessen anzurufen!
+    recurring: yearly
+    invitees: Dad
+
+  - title: "Alex' Geburtstag"
+    date: 1988-11-15
+    description: |
+      # Alex' Geburtstag
+    recurring: yearly
+    invitees: Alex
+
+  - title: "Omas Geburtstag"
+    date: 1940-05-18
+    description: |
+      # Omas Geburtstag
+
+      Blumen schicken nicht vergessen!
+    recurring: yearly
+    invitees: Granni
+
+  - title: "Jamals Geburtstag"
+    date: 1987-09-22
+    description: |
+      # Jamals Geburtstag
+    recurring: yearly
+    invitees: Jamal
+
+  - title: "Priyas Geburtstag"
+    date: 1991-01-12
+    description: |
+      # Priyas Geburtstag
+    recurring: yearly
+    invitees: Priya
+
+  - title: "Elenas Geburtstag"
+    date: 1984-08-20
+    description: |
+      # Elenas Geburtstag
+    recurring: yearly
+    invitees: Elena
+
+# English title (as the task configs name it) -> the title rendered above. The
+# calendar task classes resolve a goal's English title through this, so
+# "Remove Otto's Birthday" means "Ottos Geburtstag" here: the agent has to
+# make the cross-language match. Keep it in step with `events`
+# (tests/test_calendar_i18n.py checks).
+event_translations:
+  "WACV 2026 Abstract Deadline": "WACV 2026: Abstract-Frist"
+  "WACV 2026 Paper Deadline": "WACV 2026: Paper-Frist"
+  "AAAI 2026 Abstract Deadline": "AAAI 2026: Abstract-Frist"
+  "SIGKDD 2026 Abstract Deadline": "SIGKDD 2026: Abstract-Frist"
+  "AAAI 2026 Paper Deadline": "AAAI 2026: Paper-Frist"
+  "SIGKDD 2026 Paper Deadline": "SIGKDD 2026: Paper-Frist"
+  "UbiComp/ISWC 2025 Deadline": "UbiComp/ISWC 2025: Einreichungsfrist"
+  "WSDM 2026 Abstract Deadline": "WSDM 2026: Abstract-Frist"
+  "WSDM 2026 Paper Deadline": "WSDM 2026: Paper-Frist"
+  "3DV 2026 Deadline": "3DV 2026: Einreichungsfrist"
+  "CHI 2026 Abstract Deadline": "CHI 2026: Abstract-Frist"
+  "CHI 2026 Paper Deadline": "CHI 2026: Paper-Frist"
+  "WACV 2026 Second Abstract Deadline": "WACV 2026: Zweite Abstract-Frist"
+  "WACV 2026 Second Paper Deadline": "WACV 2026: Zweite Paper-Frist"
+  "ICASSP 2026 Deadline": "ICASSP 2026: Einreichungsfrist"
+  "ICLR 2026 Abstract Deadline": "ICLR 2026: Abstract-Frist"
+  "ICLR 2026 Paper Deadline": "ICLR 2026: Paper-Frist"
+  "SATML 2026 Deadline": "SATML 2026: Einreichungsfrist"
+  "IUI 2026 Abstract Deadline": "IUI 2026: Abstract-Frist"
+  "IUI 2026 Paper Deadline": "IUI 2026: Paper-Frist"
+  "LREC 2026 Deadline": "LREC 2026: Einreichungsfrist"
+  "UbiComp/ISWC 2025 November Deadline": "UbiComp/ISWC 2025: Einreichungsfrist November"
+  "CPAL 2025 Deadline": "CPAL 2025: Einreichungsfrist"
+  "IJCNN 2026 Deadline": "IJCNN 2026: Einreichungsfrist"
+  "InterSpeech 2026 Deadline": "InterSpeech 2026: Einreichungsfrist"
+  "ECCV 2026 Paper Deadline": "ECCV 2026: Paper-Frist"
+  "Bob's Birthday": "Bobs Geburtstag"
+  "Alice's Birthday": "Alices Geburtstag"
+  "Charlie's Birthday": "Charlies Geburtstag"
+  "Gottfried's Birthday": "Gottfrieds Geburtstag"
+  "Siegline's Birthday": "Sieglines Geburtstag"
+  "Hans's Birthday": "Hans' Geburtstag"
+  "Greta's Birthday": "Gretas Geburtstag"
+  "Luka's Birthday": "Geburtstag von Luka"
+  "Anna's Birthday": "Annas Geburtstag"
+  "Franz's Birthday": "Franz' Geburtstag"
+  "Josef's Birthday": "Josefs Geburtstag"
+  "Karl's Birthday": "Karls Geburtstag"
+  "Helga's Birthday": "Helgas Geburtstag"
+  "Otto's Birthday": "Ottos Geburtstag"
+  "Zack's Birthday": "Zacks Geburtstag"
+  "Dad's Birthday": "Papas Geburtstag"
+  "Alex's Birthday": "Alex' Geburtstag"
+  "Granni's Birthday": "Omas Geburtstag"
+  "Jamal's Birthday": "Jamals Geburtstag"
+  "Priya's Birthday": "Priyas Geburtstag"
+  "Elena's Birthday": "Elenas Geburtstag"

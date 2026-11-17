@@ -76,11 +76,34 @@ create form (labels, placeholders, recurrence options) and error banners. The
 page's `<html lang>` follows (`de`, `zh-Hans`), and the shared strings
 ("Return to List of Apps", "Close") come from `open_apps/i18n.py`.
 
-The events themselves are inherited from `default.yaml` and stay in English.
-The calendar tasks remove and check events by title (`remove_otto_birthday`
-looks for "Otto's Birthday"), so a translated title would make those rewards
-unreachable under the pack. Dates are always ISO `YYYY-MM-DD`, the format the
-create form accepts.
+The events are translated too: titles, descriptions and locations, in the
+default pack's order and with its dates, links, recurrence and invitees, so a
+task starts from the same calendar in every language. Invitees are people and
+keep their names ("Alex' Geburtstag" / "Alex的生日" still invites Alex). Dates
+are always ISO `YYYY-MM-DD`, the format the create form accepts.
+
+Task goals stay in English. `remove_otto_birthday` under the german pack means
+the event titled "Ottos Geburtstag": each translated pack carries an
+`event_translations` map from the English title to the rendered one, and
+`RemoveEventTask` resolves the goal's title through it (the date still has to
+match). The agent has to make the cross-language match; the task does not get
+easier or harder to score. `AddEventTask` adds the title the goal quotes,
+verbatim.
+
+```yaml
+# config/apps/calendar/content/german.yaml (excerpt)
+events:
+  - title: "Ottos Geburtstag"
+    date: 1990-04-02
+    recurring: yearly
+    invitees: Otto
+event_translations:
+  "Otto's Birthday": "Ottos Geburtstag"
+```
+
+Adding an event means adding it to `events` in all three language packs, at
+the same position and with the same date, and to both `event_translations`
+maps; `tests/test_calendar_i18n.py` checks all of it.
 
 The UI strings are flat keys in each pack, English in
 `config/apps/calendar/content/default.yaml`; a pack that leaves one out falls

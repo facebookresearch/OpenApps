@@ -385,7 +385,7 @@ uv run launch.py apps/start_page/content=german apps/todo/content=german \
 ```
 
 Task goals stay English. Tasks whose target is a translated item (a todo
-title, a bank ledger row) resolve the English goal name to the pack's wording,
+title, a calendar event, a bank ledger row) resolve the English goal name to the pack's wording,
 so a task stays winnable in every language; `tests/test_*_i18n*.py` checks this
 per app.
 

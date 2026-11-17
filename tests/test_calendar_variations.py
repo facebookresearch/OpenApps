@@ -181,9 +181,12 @@ def test_agenda_is_localized(render, content):
     all_day = {"german": "Ganztägig", "mandarin": "全天"}[content]
     assert all_day in texts(soup.select(".agenda-time"))
     assert "All day" not in soup.get_text(" ")
-    # Event titles are data and stay as the pack gives them: tasks remove
-    # events by their English title.
-    assert "WACV 2026 Abstract Deadline" in texts(soup.select("a.agenda-event-link"))
+    # Event titles are data and render as the pack gives them: translated,
+    # with tasks resolving the English title through `event_translations`.
+    links = texts(soup.select("a.agenda-event-link"))
+    translated = {"german": "WACV 2026: Abstract-Frist", "mandarin": "WACV 2026 摘要截止"}[content]
+    assert translated in links
+    assert "WACV 2026 Abstract Deadline" not in links
 
 
 def test_empty_agenda_is_localized(render):

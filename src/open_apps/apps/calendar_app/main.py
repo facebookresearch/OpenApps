@@ -548,8 +548,10 @@ def resolve_view(view: str | None) -> str:
 # falls back to the English text, so a pack that predates a key (the
 # adversarial pack does not inherit `default`) still renders the reference
 # page. Strings every app shares ("Return to List of Apps", "Close") come from
-# `open_apps.i18n.t`. Event titles are data, not UI: they stay as the packs
-# give them, because the calendar tasks match events by title.
+# `open_apps.i18n.t`. Event titles are data, not UI: they render as the pack
+# gives them. The german / mandarin packs translate them, and the calendar
+# tasks find an event by its English title through the pack's
+# `event_translations` (`open_apps.tasks.tasks._find_event`).
 
 
 def _content():
