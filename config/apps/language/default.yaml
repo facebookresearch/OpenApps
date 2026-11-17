@@ -1,4 +1,5 @@
 # @package _global_
+# label: English
 # English everywhere: every app keeps its default content pack.
 #
 # The same as selecting no language, so it overrides nothing. (Not every
