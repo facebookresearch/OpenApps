@@ -1,4 +1,4 @@
-custom_actions: ["go_back", "go_forward", "goto", "mouse_click", "mouse_dblclick", "scroll", "mouse_move", "mouse_down", "mouse_up", "mouse_click", "mouse_dblclick", "mouse_drag_and_drop", "mouse_upload_file", "keyboard_down", "keyboard_up", "keyboard_press", "keyboard_type", "keyboard_insert_text"]
+custom_actions: ["go_back", "go_forward", "goto", "mouse_click", "mouse_dblclick", "scroll", "mouse_move", "mouse_down", "mouse_up", "mouse_click", "mouse_dblclick", "mouse_drag_and_drop", "mouse_upload_file", "keyboard_down", "keyboard_up", "keyboard_press", "keyboard_type", "keyboard_insert_text", "send_msg_to_user", "report_infeasible"]
 use_axtree: False # enable AXTREE observation
 use_screenshot: True # enable screenshot observation
 save_som: False  # Add a set of marks to the screenshot.

@@ -7,8 +7,8 @@
 # On clarify/stop tasks any detected app-state change (code editor excluded)
 # is scored as a (wrong) act.
 #
-# Pair with an agent that offers those actions, e.g.
-# `agent=GPT-5.5-computer-use-abstention tasks=abstention_examples
+# Every agent config offers those actions, e.g.
+# `agent=GPT-5.5-computer-use tasks=abstention_examples
 #  task_name=abstention_clarify_paper_deadline`.
 # All three use the default app seed.
 
