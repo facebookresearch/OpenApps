@@ -190,7 +190,10 @@ def test_set_option_is_no_longer_a_no_op(editor_html):
 
 
 def test_theme_selector_reaches_the_shim(editor_html):
-    assert "editor.setOption('theme', this.value)" in editor_html
+    # The selector hands the editor the design theme's CodeMirror stylesheet
+    # (picked by tone), so a live switch restyles the code pane too.
+    assert "editor.setOption('theme', window.editorThemeFor(this.value))" in editor_html
+    assert "window.OPENAPPS_EDITOR_THEMES" in editor_html
 
 
 def test_every_selectable_theme_has_its_tokens_embedded(editor_html):

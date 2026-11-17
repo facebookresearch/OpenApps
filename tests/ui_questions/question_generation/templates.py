@@ -1688,6 +1688,10 @@ def _headline(config) -> str:
         desktop = config.get("desktop") or {}
         if desktop.get("headline"):
             return str(desktop["headline"])
+        # Mirrors `desktop_headline` in apps/start_page/main.py: the pack's
+        # own desktop line, then its gallery headline.
+        if config.get("desktop_headline"):
+            return str(config["desktop_headline"])
     return str(config.get("headline") or "Welcome to OpenApps!")
 
 

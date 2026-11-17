@@ -16,8 +16,8 @@ amount, closing balance is the last row's posted balance, and the bank's
 seeded ledgers are self-consistent (``tests/test_bank_statements.py`` checks
 every pack).
 
-Pending rows (no date yet) belong on no statement. That also keeps a shop
-checkout -- which posts pending rows -- from changing any statement.
+Every row is dated -- nothing in the bank is pending -- so a payment or a
+shop checkout lands on the statement for the pinned ``as_of_date``'s month.
 
 Posting dates are stored as each content pack prints them ("Aug 25, 2026",
 "25. Aug. 2026", "2026年8月25日"), so :func:`parse_posting_date` reads all
@@ -74,6 +74,23 @@ def parse_posting_date(text: Optional[str]) -> Optional[date]:
     return None
 
 
+# How the German pack writes each month: abbreviated with a full stop, except
+# the ones short enough to print whole ("Juni", "Juli", "März", "Mai").
+_DE_ABBR = ("Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sep.",
+            "Okt.", "Nov.", "Dez.")
+
+
+def format_posting_date(day: date, style: str = "en") -> str:
+    """``day`` the way a pack's ledger prints it: ``en`` "Aug 26, 2026",
+    ``de`` "26. Aug. 2026", ``zh`` "2026年8月26日". The inverse of
+    :func:`parse_posting_date`; an unknown style falls back to English."""
+    if style == "de":
+        return f"{day.day:02d}. {_DE_ABBR[day.month - 1]} {day.year}"
+    if style == "zh":
+        return f"{day.year}年{day.month}月{day.day}日"
+    return f"{MONTH_ABBR[day.month - 1]} {day.day:02d}, {day.year}"
+
+
 def month_key(month: tuple[int, int]) -> str:
     """``(2026, 7)`` -> ``"2026-07"``, the form URLs carry."""
     return f"{month[0]:04d}-{month[1]:02d}"
@@ -86,9 +103,23 @@ def parse_month(key: str) -> Optional[tuple[int, int]]:
     return int(m.group(1)), int(m.group(2))
 
 
-def month_label(month: tuple[int, int]) -> str:
-    """``(2026, 7)`` -> ``"July 2026"``."""
-    return f"{MONTH_NAMES[month[1] - 1]} {month[0]}"
+# Display-only month names for the Statements page under the german pack.
+# File names and the PDF stay English (see the module docstring).
+_DE_MONTH_NAMES = ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+                   "August", "September", "Oktober", "November", "Dezember")
+
+
+def month_label(month: tuple[int, int], language: str = "english") -> str:
+    """``(2026, 7)`` -> ``"July 2026"`` (``"Juli 2026"``, ``"2026年7月"``).
+
+    Only the Statements page passes ``language``; a statement's file name is
+    always built from the English label."""
+    year, mon = month
+    if language == "german":
+        return f"{_DE_MONTH_NAMES[mon - 1]} {year}"
+    if language == "mandarin":
+        return f"{year}年{mon}月"
+    return f"{MONTH_NAMES[mon - 1]} {year}"
 
 
 def statement_name(account_name: str, month: tuple[int, int]) -> str:
@@ -156,13 +187,19 @@ def build_statement(transactions, month: tuple[int, int]) -> Statement:
     )
 
 
-def period_label(month: tuple[int, int], today: date) -> str:
+def period_label(month: tuple[int, int], today: date, language: str = "english") -> str:
     """``Jul 1, 2026 - Jul 31, 2026``; the bank's current month stops at
-    ``today``, the way an online statement-to-date does."""
+    ``today``, the way an online statement-to-date does. ``language``
+    (Statements page only) writes it the way that pack writes dates."""
     year, mon = month
     last = calendar.monthrange(year, mon)[1]
     if (today.year, today.month) == (year, mon):
         last = today.day
+    if language == "german":
+        name = _DE_MONTH_NAMES[mon - 1]
+        return f"1. {name} {year} - {last}. {name} {year}"
+    if language == "mandarin":
+        return f"{year}年{mon}月1日 - {year}年{mon}月{last}日"
     abbr = MONTH_ABBR[mon - 1]
     return f"{abbr} 1, {year} - {abbr} {last}, {year}"
 

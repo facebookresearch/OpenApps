@@ -1,0 +1,7 @@
+# @package apps.files
+# Structure only -- no colors/fonts (those come from the shared theme).
+# `folder_tabs` drops the side column: the folders and Recently Deleted run as
+# a row of tabs across the top of the window, above the toolbar, and the list
+# and preview pane take the full width below. Same DOM order, ids and routes
+# as `default`; select with `apps/files/layout=folder_tabs`.
+layout: folder_tabs

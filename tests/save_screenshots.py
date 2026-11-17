@@ -49,7 +49,7 @@ class ComparisonResult:
 
 ROUTES = (
     RouteSpec("start_page", "/", "#wrapper"),
-    RouteSpec("todo", "/todo", "#todo-list"),
+    RouteSpec("todo", "/todo", "#todo-list, #todo-board, #todo-sections"),
     RouteSpec("calendar", "/calendar", ".calendar-table, .agenda-list"),
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     # An open conversation, not just the chat list. `split_inbox` and
@@ -73,6 +73,14 @@ ROUTES = (
     # Savings has three statement months (Jun-Aug), so the list isn't a
     # single row.
     RouteSpec("openbanking_statements", "/openbanking/accounts/1/statements", ".ob-card"),
+    # Send money, from Dana's Everyday Checking: the form, and the review for
+    # someone new, which is the one that shows "Save to Contacts".
+    RouteSpec("openbanking_send", "/openbanking/send?from=3", "#ob-send-form"),
+    RouteSpec(
+        "openbanking_send_review",
+        "/openbanking/send/review?from=3&to=sam.ortiz%40example.com&amount=60&memo=Harness",
+        "#ob-send-review",
+    ),
     RouteSpec("onlineshop", "/onlineshop", "input[name='search_query']"),
     RouteSpec("onlineshop_electronics", "/onlineshop/category/electronics/1", ".card"),
     RouteSpec("onlineshop_apparel", "/onlineshop/category/apparel/1", ".card"),
@@ -105,6 +113,9 @@ CONTENT_APPS = (
 # layout is not, so it has to name its app.
 LAYOUT_VARIATIONS = {
     "layout_kanban_board": ["apps/todo/layout=kanban_board"],
+    "layout_todo_grouped_sections": ["apps/todo/layout=grouped_sections"],
+    "layout_openbanking_card_list": ["apps/openbanking/layout=card_list"],
+    "layout_openbanking_grouped_by_date": ["apps/openbanking/layout=grouped_by_date"],
     "layout_broken_logos": ["apps/start_page/layout=broken_logos"],
     "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
     "layout_shop_grid": ["apps/onlineshop/layout=grid"],
@@ -134,6 +145,13 @@ def build_variation_overrides() -> dict[str, list[str]]:
     variations = {
         "default": [],
         "german": [f"apps/{app_name}/content=german" for app_name in CONTENT_APPS],
+        # Only the apps that ship a Mandarin pack: selecting one that does not
+        # exist would fail the whole composition.
+        "mandarin": [
+            f"apps/{app_name}/content=mandarin"
+            for app_name in CONTENT_APPS
+            if (REPO_ROOT / "config" / "apps" / app_name / "content" / "mandarin.yaml").exists()
+        ],
         "long_descriptions": [
             f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
         ],
