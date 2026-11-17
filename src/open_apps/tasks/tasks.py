@@ -515,11 +515,11 @@ class AppStateComparison:
         ``date``, ``description``, ``type``, ``memo`` and ``balance`` go too.
         The first two are the bank's numbering; the date is the pack's
         spelling of the pinned day; the description carries the payee's name
-        however it resolved ("Zelle to Bob", "Zelle to bob@example.com");
-        the type is the pack's word for a payment -- only a send sets a
-        counterparty, so it says nothing the counterparty does not, and
-        comparing it would fail every payment task under a pack that
-        translates it; the memo is free text, already checked
+        however it resolved ("Payment to Bob", "Payment to bob@example.com");
+        the type is the pack's word for a payment ("Payment", "Zahlung",
+        "付款") -- only a send sets a counterparty, so it says nothing the
+        counterparty does not, and comparing it would fail every payment
+        task under a translated pack; the memo is free text, already checked
         for what the task needs by :func:`_reconcile_payments`; and the
         running balance depends on the order two payments were made in,
         which a composite does not fix -- the account's own balances still

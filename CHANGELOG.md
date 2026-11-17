@@ -67,7 +67,8 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   Contacts on the review step. The amount is read in either separator style
   ("18,50" is $18.50, "1.850,00" is $1,850.00) and the field reformats to
   what will be sent. A payment posts at once, dated on the pinned
-  `as_of_date`, and lowers the account's balances. Ledger rows gain
+  `as_of_date`, and lowers the account's balances, as a "Payment to {name}"
+  row (translated in the German and Mandarin packs). Ledger rows gain
   `counterparty` and `memo` (null except on payments).
 - **EVERYDAY CHECKING (...4417)**, Dana Reyes's own account, appended after
   the three business accounts in every content pack. Their ids and figures
