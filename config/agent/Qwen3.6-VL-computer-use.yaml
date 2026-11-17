@@ -16,13 +16,17 @@ prompt_sections:
 - task
 - history
 
-# The 5 actions the action_parser emits (type -> keyboard_type, wait -> noop).
+# The actions the action_parser emits (type -> keyboard_type, wait -> noop,
+# answer / terminate(success) -> send_msg_to_user, terminate(failure) ->
+# report_infeasible).
 custom_actions:
 - mouse_click
 - mouse_dblclick
 - scroll
 - keyboard_type
 - noop
+- send_msg_to_user
+- report_infeasible
 
 prompt_txt:
   system_prompt: |-
@@ -34,7 +38,7 @@ prompt_txt:
 
     You are provided with function signatures within <tools></tools> XML tags:
     <tools>
-    {"type": "function", "function": {"name": "computer_use", "description": "Use a mouse and keyboard to interact with a computer.\n* The screen's resolution is 1000x1000.\n* Make sure to click any buttons, links, icons, etc with the cursor tip in the center of the element.\n* Available actions: mouse_click, mouse_dblclick, type, scroll, wait.", "parameters": {"properties": {"action": {"description": "The action to perform. The available actions are:\n* `mouse_click`: Move the mouse to a location and click a mouse button. Dispatches mousemove, mousedown and mouseup events.\n* `mouse_dblclick`: Move the mouse to a location and double click a mouse button. Dispatches mousemove, mousedown and mouseup events.\n* `type`: Types a string of text through the keyboard. Sends a keydown, keypress/input, and keyup event for each character. Modifier keys do not apply. If you want to submit your input (send a chat message, save a todo, submit a form), end ``content`` with ``\\n``.\n* `scroll`: Scroll horizontally and vertically by [dx, dy] pixels. Positive dx scrolls right, positive dy scrolls down. Dispatches a wheel event.\n* `wait`: Sleep ~5 seconds and re-screenshot. Use when a page is still loading or an action's effect has not yet appeared.", "enum": ["mouse_click", "mouse_dblclick", "type", "scroll", "wait"], "type": "string"}, "coordinate": {"description": "(x, y) integer pixel coordinate from the top-left, in the 0-1000 screen space. Required by mouse_click / mouse_dblclick.", "type": "array"}, "content": {"description": "Text to type. End with ``\\n`` to submit the field. Required by type.", "type": "string"}, "delta": {"description": "[delta_x, delta_y] scroll amounts in pixels (0-1000 screen space). Required by scroll.", "type": "array"}}, "required": ["action"], "type": "object"}}}
+    {"type": "function", "function": {"name": "computer_use", "description": "Use a mouse and keyboard to interact with a computer.\n* The screen's resolution is 1000x1000.\n* Make sure to click any buttons, links, icons, etc with the cursor tip in the center of the element.\n* Available actions: mouse_click, mouse_dblclick, type, scroll, wait, answer, terminate.", "parameters": {"properties": {"action": {"description": "The action to perform. The available actions are:\n* `mouse_click`: Move the mouse to a location and click a mouse button. Dispatches mousemove, mousedown and mouseup events.\n* `mouse_dblclick`: Move the mouse to a location and double click a mouse button. Dispatches mousemove, mousedown and mouseup events.\n* `type`: Types a string of text through the keyboard. Sends a keydown, keypress/input, and keyup event for each character. Modifier keys do not apply. If you want to submit your input (send a chat message, save a todo, submit a form), end ``content`` with ``\\n``.\n* `scroll`: Scroll horizontally and vertically by [dx, dy] pixels. Positive dx scrolls right, positive dy scrolls down. Dispatches a wheel event.\n* `wait`: Sleep ~5 seconds and re-screenshot. Use when a page is still loading or an action's effect has not yet appeared.\n* `answer`: Send the user a message: an answer they asked for, or one concise question if the request is ambiguous.\n* `terminate`: End the task. status `success` tells the user it is done; status `failure` tells them it cannot or should not be completed, and why.", "enum": ["mouse_click", "mouse_dblclick", "type", "scroll", "wait", "answer", "terminate"], "type": "string"}, "coordinate": {"description": "(x, y) integer pixel coordinate from the top-left, in the 0-1000 screen space. Required by mouse_click / mouse_dblclick.", "type": "array"}, "content": {"description": "Text to type. End with ``\\n`` to submit the field. Required by type.", "type": "string"}, "delta": {"description": "[delta_x, delta_y] scroll amounts in pixels (0-1000 screen space). Required by scroll.", "type": "array"}, "text": {"description": "The message for the user. Required by answer; for terminate, a one-line summary (success) or the reason (failure).", "type": "string"}, "status": {"description": "Required by terminate.", "enum": ["success", "failure"], "type": "string"}}, "required": ["action"], "type": "object"}}}
     </tools>
 
     For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
@@ -52,6 +56,7 @@ prompt_txt:
     - Output exactly in the order: Action, <tool_call>.
     - Be brief: one sentence for Action.
     - Do not output anything else outside those parts.
+    - When the task is done, call terminate with status success.
     - Use the action history below to avoid repeating an action that didn't change the page. If your previous click did not move you toward the goal, choose a different target.
 
     Example:
