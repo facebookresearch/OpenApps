@@ -476,7 +476,19 @@ _NULL_OPTIONS = {
         "No shared theme: each app keeps its own default look (the code "
         "editor's is VS Code dark).",
     ),
+    "apps/language": (
+        "Each app's own",
+        "No shared language: each app keeps its own content pack (English "
+        "unless an app's Content picks another).",
+    ),
 }
+
+
+#: Groups shown right after another group rather than at their defaults-list
+#: position. apps/language has to come last in config.yaml's defaults (its
+#: options override every app's content group), but it belongs beside Theme:
+#: both restyle every app at once.
+_ANCHORS = {"apps/language": "apps/theme"}
 
 
 def _null_option(path: str, label: str) -> tuple[str, str]:
@@ -794,8 +806,11 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
     def position(path: str) -> tuple[int, int, int, str]:
         if "single" not in groups[path].targets:
             return (-1, 0, 0, path)
-        # A nested group (apps/todo/layout) sorts right after its parent.
-        parent = next((p for p in order if path.startswith(p + "/")), path)
+        # A nested group (apps/todo/layout) sorts right after its parent, and
+        # an anchored one after its anchor, wherever the defaults list has it.
+        parent = _ANCHORS.get(path) or next(
+            (p for p in order if path.startswith(p + "/")), path
+        )
         rank = order.index(parent) if parent in order else len(order)
         own = order.index(path) if path in order else 0
         return (rank, parent != path, own, path)

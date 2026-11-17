@@ -143,6 +143,18 @@ def test_a_nullable_group_names_its_unset_option(catalog):
         assert group.null_label != "None"
 
 
+def test_language_sits_beside_theme_and_switches_every_app(catalog):
+    """apps/language is last in config.yaml's defaults (its options override
+    each app's content group) but is listed right after Theme, as a sweepable
+    pill group whose unset choice keeps each app's own pack."""
+    paths = list(catalog.groups)
+    assert paths[paths.index("apps/theme") + 1] == "apps/language"
+    language = catalog.groups["apps/language"]
+    assert [o.name for o in language.options] == ["default", "german", "mandarin"]
+    assert language.control == "pills" and language.sweepable and language.nullable
+    assert language.null_label == "Each app's own"
+
+
 def test_only_apps_groups_are_sweepable(catalog):
     """create_configs copies only `apps` out of each variation's composition,
     so a device or agent in app_variations would silently do nothing."""
