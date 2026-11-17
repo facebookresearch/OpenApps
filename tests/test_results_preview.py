@@ -35,6 +35,7 @@ def make_run(
     max_steps: int = 30,
     agent_extra: dict | None = None,
     extra: dict | None = None,
+    summary_extra: dict | None = None,
 ) -> Path:
     job_dir.mkdir(parents=True, exist_ok=True)
     config = {
@@ -56,7 +57,7 @@ def make_run(
     exp.mkdir()
     summary = {"n_steps": steps, "cum_reward": reward, "err_msg": err,
                "stack_trace": f"Traceback\n{err}" if err else None,
-               "stats.cum_steps": steps + 1}  # fmt: skip
+               "stats.cum_steps": steps + 1, **(summary_extra or {})}  # fmt: skip
     (exp / "summary_info.json").write_text(json.dumps(summary))
     return exp
 
@@ -87,6 +88,44 @@ def test_one_row_per_model_from_nested_runs(logs):
     assert {t.label for t in a.by_task} == {"todo_add", "todo_toggle", "calendar_add"}
     assert {v.label for v in a.by_variation} == {"default", "apps/theme=dark"}
     assert results.n_episodes == 4 and results.n_errored == 1
+
+
+def test_steps_are_split_by_outcome(logs):
+    a = R.collect([logs]).rows[0]
+    # todo_add (4) and calendar_add (6) passed; todo_toggle failed at 10.
+    assert a.mean_passed_steps == pytest.approx(5.0)
+    assert a.mean_failed_steps == pytest.approx(10.0)
+    toggle = next(t for t in a.by_task if t.label == "todo_toggle")
+    assert (toggle.mean_passed_steps, toggle.mean_failed_steps) == (None, 10.0)
+    html = P.Page(R.collect([logs]), background_seed=0).html()
+    assert "Steps ✓</th>" in html and "Steps ✗</th>" in html and ">Mean steps</th>" not in html
+
+
+def _tokens(i: int, o: int) -> dict:
+    return {"stats.cum_input_tokens": i, "stats.cum_output_tokens": o}
+
+
+def test_tokens_are_read_from_the_summary_and_averaged(tmp_path):
+    make_run(tmp_path / "0", task="a", summary_extra=_tokens(9_000, 1_000))
+    make_run(tmp_path / "1", task="b", summary_extra=_tokens(25_000, 5_000))
+    make_run(tmp_path / "2", task="c")  # from before the agent reported usage
+    results = R.collect([tmp_path])
+    (row,) = results.rows
+    assert sorted(r.tokens or 0 for r in results.runs) == [0, 10_000, 30_000]
+    assert row.mean_tokens == pytest.approx(20_000)
+    html = P.Page(results, background_seed=0).html()
+    assert 'title="over the 2 of 3 episodes that reported tokens">20.0k</td>' in html
+    assert "Tokens</th>" in html
+    assert "20,000 tokens" in cli.summary(results)
+
+
+def test_episode_tokens_ignore_missing_and_bad_values():
+    assert R.episode_tokens({}) is None
+    assert R.episode_tokens(_tokens(10, 5)) == 15
+    assert R.episode_tokens({"stats.cum_input_tokens": 7}) == 7
+    assert R.episode_tokens({"stats.cum_input_tokens": float("nan")}) is None
+    assert R.episode_tokens({"stats.cum_input_tokens": -1, "stats.cum_output_tokens": "x"}) is None
+    assert [P._tokens(v) for v in (None, 950, 12_340, 2_500_000)] == ["–", "950", "12.3k", "2.50M"]
 
 
 def test_success_rate_and_wilson_interval(logs):
@@ -564,6 +603,9 @@ def test_each_model_links_to_its_details_page_in_the_same_file(tmp_path):
     assert order == sorted(order)
     assert '<details class="fold" open><summary><h3>By task</h3><span class="count">2 tasks</span>' in page
     assert '<details class="fold"><summary><h3>Episodes</h3><span class="count">4</span>' in page
+    # The Reproduce command is folded until asked for.
+    assert ('<section class="reproduce"><details class="fold"><summary><h3>Reproduce</h3>'
+            '<span class="count">1 command</span>') in page  # fmt: skip
     assert page.count('<span class="outcome ') == 4
 
 

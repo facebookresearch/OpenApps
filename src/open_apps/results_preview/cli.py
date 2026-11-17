@@ -37,6 +37,10 @@ def command(paths: Sequence[str | Path]) -> str:
     return f"uv run -m {MODULE} " + " ".join(shlex.quote(str(p)) for p in paths)
 
 
+def _num(value: Optional[float]) -> str:
+    return "-" if value is None else f"{value:.1f}"
+
+
 def summary(results: Results) -> str:
     """The table as terminal lines."""
     width = max([len(r.label) for r in results.rows] + [12])
@@ -47,11 +51,12 @@ def summary(results: Results) -> str:
         else:
             lo, hi = r.ci
             rate = f"{r.rate * 100:5.1f}% [{lo * 100:.1f}-{hi * 100:.1f}]"
-        steps = "-" if r.mean_steps is None else f"{r.mean_steps:.1f}"
+        tokens = "" if r.mean_tokens is None else f", {r.mean_tokens:,.0f} tokens"
         lines.append(
             f"{r.rank:>3}. {r.label:<{width}}  success {rate:<19}  "
             f"{plural(r.episodes, 'episode')}, {plural(r.tasks, 'task')}, "
-            f"{r.errored} errored, {steps} mean steps"
+            f"{r.errored} errored, steps {_num(r.mean_passed_steps)} passed / "
+            f"{_num(r.mean_failed_steps)} failed{tokens}"
         )
     extra = []
     if results.n_errored:

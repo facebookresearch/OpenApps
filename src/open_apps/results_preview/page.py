@@ -61,6 +61,37 @@ def _steps(value: Optional[float]) -> str:
     return "–" if value is None else f"{value:.1f}"
 
 
+def _tokens(value: Optional[float]) -> str:
+    if value is None:
+        return "–"
+    if value < 1_000:
+        return f"{value:.0f}"
+    if value < 1_000_000:
+        return f"{value / 1_000:.1f}k"
+    return f"{value / 1_000_000:.2f}M"
+
+
+#: Steps split by outcome (see :class:`Tally`), then tokens: the header cells
+#: and a slice's cells, shared by every table that shows them.
+_METRIC_HEADS = (
+    '<th class="num" title="Mean steps of the episodes that passed">Steps ✓</th>'
+    '<th class="num" title="Mean steps of the episodes that failed: near max steps '
+    'means it ran out of steps, well below means it stopped short">Steps ✗</th>'
+    '<th class="num" title="Mean tokens (in + out) per episode, where the agent '
+    'reported them">Tokens</th>'
+)
+
+
+def _metric_cells(t: Tally) -> str:
+    partial = t.tokens and len(t.tokens) < t.episodes
+    title = f' title="over the {len(t.tokens)} of {t.episodes} episodes that reported tokens"'
+    return (
+        f'<td class="num">{_steps(t.mean_passed_steps)}</td>'
+        f'<td class="num">{_steps(t.mean_failed_steps)}</td>'
+        f'<td class="num"{title if partial else ""}>{_tokens(t.mean_tokens)}</td>'
+    )
+
+
 def _rate_cell(t: Tally, compact: bool = False) -> str:
     """The rate, a bar to it and the interval as a whisker over the bar."""
     if t.rate is None:
@@ -81,10 +112,13 @@ def _rate_cell(t: Tally, compact: bool = False) -> str:
     )
 
 
-def _fold(title: str, count: str, body: str, warn: bool = False, open_: bool = False) -> str:
+def _fold(
+    title: str, count: str, body: str, warn: bool = False, open_: bool = False, cls: str = ""
+) -> str:
     """A section that folds: its heading and a count are the summary."""
+    section = f'<section class="{cls}">' if cls else "<section>"
     return (
-        f'<section><details class="fold"{" open" if open_ else ""}><summary><h3>{_e(title)}</h3>'
+        f'{section}<details class="fold"{" open" if open_ else ""}><summary><h3>{_e(title)}</h3>'
         f'<span class="count{" warn" if warn else ""}">{_e(count)}</span></summary>'
         f"{body}</details></section>"
     )
@@ -131,7 +165,7 @@ def _breakdown(title: str, tallies: Sequence[Tally], open_: bool = False) -> str
         f"<td>{_rate_cell(t, compact=True)}</td>"
         f'<td class="num">{t.successes}/{t.episodes}</td>'
         f'<td class="num{" warn" if t.errored else ""}">{t.errored or ""}</td>'
-        f'<td class="num">{_steps(t.mean_steps)}</td></tr>'
+        f"{_metric_cells(t)}</tr>"
         for t in tallies
     )
     word = title.split()[-1]
@@ -139,7 +173,7 @@ def _breakdown(title: str, tallies: Sequence[Tally], open_: bool = False) -> str
         f'<table class="sub">'
         f"<thead><tr><th>{_e(word.capitalize())}</th><th>Success</th>"
         f'<th class="num">Passed</th><th class="num">Errored</th>'
-        f'<th class="num">Steps</th></tr></thead>'
+        f"{_METRIC_HEADS}</tr></thead>"
         f"<tbody>{rows}</tbody></table>"
     )
     return _fold(title, plural(len(tallies), word), table, open_=open_)
@@ -155,7 +189,8 @@ def _grid(n_tasks: int, n_variations: int) -> str:
 
 def _reproduce(row: ModelRow, rid: str) -> str:
     """The Reproduce section: launcher commands that re-run the row's runs,
-    each with a Copy button (hidden when printed)."""
+    each with a Copy button (hidden when printed). Folded until opened: the
+    commands are long and only wanted when re-running."""
     rep = reproduce.commands(row.runs)
     notes = []
     if rep.n_configs > 1:
@@ -210,12 +245,8 @@ def _reproduce(row: ModelRow, rid: str) -> str:
     more = len(rep.commands) - _SHOW_COMMANDS
     if more > 0:
         blocks.append(f'<p class="note">… and {more} more</p>')
-    return (
-        '<section class="reproduce"><h3>Reproduce</h3>'
-        + "".join(f'<p class="note">{n}</p>' for n in notes)
-        + "".join(blocks)
-        + "</section>"
-    )
+    body = "".join(f'<p class="note">{n}</p>' for n in notes) + "".join(blocks)
+    return _fold("Reproduce", plural(len(rep.commands), "command"), body, cls="reproduce")
 
 
 def _value(text: str) -> str:
@@ -265,13 +296,15 @@ def _episodes(row: ModelRow) -> str:
         f"<tr>{_name_cell(r.task)}{_variation_cell(r.variation)}"
         f"<td>{_outcome(r)}</td>"
         f'<td class="num">{"" if r.n_steps is None else r.n_steps}</td>'
+        f'<td class="num">{"" if r.tokens is None else _tokens(r.tokens)}</td>'
         f'<td class="num">{_e(r.seed)}</td>'
         f'<td class="path" title="{_e(r.exp_dir)}"><code>{_e(_job_dir(r))}</code></td></tr>'
         for r in runs
     )
     table = (
         '<table class="sub episodes"><thead><tr><th>Task</th><th>Variation</th>'
-        '<th>Outcome</th><th class="num">Steps</th><th class="num">Seed</th>'
+        '<th>Outcome</th><th class="num">Steps</th><th class="num">Tokens</th>'
+        '<th class="num">Seed</th>'
         f"<th>Job <small>(under Runs from)</small></th></tr></thead><tbody>{body}</tbody></table>"
     )
     return _fold("Episodes", str(len(runs)), table)
@@ -283,12 +316,12 @@ def _stats(row: ModelRow) -> str:
         '<th>Success <small>(95% CI)</small></th><th class="num">Episodes</th>'
         '<th class="num">Tasks</th>'
         '<th class="num" title="Infrastructure errors, excluded from the rate">Errored</th>'
-        '<th class="num">Mean steps</th></tr></thead><tbody><tr class="main">'
+        f'{_METRIC_HEADS}</tr></thead><tbody><tr class="main">'
         f"<td>{_rate_cell(row)}</td>"
         f'<td class="num">{row.episodes}</td>'
         f'<td class="num">{row.tasks}</td>'
         f'<td class="num{" warn" if row.errored else ""}">{row.errored}</td>'
-        f'<td class="num">{_steps(row.mean_steps)}</td>'
+        f"{_metric_cells(row)}"
         "</tr></tbody></table></div>"
     )
 
@@ -364,7 +397,7 @@ def _table(results: Results, slugs: Sequence[str]) -> str:
             f'<td class="num">{row.episodes}</td>'
             f'<td class="num">{row.tasks}</td>'
             f'<td class="num{" warn" if row.errored else ""}">{row.errored}</td>'
-            f'<td class="num">{_steps(row.mean_steps)}</td>'
+            f"{_metric_cells(row)}"
             "</tr>"
             "</tbody>"
         )
@@ -374,7 +407,7 @@ def _table(results: Results, slugs: Sequence[str]) -> str:
         '<th class="rank">#</th><th>Model</th><th>Success <small>(95% CI)</small></th>'
         '<th class="num">Episodes</th><th class="num">Tasks</th>'
         '<th class="num" title="Infrastructure errors, excluded from the rate">Errored</th>'
-        '<th class="num">Mean steps</th>'
+        f"{_METRIC_HEADS}"
         "</tr></thead>" + "".join(bodies) + "</table></div>"
     )
 
@@ -437,7 +470,8 @@ th small { font-weight: 400; }
 .stats .main td { border-bottom: 0; }
 .episodes th:nth-child(1) { width: 32%; } .episodes th:nth-child(2) { width: auto; }
 .episodes th:nth-child(3) { width: 5.5rem; } .episodes th:nth-child(4) { width: 4rem; }
-.episodes th:nth-child(5) { width: 5rem; } .episodes th:nth-child(6) { width: 10rem; }
+.episodes th:nth-child(5) { width: 4.5rem; } .episodes th:nth-child(6) { width: 5rem; }
+.episodes th:nth-child(7) { width: 10rem; }
 .episodes td.path code { font-size: 11px; color: var(--muted); }
 .outcome.passed { color: var(--ink); font-weight: 600; }
 .outcome.failed { color: var(--muted); }
@@ -464,7 +498,7 @@ h3 { margin: .2rem 0 .4rem; font-size: 12px; text-transform: uppercase; letter-s
 .count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sub { table-layout: fixed; }
 .sub th:nth-child(2) { width: 14rem; } .sub th:nth-child(3) { width: 4.5rem; }
-.sub th:nth-child(4) { width: 4.5rem; } .sub th:nth-child(5) { width: 4rem; }
+.sub th:nth-child(4) { width: 4.5rem; } .sub th:nth-child(n+5) { width: 4.2rem; }
 .sub th, .sub td { padding: .28rem .45rem; border-bottom: 1px solid var(--line); }
 .sub td.name { overflow-wrap: break-word; }
 section + section { margin-top: 1rem; }

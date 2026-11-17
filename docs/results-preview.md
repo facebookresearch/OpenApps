@@ -12,16 +12,19 @@ uv run -m open_apps.results_preview log_outputs --agent 'Qwen*' --task 'todo_*'
 ```
 
 Each row shows the success rate with its 95% (Wilson) interval, the episodes and distinct
-tasks behind it, how many runs errored, and the mean number of steps. Click a model for its
+tasks behind it, how many runs errored, the mean steps of passed (*Steps ✓*) and failed
+(*Steps ✗*) episodes, and the mean tokens per episode. Steps are split by outcome because a
+pooled mean moves with the success rate: passed episodes stop early, failed ones often run to
+`max_steps`. Click a model for its
 details page: how its runs were configured and how to reproduce them, success per task and per
-app variation, every episode with its outcome, steps and job directory, any errored runs with
+app variation, every episode with its outcome, steps, tokens and job directory, any errored runs with
 their error, and the directories the runs came from. The details pages are part of the same
 file (the URL ends in `#model/<name>`), so a saved copy has them too, and the browser's Back
 button returns to the table.
 
 ## Reproduce and Configuration
 
-**Reproduce** gives the `launch_parallel_agents.py` command that runs the model's runs again,
+**Reproduce** (folded until you open it) gives the `launch_parallel_agents.py` command that runs the model's runs again,
 built from what their `config.yaml` files record: the agent config (`agent_config_name`), the
 task names, each app variation's overrides, the seeds, `max_steps`, the device and the model
 server's hostname. A Copy button puts it on the clipboard (where the browser does not allow
@@ -83,7 +86,10 @@ nothing else (plus Hydra's overrides, if saved):
 - `summary_info.json` in the experiment directory. A run succeeded when `cum_reward >= 1.0`,
   the same rule as the launcher's W&B `success`. A run with `err_msg` set hit an
   infrastructure error (the web app or model server failed), not an agent failure. It is left
-  out of the rate and counted in the *Errored* column. `n_steps` gives the mean steps.
+  out of the rate and counted in the *Errored* column. `n_steps` gives the steps, and
+  `stats.cum_input_tokens` + `stats.cum_output_tokens` the tokens. The agent reports each
+  step's usage and AgentLab sums it. Runs from before the agent reported usage, and agents
+  that report none, show `–`.
 - `config.yaml` in the job directory above it (written by the launcher). The model is the
   agent's `model_pretty_name`, falling back to `model_name`. It also gives the `task_name`, the
   sweep's `app_overrides` (the variation) and the seeds. Only the few top-level blocks the page

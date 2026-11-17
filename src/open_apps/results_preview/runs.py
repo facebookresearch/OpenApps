@@ -18,8 +18,11 @@ in the job's ``logs_dir``, the experiment directory's parent:
 Only those two files are read (and Hydra's ``.hydra/overrides.yaml`` beside
 the config, if the run saved one, for the Reproduce command). From ``summary_info.json``: ``cum_reward``
 (success is ``cum_reward >= 1.0``, the rule the launcher's W&B summary uses),
-``n_steps``, and ``err_msg`` / ``stack_trace`` (an infrastructure error -- the
-web app never came up, the model server timed out -- not an agent failure).
+``n_steps``, the episode's token usage (``stats.cum_input_tokens`` +
+``stats.cum_output_tokens``, which AgentLab sums from the per-step stats the
+agent reports; runs from before the agent reported them have none), and
+``err_msg`` / ``stack_trace`` (an infrastructure error -- the web app never
+came up, the model server timed out -- not an agent failure).
 From ``config.yaml``: the agent (``model_pretty_name``, else ``model_name``),
 ``task_name``, ``app_overrides`` (the app variation) and the seeds, plus the
 few keys the details page's Reproduce and Configuration sections show (see
@@ -86,6 +89,7 @@ class Run:
     exp_dir: str
     source: str  # the sweep (or single run) it came from, for the details page
     error: Optional[str] = None
+    tokens: Optional[int] = None  # input + output over the episode, if recorded
     overrides: tuple[str, ...] = ()  # the app variation's overrides, as launched
     #: How its job was set up (shared by every run of one config file).
     setup: Optional[Setup] = field(default=None, compare=False)
@@ -196,6 +200,21 @@ def _source(path: Path, root: Path) -> str:
     return str(root / rel.parts[0])
 
 
+#: The summary_info.json keys holding an episode's token usage.
+TOKEN_KEYS = ("stats.cum_input_tokens", "stats.cum_output_tokens")
+
+
+def episode_tokens(summary: dict) -> Optional[int]:
+    """Input + output tokens over the episode, or None if neither was recorded
+    (an agent that reports no usage, or a run from before agents did)."""
+    counts = []
+    for key in TOKEN_KEYS:
+        value = summary.get(key)
+        if isinstance(value, (int, float)) and math.isfinite(value) and value >= 0:
+            counts.append(value)
+    return int(sum(counts)) if counts else None
+
+
 def read_run(
     exp_dir: Path, config: dict, root: Path, setup: Optional[Setup] = None
 ) -> Run:
@@ -225,6 +244,7 @@ def read_run(
         exp_dir=str(exp_dir),
         source=_source(exp_dir, root),
         error=str(error).strip().splitlines()[-1][:300] if error else None,
+        tokens=episode_tokens(summary),
         overrides=variation_overrides(config.get("app_overrides")),
         setup=setup,
     )
@@ -347,13 +367,21 @@ def wilson(successes: int, n: int, z: float = Z95) -> Optional[tuple[float, floa
 
 @dataclass
 class Tally:
-    """Success over the non-errored runs of some slice (a model, a task...)."""
+    """Success over the non-errored runs of some slice (a model, a task...).
+
+    Steps are kept apart for passed and failed episodes: a pooled mean mixes
+    episodes that stop at success with ones that run to ``max_steps``, so it
+    moves with the success rate and says little about either.
+    """
 
     label: str
     episodes: int = 0  # non-errored runs: the rate's denominator
     successes: int = 0
     errored: int = 0
     steps: list[int] = field(default_factory=list)
+    passed_steps: list[int] = field(default_factory=list)
+    failed_steps: list[int] = field(default_factory=list)
+    tokens: list[int] = field(default_factory=list)  # episodes that recorded usage
 
     def add(self, run: Run) -> None:
         if run.errored:
@@ -363,6 +391,9 @@ class Tally:
         self.successes += run.success
         if run.n_steps is not None:
             self.steps.append(run.n_steps)
+            (self.passed_steps if run.success else self.failed_steps).append(run.n_steps)
+        if run.tokens is not None:
+            self.tokens.append(run.tokens)
 
     @property
     def rate(self) -> Optional[float]:
@@ -374,7 +405,25 @@ class Tally:
 
     @property
     def mean_steps(self) -> Optional[float]:
-        return sum(self.steps) / len(self.steps) if self.steps else None
+        return _mean(self.steps)
+
+    @property
+    def mean_passed_steps(self) -> Optional[float]:
+        """Mean steps to a success."""
+        return _mean(self.passed_steps)
+
+    @property
+    def mean_failed_steps(self) -> Optional[float]:
+        return _mean(self.failed_steps)
+
+    @property
+    def mean_tokens(self) -> Optional[float]:
+        """Mean tokens (in + out) per episode, over the episodes that recorded them."""
+        return _mean(self.tokens)
+
+
+def _mean(values: Sequence[float]) -> Optional[float]:
+    return sum(values) / len(values) if values else None
 
 
 @dataclass
