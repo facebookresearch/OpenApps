@@ -595,14 +595,17 @@ def get_events_for_month(year, month):
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
 
-        # If the original event is in this month, it's already included
-        if event_date.year == year and event_date.month == month:
+        # A series starts on its own date (RFC 5545: DTSTART is the first
+        # instance), so a month before it shows none of it.
+        if (year, month) < (event_date.year, event_date.month):
             continue
 
-        # Handle different recurrence types
+        # Handle different recurrence types. In the event's own month only
+        # its later instances are added: the original is in
+        # ``direct_month_events`` already.
         if event.recurring == "yearly":
             # Only include if the month and day match
-            if event_date.month == month:
+            if event_date.month == month and year != event_date.year:
                 # Create a new event instance for this year
                 recurring_date = f"{year}-{event_date.month:02d}-{event_date.day:02d}"
 
@@ -625,7 +628,7 @@ def get_events_for_month(year, month):
 
         elif event.recurring == "monthly":
             # Include if the day of month is valid for this month
-            if event_date.day <= month_days:
+            if event_date.day <= month_days and (year, month) != (event_date.year, event_date.month):
                 recurring_date = f"{year}-{month:02d}-{event_date.day:02d}"
                 recurring_event = Event(
                     id=event.id,
@@ -648,7 +651,7 @@ def get_events_for_month(year, month):
                 check_date = datetime(year, month, day).date()
 
                 # If it's the same weekday, add a recurring instance
-                if check_date.weekday() == event_weekday:
+                if check_date.weekday() == event_weekday and check_date > event_date:
                     recurring_date = f"{year}-{month:02d}-{day:02d}"
                     recurring_event = Event(
                         id=event.id,
@@ -687,8 +690,9 @@ def get_upcoming_events(start_date=None, end_date=None):
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
 
-        # Get the date range to check
-        current_date = start_date
+        # Get the date range to check. A series has no instances before its
+        # own date.
+        current_date = max(start_date, event_date)
         while current_date <= end_date:
             include_event = False
             recurring_date = None
