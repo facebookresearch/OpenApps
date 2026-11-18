@@ -22,6 +22,7 @@ context per module, because Chromium in some sandboxes only runs with
 """
 
 import functools
+import importlib.util
 import json
 import os
 import re
@@ -223,6 +224,18 @@ def site(tmp_path_factory, catalog, bench):
         '<openapps-composer media="assets/composer-media/manifest.json" ',
     )
     (root / "media.html").write_text(f"<!doctype html>{head}{media_embed}{script}")
+    # A slice of the deploy's clip grid: full keys beside legacy ones.
+    grid = root / "assets" / "composer-grid"
+    grid.mkdir()
+    for key, legacy in GRID_CLIPS.items():
+        rel = f"clips/{key}.webm"
+        (grid / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ASSETS / "media" / _committed_clip(legacy), grid / rel)
+    (grid / "manifest.json").write_text(
+        json.dumps({"clips": {k: f"clips/{k}.webm" for k in GRID_CLIPS}, "stills": {}})
+    )
+    grid_embed = media_embed.replace("composer-media", "composer-grid")
+    (root / "grid.html").write_text(f"<!doctype html>{head}{grid_embed}{script}")
     # The shadcn theme's page header, as mkdocs renders it around the page.
     theme_header = (
         '<div id="page-header"><h1>Config Composer</h1>'
@@ -919,6 +932,21 @@ def test_narrow_screens_stack_the_preview_under_the_controls(ui):
 MANIFEST = json.loads((ASSETS / "media" / "manifest.json").read_text())
 
 
+def _committed_clip(key: str) -> str:
+    """A committed clip by its legacy ``device/theme`` key, whichever form
+    the committed manifest files it under."""
+    clips = MANIFEST["clips"]
+    return clips.get(key) or clips[f"{key}/default/desktop/default"]
+
+
+#: The grid page's clips (key -> the committed clip copied in for it).
+GRID_CLIPS = {
+    "desktop/dark/german/gallery/kanban_board": "desktop/dark",
+    "desktop/dark": "desktop/dark",
+    "desktop/default": "desktop/default",
+}
+
+
 def test_preview_plays_the_device_and_theme_clip(ui):
     page = ui("media.html#device=phone&apps/theme=dark")
     video = page.locator("openapps-composer [data-part=preview] video")
@@ -1339,3 +1367,145 @@ def test_a_preview_beats_as_soon_as_its_tab_is_visible_again(ui, site):
     page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
     page.wait_for_timeout(500)
     assert len(beats) == before + 1
+
+
+# --------------------------------------------------------------------------
+# Picking a clip from the deploy's grid
+# --------------------------------------------------------------------------
+
+FULL = "desktop/dark/german/gallery/kanban_board"
+
+
+def _pick(js, clips, want):
+    return call(js, "pickClip", {k: f"{k}.webm" for k in clips}, want.split("/"))[
+        "value"
+    ]
+
+
+def test_clip_axes_match_the_renderer(js):
+    path = ROOT / "scripts" / "render_composer_media.py"
+    spec = importlib.util.spec_from_file_location("render_composer_media", path)
+    renderer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(renderer)
+    assert js.evaluate("OpenAppsComposer.CLIP_AXES") == list(renderer.CLIP_AXES)
+
+
+def test_the_exact_clip_wins(js):
+    pick = _pick(js, [FULL, "desktop/dark"], FULL)
+    assert pick == {"src": f"{FULL}.webm", "got": FULL.split("/"), "missing": []}
+
+
+def test_a_legacy_key_is_the_other_axes_at_their_defaults(js):
+    pick = _pick(js, ["desktop/dark", FULL], "desktop/dark/default/desktop/default")
+    assert pick["src"] == "desktop/dark.webm" and pick["missing"] == []
+    # ... and loses to a full key that says the same.
+    full = "desktop/dark/default/desktop/default"
+    assert _pick(js, ["desktop/dark", full], full)["src"] == f"{full}.webm"
+
+
+@pytest.mark.parametrize(
+    "want, clips, expected, missing",
+    [
+        # Theme outweighs language, start page and todo layout together.
+        (
+            "desktop/dark/default/desktop/default",
+            ["desktop/default", "desktop/dark/german/gallery/kanban_board"],
+            "desktop/dark/german/gallery/kanban_board",
+            ["apps/language", "apps/start_page/layout", "apps/todo/layout"],
+        ),
+        # Then language over both layouts.
+        (
+            "desktop/dark/german/desktop/default",
+            ["desktop/dark", "desktop/dark/german/gallery/kanban_board"],
+            "desktop/dark/german/gallery/kanban_board",
+            ["apps/start_page/layout", "apps/todo/layout"],
+        ),
+        # Then the start page over the todo layout.
+        (
+            "desktop/dark/default/gallery/default",
+            ["desktop/dark/default/desktop/kanban_board", "desktop/dark/default/gallery/kanban_board"],
+            "desktop/dark/default/gallery/kanban_board",
+            ["apps/todo/layout"],
+        ),
+    ],
+)  # fmt: skip
+def test_the_closest_clip_is_picked_in_axis_order(js, want, clips, expected, missing):
+    pick = _pick(js, clips, want)
+    assert pick["src"] == f"{expected}.webm"
+    assert pick["missing"] == missing
+
+
+def test_a_clip_must_match_the_device(js):
+    assert (
+        _pick(js, ["phone/dark", FULL], "tablet/dark/default/desktop/default") is None
+    )
+
+
+def _caption(page) -> str:
+    return page.locator(
+        "openapps-composer [data-part=preview] [data-part=caption]"
+    ).inner_text()
+
+
+def _clip_src(page) -> str:
+    video = page.locator("openapps-composer [data-part=preview] video")
+    video.wait_for()
+    return video.get_attribute("src")
+
+
+@pytest.mark.parametrize(
+    "fragment, clip, caption",
+    [
+        (
+            "apps/theme=dark&apps/language=german"
+            "&apps/start_page/layout=gallery&apps/todo/layout=kanban_board",
+            FULL,
+            "Approximate — run locally for an exact preview.",
+        ),
+        (
+            "apps/theme=dark&apps/language=german",
+            FULL,
+            "Approximate — shown with the gallery start page and the kanban board todo layout.",
+        ),
+        (
+            "apps/theme=dark&apps/todo/layout=kanban_board",
+            "desktop/dark",
+            "Approximate — shown with the default todo layout.",
+        ),
+        ("apps/language=german", "desktop/default", "Approximate — shown in English."),
+        (
+            "apps/language=german&apps/start_page/layout=gallery",
+            "desktop/default",
+            "Approximate — shown in English, with the desktop start page.",
+        ),
+    ],
+)  # fmt: skip
+def test_the_preview_follows_every_clip_axis(ui, fragment, clip, caption):
+    page = ui(f"grid.html#{fragment}")
+    assert _clip_src(page).endswith(f"composer-grid/clips/{clip}.webm")
+    assert _caption(page) == caption
+
+
+def test_changing_the_language_switches_the_clip(ui):
+    page = ui("grid.html#apps/theme=dark")
+    assert _clip_src(page).endswith("clips/desktop/dark.webm")
+    pill(page, "Language", "German").click()
+    page.wait_for_function(
+        """want => document.querySelector("openapps-composer").shadowRoot
+            .querySelector("[data-part=preview] video").getAttribute("src").endsWith(want)""",
+        arg=f"clips/{FULL}.webm",
+    )
+    assert "gallery start page" in _caption(page)
+
+
+def test_a_device_without_clips_keeps_the_placeholder(ui):
+    page = ui("grid.html#device=phone&apps/language=german")
+    page.locator(
+        "openapps-composer [data-part=preview] [data-state=placeholder]"
+    ).wait_for()
+
+
+def test_the_committed_legacy_clips_stand_in_for_the_grid(ui):
+    page = ui("media.html#device=phone&apps/language=german")
+    assert _clip_src(page).endswith(_committed_clip("phone/default"))
+    assert _caption(page) == "Approximate — shown in English."

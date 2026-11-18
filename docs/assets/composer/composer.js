@@ -962,6 +962,44 @@
   }
 
   // -------------------------------------------------------------------------
+  // Preview clips
+  // -------------------------------------------------------------------------
+
+  // What a preview clip is keyed by, in key order: a manifest clip is
+  // "<device>/<theme>/<language>/<start page layout>/<todo layout>"
+  // (scripts/render_composer_media.py, CLIP_AXES).
+  const CLIP_AXES = ["device", "apps/theme", "apps/language", "apps/start_page/layout", "apps/todo/layout"];
+
+  /** An axis's value when nothing is chosen; null (no theme, no language) reads "default". */
+  function clipDefault(axis, catalog) {
+    const group = has(catalog.groups, axis) ? catalog.groups[axis] : null;
+    return (group && group.defaults.config) || (axis === "device" ? "desktop" : "default");
+  }
+
+  /**
+   * The clip for `want` (one value per CLIP_AXES), or null: the exact one,
+   * else the closest on the same device -- matching theme first, then
+   * language, start page, todo layout. A legacy "<device>/<theme>" key is
+   * the other axes at their defaults, and loses to a full key that says so.
+   * `missing` lists the axes the clip shows otherwise.
+   */
+  function pickClip(clips, want, catalog) {
+    const rest = CLIP_AXES.slice(2).map((axis) => clipDefault(axis, catalog));
+    let best = null;
+    for (const [key, src] of Object.entries(clips || {})) {
+      let got = key.split("/");
+      if (got.length === 2) got = got.concat(rest);
+      if (got.length !== CLIP_AXES.length || got[0] !== want[0]) continue;
+      // One bit per axis, theme highest: a theme match beats all the rest.
+      const score = got.slice(1).reduce((s, v, i) => s * 2 + (v === want[i + 1] ? 1 : 0), 0) * 2 +
+        (key.split("/").length === CLIP_AXES.length ? 1 : 0);
+      if (!best || score > best.score || (score === best.score && key < best.key)) best = { key, src, got, score };
+    }
+    if (!best) return null;
+    return { src: best.src, got: best.got, missing: CLIP_AXES.filter((axis, i) => best.got[i] !== want[i]) };
+  }
+
+  // -------------------------------------------------------------------------
   // Public engine: Selection dicts in, JSON out (what the tests compare)
   // -------------------------------------------------------------------------
 
@@ -986,6 +1024,8 @@
     evaluate: (sel, catalog) => evaluateSel(fromDict(sel), catalog),
     applyFix: (sel, fix, catalog) => toDict(applyFixSel(fromDict(sel), fix, catalog)),
     checkOption: (sel, key, value, catalog) => checkOptionSel(fromDict(sel), key, value, catalog),
+    CLIP_AXES,
+    pickClip,
   };
   window.OpenAppsComposer = engine;
 
@@ -2208,11 +2248,13 @@
         this.fitLive();
         return;
       }
-      const device = this.current("device")[0] || "desktop";
-      const theme = (has(this.catalog.groups, "apps/theme") && this.current("apps/theme")[0]) || "default";
+      const want = CLIP_AXES.map((axis) =>
+        (has(this.catalog.groups, axis) && this.current(axis)[0]) || clipDefault(axis, this.catalog));
+      const [device, theme] = want;
       const deviceLabel = this.optionLabel("device", device);
       const themeLabel = this.optionLabel("apps/theme", theme);
-      const clip = this.manifest && this.manifest.clips && this.manifest.clips[`${device}/${theme}`];
+      const pick = this.manifest && pickClip(this.manifest.clips, want, this.catalog);
+      const clip = pick && pick.src;
       const inset = this.inset();
 
       let screen;
@@ -2223,7 +2265,7 @@
         const paused = this.clipPaused === null ? reducedMotion() : this.clipPaused;
         const video = h("video", {
           src: new URL(clip, this.manifestURL).href, autoplay: !paused, muted: true, loop: true, playsinline: true,
-          preload: "metadata", "aria-label": `${deviceLabel}, ${themeLabel} theme`,
+          preload: "metadata", "aria-label": `${deviceLabel}, ${this.optionLabel("apps/theme", pick.got[1])} theme`,
           onerror: () => {
             screen.dataset.state = "error";
             screen.style.aspectRatio = DEVICE_RATIO[device] || "16 / 10";
@@ -2233,7 +2275,7 @@
         });
         screen = h("div", { class: "screen", "data-state": "media" }, video);
         toggle = this.clipToggle(video, paused);
-        caption = "Approximate — run locally for an exact preview.";
+        caption = this.clipCaption(pick);
       } else {
         const [bg, surface, ink, accent] = THEME_SWATCH[theme] || THEME_SWATCH.default;
         screen = h("div", {
@@ -2257,6 +2299,22 @@
           // is too narrow to hold a desktop-shaped still without hiding it.
           h("div", { class: "frame", "data-device": device }, screen, inset),
           h("figcaption", {}, h("span", { "data-part": "caption", text: caption }), toggle ? " " : null, toggle)));
+    }
+
+    /**
+     * What the clip shows that the selection doesn't, if anything:
+     * "Approximate — shown in English, with the default todo layout."
+     */
+    clipCaption(pick) {
+      if (!pick.missing.length) return "Approximate — run locally for an exact preview.";
+      const shown = (axis) => this.optionLabel(axis, pick.got[CLIP_AXES.indexOf(axis)]);
+      // "Default" -> "default", but "VS Code" stays.
+      const lower = (text) => (/^[A-Z][a-z]/.test(text) ? lowerFirst(text) : text);
+      const nouns = { "apps/theme": "theme", "apps/start_page/layout": "start page", "apps/todo/layout": "todo layout" };
+      const language = pick.missing.includes("apps/language") ? ` in ${shown("apps/language")}` : "";
+      const rest = pick.missing.filter((axis) => has(nouns, axis)).map((axis) => `the ${lower(shown(axis))} ${nouns[axis]}`);
+      const list = rest.length > 1 ? `${rest.slice(0, -1).join(", ")} and ${rest[rest.length - 1]}` : rest[0];
+      return `Approximate — shown${language}${language && list ? "," : ""}${list ? ` with ${list}` : ""}.`;
     }
 
     /**
