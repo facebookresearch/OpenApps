@@ -77,13 +77,16 @@ def test_every_manifest_path_exists_inside_the_media_dir(manifest):
             assert path.is_file() and path.stat().st_size > 0, (key, rel)
 
 
-def test_clip_keys_are_device_and_theme_options(manifest, catalog):
-    devices = {o.name for o in catalog.groups["device"].options}
-    themes = {o.name for o in catalog.groups["apps/theme"].options}
+def test_clip_keys_are_clip_axis_options(manifest, catalog, renderer):
+    """A full key (one option per clip axis) at its canonical path, or a
+    legacy ``<device>/<theme>`` one."""
     for key, rel in manifest["clips"].items():
-        device, theme = key.split("/")
-        assert device in devices, key
-        assert theme in themes, key
+        parts = key.split("/")
+        assert len(parts) in (2, len(renderer.CLIP_AXES)), key
+        for axis, value in zip(renderer.CLIP_AXES, parts):
+            assert value in {o.name for o in catalog.groups[axis].options}, key
+        if len(parts) == len(renderer.CLIP_AXES):
+            assert rel == renderer.clip_path(key), (key, rel)
         assert rel.endswith(".webm"), rel
 
 
@@ -179,3 +182,182 @@ def test_mark_same_as_prefers_the_axis_default(tmp_path, renderer):
     assert marked["maps/layout/default"] == "maps/layout/default.webp"
     # Idempotent: marking a marked manifest changes nothing.
     assert renderer.mark_same_as(marked, tmp_path, defaults) == marked
+
+
+# ---------------------------------------------------------------------------
+# The clip grid: planning, shards, keys, merging
+# ---------------------------------------------------------------------------
+
+
+def _clip_jobs(renderer, catalog, *argv):
+    args = renderer.parse_args(list(argv))
+    return renderer.plan(catalog, renderer.clip_axes(args, catalog), True, False)
+
+
+def test_full_plans_every_combination(renderer, catalog):
+    jobs = _clip_jobs(renderer, catalog, "--full")
+    sizes = [len(catalog.groups[a].options) for a in renderer.CLIP_AXES]
+    assert sizes == [4, 11, 3, 4, 3]
+    assert len(jobs) == 1584 == len({job.key for job in jobs})
+    first = jobs[0]
+    assert first.overrides == tuple(
+        f"{axis}={value}"
+        for axis, value in zip(renderer.CLIP_AXES, first.key.split("/"))
+    )
+
+
+def test_the_default_run_is_still_device_by_theme(renderer, catalog):
+    jobs = _clip_jobs(renderer, catalog)
+    assert len(jobs) == 4 * 11
+    rest = {tuple(job.key.split("/")[2:]) for job in jobs}
+    assert rest == {("default", "desktop", "default")}
+
+
+def test_axis_flags_narrow_the_grid(renderer, catalog):
+    jobs = _clip_jobs(
+        renderer, catalog,
+        "--devices", "desktop", "--themes", "default", "dark",
+        "--languages", "german", "--start-layouts", "gallery",
+        "--todo-layouts", "kanban_board",
+    )  # fmt: skip
+    assert [job.key for job in jobs] == [
+        "desktop/default/german/gallery/kanban_board",
+        "desktop/dark/german/gallery/kanban_board",
+    ]
+    # --full with a flag: that axis narrowed, every other one in full.
+    assert len(_clip_jobs(renderer, catalog, "--full", "--devices", "phone")) == 396
+
+
+@pytest.mark.parametrize("count", [1, 5, 12, 13, 2000])
+def test_shards_partition_the_clips_exactly_once(renderer, catalog, count):
+    args = renderer.parse_args(["--full"])
+    jobs = renderer.plan(catalog, renderer.clip_axes(args, catalog), True, True)
+    clips = [job for job in jobs if job.kind == "clip"]
+    shards = [renderer.shard(jobs, i, count) for i in range(1, count + 1)]
+    keys = [job.key for part in shards for job in part if job.kind == "clip"]
+    assert sorted(keys) == sorted(job.key for job in clips)  # each exactly once
+    sizes = [sum(job.kind == "clip" for job in part) for part in shards]
+    assert max(sizes) - min(sizes) <= 1  # balanced
+    # Stills compare an app's stills with each other: all on shard 1.
+    assert [job.kind for part in shards[1:] for job in part].count("stills") == 0
+    assert sum(job.kind == "stills" for job in shards[0]) == len(jobs) - len(clips)
+    # Deterministic: the same split every time.
+    assert renderer.shard(jobs, 1, count) == shards[0]
+
+
+@pytest.mark.parametrize("bad", ["0/4", "5/4", "1", "a/b", "1/0"])
+def test_a_bad_shard_is_refused(renderer, bad):
+    with pytest.raises(SystemExit):
+        renderer.parse_args(["--shard", bad])
+
+
+def test_clip_keys_are_canonical(renderer, catalog):
+    defaults = renderer.clip_axis_defaults(catalog)
+    assert defaults == {
+        "device": "desktop",
+        "apps/theme": "default",
+        "apps/language": "default",
+        "apps/start_page/layout": "desktop",
+        "apps/todo/layout": "default",
+    }
+    full = "phone/dark/german/gallery/kanban_board"
+    assert renderer.canonical_clip_key(full, defaults) == full
+    assert (
+        renderer.canonical_clip_key("phone/dark", defaults)
+        == "phone/dark/default/desktop/default"
+    )
+    assert renderer.clip_path(full) == f"clips/{full}.webm"
+    for bad in ("phone", "phone/dark/german", "phone//default/desktop/default"):
+        with pytest.raises(ValueError):
+            renderer.canonical_clip_key(bad, defaults)
+
+
+def test_legacy_keys_load_as_their_canonical_key(renderer, catalog, manifest):
+    loaded = renderer.load_manifest(MANIFEST, renderer.clip_axis_defaults(catalog))
+    assert len(loaded["clips"]) == len(manifest["clips"])
+    assert loaded["clips"]["phone/dark/default/desktop/default"] == manifest[
+        "clips"
+    ].get("phone/dark", manifest["clips"].get("phone/dark/default/desktop/default"))
+    assert loaded["stills"] == manifest["stills"]
+
+
+def _layer(root: Path, clips: dict[str, bytes], stills: dict | None = None) -> Path:
+    """A rendered dir: files plus the manifest naming them."""
+    stills = stills or {}
+    manifest = {"clips": {}, "stills": {}}
+    for section, entries, ext in (("clips", clips, "webm"), ("stills", stills, "webp")):
+        for key, data in entries.items():
+            rel = f"{section}/{key}.{ext}"
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_bytes(data)
+            manifest[section][key] = rel
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "manifest.json").write_text(json.dumps(manifest))
+    return root
+
+
+def test_merge_layers_shards_with_later_ones_winning(tmp_path, renderer, catalog):
+    base = _layer(
+        tmp_path / "base",
+        {"desktop/dark": b"legacy", "phone/dark": b"phone"},
+        {"todo/layout/default": b"S"},
+    )
+    a = _layer(
+        tmp_path / "a",
+        {
+            "desktop/dark/default/desktop/default": b"rendered",
+            "desktop/dark/german/gallery/kanban_board": b"a",
+        },
+    )
+    b = _layer(tmp_path / "b", {"desktop/dark/german/gallery/kanban_board": b"b"})
+    warnings = renderer.merge(base, [a, tmp_path / "missing", b], catalog)
+    assert warnings == [f"{tmp_path / 'missing'}: no manifest.json, skipped"]
+
+    merged = json.loads((base / "manifest.json").read_text())
+    clip = lambda key: (base / merged["clips"][key]).read_bytes()  # noqa: E731
+    assert set(merged["clips"]) == {
+        "desktop/dark/default/desktop/default",
+        "desktop/dark/german/gallery/kanban_board",
+        "phone/dark/default/desktop/default",
+    }
+    assert clip("desktop/dark/default/desktop/default") == b"rendered"
+    assert clip("desktop/dark/german/gallery/kanban_board") == b"b"
+    assert clip("phone/dark/default/desktop/default") == b"phone"  # fallback kept
+    assert merged["stills"] == {
+        "todo/layout/default": "stills/todo/layout/default.webp"
+    }
+    # The superseded legacy file is gone, not shipped beside its replacement.
+    assert not (base / "clips" / "desktop" / "dark.webm").exists()
+
+
+def test_merge_skips_entries_without_a_file_or_outside_the_shard(
+    tmp_path, renderer, catalog
+):
+    base = _layer(tmp_path / "base", {})
+    shard = _layer(tmp_path / "shard", {"desktop/dark": b"x"})
+    data = json.loads((shard / "manifest.json").read_text())
+    data["clips"]["phone/dark"] = "../base/manifest.json"
+    data["clips"]["tablet/dark"] = "clips/tablet/dark.webm"  # never written
+    (shard / "manifest.json").write_text(json.dumps(data))
+    warnings = renderer.merge(base, [shard], catalog)
+    assert len(warnings) == 2
+    merged = json.loads((base / "manifest.json").read_text())
+    assert list(merged["clips"]) == ["desktop/dark/default/desktop/default"]
+
+
+@pytest.mark.parametrize("device", ["phone", "tablet"])
+def test_a_touch_device_composes_the_start_layout_it_was_given(
+    tmp_path, renderer, catalog, device
+):
+    """The device never moves the start page's layout value (on a phone or
+    tablet ``desktop`` renders its home screen; it is still ``desktop``), so
+    composer.js's key from the selection is the key the clip is filed under."""
+    from open_apps.compose.live import compose_config
+
+    for option in catalog.groups["apps/start_page/layout"].options:
+        (job,) = _clip_jobs(
+            renderer, catalog, "--devices", device, "--themes", "dark",
+            "--languages", "german", "--start-layouts", option.name,
+        )  # fmt: skip
+        config = compose_config(list(job.overrides), tmp_path / option.name)
+        assert renderer.composed_clip_key(device, config) == job.key
