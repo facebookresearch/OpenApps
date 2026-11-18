@@ -20,4 +20,5 @@ defaults:
   - override /apps/onlineshop/content: german
   - override /apps/openbanking/content: german
   - override /apps/todo/content: german
+  - override /apps/passwords/content: german
   - override /apps/ui_library/content: german

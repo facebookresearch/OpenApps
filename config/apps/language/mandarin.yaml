@@ -20,4 +20,5 @@ defaults:
   - override /apps/onlineshop/content: mandarin
   - override /apps/openbanking/content: mandarin
   - override /apps/todo/content: mandarin
+  - override /apps/passwords/content: mandarin
   - override /apps/ui_library/content: mandarin
