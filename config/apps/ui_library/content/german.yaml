@@ -1,4 +1,9 @@
 # @package apps.ui_library
+# The pack's language, read by open_apps.i18n (UI strings, <html lang>).
+content_language: german
+defaults:
+  - default
+
 intro: >-
   Jede Komponente unten wird aus der gemeinsamen Bibliothek gerendert, mit
   dem aktuell aktiven Design. Wechseln Sie das Design mit `apps/theme=`, um
@@ -8,3 +13,26 @@ section_labels:
   atoms: Atome
   molecules: Moleküle
   brand: Marke
+
+active_theme_label: "Aktives Design: {name}"
+color_heading_label: "Farbe"
+typography_heading_label: "Typografie"
+shape_heading_label: "Form und Abstände"
+pangram_label: "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern"
+font_size_sample_label: "Franz jagt im Taxi"
+surface_specimen_label: "Eine Fläche mit Hintergrund und Rahmen aus den Tokens."
+stack_one_label: "eins"
+stack_two_label: "zwei"
+stack_three_label: "drei"
+text_specimen_label: "Franz jagt im Taxi ({variant})"
+button_specimen_label: "Aktion {variant}"
+icon_button_specimen_label: "Symbolschaltfläche {variant}"
+divider_above_label: "oben"
+divider_below_label: "unten"
+no_specimen_label: "Kein Beispiel für {component}"
+show_variant_aria_label: "Variante {variant} von {component} anzeigen"
+pin_label: "Anheften"
+unpin_label: "Lösen"
+pin_aria_label: "Story {component} anheften"
+unpin_aria_label: "Story {component} lösen"
+pinned_label: "angeheftet"

@@ -1,4 +1,6 @@
 # @package apps.passwords
+# The pack's language: drives <html lang>.
+content_language: german
 defaults:
   - default
 

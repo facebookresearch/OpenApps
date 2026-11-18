@@ -1,6 +1,88 @@
 # @package apps.maps
+# The pack's language. Read by the map page, which renders its UI in it (the
+# *_label keys below; see LABELS in map_app/main.py) and sets
+# <html lang="de">.
+content_language: german
 defaults:
   - default
+
+# --- UI labels ----------------------------------------------------------------
+# Saved place *names* are data, not UI: the five NYC landmarks from
+# default.yaml stay in English (tasks such as remove_times_square_from_favorites
+# address them by name), and the places appended below keep their source names.
+page_title_label: "Weltkarte"
+search_placeholder_label: "Ort suchen ..."
+current_location_label: "Aktueller Standort"
+current_location_empty_label: "Klicken Sie auf eine beliebige Stelle der Karte, um Adresse und Koordinaten zu sehen."
+route_planning_label: "Routenplanung"
+from_placeholder_label: "Startort"
+to_placeholder_label: "Zielort"
+calculate_route_label: "Route berechnen"
+select_route_option_label: "Routenoption wählen:"
+select_an_option_label: "Option auswählen"
+saved_locations_label: "Gespeicherte Orte"
+location_label: "Ort:"
+coordinates_label: "Koordinaten:"
+save_location_aria_label: "Ort speichern: {name}"
+marker_aria_label: "Markierung für {name}"
+delete_place_aria_label: "{name} löschen"
+searching_label: "Suche läuft ..."
+no_results_label: "Keine Ergebnisse gefunden."
+search_failed_label: "Suche fehlgeschlagen."
+error_label: "Fehler:"
+select_both_label: "Bitte wählen Sie beide Orte aus"
+no_route_legs_label: "Keine Route gefunden oder die Route hat keine Abschnitte."
+no_route_label: "Keine Route gefunden."
+route_hint_label: "Prüfen Sie die Orte oder versuchen Sie andere Verkehrsmittel oder Zeiten."
+route_failed_label: "Route konnte nicht abgerufen oder verarbeitet werden. Details in der Konsole."
+route_details_label: "Routendetails:"
+departure_label: "Abfahrt:"
+arrival_label: "Ankunft:"
+line_label: "Linie:"
+total_duration_label: "Gesamtdauer:"
+total_distance_label: "Gesamtstrecke:"
+minutes_label: "Minuten"
+option_label: "Option {n}"
+details_unavailable_label: "Details nicht verfügbar"
+customize_marker_label: "Markierung anpassen"
+icon_label: "Symbol:"
+color_label: "Farbe:"
+location_not_found_label: "Ort nicht gefunden"
+route_unsupported_label: "Routenplanung wird noch nicht unterstützt, bleiben Sie dran!"
+marker_icon_labels:
+  map-marker: "Standardmarkierung"
+  utensils: "Restaurant"
+  tree: "Park"
+  hospital: "Krankenhaus"
+  graduation-cap: "Schule"
+  shopping-cart: "Geschäft"
+  coffee: "Café"
+  bed: "Hotel"
+  dumbbell: "Fitnessstudio"
+  book: "Bibliothek"
+  landmark: "Museum"
+  plane: "Flughafen"
+  train: "Bahnhof"
+  bus: "Busbahnhof"
+  ship: "Hafen"
+  parking: "Parkplatz"
+  film: "Theater/Kino"
+  futbol: "Stadion"
+  swimming-pool: "Schwimmbad"
+  money-bill: "Bank/Geldautomat"
+  envelope: "Postamt"
+  prescription-bottle-alt: "Apotheke"
+marker_color_labels:
+  red: "Rot"
+  blue: "Blau"
+  green: "Grün"
+  orange: "Orange"
+  purple: "Lila"
+  darkred: "Dunkelrot"
+  darkblue: "Dunkelblau"
+  darkgreen: "Dunkelgrün"
+  darkpurple: "Dunkellila"
+  cadetblue: "Kadettblau"
 
 # Points of Interest POI Database, 424205 places 
 # https://www.kaggle.com/datasets/ehallmar/points-of-interest-poi-database?resource=download

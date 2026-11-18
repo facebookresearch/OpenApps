@@ -24,6 +24,15 @@ nav:
   - Agents: agents.md
   - Tasks: tasks.md
   - "Inspecting the Databases": inspecting_databases.md
+  - Apps:
+      - Calendar: apps/calendar.md
+      - Code Editor: apps/code_editor.md
+      - Files: apps/files.md
+      - Maps: apps/maps.md
+      - Messenger: apps/messenger.md
+      - OpenBanking: apps/openbanking.md
+      - Todo: apps/todo.md
+      - UI Library: apps/ui_library.md
 
 markdown_extensions:
   - codehilite

@@ -1,20 +1,64 @@
 # @package apps.todo
+# The pack's language: drives the app's UI strings and <html lang>.
+content_language: german
 defaults:
   - default
 
-init_todos: # left the ones we will use in tasks in English and translated the other ones to German
+edit_label: "Bearbeiten"
+remove_label: "Entfernen"
+save_label: "Speichern"
+done_label: "Erledigt"
+add_label: "Hinzufügen"
+new_todo_placeholder: "Neue Aufgabe"
+empty_list_label: "Noch keine Aufgaben. Füge oben deine erste hinzu."
+kanban_todo_label: "Zu erledigen"
+kanban_in_progress_label: "In Arbeit"
+kanban_review_label: "Prüfung"
+kanban_done_label: "Erledigt"
+add_task_placeholder: "Aufgabe hinzufügen"
+mark_done_label: "Als erledigt markieren"
+reopen_label: "Wieder öffnen"
+open_section_label: "Offen"
+done_section_label: "Abgeschlossen"
+empty_section_label: "Hier ist nichts."
+
+# Every todo is translated, in the default pack's order and with its done
+# flags, so a task starts from the same state in every language.
+init_todos:
   - ["Oma besuchen", false]
   - ["Medizinische Unterlagen sortieren", false]
   - ["Mahlzeiten für die Woche planen", false]
-  - ["Arzttermin bessorgen", true]
-  - ["Buy groceries", false]
+  - ["Arzttermin besorgen", true]
+  - ["Lebensmittel einkaufen", false]
   - ["Tante Lisa anrufen", true]
   - ["Budget überprüfen", false]
   - ["Wohnzimmer aufräumen", true]
   - ["20 Minuten spazieren gehen", false]
   - ["30 Minuten meditieren", false]
-  - ["Update calendar", false]
-  - ["Answer emails", false]
-  - ["Water plants", true]
-  - ["Make fruit salad", false]
+  - ["Kalender aktualisieren", false]
+  - ["E-Mails beantworten", false]
+  - ["Pflanzen gießen", false]
+  - ["Obstsalat machen", true]
   - ["Vor dem Schlafengehen lesen", false]
+
+# English title (as the task configs name it) -> the title rendered above. The
+# todo task classes resolve a goal's English name through this, so "Mark
+# 'Visit grandma' as done" means "Oma besuchen" here: the agent has to make
+# the cross-language match. Keep it in step with `init_todos`
+# (tests/test_todo_i18n.py checks).
+todo_translations:
+  "Visit grandma": "Oma besuchen"
+  "Sort medical papers": "Medizinische Unterlagen sortieren"
+  "Plan weekly meals": "Mahlzeiten für die Woche planen"
+  "Book doctor appointment.": "Arzttermin besorgen"
+  "Buy groceries": "Lebensmittel einkaufen"
+  "Call Aunt Lisa": "Tante Lisa anrufen"
+  "Check budget": "Budget überprüfen"
+  "Tidy living room": "Wohnzimmer aufräumen"
+  "Walk for 20 minutes": "20 Minuten spazieren gehen"
+  "Meditate for 30": "30 Minuten meditieren"
+  "Update calendar": "Kalender aktualisieren"
+  "Answer emails": "E-Mails beantworten"
+  "Water plants": "Pflanzen gießen"
+  "Make fruit salad": "Obstsalat machen"
+  "Read before bed": "Vor dem Schlafengehen lesen"

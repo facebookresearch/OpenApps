@@ -1,7 +1,47 @@
 # @package apps.code_editor
+# The pack's language. Read by the editor, which renders its UI in it (the
+# *_label keys below) and sets <html lang>.
+content_language: mandarin
 defaults:
   - default
 welcome_message: "欢迎！祝您每日编程愉快！"
+
+
+# --- UI labels ---------------------------------------------------------------
+# The editor's own strings (LABELS in codeeditor_app/main.py has the English).
+# File and folder names below stay as they are: tasks address files by path.
+index_page_label: "代码编辑器首页"
+explorer_label: "资源管理器"
+new_file_label: "新建文件"
+new_folder_label: "新建文件夹"
+folder_name_title_label: "输入文件夹名称"
+folder_name_placeholder_label: "文件夹名称"
+create_label: "创建"
+error_title_label: "错误"
+save_first_label: "请先保存当前的新文件"
+untitled_folder_error_label: "文件夹名称中不能包含“Untitled-”。该前缀保留给新文件使用。"
+create_folder_failed_label: "创建文件夹失败："
+update_mode_failed_label: "切换语言失败："
+update_theme_failed_label: "切换主题失败："
+language_label: "语言："
+theme_label: "主题："
+no_file_selected_label: "未选择文件"
+delete_folder_label: "删除文件夹"
+folder_title_label: "文件夹：{folder}"
+delete_folder_failed_label: "删除文件夹失败："
+select_file_prompt_label: "选择要编辑的文件，或新建一个文件。"
+save_failed_label: "保存文件失败："
+delete_file_failed_label: "删除文件失败："
+rename_failed_label: "重命名失败："
+close_tab_label: "关闭 {name}"
+file_name_aria_label: "文件名：{file}。双击可重命名。"
+rename_hint_label: "双击可重命名"
+code_editor_aria_label: "代码编辑器 - {file}"
+code_editor_short_label: "代码编辑器"
+editor_description_label: "用于编辑 {file} 的代码编辑器"
+spaces_label: "空格：{n}"
+reveal_in_files_label: "在文件中显示"
+welcome_fallback_label: "欢迎！祝您每日编程愉快！"
 
 +filesystem:
   - type: file
@@ -13,7 +53,7 @@ welcome_message: "欢迎！祝您每日编程愉快！"
   - type: file
     name: untitled_c.c
     content: |
-      # 非常简单的 C 程序，什么也不做
+      // 非常简单的 C 程序，什么也不做
       #include <iostream>
       using namespace std;
       int main() {

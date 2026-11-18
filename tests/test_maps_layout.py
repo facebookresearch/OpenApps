@@ -61,12 +61,12 @@ def render(layout: str = "default", theme: str = "default", extra: tuple[str, ..
 
 def markup(html: str) -> str:
     """The page body without CSS and JS, so assertions see only elements."""
-    html = re.sub(r"<style>.*?</style>", "", html, flags=re.S)
-    return re.sub(r"<script>.*?</script>", "", html, flags=re.S)
+    html = re.sub(r"<style>.*?</style\b[^>]*>", "", html, flags=re.S | re.I)
+    return re.sub(r"<script>.*?</script\b[^>]*>", "", html, flags=re.S | re.I)
 
 
 def script(html: str) -> str:
-    return "\n".join(re.findall(r"<script>(.*?)</script>", html, flags=re.S))
+    return "\n".join(re.findall(r"<script>(.*?)</script\b[^>]*>", html, flags=re.S | re.I))
 
 
 def positions(body: str, *needles: str) -> list[int]:
@@ -125,8 +125,10 @@ class TestEveryLayout:
         assert 'class="place-icon" aria-hidden="true"' in js
         assert (
             '<button class="delete-btn" onclick="deletePopup(\'${name}\')" '
-            'aria-label="Delete ${name}">×</button>'
+            'aria-label="${fmt(TEXT.delete_place_aria_label, { name })}">×</button>'
         ) in js
+        # ...whose accessible name is still "Delete <name>" in English.
+        assert '"delete_place_aria_label": "Delete {name}"' in js
 
     def test_no_hex_colors_in_page_css(self, pages, layout):
         css = re.search(r"<style>(.*?)</style>", pages[layout], re.S).group(1)
@@ -228,11 +230,17 @@ class TestBasemaps:
             assert "CartoDB" not in html
 
     @pytest.mark.parametrize("theme", ["dark", "mono"])
-    def test_tone_basemap_is_a_defined_layer(self, theme):
+    def test_tone_keeps_a_defined_layer(self, theme):
+        """Dark and mono theme the default street map with a CSS filter
+        (`filter_by_tone`) rather than swapping basemaps, so whatever layer
+        loads must still be one the template defines."""
         js = script(render(theme=theme))
         selected = re.search(r"\(layers\['([^']+)'\]", js).group(1)
-        assert selected != "OpenStreetMap", "the tone fell back to the default layer"
         assert f"'{selected}': L.tileLayer(" in js
+
+    def test_layer_by_tone_still_wins_when_set(self):
+        js = script(render(theme="dark", extra=("+apps.maps.layer_by_tone.dark=ESRI Dark Gray",)))
+        assert "(layers['ESRI Dark Gray']" in js
 
 
 class TestBottomSheetDropdowns:

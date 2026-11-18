@@ -1,4 +1,6 @@
 # @package apps.openbanking
+# The pack's language: drives the app's UI strings and <html lang>.
+content_language: german
 defaults:
   - default
 

@@ -27,6 +27,9 @@ defaults:
   - apps/passwords: default
   - apps/pop_ups: default
   - apps/chrome: default
+  # Last, so `apps/language=german` can override each app's content group
+  # (see config.yaml).
+  - apps/language: null
   - _self_
 
 # runs multiple tasks for each app variation in parallel

@@ -92,6 +92,8 @@ ui:
   load_error: "This PDF couldn’t be displayed. Use Open in new tab or Download instead."
   needs_script: "Showing PDFs here needs JavaScript."
   no_preview: "There’s no preview for this kind of file."
+  # Sizes under 1 KB. KB and MB read the same in every pack.
+  bytes_label: "{n} bytes"
   # strftime pattern; a leading zero after a space is dropped ("Aug 2").
   date_format: "%b %d, %Y"
   kinds:
