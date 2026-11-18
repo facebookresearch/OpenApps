@@ -26,8 +26,8 @@ CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 
 # Position order from `config/apps/start_page/default.yaml`. The online shop
 # is on by default now that it needs no JDK; OpenBanking (position 8), Files
-# (9) and Contacts (10) close the row, because the UI Library's tile at 7 is
-# disabled by default.
+# (9), Contacts (10) and OpenPasswords (11) close the row, because the UI
+# Library's tile at 7 is disabled by default.
 EXPECTED_TILES = [
     ("/todo", "OpenTodos"),
     ("/calendar", "OpenCalendar"),
@@ -38,6 +38,7 @@ EXPECTED_TILES = [
     ("/openbanking", "OpenBanking"),
     ("/files", "OpenFiles"),
     ("/contacts", "OpenContacts"),
+    ("/passwords", "OpenPasswords"),
 ]
 
 TILE_RE = re.compile(
@@ -109,7 +110,8 @@ def test_clickable_logos_does_not_change_the_start_page(monkeypatch):
 
 OWN_ICON = {"/todo": "todo", "/calendar": "calendar", "/messages": "messages",
             "/maps": "maps", "/codeeditor": "code", "/onlineshop": "shop",
-            "/openbanking": "wallet", "/files": "files", "/contacts": "contacts"}
+            "/openbanking": "wallet", "/files": "files", "/contacts": "contacts",
+            "/passwords": "passwords"}
 
 
 def test_default_icons_match_their_tiles(monkeypatch):
