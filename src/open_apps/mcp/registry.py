@@ -32,6 +32,7 @@ APP_URL_PATHS: dict[str, str] = {
     "openbanking": "/openbanking",
     "files": "/files",
     "contacts": "/contacts",
+    "passwords": "/passwords",
 }
 
 APP_CONFIG_DIRS: dict[str, str] = {
@@ -44,6 +45,7 @@ APP_CONFIG_DIRS: dict[str, str] = {
     "openbanking": "openbanking",
     "files": "files",
     "contacts": "contacts",
+    "passwords": "passwords",
 }
 
 
