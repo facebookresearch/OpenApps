@@ -36,10 +36,34 @@ override and stays in the output. Warnings come from `config/compose_rules.yaml`
 **Fix** button applies the suggested change. With focus anywhere in the composer, press `c` to
 copy the command.
 
-The preview is approximate: a short recording for each device and theme, with a still of the
-last app layout or content pack you changed (`scripts/render_composer_media.py` renders them).
+The preview is approximate: a short recording of the start page and then the todo app, with a
+still of the last app layout or content pack you changed inset over it. There is a recording for
+every **device × theme × language × start-page layout × todo layout** (4 × 11 × 3 × 4 × 3 = 1,584
+clips), so picking German, a theme, a device or a layout switches to a recording of exactly that.
 The recording loops until you press **Pause**, and waits for **Play** if your system asks for
 reduced motion.
+
+The full grid is about 250 MB, too big for git, so the docs deploy renders it
+(`.github/workflows/static.yml`). It runs in 16 parallel shards, each cached on a hash of
+`src/open_apps/`, `config/`, the renderer and `uv.lock`, so a docs-only push renders nothing. The
+deploy merges the shards over a small committed set (one clip per device and theme, other axes at
+their defaults) in `docs/assets/composer/media/`. That set is what a local `mkdocs serve` shows, and
+what a deploy whose render failed falls back to. When there is no exact clip, the preview plays the
+closest one for your device (matching theme first, then language, start-page layout, todo layout)
+and says what differs, e.g. *Approximate — shown in English, with the default todo layout.*
+
+`scripts/render_composer_media.py` renders the clips. Render a subset into a scratch folder to see
+one locally (point the component's `media` attribute at its `manifest.json`):
+
+```bash
+uv run scripts/render_composer_media.py --devices desktop --themes dark --languages german \
+    --start-layouts gallery --todo-layouts kanban_board --no-stills --out /tmp/composer-media
+uv run scripts/render_composer_media.py --full --no-stills --shard 1/16 --out /tmp/shard1  # what CI runs
+```
+
+With no flags it re-renders the committed set (device × theme, plus the stills). Never commit the
+grid.
+
 For the exact thing, run the composer locally:
 
 ```bash
