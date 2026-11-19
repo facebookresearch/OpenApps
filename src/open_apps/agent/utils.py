@@ -85,8 +85,35 @@ def goto(url: str):
     page.goto(href)  # noqa: F821
 
 
+def click_and_type(
+    x: float = None,
+    y: float = None,
+    text: str = "",
+    press_enter: bool = False,
+    clear: bool = False,
+):
+    """
+    Click at (x, y) unless they are None, optionally select and delete the existing text, type the text, and optionally press Enter.
+
+    Examples:
+        click_and_type(620, 85, 'call mom', press_enter=True)
+        click_and_type(None, None, 'new title', clear=True)
+    """
+    # One action for Fara-style typing, which targets a field and submits in a
+    # single step; BrowserGym runs one action per step.
+    if x is not None and y is not None:
+        page.mouse.click(x, y)  # noqa: F821 -- `page` is injected by BrowserGym
+    if clear:
+        page.keyboard.press("ControlOrMeta+a")  # noqa: F821
+        page.keyboard.press("Backspace")  # noqa: F821
+    page.keyboard.type(text)  # noqa: F821
+    if press_enter:
+        page.keyboard.press("Enter")  # noqa: F821
+
+
 action_map = {
     "clear": clear,
+    "click_and_type": click_and_type,
     "click": click,
     "dblclick": dblclick,
     "drag_and_drop": drag_and_drop,

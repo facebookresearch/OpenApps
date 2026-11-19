@@ -6,10 +6,12 @@ from .base import ActionParser, ActionParserResult
 from .coords import rescale_xy
 from .uitars import UITarsActionParser
 from .qwen3vl import Qwen3VLActionParser
+from .fara import FaraActionParser
 
 REGISTRY: dict[str, type[ActionParser]] = {
     "uitars": UITarsActionParser,
     "qwen3vl": Qwen3VLActionParser,
+    "fara": FaraActionParser,
 }
 
 
@@ -19,7 +21,8 @@ def get_action_parser(
     """Build the action_parser for ``name``.
 
     ``coord_scale`` overrides the family's default coordinate space when given;
-    None keeps the subclass default (uitars: raw pixels, qwen3vl: 0-1000).
+    None keeps the subclass default (uitars: raw pixels, qwen3vl: 0-1000,
+    fara: viewport pixels).
     """
     if not name:
         name = "uitars"
