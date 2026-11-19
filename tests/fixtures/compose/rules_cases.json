@@ -103,12 +103,17 @@
       "findings": []
     },
     {
-      "name": "the SLURM pool discovers the vLLM host",
+      "name": "on SLURM a vLLM agent is offered agent.hostname=auto",
       "selection": {"choices": {"agent": ["gemma-4-2B-computer-use"], "mode": ["slurm_cluster"]}},
+      "findings": ["vllm_agent_on_slurm_finds_host"]
+    },
+    {
+      "name": "agent.hostname=auto satisfies it",
+      "selection": {"choices": {"agent": ["gemma-4-2B-computer-use"], "mode": ["slurm_cluster"]}, "extra": ["agent.hostname=auto"]},
       "findings": []
     },
     {
-      "name": "a pool with one vLLM agent among others",
+      "name": "several agents with one vLLM agent among them",
       "selection": {"choices": {"agent": ["dummy", "UI-TARS-1.5-7B"]}},
       "findings": ["vllm_agent_needs_host"]
     },

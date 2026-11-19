@@ -206,7 +206,7 @@ def _matches_one(condition: Any, actual: Any) -> bool:
 
 
 def _holds(condition: Any, actuals: list[Any]) -> bool:
-    """Any-semantics: a sweep cell or pool agent that trips the rule is enough."""
+    """Any-semantics: a sweep cell or agent that trips the rule is enough."""
     return any(_matches_one(condition, a) for a in actuals)
 
 

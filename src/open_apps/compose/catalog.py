@@ -205,9 +205,6 @@ class Scalar:
     targets: list[str]
     control: Literal["toggle", "number", "text", "select"]
     searchable: bool = False
-    #: Set through this environment variable rather than an override when the
-    #: target is a worker pool (conduct.sh reads ``HEADLESS``).
-    pool_env: str | None = None
 
 
 @dataclass
@@ -232,12 +229,14 @@ class Target:
     command: str
     #: Where the script's own defaults differ from ``config_name``'s.
     defaults: dict[str, Any] = field(default_factory=dict)
-    #: Offered as a Target pill. The SLURM pool is not: Mode already says
-    #: "on SLURM", so a pill of its own could only agree with the Mode row or
-    #: contradict it. Worker pool + ``mode=slurm_cluster`` resolves to it.
+    #: Offered as a Target pill.
     pill: bool = True
 
 
+#: One way to run one episode and one for everything parallel: several agents,
+#: tasks or app variations, repeats, a parallelism cap, SLURM. The worker
+#: pools (``scripts/conduct*.sh``) are not targets: launch_parallel_agents.py
+#: does what they did, so the composer offers one interface for parallel runs.
 TARGETS: dict[str, Target] = {
     "single": Target("single", "Single run", "config", "uv run launch_agent.py"),
     "sweep": Target(
@@ -246,72 +245,44 @@ TARGETS: dict[str, Target] = {
         "config_parallel_tasks",
         "uv run launch_parallel_agents.py",
     ),
-    "pool": Target(
-        "pool",
-        "Worker pool",
-        "config",
-        "./scripts/conduct.sh",
-        # conduct.sh: AGENTS="${AGENTS:-dummy}" -- the agent a pool shows when
-        # none is picked (and what a bare ./scripts/conduct.sh runs). The
-        # command spells it out all the same; see command.normalize.
-        defaults={"agent": "dummy"},
-    ),
-    "slurm_pool": Target(
-        "slurm_pool",
-        "Worker pool on SLURM",
-        "config",
-        "sbatch scripts/conduct_slurm.sh",
-        # conduct_slurm.sh passes `use_wandb=True` ahead of the user's args.
-        # Its own AGENTS and COUNT defaults are not modelled: AGENTS has named
-        # a config that no longer exists, and COUNT=1 would run only the first
-        # of several agents. The command always spells both out instead, so
-        # the agent shown is config.yaml's, as on a single run.
-        defaults={"use_wandb": True},
-        pill=False,
-    ),
 }
 
 ALL_TARGETS = list(TARGETS)
 
 
-# (path, label, summary, control, pool_env). Type and default are read from the
-# composed config, not declared here.
-_SCALAR_SPECS: list[tuple[str, str, str, str, str | None]] = [
+# (path, label, summary, control). Type and default are read from the composed
+# config, not declared here.
+_SCALAR_SPECS: list[tuple[str, str, str, str]] = [
     (
         "task_name",
         "Task",
         "Which task of the selected task groups to run.",
         "select",
-        None,
     ),
     (
         "browsergym_env_args.max_steps",
         "Max steps",
         "Maximum number of agent steps per episode.",
         "number",
-        None,
     ),
-    ("seed", "Seed", "Seed for Python's random module.", "number", None),
+    ("seed", "Seed", "Seed for Python's random module.", "number"),
     (
         "use_wandb",
         "W&B logging",
         "Log the run to Weights & Biases.",
         "toggle",
-        None,
     ),
     (
         "browsergym_env_args.headless",
         "Headless",
         "Run the agent's browser without a window.",
         "toggle",
-        "HEADLESS",
     ),
     (
         "record_video",
         "Record video",
         "Record each episode as a .webm (and log it to W&B when enabled).",
         "toggle",
-        None,
     ),
 ]
 
@@ -778,7 +749,7 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
             ]
 
     scalars = {}
-    for spath, label, summary, control, pool_env in _SCALAR_SPECS:
+    for spath, label, summary, control in _SCALAR_SPECS:
         defaults = {c: _select(composed[c], spath) for c in PRIMARY_CONFIGS}
         is_enum = spath == "task_name"
         scalars[spath] = Scalar(
@@ -791,7 +762,6 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
             targets=list(ALL_TARGETS),
             control=control,  # type: ignore[arg-type]
             searchable=is_enum,
-            pool_env=pool_env,
         )
 
     # Order groups as the primary config's defaults list does (then nested

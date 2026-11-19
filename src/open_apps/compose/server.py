@@ -78,7 +78,7 @@ from open_apps.compose.catalog import TARGETS, Catalog, build_catalog, hydra_con
 from open_apps.compose.command import (
     ALL_TASKS,
     ENV_ASSIGNMENT,
-    POOL_TARGETS,
+    LEGACY_TARGETS,
     CommandError,
     Selection,
     normalize,
@@ -142,25 +142,9 @@ WANDB_ENV = frozenset(
 #: the variables that change what gets executed or loaded (``PATH``,
 #: ``LD_PRELOAD``, ``PYTHONSTARTUP``, ``BROWSER``, ``GIT_SSH_COMMAND``, ...)
 #: are an open-ended set, while the ones a run is configured with are few.
-#: These are what ``scripts/conduct*.sh`` read as ``${NAME:-default}`` --
-#: the worker-pool knobs the composer renders plus the vLLM node -- and the
-#: W&B labels above; a test keeps the list in step with the scripts.
-ENV_ALLOWLIST = (
-    frozenset(
-        {
-            "AGENTS",
-            "COUNT",
-            "MAX_PARALLEL",
-            "HEADLESS",
-            "LOG_DIR",
-            "WANDB_GROUP",
-            "VLLM_HOST",
-            "VLLM_MODEL",
-            "VLLM_PORT",
-        }
-    )
-    | WANDB_ENV
-)
+#: Both launchers are configured by Hydra overrides, so that leaves the W&B
+#: labels above.
+ENV_ALLOWLIST = WANDB_ENV
 
 #: Config keys an extra override may not touch (after ``+``/``++``/``~``):
 #: Hydra's own settings -- callbacks, launchers, sweepers, search path --
@@ -281,10 +265,10 @@ def checked_selection(data: Any, catalog: Catalog) -> Selection:
         checked[key] = list(values)
 
     target = data.get("target")
-    if target is not None and target not in TARGETS:
+    if target is not None and target not in TARGETS and target not in LEGACY_TARGETS:
         raise RequestError(f"unknown target {target!r}")
     numbers = {}
-    for key in ("count", "max_parallel"):
+    for key in ("repeats", "count", "max_parallel"):
         value = data.get(key)
         if value is not None and (
             not isinstance(value, int) or isinstance(value, bool) or value < 0
@@ -304,15 +288,15 @@ def checked_selection(data: Any, catalog: Catalog) -> Selection:
         if value:
             check_token(value, f"env {name}")
         env.append(f"{name}={value}")
-    sbatch = [check_token(a, "sbatch option") for a in data.get("sbatch_args") or []]
-    return Selection(
-        choices=checked,
-        target=target,
-        count=numbers["count"],
-        max_parallel=numbers["max_parallel"],
-        extra=extra,
-        env=env,
-        sbatch_args=sbatch,
+    # from_dict upgrades a worker-pool request (target, count) to the sweep.
+    return Selection.from_dict(
+        {
+            "choices": checked,
+            "target": target,
+            **{k: v for k, v in numbers.items() if v is not None},
+            "extra": extra,
+            "env": env,
+        }
     )
 
 
@@ -354,7 +338,7 @@ def plan(selection: Selection, catalog: Catalog) -> Plan:
 def single_view(selection: Selection, catalog: Catalog) -> Selection:
     """The one run a preview or recording shows for any selection.
 
-    A sweep or pool becomes its first cell / first agent: every axis keeps its
+    A sweep becomes its first cell and first agent: every axis keeps its
     first value, the mode is local, and sweep-only keys go -- launch.py and
     launch_agent.py compose config.yaml, which has no ``parallel_tasks`` and
     cannot bind a group only the sweep config names (``benchmark``).
@@ -387,23 +371,16 @@ def _compose(config_name: str, overrides: list[str], **kwargs: Any) -> Any:
 def composition(p: "Plan", selection: Selection) -> tuple[str, list[str]]:
     """The config name and overrides the planned command would compose.
 
-    Pools compose config.yaml under the first agent with what conduct.sh puts
-    in front of the forwarded overrides (and conduct_slurm.sh its
-    ``use_wandb=True``); the other targets compose exactly their argv.
+    Exactly the argv, after the sweep launcher's own translation of its
+    ``agents=a,b`` selector (``normalize_cli_args``: the first agent, plus
+    ``parallel_tasks.agent_configs``) -- Hydra has no ``agents`` key.
     """
     config_name = TARGETS[p.target].config_name
     overrides = list(p.overrides)
-    if p.target in POOL_TARGETS:
-        agents = selection.choices.get("agent") or [
-            TARGETS[p.target].defaults.get("agent") or "dummy"
-        ]
-        overrides = [
-            f"agent={agents[0]}",
-            "browsergym_env_args.headless=True",
-            *overrides,
-        ]
-        if p.target == "slurm_pool":
-            overrides = ["use_wandb=True", *overrides]
+    if p.target == "sweep" and any(t.startswith("agents=") for t in overrides):
+        from open_apps.parallel_launcher import normalize_cli_args
+
+        overrides = normalize_cli_args(overrides)
     return config_name, overrides
 
 
@@ -483,8 +460,7 @@ def validate(selection: Selection, catalog: Catalog) -> dict[str, Any]:
     """Compose what the rendered command would compose; diff it or map the error.
 
     Sweeps compose the sweep config and then the first cell the way
-    create_configs does; pools compose config.yaml under the first agent with
-    what conduct.sh puts in front of the forwarded overrides.
+    create_configs does.
     """
     p = plan(selection, catalog)
     config_name, composed = composition(p, selection)
@@ -531,11 +507,10 @@ def _default_composition(config_name: str) -> Any:
 # ---------------------------------------------------------------------------
 
 #: The programs /run may start, as the argv words before the first override.
-#: Everything else -- ``sbatch`` above all -- comes back as a command to copy.
+#: Everything else -- a SLURM sweep above all -- comes back as a command to copy.
 LOCAL_PROGRAMS = (
     ("uv", "run", "launch_agent.py"),
     ("uv", "run", "launch_parallel_agents.py"),
-    ("./scripts/conduct.sh",),
 )
 _BASIC_LAUNCHER = "hydra._internal.core_plugins.basic_launcher.BasicLauncher"
 
@@ -544,8 +519,8 @@ def run_refusal(selection: Selection, catalog: Catalog) -> str | None:
     """Why /run will not start ``selection`` here, or None if it may.
 
     Decided from the resolved plan, not from how the selection spells it:
-    the rendered program must be one of :data:`LOCAL_PROGRAMS`, the target
-    must not be the SLURM pool, and the config the command would compose
+    the rendered program must be one of :data:`LOCAL_PROGRAMS`, and the
+    config the command would compose
     must say ``cluster: local`` (the key launch_parallel_agents.py dispatches
     on; ``mode=`` is just the group that usually sets it) with Hydra's own
     basic, single-run launcher. A pill, a quoted ``mode='slurm_cluster'``, a
@@ -553,8 +528,6 @@ def run_refusal(selection: Selection, catalog: Catalog) -> str | None:
     Raises Hydra's exception when the selection does not compose at all.
     """
     p = plan(selection, catalog)
-    if p.target == "slurm_pool":
-        return "A SLURM worker pool is submitted with sbatch."
     program = tuple(p.argv[: p.first_override])
     if program not in LOCAL_PROGRAMS:
         return f"The browser only starts local launchers, not {shlex.join(program)}."
