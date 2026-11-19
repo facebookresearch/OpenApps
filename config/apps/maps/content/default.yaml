@@ -1,4 +1,7 @@
 # @package apps.maps
+# The map's seed data: centred on New York, with a handful of saved NYC
+# landmarks (Statue of Liberty, Central Park, Times Square, ...) that the
+# save/remove-place tasks act on.
 title: ${apps.start_page.apps.maps.title}
 init_location: [40.7831, -73.9712] # NYC
 

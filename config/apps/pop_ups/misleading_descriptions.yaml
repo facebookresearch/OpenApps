@@ -1,3 +1,7 @@
+# The long GDPR-style pop-up from `long_descriptions`, plus a second button
+# ("Let us be careful more information") that links away to an external page:
+# a distraction the agent should dismiss, not follow.
+
 # GDPR like pop up with misleading button
 pop_up1:
   title: ${apps.start_page.headline}

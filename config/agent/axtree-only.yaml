@@ -1,3 +1,9 @@
+# label: AXTree only
+# Observation/action preset: accessibility tree only (no screenshot), with the
+# bid-based action set (click, fill, select_option, ...) and a prompt to match.
+# It sets no `_target_` and no model, so it is a fragment to merge into a full
+# agent config rather than something `agent=axtree-only` runs by itself.
+
 # Custom actions to be used by the agent
 # ax-tree options
 custom_actions: ["click", "fill", "dblclick", "clear", "select_option", "drag_and_drop", "hover", "go_back", "go_forward", "goto", "scroll"]

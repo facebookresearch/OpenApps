@@ -1,6 +1,9 @@
 # @package apps.ui_library
 # The verbose variation: same information, far more of it, to test whether an
 # agent can still find the controls when the prose around them grows.
+defaults:
+  - default
+
 intro: >-
   Every component rendered on this page comes from the shared component
   library that the applications in this environment are built from, and each
