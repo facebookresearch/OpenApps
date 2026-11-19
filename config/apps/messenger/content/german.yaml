@@ -1,4 +1,7 @@
 # @package apps.messenger
+# German chat history: the default conversations translated, same contacts,
+# so the message tasks still address Alice, Bob and Charlie by name.
+
 # The pack's language: drives the UI strings and <html lang>.
 content_language: german
 defaults:

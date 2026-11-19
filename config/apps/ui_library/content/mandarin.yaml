@@ -1,4 +1,6 @@
 # @package apps.ui_library
+# Mandarin intro text and section labels for the UI library page.
+
 # The pack's language, read by open_apps.i18n (UI strings, <html lang>).
 content_language: mandarin
 defaults:

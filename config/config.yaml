@@ -1,4 +1,8 @@
 # @package _global_
+# Primary config for single runs: `launch.py`, `launch_agent.py` and the
+# worker pools in scripts/ (which call launch_agent.py). The defaults list picks
+# one option per group; anything here is overridable from the command line,
+# e.g. `uv run launch_agent.py agent=dummy apps/theme=dark device=phone`.
 defaults:
   - mode: local
   - agent: default

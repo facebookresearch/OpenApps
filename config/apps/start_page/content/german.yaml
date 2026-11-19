@@ -1,4 +1,7 @@
 # @package apps.start_page
+# German start page: translated headline, sub-header, app titles and app
+# descriptions.
+
 # The pack's language: the session language of the desktop shell, the dock
 # and the window chrome (open_apps.i18n.shell_language), and <html lang>.
 content_language: german

@@ -1,4 +1,7 @@
 # @package apps.maps
+# Centres the map on Beijing and appends ~100 cities across China, named in
+# Chinese, to the default saved places (`+saved_places`).
+
 # The pack's language. Read by the map page, which renders its UI in it (the
 # *_label keys below; see LABELS in map_app/main.py) and sets
 # <html lang="zh-Hans">.

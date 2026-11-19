@@ -1,4 +1,8 @@
 # @package apps.calendar
+# Mandarin add-event form: translates the placeholders and aria labels only.
+# The events themselves come from `default` unchanged, so tasks that name an
+# event still find it.
+
 # The pack's language: drives the calendar's UI strings and <html lang>.
 content_language: mandarin
 defaults:

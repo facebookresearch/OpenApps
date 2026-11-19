@@ -129,6 +129,16 @@ Tasks are split across two files, both composed into `all_tasks.yaml`:
 * `config/tasks/user_goal_variations.yaml` — the variations, keyed
   `<original_task>__<style>_<n>` (e.g. `mark_water_plants_as_done__casual_2`).
 
+`all_tasks` is the paper's inventory and nothing more. Other sets —
+`longer_horizon`, `openbanking` — are groups of their own, so adding one never
+changes what a default sweep measures. Pick one with `tasks=openbanking`, or
+combine several into one inventory with Hydra's list form (quote it for the
+shell):
+
+```shell
+uv run launch_agent.py 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking
+```
+
 Every variation copies its original's fields verbatim — only the `goal` is
 reworded, and an optional `goal_style` field records the style — so the reward
 logic is identical to the base task:

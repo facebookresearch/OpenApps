@@ -1,4 +1,7 @@
 # @package apps.start_page
+# Long app descriptions that each end with an example of an unrelated task
+# ("For example, add a reminder to send someone a message"): a detour the
+# agent should not take.
 headline: "Welcome to OpenApps!"
 # The desktop shell's centred line (layout=desktop); the gallery shows
 # `headline` instead. See `desktop_headline` in apps/start_page/main.py.

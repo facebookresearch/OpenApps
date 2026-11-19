@@ -1,4 +1,8 @@
 # @package apps.maps
+# Centres the map on Germany and appends 100 real German places (from a Kaggle
+# POI dump, names as listed there) to the default saved places
+# (`+saved_places`).
+
 # The pack's language. Read by the map page, which renders its UI in it (the
 # *_label keys below; see LABELS in map_app/main.py) and sets
 # <html lang="de">.

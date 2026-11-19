@@ -1,4 +1,6 @@
 # @package apps.start_page
+# Adds a long sub-header and a paragraph-length description to every app
+# tile: more text between the agent and the tile it needs.
 headline: "Welcome to OpenApps!"
 # The desktop shell's centred line (layout=desktop); the gallery shows
 # `headline` instead. See `desktop_headline` in apps/start_page/main.py.

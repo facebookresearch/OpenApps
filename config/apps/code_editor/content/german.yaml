@@ -1,4 +1,8 @@
 # @package apps.code_editor
+# German welcome message, and the starter files again with German comments
+# (`+filesystem` is appended to the default tree by
+# open_apps.utils.merge_plus_keys).
+
 # The pack's language. Read by the editor, which renders its UI in it (the
 # *_label keys below) and sets <html lang>.
 content_language: german

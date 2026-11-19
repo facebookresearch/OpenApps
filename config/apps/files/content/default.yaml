@@ -1,4 +1,6 @@
 # @package apps.files
+# The Files app's English seed data: folders and files on disk, plus the UI
+# labels the German and Mandarin packs translate.
 title: ${apps.start_page.apps.files.title}
 description: ${apps.start_page.apps.files.description}
 

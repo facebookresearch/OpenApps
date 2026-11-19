@@ -1,3 +1,5 @@
+# A Mandarin welcome pop-up on the start page describing the apps, with a
+# single dismiss button and no link that could lead the agent away.
 pop_up1:
   # The pop-up's language: the start page renders any text the pack leaves
   # out (the default title and button) in it, whatever the start page speaks.

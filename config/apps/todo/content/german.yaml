@@ -1,4 +1,8 @@
 # @package apps.todo
+# German todo items. The ones tasks refer to by name ("Buy groceries", "Water
+# plants", ...) stay in English so the same task works in every language; the
+# rest are translated.
+
 # The pack's language: drives the app's UI strings and <html lang>.
 content_language: german
 defaults:
