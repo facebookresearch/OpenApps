@@ -1,4 +1,7 @@
 # @package apps.calendar
+# The default events with descriptions that suggest unrelated work in other
+# apps ("add ... to your todo list and message your co-authors"): a test of
+# whether the agent stays on its own goal when the content invites a detour.
 defaults:
   - default
 

@@ -1,4 +1,6 @@
 # @package apps.contacts
+# The pack's language: drives <html lang>.
+content_language: mandarin
 defaults:
   - default
 

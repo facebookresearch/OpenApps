@@ -330,3 +330,61 @@ class TestMetaThemePair:
         dark = load_theme("meta_dark")["tokens"]
         assert light["color-bg"] != dark["color-bg"]
         assert light["color-fg"] != dark["color-fg"]
+
+
+class TestShellTokensAndFonts:
+    """What every theme owes the shared shell: the accents and rings the
+    desktop and dock use, and font stacks that can draw Mandarin."""
+
+    ALL = sorted(
+        p.stem
+        for p in __import__("pathlib").Path(__file__).resolve().parent.parent.joinpath(
+            "config", "apps", "theme"
+        ).glob("*.yaml")
+    )
+    SHELL = [
+        "color-success", "color-warning", "color-emphasis", "color-info",
+        "color-accent-pink", "color-accent-violet", "color-accent-teal",
+        "ring-blue", "ring-dark-blue", "ring-pink", "ring-teal", "ring-violet",
+    ]
+
+    def test_every_theme_defines_the_shell_tokens(self):
+        for name in self.ALL:
+            tokens = load_theme(name)["tokens"]
+            missing = [t for t in self.SHELL if t not in tokens]
+            assert not missing, (name, missing)
+
+    def test_every_stack_ends_in_cjk_faces_after_its_latin_ones(self):
+        """Appended after the generic family, so Latin text renders exactly
+        as before and only glyphs the Latin faces lack reach them."""
+        for name in self.ALL:
+            tokens = load_theme(name)["tokens"]
+            for key in ("font-family", "font-mono"):
+                stack = tokens[key]
+                assert "'Noto Sans CJK SC'" in stack and "'Droid Sans Fallback'" in stack, (name, key)
+                generic = max(stack.find(g) for g in ("sans-serif", "monospace", "cursive"))
+                assert generic != -1 and generic < stack.index("'Noto Sans CJK SC'"), (name, key)
+
+    def test_challenging_font_names_its_bundled_faces_first(self):
+        """The bundled faces lead, so the axis renders the same on every
+        node; a host's own script faces only stand in for what they lack."""
+        theme = load_theme("challenging_font")
+        stack = theme["tokens"]["font-family"]
+        assert stack.startswith("'OpenApps Script', 'OpenApps Script CJK',")
+        assert stack.index("'Brush Script MT'") < stack.index("cursive")
+        assert stack.index("'Zhi Mang Xing'") < stack.index("'Noto Sans CJK SC'")
+        assert theme["import_url"] == "/assets/webfonts/challenging_font/fonts.css"
+
+    def test_the_bundled_faces_and_their_licenses_ship(self):
+        import pathlib
+        import re
+
+        root = pathlib.Path(__file__).resolve().parent.parent
+        fonts = root / "src/open_apps/apps/assets/webfonts/challenging_font"
+        css = (fonts / "fonts.css").read_text()
+        families = set(re.findall(r"font-family: '([^']+)'", css))
+        assert families == {"OpenApps Script", "OpenApps Script CJK"}
+        for src in re.findall(r"url\('([^']+)'\)", css):
+            assert (fonts / src).stat().st_size > 10_000, src
+        for license_file in ("OFL-GreatVibes.txt", "OFL-ZhiMangXing.txt"):
+            assert "SIL Open Font License" in (fonts / license_file).read_text()

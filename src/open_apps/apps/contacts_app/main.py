@@ -32,6 +32,7 @@ from open_apps.app_icons import app_glyph
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.handles import format_handle, handle_kind, normalize_handle
+from open_apps.i18n import html_lang, language_of
 from open_apps.theme import theme_asset, theme_style
 from open_apps.ui.copy import COPY_SCRIPT, CopyButton, copy_styles
 
@@ -83,6 +84,9 @@ def set_environment(config):
     """
     global db, contacts, handles, logo_title_container
     app.config = config
+    # `de` / `zh-Hans` under a translated pack, as the files app does: the
+    # browser picks CJK glyphs and the accessibility tree names the language.
+    app.htmlkw = {"lang": html_lang(language_of(config.contacts))}
     db = database(config.contacts.database_path)
     contacts = db.create(Contact, name="contacts", pk="id")
     handles = db.create(ContactHandle, name="contact_handles", pk="id")

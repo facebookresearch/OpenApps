@@ -40,12 +40,12 @@ tokens:
   color-btn-fg: "#ffffff"
 
   # --- Typography and shape ---------------------------------------------
-  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+  font-family: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
   font-size-base: "16px"
   font-size-sm: "14px"                      # chat bubbles, editor gutter
   font-size-heading: "1.5rem"
-  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   radius: "8px"
   space: "8px"
 

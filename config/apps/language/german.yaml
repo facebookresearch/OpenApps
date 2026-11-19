@@ -1,0 +1,24 @@
+# @package _global_
+# German everywhere: every app's german content pack.
+#
+# One switch for the per-app `apps/<app>/content=german` overrides, so the whole
+# session is in German, desktop shell included (it follows the start page).
+# A per-app override still wins, e.g.
+# `apps/language=german apps/todo/content=long_descriptions`. Task goals stay
+# English; tasks resolve them to the pack's wording (docs/index.md, Languages).
+#
+# Pop-ups are left alone: `apps/pop_ups=german` *adds* a pop-up (the default
+# pack has none), which is its own variation axis, not a translation.
+defaults:
+  - override /apps/start_page/content: german
+  - override /apps/calendar/content: german
+  - override /apps/code_editor/content: german
+  - override /apps/contacts/content: german
+  - override /apps/files/content: german
+  - override /apps/maps/content: german
+  - override /apps/messenger/content: german
+  - override /apps/onlineshop/content: german
+  - override /apps/openbanking/content: german
+  - override /apps/todo/content: german
+  - override /apps/passwords/content: german
+  - override /apps/ui_library/content: german

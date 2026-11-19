@@ -1,3 +1,8 @@
+# label: GPT-5.5 computer use
+# GPT-5.5 as a screenshot-only computer-use agent: coordinate mouse/keyboard
+# actions, no AXTree or HTML. Talks to an OpenAI-compatible endpoint
+# (`base_url`) and reads its key from the GPT55_API_KEY environment variable,
+# so put that in .env before launching.
 defaults:
   - default
   - _self_
