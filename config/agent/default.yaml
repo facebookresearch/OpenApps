@@ -47,6 +47,9 @@ custom_actions:
     "keyboard_press",
     "keyboard_type",
     "keyboard_insert_text",
+    # Answer, ask or refuse: what AnswerTask and AbstentionTask score.
+    "send_msg_to_user",
+    "report_infeasible",
   ]
 
 # --- observation flags ---
