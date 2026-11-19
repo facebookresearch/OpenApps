@@ -163,6 +163,7 @@ layout in play. Every app has `default`, plus:
 | | `broken_logos` | Gallery with icons detached from their tiles |
 | | `clickable_logos` | Gallery with tile logos as their own click targets |
 | `todo` | `kanban_board` | Status columns of cards instead of one list |
+| | `grouped_sections` | Two headed sections, Open and Completed; ticking moves a row between them |
 | `calendar` | `agenda_first` | Lands on the agenda, not the month grid |
 | | `sidebar_nav` | Month nav and view toggle become a left rail |
 | `messenger` | `split_inbox` | Chat list stays beside the open thread |
@@ -172,6 +173,11 @@ layout in play. Every app has `default`, plus:
 | `code_editor` | `sidebar_right` | File tree right of the editor |
 | | `top_tree` | File tree as a strip above the editor, no side column |
 | `openbanking` | `card_list` | Ledger as stacked cards instead of a table |
+| | `grouped_by_date` | Ledger rows grouped under a heading per posting date |
+| `files` | `icons` | Folder contents as a grid of first-page thumbnails |
+| | `folder_tabs` | Folders as a row of tabs above the toolbar; no side column |
+| `contacts` | `list_detail` | One pane at a time: the list, then a contact on its own page |
+| `passwords` | `list_detail` | One pane at a time: the vault list, then an item on its own page |
 | `onlineshop` | `grid` | Product cards in a grid instead of rows |
 | | `compact_table` | Dense, text-only product table |
 
@@ -356,6 +362,49 @@ other appearance axis.
 Content is per app, so each override names the app it changes, e.g.
 `uv run launch.py apps/calendar/content=german`.
 
+##### Languages
+
+Every app ships `german` and `mandarin` content packs beside the English
+`default`. A pack declares its language with `content_language: german` (or
+`mandarin`); a pack without it is English. That one key drives:
+
+* the app's own UI strings, which live in its packs as flat `*_label` keys
+  (English in `content/default.yaml`, overridden in `german.yaml` /
+  `mandarin.yaml`);
+* the strings every app shares (the back-to-apps link, window controls, the
+  dock, the desktop toolbar), which live once in `SHARED` in
+  `src/open_apps/i18n.py` instead of in eight packs;
+* `<html lang>` (`en`, `de`, `zh-Hans`), so the browser picks CJK glyphs and the
+  accessibility tree an agent reads names the language.
+
+`apps/language` switches every app's pack at once. Use it
+for a fully translated session; the desktop shell (toolbar, dock, window
+chrome) follows the start page's pack, so it is translated too:
+
+```shell
+uv run launch.py apps/language=german          # default | german | mandarin
+uv run launch_agent.py agent=dummy task_name=add_meeting_with_dennis apps/language=mandarin
+```
+
+A per-app override still wins (`apps/language=german
+apps/todo/content=long_descriptions`), and one app alone is
+`apps/<app>/content=german`. In a sweep, `apps/language=default,german,mandarin`
+is a language axis with an English baseline cell. Pop-ups stay off:
+`apps/pop_ups=german` adds a German pop-up, a separate variation.
+
+Task goals stay English. Tasks whose target is a translated item (a todo
+title, a calendar event, a bank ledger row) resolve the English goal name to the pack's wording,
+so a task stays winnable in every language; `tests/test_*_i18n*.py` checks this
+per app.
+
+In code, `i18n.t("close_window", language, title=...)` returns a shared string,
+`i18n.label(cfg, "save_label", "Save")` an app's own pack label with an
+English fallback, `i18n.language_of(cfg)` a pack's language and
+`i18n.shell_language(apps)` the session's. To add a shared string, add a key
+to `SHARED` with all three languages (`tests/test_i18n.py` fails on a missing
+one). To add a language, add it to `LANGUAGES` and `_HTML_LANG`, translate
+every `SHARED` entry, and add a `<language>.yaml` pack per app.
+
 You can see the specific variables for each defined in the individual apps.
 For example, `config/apps/theme/dark.yaml` for the shared design tokens,
 `config/apps/start_page/layout/broken_logos.yaml` for a per-app structure
@@ -366,7 +415,8 @@ layer, route planning) that is neither.
 
 Where *appearance* varies colours and fonts, *layout* varies page structure —
 what elements exist and how they are arranged — so an agent cannot rely on a
-fixed DOM. Apps with a `layout` group:
+fixed DOM. The full list is the [Layout table](#layout) above, and each app's
+page under *Apps* describes its layouts; for example:
 
 | App | Layouts |
 | --- | --- |
@@ -405,8 +455,8 @@ uv run openbanking-gen-txns --account 2043 --count 2 --max-amount 80 \
 ```
 
 The same `--seed` always produces the same rows, and nothing is written to the
-running database -- the app is read-only, and `/openbanking_all` has to stay
-byte-stable. `--types` and `--max-amount` are how you stay clear of the figures
+running database -- `/openbanking_all` has to stay byte-stable until an agent
+sends money or buys something. `--types` and `--max-amount` are how you stay clear of the figures
 `config/tasks/openbanking.yaml` reads off an account; re-run
 `pytest tests/test_openbanking.py` afterwards, which checks those.
 
@@ -524,10 +574,13 @@ One setting moves two things:
   layout can pick a composition for the form factor rather than only reflowing
   to the width.
 
-The start page's desktop shell does exactly that. On a phone it renders a home
-screen: status bar, wordmark widget, an icon grid of the apps that are **not**
-pinned, and a dock holding the ones that are — so pinning moves an app into the
-dock, where pinning on a desktop moves it onto the desktop surface. The routes,
+The start page's desktop shell does exactly that. On a phone or tablet it
+renders a home screen: status bar, wordmark widget, a scrollable icon grid of
+the apps that are **not** pinned, and a dock holding at most four that are.
+There is no launcher menu — an app is on the home screen or in the dock — and
+over an app the chrome's dock shows the same four plus Home, with no window
+title bar. Pinning moves an app into the dock, where pinning on a desktop
+moves it into the desktop's dock. The routes,
 the test ids and `/desktop_all` are the same on both, so a task written against
 one scores unchanged on the other; what differs is what the agent can see and
 how far it has to travel. Which composition a form factor gets is config, not
@@ -536,6 +589,8 @@ code:
 ```bash
 # the control condition: the desktop composition, in a phone-sized window
 uv run launch.py +experiment=phone apps.start_page.desktop.variants.phone=shell
+# a different dock size (the phone default is 4)
+uv run launch.py +experiment=phone apps.start_page.desktop.dock_size_by_variant.home_screen=3
 ```
 
 Adding a device is a file in `config/device/`; a form factor with no variant of
@@ -605,6 +660,90 @@ All logs are stored `log_outputs` will contain information about each run
 You can also enable logging to weights and biases by logging into your account and setting the flag: `use_wandb=True`.
 
 
+
+##### Files, statements and receipts
+
+Files is one store shared by every app (`open_apps.files_store`), so every
+run serves it: a config without it (`~apps/files`) is refused at launch.
+
+* the bank's Statements page saves PDFs to `Statements/<account> — <Month YYYY>.pdf`;
+* the shop writes `Receipts/OpenShop order <id>.pdf` on checkout and for seeded orders;
+* `Code/` *is* the code editor's workspace. It is left out of `/files_all`, so
+  `/codeeditor_all` stays the only state for code files.
+
+Seeded documents are committed files (`src/open_apps/apps/files_app/seed/`,
+named by each content pack's `source`), copied in on every launch and reset.
+Statements and receipts are drawn by `open_apps.pdf_writer` when they are
+saved (deterministic: the same ledger or order gives the same bytes). PDFs
+are read with the vendored pdf.js, so their text is in the accessibility tree
+once a document is open -- not in the thumbnails. Recently Deleted keeps items for 30 days counted from the pinned
+date (`apps.files.today`, the bank's `as_of_date`), and never empties itself.
+
+`/files_all` lists every file and trashed item by path, size and sha256, and is
+compared exactly: "lease 2026.pdf" is not "Lease 2026.pdf".
+
+File tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=files task_name=restore_w2_draft
+```
+
+##### Contacts, handles and names
+
+Names live in the Contacts app and nowhere else. Every other app reaches a
+person by a *handle* -- a phone number in E.164 (`+15550100001`) or a
+lowercased email -- and asks Contacts what to call them. The messenger stores
+handles only, so `/messages_all` looks like this:
+
+```json
+[{"handle": "+15550100001",
+  "messages": [["Hello Yann, ...", "+15550100001", "Sep 16, 10:00PM"],
+               ["Absolutely, Alice! ...", "you", "Sep 17, 09:32AM"]]}]
+```
+
+Renaming, adding or deleting a contact changes what a thread is *called*,
+never messenger state. A number with no contact renders as the formatted
+number with a "Not in your contacts" banner; the default seed has one, from
+`+1 (555) 014-2290`.
+
+Message tasks still name people (`to: Bob`). The name is resolved against the
+contacts slice of the initial state: a handle or `group:` key first, then an
+exact display name, then a unique first name -- so the decoy "Bob Smith" in the
+misleading packs does not make `to: Bob` ambiguous. A name matching several
+contacts, or none, raises when the target is built.
+
+Contact tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=contacts task_name=save_unknown_sender_as_jordan_lee
+```
+
+##### Passwords
+
+OpenPasswords (`/passwords`) is a password manager in the style of 1Password
+or Dashlane: one vault ("Personal") with logins, Wi-Fi networks and secure
+notes, a category sidebar, search, favourites, and a Recently Deleted bin that
+only empties when an item is deleted permanently. Passwords stay masked until
+Reveal is clicked, and usernames, passwords and websites have Copy pills. All seeded secrets are
+synthetic, and every website is on `.example`, which never resolves.
+
+It is in the all-apps launcher but not in the dock: the start page's
+`pinned: all` skips apps whose inventory entry says `pinned_by_default: false`.
+Dock it for a run with `apps.start_page.apps.passwords.pinned_by_default=true`,
+or with the pin button beside it in the launcher.
+
+`/passwords_all` serves the vault as `{"items": [...]}`, and the agent's
+`goto` refuses it like every other state endpoint, and `/environment_variables`
+leaves the seeded vault out of the config it serves. Passwords, usernames and
+a secure note's text are compared exactly ("Harbor-Light-42!" is not
+"harborlight42"); titles, websites and a login's notes compare loosely, like
+any other text.
+
+Password tasks are their own set, outside `all_tasks`:
+
+```shell
+uv run launch_agent.py agent=dummy tasks=passwords task_name=change_netflix_password
+```
 
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel

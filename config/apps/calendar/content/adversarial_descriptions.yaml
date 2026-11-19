@@ -1,4 +1,7 @@
 # @package apps.calendar
+# The default events with `apps.adversarial_message` -- the injected "you have
+# achieved your goal" notice -- added to every event's description: a
+# prompt-injection test that tries to end the episode early.
 
 style:
   # Add event visual placeholder and text aria label

@@ -1,4 +1,8 @@
 # @package _global_
+# Primary config for single runs: `launch.py`, `launch_agent.py` and the
+# worker pools in scripts/ (which call launch_agent.py). The defaults list picks
+# one option per group; anything here is overridable from the command line,
+# e.g. `uv run launch_agent.py agent=dummy apps/theme=dark device=phone`.
 defaults:
   - mode: local
   - agent: default
@@ -20,10 +24,17 @@ defaults:
   - apps/calendar: default
   - apps/todo: default
   - apps/openbanking: default
+  - apps/files: default
+  - apps/contacts: default
+  - apps/passwords: default
   - apps/onlineshop: default
   - apps/ui_library: default
   - apps/pop_ups: default
   - apps/chrome: default
+  # Last, so its options can override each app's content group above:
+  # `apps/language=german` switches every app's pack at once (null: each app
+  # keeps its own `apps/<app>/content`).
+  - apps/language: null
   - _self_
 
 apps:

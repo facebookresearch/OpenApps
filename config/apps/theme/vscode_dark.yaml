@@ -25,12 +25,12 @@ tokens:
   color-danger: "#f14c4c"      # editorError.foreground
   color-neutral: "#3a3d41"     # button.secondaryBackground
   color-btn-fg: "#ffffff"
-  font-family: "Consolas, 'Droid Sans Mono', Menlo, 'Courier New', monospace"
+  font-family: "Consolas, 'Droid Sans Mono', Menlo, 'Courier New', monospace, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
   font-size-base: "14px"
   font-size-sm: "13px"         # file tree, editor gutter
   font-size-heading: "1.5rem"
-  font-mono: "Consolas, 'Droid Sans Mono', Menlo, 'Courier New', monospace"
+  font-mono: "Consolas, 'Droid Sans Mono', Menlo, 'Courier New', monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   radius: "3px"
   space: "8px"
   # Editor-specific tokens. Other apps ignore them; the code editor uses them
@@ -54,6 +54,22 @@ tokens:
 # App-agnostic hints each app maps onto its own concrete asset. Without these
 # the theme inherited the light/color defaults, which put a light CodeMirror
 # stylesheet (eclipse) on a #1e1e1e pane and colour icons on dark chrome.
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#89d185"
+  color-warning: "#cca700"
+  color-emphasis: "#d18616"
+  color-info: "#04395e"
+  color-accent-pink: "#c586c0"
+  color-accent-violet: "#b180d7"
+  color-accent-teal: "#4ec9b0"
+  ring-blue: "#007acc"
+  ring-dark-blue: "#0e639c"
+  ring-pink: "#c586c0"
+  ring-teal: "#4ec9b0"
+  ring-violet: "#b180d7"
 assets:
   tone: dark
   icon_set: bw

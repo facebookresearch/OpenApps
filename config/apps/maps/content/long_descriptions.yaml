@@ -1,4 +1,7 @@
 # @package apps.maps
+# Appends 1000 random real-world places (from a Kaggle POI dump) to the
+# default saved places: a crowded map and a long list to find the task's
+# place in.
 
 defaults:
   - default

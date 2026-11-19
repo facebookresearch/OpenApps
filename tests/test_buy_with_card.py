@@ -29,7 +29,7 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 from starlette.testclient import TestClient
 
-from open_apps import config_dir
+from open_apps import config_dir, files_store
 from open_apps.apps.openbanking_app import main as bank
 from open_apps.tasks.tasks import (
     AddToDoTask,
@@ -99,7 +99,8 @@ def cross_state(shop_client) -> dict:
     The other apps are stubbed empty rather than stood up: `preprocess`
     indexes `todo`/`calendar`/`messenger`/`map` directly, and `compare`
     requires both states to carry the same keys, but nothing here touches
-    their contents.
+    their contents. Files is real: every run serves it, and a checkout's
+    receipt is part of what the task scores.
     """
     return {
         "todo": [],
@@ -108,6 +109,7 @@ def cross_state(shop_client) -> dict:
         "messenger": [],
         "online_shop": shop_client.get("/onlineshop_all").json(),
         "openbanking": TestClient(bank.app).get("/openbanking_all").json(),
+        "files": files_store.snapshot(),
     }
 
 

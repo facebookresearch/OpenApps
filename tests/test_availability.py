@@ -20,6 +20,7 @@ from open_apps.apps.availability import (
     onlineshop_has_catalog,
     onlineshop_is_served,
     onlineshop_unavailable_reason,
+    require_files,
     task_needs_onlineshop,
 )
 from open_apps.launcher import AgentLauncher
@@ -94,3 +95,26 @@ class TestTheLauncherRefusesUpFront:
 
     def test_other_tasks_do_not_care_whether_the_shop_is_on(self):
         self.check(ENABLED_OFF, task_name="add_meeting_with_dennis")
+
+
+class TestFilesIsAlwaysServed:
+    """Files can't be switched off: the bank and shop write into it, the code
+    editor works in it, and purchase tasks score its receipts."""
+
+    def test_the_shipped_default_has_it(self):
+        require_files(compose_config().apps)
+
+    def test_removing_it_is_refused_with_the_reason(self):
+        with pytest.raises(ValueError, match="no Files app"):
+            require_files(compose_config("~apps/files").apps)
+
+    def test_the_launcher_refuses_it_before_any_task_check(self):
+        config = compose_config("~apps/files", task_name="add_meeting_with_dennis")
+        with pytest.raises(ValueError, match="no Files app"):
+            AgentLauncher.check_task_can_run(SimpleNamespace(config=config))
+
+    def test_setting_up_the_apps_refuses_it(self):
+        from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+
+        with pytest.raises(ValueError, match="no Files app"):
+            initialize_routes_and_configure_task(compose_config("~apps/files").apps)

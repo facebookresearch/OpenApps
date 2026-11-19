@@ -105,6 +105,27 @@ ICONS = [
       <rect x="14" y="22" width="36" height="26" rx="5"/>
       <path d="M50 30h-9a5 5 0 0 0 0 10h9"/>
       <circle cx="41.5" cy="35" r="2.2" fill="#fff" stroke="none"/>"""),
+    # Folder with a dog-eared page standing in it; the folder's front is
+    # filled with the tile so it hides the page's lower half. Terracotta --
+    # a manila folder's warmth, kept clear of the shop's kraft.
+    AppIcon("files", "#d0682c", "#ad5320", """
+      <path d="M22 28V17a3 3 0 0 1 3-3h13l6 6v8"/>
+      <path d="M38 14v6h6"/>
+      <path d="M14 27a4 4 0 0 1 4-4h8.5l4 4.5H46a4 4 0 0 1 4 4V46a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z" fill="{knock}"/>"""),
+    # Address book: a card with tab marks on its spine and a person on the
+    # page. Steel blue -- index-card stock -- a step lighter than the bank.
+    AppIcon("contacts", "#58708a", "#43586f", """
+      <rect x="19" y="14" width="30" height="36" rx="5"/>
+      <path d="M14.5 23h4.5M14.5 32h4.5M14.5 41h4.5"/>
+      <circle cx="34" cy="27.5" r="5.5"/>
+      <path d="M24.5 42.5c1.2-5.2 5-8 9.5-8s8.3 2.8 9.5 8"/>"""),
+    # Padlock with a keyhole. Brass -- a lock's metal -- warm without
+    # crowding the shop's kraft or the files' terracotta.
+    AppIcon("passwords", "#b8892a", "#94691a", """
+      <path d="M23.5 29v-5.5a8.5 8.5 0 0 1 17 0V29"/>
+      <rect x="17" y="29" width="30" height="21" rx="5"/>
+      <circle cx="32" cy="37.5" r="3" fill="#fff" stroke="none"/>
+      <path d="M32 39.5v5"/>"""),
 ]
 
 # Messenger avatars. Round rather than a tile: an avatar is a person, not an

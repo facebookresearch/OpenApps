@@ -23,9 +23,9 @@ tokens:
   color-danger: "#cf6679"
   color-neutral: "#4a4a4a"
   color-btn-fg: "#ffffff"
-  font-family: "'Inter', system-ui, -apple-system, sans-serif"
+  font-family: "'Inter', system-ui, -apple-system, sans-serif, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
-  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-size-base: "16px"
   font-size-sm: "14px"
   font-size-heading: "1.75rem"
@@ -42,6 +42,22 @@ tokens:
   color-syntax-property: "#9cdcfe"
   color-syntax-constant: "#569cd6"
   color-syntax-tag: "#569cd6"
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#66bb6a"
+  color-warning: "#ffca28"
+  color-emphasis: "#ff8a65"
+  color-info: "#1e3a5f"
+  color-accent-pink: "#f48fb1"
+  color-accent-violet: "#bb86fc"
+  color-accent-teal: "#03dac6"
+  ring-blue: "#448aff"
+  ring-dark-blue: "#2962ff"
+  ring-pink: "#f48fb1"
+  ring-teal: "#03dac6"
+  ring-violet: "#bb86fc"
 assets:
   tone: dark
   icon_set: bw

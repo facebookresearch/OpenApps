@@ -5,10 +5,11 @@
 #
 # `form_factor: phone` is the interesting part: the start page's desktop shell
 # renders its `home_screen` variant instead of the desktop composition -- a
-# status bar, a wordmark widget, an icon grid of the apps that are *not*
-# pinned, and a dock holding the ones that are, next to the launcher. Same
-# routes, same state, same /desktop_all, different affordances. Every other
-# app reflows to the width through its own stylesheet.
+# status bar, a wordmark widget, a scrollable icon grid of the apps that are
+# *not* pinned, and a dock holding at most four that are. No launcher: an app
+# is on the home screen or in the dock. Same routes, same state, same
+# /desktop_all, different affordances. Every other app reflows to the width
+# through its own stylesheet.
 #
 # Expect to raise `browsergym_env_args.max_steps` (default 10): a phone shows a
 # fraction of the page, so several steps go on scrolling to controls the

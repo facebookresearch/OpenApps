@@ -7,22 +7,32 @@ LICENSE file in the root directory of this source tree.
 Retail online-banking surface: an account index and a per-account transaction
 ledger, modelled on a real bank dashboard.
 
-Read-only from the browser. Nothing an agent can click in *this* app mutates
-the seeded state, so ``/openbanking_all`` is byte-identical at episode start
-and end unless a purchase happens. That is load-bearing: ``AppStateComparison``
+Nothing an agent can click in *this* app mutates the seeded state except
+sending money (:mod:`.send`), so ``/openbanking_all`` is byte-identical at
+episode start and end unless a payment or a purchase happens. That is
+load-bearing: ``AppStateComparison``
 builds every task's target by deep-copying the *initial* cross-app state, so an
 app that drifted on its own (auto timestamps, nondeterministic row order) would
 inject a spurious diff into every unrelated todo/calendar task's reward.
 
-The one write path is ``authorize_card_purchase``: the online shop calls it to
+Sending money is the bank's own write path: Send money on a deposit account
+posts one dated row to a payee (see :mod:`.send`). The other is
+``authorize_card_purchase``: the online shop calls it to
 charge a card at checkout (see ``openbanking_app.main`` imports in
 ``onlineshop_app``). It is deliberately the only one, it only fires on an
-explicit checkout, and it posts *pending* rows -- ``date=None``,
-``balance=None`` -- so the payload still gains nothing but the rows the
-checkout actually added: the charge, or the declined authorization when the
-card could not cover it. A task that involves a shop purchase therefore has to
-expect a delta in the ``openbanking`` slice as well as ``online_shop``; a task
-that does not involve one still sees a byte-identical bank.
+explicit checkout. Both post dated rows, on the pinned ``as_of_date`` in the
+pack's date format, with a running balance -- nothing is ever pending -- so the
+payload gains nothing but the rows the action added, and the same rows on every
+run: the charge (plus an overlimit notice when it broke the limit), or the
+declined authorization when the card could not cover it. A task that involves a
+shop purchase therefore has to expect a delta in the ``openbanking`` slice as
+well as ``online_shop``; a task that involves neither still sees a
+byte-identical bank.
+
+Statements (:mod:`.statements`) are read-only too: viewing one renders it
+from the ledger, and downloading one writes the PDF into the shared file
+store (``Statements/<account> — <Month YYYY>.pdf``) -- Files' state, not the
+bank's, so ``/openbanking_all`` still does not move.
 """
 
 from fasthtml.common import *
@@ -31,10 +41,14 @@ from datetime import date
 import json
 import re
 from typing import List, Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
+from open_apps import files_store, i18n
+from open_apps.apps.availability import require_files
+from open_apps.apps.openbanking_app import statements
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.icons import Icon, icon
+from open_apps.ui.copy import COPY_SCRIPT, CopyButton, copy_styles
 from open_apps.theme import theme_asset, theme_style
 
 
@@ -82,17 +96,41 @@ class Transaction:
     # ordered newest-first by posting, which the human-readable `date` string
     # ("Aug 25, 2026", "2026年8月24日") cannot be sorted on.
     position: int
-    date: Optional[str]  # None => pending, rendered under `pending_label`
+    # The pack's spelling of the posting day. Every row has one: nothing is
+    # pending, so a seeded row without a date is refused at launch.
+    date: str
     description: str
     type: str
     amount: float
-    balance: Optional[float]  # None => no posted balance yet (pending)
+    balance: float  # the running balance after this row posted
+    # Set only on a payment the user sent (see `send.py`): the payee's handle,
+    # normalised, and what they wrote in the memo. None on every seeded row and
+    # on card charges, so the payload has one shape and a task can tell a send
+    # from everything else by `counterparty` alone.
+    counterparty: Optional[str] = None
+    memo: Optional[str] = None
 
 
 app, rt = fast_app(default_hdrs=False, hdrs=local_hdrs())
 logo_title_container = None
 accounts = None
 transactions = None
+
+
+def language() -> str:
+    """The content pack's language (``content_language``); English if unset."""
+    config = getattr(app, "config", None)
+    return i18n.language_of(getattr(config, "openbanking", None) if config is not None else None)
+
+
+def _set_html_lang(req):
+    """Beforeware: ``<html lang>`` on every full page this app serves (htmx
+    partials carry no ``<html>``, so the attribute is simply unused there)."""
+    if isinstance(getattr(req, "htmlkw", None), dict):
+        req.htmlkw["lang"] = i18n.html_lang(language())
+
+
+app.before.append(_set_html_lang)
 
 # Static, theme-agnostic component styles. All colors/fonts are design tokens
 # resolved per-request via `theme_style()`, so this block never needs rebuilding
@@ -102,6 +140,10 @@ transactions = None
 # no app-specific ones -- so the bank restyles with every other app under any
 # global theme.
 styles = Style("""
+    /* Pico paints <html> from its light palette (data-theme sits on the
+       wrapper, not the root), which left a white canvas under short pages
+       in a dark theme. */
+    html { background-color: var(--color-bg); }
     body {
         font-family: var(--font-family);
         font-size: var(--font-size-base);
@@ -258,38 +300,7 @@ styles = Style("""
     .ob-number-toggle:hover { text-decoration: none; opacity: 0.8; }
     .ob-number-line { display: flex; align-items: center; gap: 0.6rem; }
 
-    /* Copy: a quiet secondary control beside the figure it copies. Outlined
-       in the border token so it reads as a button without competing with the
-       link-coloured figure; the check and "Copied" replace the glyph and
-       caption in place rather than adding a toast somewhere else. */
-    .ob-copy {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        width: auto;
-        margin: 0;
-        padding: 0.15rem 0.55rem 0.15rem 0.45rem;
-        border: 1px solid var(--color-border);
-        border-radius: 999px;
-        background: transparent;
-        color: var(--color-muted);
-        font-family: inherit;
-        font-size: 0.8rem;
-        font-weight: 500;
-        line-height: 1.4;
-        cursor: pointer;
-    }
-    .ob-copy:hover { color: var(--color-fg); border-color: var(--color-muted); }
-    /* Pico's focus glow is sized for full-width form buttons; on a pill this
-       small it reads as a second border. Keyboard focus keeps a ring. */
-    .ob-copy:focus { box-shadow: none; }
-    .ob-copy:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-    .ob-copy-icon { display: inline-flex; }
-    .ob-copy-done { display: none; }
-    .ob-copy[data-state="copied"] { color: var(--color-accent); border-color: currentColor; }
-    .ob-copy[data-state="copied"] .ob-copy-idle { display: none; }
-    .ob-copy[data-state="copied"] .ob-copy-done { display: inline-flex; }
-    .ob-copy[data-state="failed"] { color: var(--color-danger); border-color: currentColor; }
+    /* The Copy pill's own rules come from open_apps.ui.copy (see page()). */
     .ob-figures { display: flex; gap: 4rem; flex-wrap: wrap; }
     .ob-figure-value { font-weight: 600; }
     .ob-figure-label { color: var(--color-muted); }
@@ -328,7 +339,6 @@ styles = Style("""
     .ob-num { text-align: right; white-space: nowrap; }
     .ob-credit { color: var(--color-accent); font-weight: 600; }
     .ob-debit { color: var(--color-fg); font-weight: 700; }
-    .ob-pending td { color: var(--color-muted); }
 
     .ob-txn-card {
         border: 1px solid var(--color-border);
@@ -344,6 +354,38 @@ styles = Style("""
         color: var(--color-muted);
         font-size: 0.9rem;
     }
+
+    /* --- grouped_by_date layout ---------------------------------------- */
+    /* A day heading over that day's postings; the row itself has no date. */
+    .ob-timeline { display: flex; flex-direction: column; gap: 1.25rem; }
+    /* Pico spaces every <section>; the timeline gap does that here. */
+    .ob-day { margin: 0; }
+    .ob-day-heading {
+        margin: 0 0 0.25rem 0;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid var(--color-border);
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+    }
+    .ob-day-list { margin: 0; padding: 0; }
+    .ob-day-list > li { list-style: none; margin: 0; }
+    .ob-day-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1.5rem;
+        padding: 0.65rem 0;
+        border-bottom: 1px dashed var(--color-border);
+    }
+    .ob-day-row:last-child { border-bottom: none; }
+    .ob-day-main { min-width: 0; overflow-wrap: anywhere; }
+    .ob-day-type { color: var(--color-muted); font-size: var(--font-size-sm); margin-top: 0.15rem; }
+    .ob-day-figures { flex: none; text-align: right; }
+    .ob-day-balance { color: var(--color-muted); font-size: var(--font-size-sm); font-weight: 400; }
+    .ob-day-row.ob-pending .ob-day-desc { color: var(--color-muted); }
 
     /* --- Credit card summary ------------------------------------------- */
     /* The card face reuses the masthead tokens rather than introducing a
@@ -463,6 +505,70 @@ styles = Style("""
     a.ob-account-row, a.ob-account-row:hover { color: inherit; text-decoration: none; }
     a.ob-account-row:hover .ob-account-name-cell { text-decoration: underline; }
     .ob-empty { color: var(--color-muted); padding: 1rem 0; }
+
+    /* Statements: the band heading carries a link to them, and each month is
+       a row with its two actions as outlined pills -- the Copy pill's shape,
+       so the bank keeps one secondary-control look. */
+    .ob-band-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+    .ob-band-head .ob-band-heading { margin-bottom: 1rem; }
+    .ob-statements-link { font-weight: 600; }
+    .ob-statement-row {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+    .ob-statement-row:last-child { border-bottom: none; }
+    .ob-statement-icon { display: inline-flex; color: var(--color-muted); }
+    .ob-statement-month { font-weight: 600; }
+    .ob-statement-period { color: var(--color-muted); font-size: var(--font-size-sm); }
+    .ob-statement-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+    .ob-action {
+        display: inline-flex;
+        align-items: center;
+        width: auto;
+        margin: 0;
+        padding: 0.2rem 0.8rem;
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--color-fg);
+        font-family: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
+        line-height: 1.4;
+        cursor: pointer;
+    }
+    .ob-action:hover { border-color: var(--color-muted); text-decoration: none; }
+    .ob-action:focus { box-shadow: none; }
+    .ob-action:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    /* Send money on a deposit account: the page's one action, so filled in
+       the masthead's colour rather than outlined like the secondary pills. */
+    .ob-action.ob-send-link {
+        margin-top: 1.5rem;
+        padding: 0.45rem 1.1rem;
+        border-color: var(--color-primary);
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .ob-action.ob-send-link:hover { background-color: var(--color-primary-hover); }
+    .ob-toast:empty { display: none; }
+    .ob-toast {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--color-border);
+        border-left: 4px solid var(--color-accent);
+        border-radius: var(--radius);
+        background-color: var(--color-bg);
+    }
+    .ob-toast-icon { display: inline-flex; color: var(--color-accent); }
+    .ob-toast a { margin-left: auto; font-weight: 600; }
 """)
 
 
@@ -518,6 +624,12 @@ def set_environment(config):
         )
         for position, txn_cfg in enumerate(account_cfg.transactions):
             balance = txn_cfg.balance
+            if txn_cfg.date is None or balance is None:
+                raise ValueError(
+                    f"{account_cfg.name}: ledger row {txn_cfg.description!r} has no "
+                    "date or balance. Nothing in the bank is pending: give every row "
+                    "its posting date and the running balance after it."
+                )
             transactions.insert(
                 Transaction(
                     id=txn_id,
@@ -527,7 +639,7 @@ def set_environment(config):
                     description=txn_cfg.description,
                     type=txn_cfg.type,
                     amount=float(txn_cfg.amount),
-                    balance=None if balance is None else float(balance),
+                    balance=float(balance),
                 )
             )
             txn_id += 1
@@ -670,9 +782,9 @@ def get_account(account_id: int) -> Optional[Account]:
 #
 # Called by the online shop's checkout, never from this app's own UI. See the
 # module docstring for why that exception is narrow on purpose. The posted rows
-# are pending (`date=None`, `balance=None`): a real issuer shows a card charge
-# that way until the statement cuts, and it keeps `datetime.now()` -- the one
-# thing guaranteed to differ between two runs -- out of `/openbanking_all`.
+# are dated on the pinned `as_of_date` and carry their running balance, like a
+# payment: nothing in the bank is pending, which keeps every run's ledger the
+# same and `datetime.now()` out of `/openbanking_all`.
 
 
 @dataclass
@@ -731,6 +843,13 @@ def as_of_date() -> date:
     """
     value = getattr(cfg(), "as_of_date", None)
     return date.fromisoformat(str(value)) if value else date.today()
+
+
+def posting_date() -> str:
+    """The date a row posted now carries: the pinned ``as_of_date``, spelled
+    the way this pack prints dates (``posting_date_style``)."""
+    style = str(getattr(cfg(), "posting_date_style", None) or "en")
+    return statements.format_posting_date(as_of_date(), style)
 
 
 def expiry_has_passed(expiry: tuple) -> bool:
@@ -855,14 +974,14 @@ def authorize_card_purchase(
                 id=None,
                 account_id=account.id,
                 position=0,
-                date=None,
+                date=posting_date(),
                 description=c.declined_description.format(
                     merchant=merchant if merchant is not None else descriptor,
                     amount=fmt_money(amount),
                 ),
                 type=c.declined_type,
                 amount=0.0,
-                balance=None,
+                balance=round(account.present_balance, 2),
             )
         ])
         return ChargeResult(
@@ -871,17 +990,22 @@ def authorize_card_purchase(
 
     # Approved. The charge first, then -- only if it broke the limit -- the
     # notice, so the ledger reads top-down as "this happened, and here is what
-    # was unusual about it".
+    # was unusual about it". The notice moves no money, so it carries the same
+    # balance as the charge.
+    # A card's `present_balance` is what is owed, carried negative, so a charge
+    # pushes it further down while eating the same amount of headroom.
+    balance = round(account.present_balance - amount, 2)
+    posted = posting_date()
     rows = [
         Transaction(
             id=None,
             account_id=account.id,
             position=0,
-            date=None,
+            date=posted,
             description=descriptor,
             type=c.purchase_type,
             amount=-amount,
-            balance=None,
+            balance=balance,
         )
     ]
     if over_by > 0:
@@ -890,19 +1014,17 @@ def authorize_card_purchase(
                 id=None,
                 account_id=account.id,
                 position=0,
-                date=None,
+                date=posted,
                 description=c.overlimit_description.format(amount=fmt_money(over_by)),
                 type=c.overlimit_type,
                 amount=0.0,
-                balance=None,
+                balance=balance,
             )
         )
 
     _post(account.id, rows)
 
-    # A card's `present_balance` is what is owed, carried negative, so a charge
-    # pushes it further down while eating the same amount of headroom.
-    account.present_balance = round(account.present_balance - amount, 2)
+    account.present_balance = balance
     account.available_credit = round(headroom - amount, 2)
     accounts.update(account)
 
@@ -1072,21 +1194,15 @@ def copy_button(account: Account, kind: str, label: str, cls: str = ""):
     reveal, and just as invisible to ``/openbanking_all``.
     """
     c = cfg()
-    return Button(
-        Span(icon(Icon.COPY, size=14), cls="ob-copy-icon ob-copy-idle"),
-        Span(icon(Icon.CHECK, size=14), cls="ob-copy-icon ob-copy-done"),
-        # Polite live region, so the swap to "Copied" is announced -- the
-        # only feedback a screen-reader user (or an a11y-tree agent) gets.
-        Span(c.copy_label, cls="ob-copy-text", aria_live="polite"),
-        type="button",
-        cls=f"ob-copy {cls}".strip(),
-        title=f"{c.copy_label}: {label}",
-        aria_label=f"{c.copy_label}: {label}",
-        data_copy_url=f"/openbanking/accounts/{account.id}/copy/{kind}",
-        data_copy_label=c.copy_label,
-        data_copied_label=c.copied_label,
-        data_copy_failed_label=c.copy_failed_label,
-        data_testid=f"copy-{kind}-number",
+    return CopyButton(
+        label,
+        url=f"/openbanking/accounts/{account.id}/copy/{kind}",
+        copy_label=c.copy_label,
+        copied_label=c.copied_label,
+        failed_label=c.copy_failed_label,
+        prefix="ob-copy",
+        testid=f"copy-{kind}-number",
+        cls=cls,
     )
 
 
@@ -1229,6 +1345,7 @@ def account_summary(
             ),
             cls="ob-figures",
         ),
+        send_ui.send_link(account),
         cls="ob-summary",
     )
 
@@ -1254,12 +1371,11 @@ def txn_table(txns: List[Transaction]):
     for txn in txns:
         rows.append(
             Tr(
-                Td(txn.date if txn.date else c.pending_label),
+                Td(txn.date),
                 Td(txn.description),
                 Td(txn.type),
                 amount_cell(txn),
                 Td(fmt_money(txn.balance), cls="ob-num"),
-                cls="ob-pending" if txn.date is None else None,
                 id=f"txn-{txn.id}",
             )
         )
@@ -1275,7 +1391,7 @@ def txn_cards(txns: List[Transaction]):
             Div(
                 Div(txn.description, cls="ob-txn-card-desc"),
                 Div(
-                    Span(f"{labels.date}: {txn.date if txn.date else c.pending_label}"),
+                    Span(f"{labels.date}: {txn.date}"),
                     Span(f"{labels.type}: {txn.type}"),
                     Span(f"{labels.amount}: {fmt_money(txn.amount)}"),
                     Span(f"{labels.balance}: {fmt_money(txn.balance)}"),
@@ -1286,6 +1402,59 @@ def txn_cards(txns: List[Transaction]):
             )
         )
     return Div(*cards)
+
+
+def txn_timeline(txns: List[Transaction]):
+    """The ``grouped_by_date`` layout: one headed group per posting day.
+
+    The day is a heading rather than a column, so a row carries no date of its
+    own -- the reader has to look up to the group it sits in. Every row has a
+    posting date (nothing in the bank is pending). Days come in ledger order
+    (newest first); rows of a day stay adjacent because the ledger is sorted.
+    Each row keeps the ``txn-<id>`` id the other layouts use.
+    """
+    c = cfg()
+    labels = c.column_labels
+    groups: list = []
+    for txn in txns:
+        if groups and groups[-1][0] == txn.date:
+            groups[-1][1].append(txn)
+        else:
+            groups.append((txn.date, [txn]))
+    days = []
+    for n, (day, rows) in enumerate(groups):
+        heading_id = f"ob-day-{n}"
+        items = []
+        for txn in rows:
+            amount_cls = "ob-debit" if txn.amount < 0 else "ob-credit"
+            items.append(
+                Li(
+                    Div(
+                        Div(txn.description, cls="ob-day-desc"),
+                        Div(txn.type, cls="ob-day-type"),
+                        cls="ob-day-main",
+                    ),
+                    Div(
+                        Div(fmt_money(txn.amount), cls=f"ob-num {amount_cls}"),
+                        Div(
+                            f"{labels.balance}: {fmt_money(txn.balance)}",
+                            cls="ob-num ob-day-balance",
+                        ),
+                        cls="ob-day-figures",
+                    ),
+                    cls="ob-day-row ob-pending" if txn.date is None else "ob-day-row",
+                    id=f"txn-{txn.id}",
+                )
+            )
+        days.append(
+            Section(
+                H3(day, id=heading_id, cls="ob-day-heading"),
+                Ul(*items, cls="ob-day-list"),
+                aria_labelledby=heading_id,
+                cls="ob-day",
+            )
+        )
+    return Div(*days, cls="ob-timeline")
 
 
 def see_more_toggle(account: Account, showing_index: int, query: str, expanded: bool):
@@ -1335,10 +1504,13 @@ def ledger(account: Account, showing_index: int, query: str, expanded: bool = Fa
     truncatable = 0 < limit < len(matches)
     txns = matches if expanded or not truncatable else matches[:limit]
 
+    layout = current_layout()
     if not txns:
         body = Div(c.no_results_label, cls="ob-empty")
-    elif current_layout() == "card_list":
+    elif layout == "card_list":
         body = txn_cards(txns)
+    elif layout == "grouped_by_date":
+        body = txn_timeline(txns)
     else:
         body = txn_table(txns)
     return Div(
@@ -1388,7 +1560,16 @@ def transactions_panel(
         cls="ob-controls",
     )
     return Div(
-        H2(c.transactions_heading, cls="ob-band-heading"),
+        Div(
+            H2(c.transactions_heading, cls="ob-band-heading"),
+            A(
+                _label("statements_label", "Statements"),
+                href=f"/openbanking/accounts/{account.id}/statements",
+                cls="ob-statements-link",
+                id="ob-statements-link",
+            ),
+            cls="ob-band-head",
+        ),
         Div(
             controls,
             ledger(account, showing_index, query, expanded),
@@ -1396,75 +1577,6 @@ def transactions_panel(
         ),
         cls="ob-band",
     )
-
-
-# One delegated listener for every Copy button, so buttons that arrive in an
-# htmx swap (the number panel, the card face) work without re-binding.
-#
-# The clipboard write is attempted three ways because each fails somewhere:
-# `ClipboardItem` with a promise keeps the user activation alive across the
-# fetch (Safari requires that shape); plain `writeText` after the fetch covers
-# Chromium builds without promise-valued ClipboardItems; and the textarea +
-# `execCommand('copy')` fallback is what still works in a headless browser
-# with no clipboard permission granted -- the case an eval run is in.
-_COPY_SCRIPT = Script("""
-(function () {
-    if (window.obCopyBound) { return; }
-    window.obCopyBound = true;
-
-    function legacyCopy(text) {
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        var ok = false;
-        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-        ta.remove();
-        return ok;
-    }
-
-    function settle(btn, ok) {
-        var text = btn.querySelector('.ob-copy-text');
-        btn.dataset.state = ok ? 'copied' : 'failed';
-        text.textContent = ok ? btn.dataset.copiedLabel : btn.dataset.copyFailedLabel;
-        clearTimeout(btn.obCopyTimer);
-        btn.obCopyTimer = setTimeout(function () {
-            delete btn.dataset.state;
-            text.textContent = btn.dataset.copyLabel;
-        }, 1800);
-    }
-
-    document.addEventListener('click', function (event) {
-        var btn = event.target.closest('.ob-copy');
-        if (!btn) { return; }
-        event.preventDefault();
-        var text = fetch(btn.dataset.copyUrl).then(function (r) {
-            if (!r.ok) { throw new Error('copy source ' + r.status); }
-            return r.text();
-        });
-        var write;
-        if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
-            write = navigator.clipboard.write([new ClipboardItem({
-                'text/plain': text.then(function (t) { return new Blob([t], {type: 'text/plain'}); })
-            })]);
-        } else if (navigator.clipboard && navigator.clipboard.writeText) {
-            write = text.then(function (t) { return navigator.clipboard.writeText(t); });
-        } else {
-            write = Promise.reject(new Error('no async clipboard'));
-        }
-        write.then(function () { settle(btn, true); }, function () {
-            text.then(function (t) {
-                var ok = legacyCopy(t);
-                btn.focus();
-                settle(btn, ok);
-            }, function () { settle(btn, false); });
-        });
-    });
-})();
-""")
 
 
 def page(*content):
@@ -1476,7 +1588,8 @@ def page(*content):
         # Empty until the masthead CTA is clicked; the swap target has to exist
         # on every page because the CTA sits in the bar on every page.
         open_account_dialog(),
-        _COPY_SCRIPT,
+        Style(copy_styles("ob-copy")),
+        COPY_SCRIPT,
         cls="ob-root",
         data_theme=pico_theme(),
     )
@@ -1533,7 +1646,7 @@ def openbanking_index():
             if rows
             else Div(c.no_results_label, cls="ob-empty"),
             A(
-                "Return to List of Apps",
+                i18n.t("return_to_apps", language()),
                 href="/",
                 role="button",
                 cls="contrast",
@@ -1552,17 +1665,20 @@ def openbanking_account_detail(
     account: int = 0,
     routing: int = 0,
     expand: int = 0,
+    sent: int = -1,
 ):
     acct = get_account(account_id)
     if acct is None:
         return page(Div(cfg().no_results_label, cls="ob-page"))
+    notice = send_ui.sent_notice(acct, sent)
     return page(
+        Div(notice, cls="ob-page") if notice is not None else None,
         account_summary(acct, bool(account), bool(routing)),
         transactions_panel(acct, showing, q, bool(expand)),
         Div(
             A(cfg().back_to_accounts_label, href="/openbanking"),
             " · ",
-            A("Return to List of Apps", href="/"),
+            A(i18n.t("return_to_apps", language()), href="/"),
             cls="ob-page",
         ),
     )
@@ -1646,6 +1762,227 @@ def openbanking_open_account(show: int = 1):
     return open_account_dialog(bool(show))
 
 
+# ---------------------------------------------------------------------------
+# Statements -- views over the ledger; downloading writes to Files, not here.
+
+
+def _label(key: str, default: str) -> str:
+    """A content-pack label that older packs may not define yet."""
+    value = getattr(cfg(), key, None)
+    return default if value is None else str(value)
+
+
+def statement_months(account: Account) -> list:
+    """Months with posted activity, newest first -- the only ones offered."""
+    return statements.statement_months(txns_for(account.id))
+
+
+def statement_rows(account: Account, month: tuple) -> list:
+    """The account's rows posted in ``month``, oldest first. The one source
+    for the PDF and for any task that needs a statement's expected figures."""
+    return statements.statement_rows(txns_for(account.id), month)
+
+
+def _card_summary(account: Account, month: tuple):
+    """The card's cycle figures, on the statement for the month its cycle
+    closed in -- they belong to that cycle, not to every month."""
+    if not account.is_card:
+        return None
+    closed = statements.parse_posting_date(account.statement_close_date)
+    if closed is None or (closed.year, closed.month) != tuple(month):
+        return None
+    return [
+        ("Statement balance", fmt_money(account.statement_balance)),
+        ("Minimum payment due", fmt_money(account.minimum_payment)),
+        ("Payment due date", account.payment_due_date or "-"),
+    ]
+
+
+def statement_pdf(account: Account, month: tuple) -> bytes:
+    """The statement as PDF bytes: the same ledger in, the same bytes out."""
+    statement = statements.build_statement(txns_for(account.id), month)
+    spec = statements.document_spec(
+        account,
+        statement,
+        bank=str(getattr(cfg(), "title", None) or "OpenBanking"),
+        today=as_of_date(),
+        card_summary=_card_summary(account, month),
+    )
+    return statements.render(spec)
+
+
+def _point_store_at_files() -> None:
+    """Point the shared store at this run's Files root.
+
+    The Files app configures it at launch; doing it again here is a no-op
+    then, and keeps a bank stood up on its own (a test, a standalone run)
+    writing into its own run's store rather than whichever one was last
+    configured in the process. A config without Files is refused (see
+    ``availability.require_files``).
+    """
+    config = app.config
+    require_files(config)
+    code = getattr(getattr(config, "code_editor", None), "database_path", None)
+    files_store.configure(config.files.root, code, config.files.today)
+
+
+def save_statement(account: Account, month: tuple) -> tuple:
+    """Save the statement into Files; returns ``(path, created)``.
+
+    Downloading the same statement twice keeps one copy: the file at the
+    expected path already holds these exact bytes, so nothing is written.
+    Anything else at that path is someone's file and is never overwritten --
+    the download lands beside it with the store's " (2)".
+    """
+    data = statement_pdf(account, month)
+    path = statements.statement_path(account.name, month)
+    if files_store.exists(path) and files_store.read(path) == data:
+        return path, False
+    name = statements.statement_name(account.name, month)
+    return files_store.save(statements.STATEMENTS_FOLDER, name, data), True
+
+
+def _statement_target(account_id: int, month: str):
+    """The account and parsed month a statement URL names, or ``None`` for an
+    unknown account, a malformed month, or a month with no posted rows."""
+    account = get_account(account_id)
+    parsed = statements.parse_month(month)
+    if account is None or parsed is None or parsed not in statement_months(account):
+        return None
+    return account, parsed
+
+
+def _content_disposition(filename: str) -> str:
+    """``inline`` with the name, in a header that stays latin-1: the em dash
+    in a statement's name goes in the RFC 5987 ``filename*`` form."""
+    fallback = filename.encode("ascii", "replace").decode("ascii").replace("?", "-").replace('"', "")
+    return f"inline; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+
+
+def statement_toast(path: str = "", created: bool = True):
+    """The "Saved to Files" notice, or its empty placeholder."""
+    if not path:
+        return Div(id="ob-statement-toast", cls="ob-toast", role="status", aria_live="polite")
+    message = _label("saved_to_files_label", "Saved to Files") if created else _label(
+        "already_in_files_label", "Already in Files"
+    )
+    return Div(
+        Span(icon(Icon.CHECK, size=16), cls="ob-toast-icon"),
+        Span(message, ": ", Strong(path.split("/", 1)[1])),
+        A(
+            _label("open_in_files_label", "Open in Files"),
+            href=f"/files/view/{quote(path)}",
+            id="ob-open-in-files",
+        ),
+        id="ob-statement-toast",
+        cls="ob-toast",
+        role="status",
+        aria_live="polite",
+    )
+
+
+def statement_row(account: Account, month: tuple):
+    key = statements.month_key(month)
+    base = f"/openbanking/accounts/{account.id}/statements/{key}"
+    # Shown in the pack's language; the file it downloads keeps its English
+    # name (tasks address it by that), see `statements`.
+    label = statements.month_label(month, language())
+    return Div(
+        Span(icon(Icon.FILE, size=18), cls="ob-statement-icon"),
+        Div(
+            Div(label, cls="ob-statement-month"),
+            Div(
+                statements.period_label(month, as_of_date(), language()),
+                cls="ob-statement-period",
+            ),
+        ),
+        Div(
+            A(
+                _label("view_label", "View"),
+                href=files_store.pdf_view_url(
+                    f"{base}/view", statements.statement_name(account.name, month)),
+                target="_blank",
+                rel="noopener",
+                cls="ob-action",
+                aria_label=f"{_label('view_label', 'View')} {label}",
+            ),
+            Button(
+                _label("download_label", "Download"),
+                type="button",
+                cls="ob-action",
+                hx_post=f"{base}/download",
+                hx_target="#ob-statement-toast",
+                hx_swap="outerHTML",
+                aria_label=f"{_label('download_label', 'Download')} {label}",
+            ),
+            cls="ob-statement-actions",
+        ),
+        cls="ob-statement-row",
+        id=f"statement-{key}",
+    )
+
+
+@rt("/openbanking/accounts/{account_id}/statements")
+def openbanking_statements(account_id: int, saved: str = "", created: int = 1):
+    acct = get_account(account_id)
+    if acct is None:
+        return page(Div(cfg().no_results_label, cls="ob-page"))
+    months = statement_months(acct)
+    return page(
+        Div(
+            H2(acct.name, cls="ob-account-name"),
+            P(acct.holder, cls="ob-account-holder"),
+            cls="ob-summary",
+        ),
+        Div(
+            H2(_label("statements_heading", "Statements"), cls="ob-band-heading"),
+            Div(*[statement_row(acct, m) for m in months], cls="ob-card")
+            if months
+            else Div(_label("no_statements_label", "No statements yet."), cls="ob-empty"),
+            statement_toast(saved, bool(created)),
+            cls="ob-band",
+        ),
+        Div(
+            A(acct.name, href=f"/openbanking/accounts/{acct.id}"),
+            " · ",
+            A(cfg().back_to_accounts_label, href="/openbanking"),
+            " · ",
+            A(i18n.t("return_to_apps", language()), href="/"),
+            cls="ob-page",
+        ),
+    )
+
+
+@rt("/openbanking/accounts/{account_id}/statements/{month}/view")
+def openbanking_statement_view(account_id: int, month: str):
+    """The statement PDF, inline, for a new tab. Rendered, never stored: a
+    view is a read, and only Download puts a file in Files."""
+    target = _statement_target(account_id, month)
+    if target is None:
+        return Response("", status_code=404)
+    account, parsed = target
+    return Response(
+        statement_pdf(account, parsed),
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition(
+            statements.statement_name(account.name, parsed))},
+    )
+
+
+@app.post("/openbanking/accounts/{account_id}/statements/{month}/download")
+def openbanking_statement_download(htmx: HtmxHeaders, account_id: int, month: str):
+    target = _statement_target(account_id, month)
+    if target is None:
+        return Response("", status_code=404)
+    _point_store_at_files()
+    account, parsed = target
+    path, created = save_statement(account, parsed)
+    if htmx.request:
+        return statement_toast(path, created)
+    # A plain form post (no htmx) lands back on the page, toast included.
+    return openbanking_statements(account_id, saved=path, created=int(created))
+
+
 @app.get("/openbanking_all")
 def get_all():
     """Used for rewards.
@@ -1661,6 +1998,11 @@ def get_all():
         ],
     }
     return Response(json.dumps(payload), headers={"Content-Type": "application/json"})
+
+
+# Registers the Send money routes on `app`. Imported last: it reads this
+# module's helpers at import time, so they have to exist first.
+from open_apps.apps.openbanking_app import send as send_ui  # noqa: E402
 
 
 def get_openbanking_routes():

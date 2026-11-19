@@ -1,0 +1,24 @@
+# @package _global_
+# Mandarin everywhere: every app's mandarin content pack.
+#
+# One switch for the per-app `apps/<app>/content=mandarin` overrides, so the whole
+# session is in Mandarin, desktop shell included (it follows the start page).
+# A per-app override still wins, e.g.
+# `apps/language=mandarin apps/todo/content=long_descriptions`. Task goals stay
+# English; tasks resolve them to the pack's wording (docs/index.md, Languages).
+#
+# Pop-ups are left alone: `apps/pop_ups=german` *adds* a pop-up (the default
+# pack has none), which is its own variation axis, not a translation.
+defaults:
+  - override /apps/start_page/content: mandarin
+  - override /apps/calendar/content: mandarin
+  - override /apps/code_editor/content: mandarin
+  - override /apps/contacts/content: mandarin
+  - override /apps/files/content: mandarin
+  - override /apps/maps/content: mandarin
+  - override /apps/messenger/content: mandarin
+  - override /apps/onlineshop/content: mandarin
+  - override /apps/openbanking/content: mandarin
+  - override /apps/todo/content: mandarin
+  - override /apps/passwords/content: mandarin
+  - override /apps/ui_library/content: mandarin
