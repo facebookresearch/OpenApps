@@ -298,6 +298,34 @@ def flexible_parser(response: str, rescale=None) -> dict:
     return result
 
 
+# One Python-source escape: \\n, \\', \\\\, \\x.., \\u...., \\U........, \\N{...}, octal.
+_ESCAPE = re.compile(
+    r"\\(?:[\\'\"abfnrtv]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}"
+    r"|U[0-9a-fA-F]{8}|N\{[^}]+\}|[0-7]{1,3})"
+)
+
+
+def _decode_escapes(text: str) -> str:
+    """Decode the backslash escapes in ``text`` and leave everything else alone.
+
+    Models usually emit Python-source-style escapes (``\\n``, ``\\'``), so they
+    are decoded for ``keyboard_type``. Running the whole string through
+    ``unicode_escape`` would also read its UTF-8 bytes as Latin-1 and garble
+    every non-ASCII character (``Grüße`` -> ``GrÃ¼Ãe``), which broke typing in
+    the German and Mandarin variations. Each match is ASCII, so decoding it
+    alone is safe. An escape that does not decode (``\\N{bogus}``) is kept as
+    written.
+    """
+
+    def one(m: re.Match) -> str:
+        try:
+            return m.group(0).encode("ascii").decode("unicode_escape")
+        except UnicodeDecodeError:
+            return m.group(0)
+
+    return _ESCAPE.sub(one, text)
+
+
 def translate_uitars_type_action(action: str) -> str:
     """Translate a UI-TARS ``type(content=...)`` action to BrowserGym's
     ``keyboard_type(text=...)``.
@@ -317,13 +345,7 @@ def translate_uitars_type_action(action: str) -> str:
             f"Could not parse content from type action: {action!r}. "
             "Expected format like type(content='text') or type(content=\"text\")."
         )
-    raw_content = match.group(2)
-    # Models usually emit Python-source-style escapes (\\n, \\', ...).
-    # Decode them so keyboard_type receives the intended characters.
-    try:
-        content = raw_content.encode("utf-8").decode("unicode_escape")
-    except UnicodeDecodeError:
-        content = raw_content
+    content = _decode_escapes(match.group(2))
     # Re-quote with repr so the resulting Python call survives downstream exec.
     return f"keyboard_type(text={content!r})"
 
