@@ -1,3 +1,5 @@
+import pytest
+
 from open_apps.agent.utils import flexible_parser
 
 
@@ -28,6 +30,29 @@ def test_click_point_regression():
 
 def test_type_regression():
     assert _action("type(content='hello\\n')") == "keyboard_type(text='hello\\n')"
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Grüße aus Köln", "Café crème", "你好，明天见", "Привет", "emoji 👍"],
+)
+def test_type_keeps_non_ascii_text(text):
+    """German and Mandarin tasks have the agent type the pack's own words.
+    Decoding the whole string as ``unicode_escape`` read its UTF-8 bytes as
+    Latin-1, so ``Grüße`` reached the page as ``GrÃ¼Ãe``."""
+    assert _action(f"type(content='{text}')") == f"keyboard_type(text={text!r})"
+
+
+def test_type_decodes_escapes_next_to_non_ascii_text():
+    assert _action("type(content='Grüße\\n')") == "keyboard_type(text='Grüße\\n')"
+    assert _action("type(content='it\\'s 你好')") == 'keyboard_type(text="it\'s 你好")'
+    assert _action("type(content='\\u00fc \\t ü')") == "keyboard_type(text='ü \\t ü')"
+
+
+def test_type_keeps_escaped_backslashes():
+    assert _action("type(content='C:\\\\Users\\\\Jörg')") == (
+        "keyboard_type(text='C:\\\\Users\\\\Jörg')"
+    )
 
 
 def test_wait_translates_to_three_second_noop():
