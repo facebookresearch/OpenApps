@@ -4,14 +4,14 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 
-Sending money: a Zelle-style payment from a deposit account to a person.
+Sending money: a person-to-person payment from a deposit account.
 
 The bank's second write path, and the first one the user starts. The card
 charge (``main.authorize_card_purchase``) is the shop's; this one is theirs.
-A payee is a *handle* -- an email address or a phone number, the way Zelle
-addresses people -- and Contacts is the address book: the form searches it,
-a contact's name pays their handle, and a payment to someone new can file
-them there ("Save to Contacts").
+A payee is a *handle* -- an email address or a phone number, the way
+payment apps address people -- and Contacts is the address book: the form
+searches it, a contact's name pays their handle, and a payment to someone new
+can file them there ("Save to Contacts").
 
 A send posts immediately, as a dated row on the bank's pinned ``as_of_date``
 in the pack's own date spelling, and lowers the account's available and
@@ -241,8 +241,8 @@ def send_payment(from_id, to, amount, memo: str = "", save_as: Optional[dict] = 
         account_id=account.id,
         position=0,
         date=bank.posting_date(),
-        description=bank._label("send_description", "Zelle to {name}").format(name=name),
-        type=bank._label("send_type", "Zelle"),
+        description=bank._label("send_description", "Payment to {name}").format(name=name),
+        type=bank._label("send_type", "Payment"),
         amount=-value,
         balance=balance,
         counterparty=payee.handle,

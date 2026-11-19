@@ -22,7 +22,7 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 8 0 R >>
 endobj
 8 0 obj
-<< /Length 2782 >>
+<< /Length 2791 >>
 stream
 q 0 0 0 rg BT /F2 15 Tf 178.91 714 Td (RESIDENTIAL LEASE AGREEMENT) Tj ET Q
 q 0.42 0.44 0.48 rg BT /F1 10 Tf 208.18 696 Td (44 Wharf Street, Unit 2, Portland, ME 04101) Tj ET Q
@@ -41,8 +41,8 @@ q 0.12 0.13 0.15 rg BT /F1 10 Tf 306 586 Td ($1,850.00) Tj ET Q
 q 0.16 0.33 0.55 rg BT /F2 9 Tf 54 555 Td (TERMS) Tj ET Q
 q 0.16 0.33 0.55 RG 0.75 w 54 550 m 558 550 l S Q
 q 0 0 0 rg BT /F1 10 Tf 54 530 Td (1. Rent. Tenant agrees to pay $1,850.00 per month, due on the 1st of each month. A late fee of $75.00 applies if) Tj ET Q
-q 0 0 0 rg BT /F1 10 Tf 54 516 Td (rent is received after the 5th. Rent may be paid by bank transfer or Zelle to rent@northgateprop.example. Include) Tj ET Q
-q 0 0 0 rg BT /F1 10 Tf 54 502 Td (the unit number in the memo.) Tj ET Q
+q 0 0 0 rg BT /F1 10 Tf 54 516 Td (rent is received after the 5th. Rent may be paid by bank transfer or online payment to) Tj ET Q
+q 0 0 0 rg BT /F1 10 Tf 54 502 Td (rent@northgateprop.example. Include the unit number in the memo.) Tj ET Q
 q 0 0 0 rg BT /F1 10 Tf 54 480 Td (2. Utilities. Tenant pays electricity and internet. Landlord pays water, sewer and trash.) Tj ET Q
 q 0 0 0 rg BT /F1 10 Tf 54 458 Td (3. Pets. One cat or one dog under 30 lb with written consent. No other animals.) Tj ET Q
 q 0 0 0 rg BT /F1 10 Tf 54 436 Td (4. Maintenance. Tenant reports needed repairs in writing within 3 days. Landlord makes non-emergency repairs) Tj ET Q
@@ -72,5 +72,5 @@ xref
 trailer
 << /Size 9 /Root 1 0 R /Info 3 0 R >>
 startxref
-3559
+3568
 %%EOF

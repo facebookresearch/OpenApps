@@ -75,8 +75,8 @@ class TestAGoodSend:
         (row,) = new_rows(client)
         assert row["account_id"] == DANA
         assert row["date"] == "Aug 26, 2026"  # the bank's pinned as_of_date
-        assert row["description"] == "Zelle to Northgate Properties LLC"
-        assert row["type"] == "Zelle"
+        assert row["description"] == "Payment to Northgate Properties LLC"
+        assert row["type"] == "Payment"
         assert row["amount"] == -1850.0
         assert row["balance"] == 2362.67
         assert row["counterparty"] == "rent@northgateprop.example"
@@ -155,25 +155,25 @@ class TestWhoGetsPaid:
         assert send(to="Bob", amount="18").ok
         (row,) = new_rows(client)
         assert row["counterparty"] == "bob@example.com"
-        assert row["description"] == "Zelle to Bob"
+        assert row["description"] == "Payment to Bob"
 
     def test_any_spelling_of_a_handle_is_the_same_payee(self, client):
         assert send(to="(555) 010-0002", amount="18").ok
         (row,) = new_rows(client)
         assert row["counterparty"] == "+15550100002"
-        assert row["description"] == "Zelle to Bob"
+        assert row["description"] == "Payment to Bob"
 
     def test_someone_new_is_named_by_their_handle(self, client):
         assert send(to="Sam.Ortiz@Example.com", amount="60").ok
         (row,) = new_rows(client)
         assert row["counterparty"] == "sam.ortiz@example.com"
-        assert row["description"] == "Zelle to sam.ortiz@example.com"
+        assert row["description"] == "Payment to sam.ortiz@example.com"
 
     def test_save_to_contacts_files_them_and_names_the_row(self, client):
         result = send(to="sam.ortiz@example.com", amount="60",
                       save_as={"first_name": "Sam", "last_name": "Ortiz"})
         assert result.ok, result.errors
-        assert new_rows(client)[0]["description"] == "Zelle to Sam Ortiz"
+        assert new_rows(client)[0]["description"] == "Payment to Sam Ortiz"
         (sam,) = [c for c in client.get("/contacts_all").json()["contacts"] if c["first_name"] == "Sam"]
         assert sam["id"] == result.contact_id
         assert sam["last_name"] == "Ortiz"
@@ -345,5 +345,4 @@ class TestTranslations:
         assert keys, "default.yaml defines no send_ strings"
         for key in keys:
             assert key in other, f"{pack} is missing {key}"
-            if key != "send_type":  # "Zelle" is a name
-                assert other[key] != english[key], f"{pack} left {key} in English"
+            assert other[key] != english[key], f"{pack} left {key} in English"
