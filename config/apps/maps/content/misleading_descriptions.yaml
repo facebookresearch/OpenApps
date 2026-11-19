@@ -1,4 +1,7 @@
 # @package apps.maps
+# Opens the map over Delhi instead of New York and appends ten real NYC points
+# of interest with long official names (from a Kaggle POI dump) to the saved
+# places: the starting view no longer shows the places the tasks are about.
 defaults:
   - default
 

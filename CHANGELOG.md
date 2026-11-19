@@ -77,6 +77,21 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   by name, and pay someone new and save them, each with three phrasings.
   `SendMoneyTask` scores the payee exactly and accepts any of a named
   contact's handles. Kept out of `all_tasks`.
+- **OpenPasswords** (`/passwords`): a password manager in the style of
+  1Password or Dashlane. Logins, Wi-Fi networks and secure notes in one
+  vault, with a category sidebar, search, favourites, masked passwords with
+  Reveal, Copy pills, new/edit forms, and a Recently Deleted bin emptied only
+  by deleting permanently. Layouts `default` (sidebar, list and item) and
+  `list_detail` (one pane at a time); content packs for every language and
+  description variation, the misleading one with decoys such as a second
+  "Mail". In the all-apps launcher but not docked by default, and pinnable.
+  Scored at `/passwords_all`, which the agent's `goto` refuses.
+- **Password tasks** (`tasks=passwords`): add, edit and delete items
+  (`AddPasswordTask`, `EditPasswordTask`, `DeletePasswordTask`), each with
+  casual, formal and unrelated-context phrasings. Kept out of `all_tasks`,
+  like the OpenBanking set.
+- `pinned_by_default: false` on a start-page inventory entry keeps that app
+  out of `desktop.pinned: all`.
 
 ### Changed
 
@@ -96,6 +111,12 @@ Contacts is pinned to every task's desktop, so scores are not comparable with
   german/mandarin runs override) and balance; a seeded row without a date or
   balance is refused at launch. `note_pending_transfer_in_calendar_and_todo`
   becomes `note_realtime_transfer_in_calendar_and_todo`, with the same answer.
+- `AppStateComparison` compares password-manager usernames, passwords and
+  secure-note text exactly, so a near-miss secret cannot pass on string
+  similarity.
+- `/environment_variables` leaves the seeded password vault out of the config
+  it serves; an agent can open that page.
+- Parallel sweeps launch OpenPasswords (`config_parallel_tasks*.yaml`).
 - Purchase targets expect one new receipt in Files; a declined card expects
   none.
 - Parallel sweeps launch Files (`config_parallel_tasks*.yaml`).

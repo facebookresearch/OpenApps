@@ -554,7 +554,8 @@ class TestPinResolution:
 
     def test_all_expands_to_every_rendered_app(self):
         # Position order from the start page's inventory. `uilibrary` sits at
-        # position 7 and is absent because its tile is disabled by default.
+        # position 7 and is absent because its tile is disabled by default;
+        # `passwords` is rendered but opts out of `all` (pinned_by_default).
         pinned = self.resolve()
         assert pinned == [
             "todo", "calendar", "messages", "maps", "codeeditor", "onlineshop", "openbanking",
@@ -571,6 +572,22 @@ class TestPinResolution:
         /desktop_all, and a task could score on pinning an app that is not on
         the page."""
         assert "onlineshop" not in self.resolve([gate])
+
+    def test_an_app_can_opt_out_of_all(self):
+        """OpenPasswords is on the desktop's all-apps panel but not docked by
+        default (`pinned_by_default: false`). Its opt-out survives an
+        `unpinned` override, which replaces the list rather than extending
+        it."""
+        assert "passwords" not in self.resolve()
+        assert "passwords" not in self.resolve(["apps.start_page.desktop.unpinned=[messages]"])
+
+    def test_an_opted_out_app_is_still_pinnable_by_name(self):
+        assert "passwords" in self.resolve(["apps.start_page.desktop.pinned=[passwords,todo]"])
+
+    def test_an_opted_out_app_can_opt_back_in(self):
+        """The one-key override docs/index.md gives for docking OpenPasswords."""
+        pinned = self.resolve(["apps.start_page.apps.passwords.pinned_by_default=true"])
+        assert "passwords" in pinned and "todo" in pinned
 
     def test_unpinned_subtracts(self):
         pinned = self.resolve(["apps.start_page.desktop.unpinned=[messages,maps]"])
@@ -667,6 +684,13 @@ class TestChromeOverAHomeScreenApp:
         assert "dock-launcher" not in ids_in(markup)
         assert "dock-files" not in ids_in(markup)
         assert 'title="Home"' in dock_item(markup, "dock-desktop")
+
+    @pytest.mark.parametrize(
+        ("content", "label"), [("german", "Startseite"), ("mandarin", "主屏幕")]
+    )
+    def test_home_speaks_the_start_page_language(self, content, label):
+        result = self.chrome("phone", f"apps/start_page/content={content}")
+        assert f'title="{label}"' in dock_item(result.body, "dock-desktop")
 
     @pytest.mark.parametrize("device", ["phone", "tablet"])
     def test_no_window_title_bar(self, device):

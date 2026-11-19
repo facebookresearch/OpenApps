@@ -456,7 +456,7 @@ class TestDefaultOrderHistory:
         assert "You have no orders yet." not in page
         assert page.index("Order 7d93e5b0") < page.index("Order a41f07c2")
 
-    @pytest.mark.parametrize("variant", ["german", "long_descriptions"])
+    @pytest.mark.parametrize("variant", ["german", "mandarin", "long_descriptions"])
     def test_content_variants_inherit_the_history(self, tmp_path, variant):
         client = build_client(tmp_path, [f"apps/onlineshop/content={variant}"])
         assert len(state(client)["orders"]) == 2
@@ -483,7 +483,11 @@ class TestVariations:
         client = build_client(tmp_path, ["apps/onlineshop/layout=compact_table"])
         assert "<svg" not in client.get("/onlineshop").text
 
-    @pytest.mark.parametrize("theme", ["default", "dark", "solarized", "mono"])
+    # Every theme in config/apps/theme, so a new one is swept automatically.
+    @pytest.mark.parametrize(
+        "theme",
+        sorted(p.stem for p in (Path(__file__).parent.parent / "config/apps/theme").glob("*.yaml")),
+    )
     def test_theme_tokens_are_emitted(self, tmp_path, theme):
         client = build_client(tmp_path, [f"apps/theme={theme}"])
         body = client.get("/onlineshop").text
@@ -508,7 +512,8 @@ class TestVariations:
 
     @pytest.mark.parametrize(
         "pack",
-        ["german", "long_descriptions", "adversarial_descriptions", "misleading_descriptions"],
+        ["german", "mandarin", "long_descriptions", "adversarial_descriptions",
+         "misleading_descriptions"],
     )
     def test_text_variations_keep_the_catalog(self, tmp_path, pack):
         """They layer on `webshop`; on `default` they hid the shop."""

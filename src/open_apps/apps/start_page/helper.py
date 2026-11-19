@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 from open_apps.frontend import local_hdrs
+from open_apps.i18n import ENGLISH, t
 from open_apps.ui.brand import Wordmark
 
 # src/proficiency_playground/playground_server
@@ -191,8 +192,13 @@ scripts = [
     for js in scr_fns
 ]
 
-def Modal(content, id="modal", title="Notice", button_title="Close", link_button=None, link_url=None, cls=None):
+def Modal(content, id="modal", title=None, button_title=None, link_button=None, link_url=None, cls=None,
+          language=ENGLISH):
+    """A pop-up. ``title`` and ``button_title`` default to "Notice" and
+    "Close" in ``language`` (the session's, ``open_apps.i18n.shell_language``)."""
     modal_classes = f"modal {cls or ''}".strip()
+    title = title or t("notice", language)
+    button_title = button_title or t("close", language)
 
     # Create footer buttons with improved styling
     footer_buttons = [Button(button_title, cls="close-modal",
@@ -615,6 +621,17 @@ def PageWrapper(title, *content, config=None, theme_css=""):
                 float: right;
                 cursor: pointer;
             }}
+            /* The Story template (main.css) draws buttons in a fixed dark
+               ink with a dark outline, which vanishes on a dark theme's
+               surface. Ink and outline from the tokens instead. */
+            .modal-content .close-modal {{
+                color: var(--color-fg);
+                box-shadow: inset 0 0 0 2px var(--color-border);
+            }}
+            .modal-content .close-modal:hover {{
+                box-shadow: inset 0 0 0 2px var(--color-primary);
+                color: var(--color-fg);
+            }}
             .modal-footer {{
                 display: flex;
                 justify-content: flex-end;
@@ -632,7 +649,10 @@ def PageWrapper(title, *content, config=None, theme_css=""):
             }}
 
             {LAUNCHER_CSS}
-
+        </style>
+        <style>
+            /* Its own sheet: a theme's `import_url` is an @import, which is
+               only valid at the top of a stylesheet. */
             {theme_css}
         </style>
         <script>
@@ -719,8 +739,8 @@ def get_app(hdrs=None, *args, **kwargs):
     return app, app.route
 
 
-def footer():
-    links = A("main-page", href="/")
+def footer(language=ENGLISH):
+    links = A(t("main_page", language), href="/")
     return Footer(Div(links, cls="inner"), cls="wrapper style1 align-center")
 
 def create_logo_header(app_config, base_url: str, current_file_path: str):

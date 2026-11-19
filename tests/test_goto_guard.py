@@ -72,6 +72,7 @@ def run(server, browser):
         "/messages_all/",
         "/onlineshop_all?include_catalog=true",
         "BASE/openbanking_all#x",
+        "/passwords_all",
         "/desktop%5Fall",
         "/todo_all/.",
         "/todo_all/%2e",

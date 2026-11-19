@@ -49,7 +49,7 @@ class ComparisonResult:
 
 ROUTES = (
     RouteSpec("start_page", "/", "#wrapper"),
-    RouteSpec("todo", "/todo", "#todo-list"),
+    RouteSpec("todo", "/todo", "#todo-list, #todo-board, #todo-sections"),
     RouteSpec("calendar", "/calendar", ".calendar-table, .agenda-list"),
     RouteSpec("messages", "/messages", "main a[href^='/messages/'], main"),
     # An open conversation, not just the chat list. `split_inbox` and
@@ -98,6 +98,11 @@ ROUTES = (
     # handle row and their Copy pills.
     RouteSpec("contacts_detail", "/contacts/1", "#ct-detail"),
     RouteSpec("contacts_new", "/contacts/new", "#ct-form"),
+    RouteSpec("passwords", "/passwords", "#pw-list"),
+    # Netflix (id 1): a login with every field -- username, masked password,
+    # website, notes -- and a favorite.
+    RouteSpec("passwords_item", "/passwords/1", "#pw-detail"),
+    RouteSpec("passwords_new", "/passwords/new?kind=login", "#pw-form"),
 )
 
 
@@ -105,7 +110,7 @@ THEME_DIR = REPO_ROOT / "config" / "apps" / "theme"
 
 CONTENT_APPS = (
     "start_page", "todo", "calendar", "messenger", "maps", "code_editor", "openbanking",
-    "onlineshop", "ui_library", "files", "contacts",
+    "onlineshop", "ui_library", "files", "contacts", "passwords",
 )
 
 # Per-app structure variants worth a screenshot of their own. Themes are
@@ -113,6 +118,9 @@ CONTENT_APPS = (
 # layout is not, so it has to name its app.
 LAYOUT_VARIATIONS = {
     "layout_kanban_board": ["apps/todo/layout=kanban_board"],
+    "layout_todo_grouped_sections": ["apps/todo/layout=grouped_sections"],
+    "layout_openbanking_card_list": ["apps/openbanking/layout=card_list"],
+    "layout_openbanking_grouped_by_date": ["apps/openbanking/layout=grouped_by_date"],
     "layout_broken_logos": ["apps/start_page/layout=broken_logos"],
     "layout_clickable_logos": ["apps/start_page/layout=clickable_logos"],
     "layout_shop_grid": ["apps/onlineshop/layout=grid"],
@@ -129,6 +137,7 @@ LAYOUT_VARIATIONS = {
     "layout_uilibrary_grid_gallery": ["apps/ui_library/layout=grid_gallery"],
     "layout_files_icons": ["apps/files/layout=icons"],
     "layout_contacts_list_detail": ["apps/contacts/layout=list_detail"],
+    "layout_passwords_list_detail": ["apps/passwords/layout=list_detail"],
 }
 
 
@@ -142,6 +151,13 @@ def build_variation_overrides() -> dict[str, list[str]]:
     variations = {
         "default": [],
         "german": [f"apps/{app_name}/content=german" for app_name in CONTENT_APPS],
+        # Only the apps that ship a Mandarin pack: selecting one that does not
+        # exist would fail the whole composition.
+        "mandarin": [
+            f"apps/{app_name}/content=mandarin"
+            for app_name in CONTENT_APPS
+            if (REPO_ROOT / "config" / "apps" / app_name / "content" / "mandarin.yaml").exists()
+        ],
         "long_descriptions": [
             f"apps/{app_name}/content=long_descriptions" for app_name in CONTENT_APPS
         ],

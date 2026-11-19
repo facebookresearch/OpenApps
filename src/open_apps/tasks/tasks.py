@@ -2,13 +2,14 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
+import functools
 import hashlib
 import json
 import math
 import re
 from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
-from datetime import datetime
+from datetime import date, datetime
 import copy
 from deepdiff.helper import COLORED_COMPACT_VIEW
 from omegaconf.dictconfig import DictConfig
@@ -490,6 +491,7 @@ class AppStateComparison:
         state = self._normalize_calendar_invitees(state)
         state = self._remove_id_key(state)
         state = self._normalize_contacts(state)
+        state = self._normalize_passwords(state)
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
@@ -831,6 +833,51 @@ class AppStateComparison:
             if 0 <= extra <= allowed:
                 contact["messages"] = contact["messages"][:n_target]
 
+    @staticmethod
+    def _normalize_passwords(state: dict) -> dict:
+        """Drop item ids and edit dates; sort items.
+
+        Ids are database row ids, and ``edited_on`` is stamped with the pinned
+        date on every save, so neither says anything a target could predict
+        that the rest of the item doesn't. Sorted by kind, title and username
+        so an add lands in the same place in both states.
+        """
+        vault = state.get("passwords")
+        if not isinstance(vault, dict) or not isinstance(vault.get("items"), list):
+            return state
+        rows = [{k: v for k, v in item.items() if k not in ("id", "edited_on")} for item in vault["items"]]
+        vault["items"] = sorted(
+            rows,
+            key=lambda i: (str(i.get("kind")), StringSimilarityOperator.normalize_string(str(i.get("title", ""))),
+                           str(i.get("username", "")), str(i.get("password", ""))),
+        )
+        return state
+
+    def _password_fields_match(self) -> bool:
+        """Compare every item's secrets exactly.
+
+        The fuzzy diff below strips case and punctuation -- right for a title,
+        wrong for a password ("Harbor-Light-42!" is not "harborlight42") or a
+        username, which is an address. A secure note's text is its secret
+        ("Gate code 4471#" is not "gate code 4471"), so a note's notes are
+        compared too, with only whitespace collapsed. Kind and the deleted flag
+        ride along, so a note can't stand in for a login and a deleted item
+        can't stand in for a live one.
+        """
+
+        def secrets(state: dict):
+            vault = state.get("passwords")
+            if not isinstance(vault, dict):
+                return None
+            return [
+                (str(i.get("kind")), str(i.get("username", "")), str(i.get("password", "")),
+                 " ".join(str(i.get("notes", "")).split()) if i.get("kind") == "note" else "",
+                 bool(i.get("deleted")))
+                for i in vault.get("items") or []
+            ]
+
+        return secrets(self.state1) == secrets(self.state2)
+
     def _contact_handles_match(self) -> bool:
         """Compare every contact's handles exactly.
 
@@ -894,6 +941,9 @@ class AppStateComparison:
             return False
         if not self._contact_handles_match():
             print("===Contact handles differ")
+            return False
+        if not self._password_fields_match():
+            print("===Passwords or usernames differ")
             return False
         if not self._files_match():
             print("===Files differ")
@@ -973,6 +1023,44 @@ class AddEventTask(Task):
         return app_state_comparison.compare()
 
 
+@functools.lru_cache(maxsize=1)
+def _event_translations() -> dict[str, tuple[str, ...]]:
+    """English event title -> its rendering in every translated calendar pack.
+
+    Read from the packs' ``event_translations`` maps
+    (``config/apps/calendar/content/*.yaml``). Tasks name events in English;
+    under ``apps/calendar/content=german`` the app renders "Ottos Geburtstag"
+    where the goal says "Otto's Birthday", and the task has to target that
+    event. The todo pair below (:func:`_todo_translations`) works the same way.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "calendar" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("event_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_event(events: list, title: str, date: str) -> Optional[int]:
+    """Index of the event ``title`` on ``date`` refers to: an exact title
+    match, else the event carrying one of its translations (see
+    :func:`_event_translations`). The date always has to match, and the last
+    match wins, as :class:`RemoveEventTask` always did."""
+    found = None
+    for i, event in enumerate(events):
+        if event["title"] == title and event["date"] == date:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_event_translations().get(title, ()))
+    for i, event in enumerate(events):
+        if event["title"] in aliases and event["date"] == date:
+            found = i
+    return found
+
+
 @dataclass
 class RemoveEventTask(Task):
     """
@@ -989,10 +1077,9 @@ class RemoveEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, event in enumerate(target_state["calendar"]):
-            if event["title"] == self.title and event["date"] == self.date:
-                idx_to_remove = i
+        # Under a translated calendar pack the event carries the translated
+        # title; it is found through the pack's `event_translations`.
+        idx_to_remove = _find_event(target_state["calendar"], self.title, self.date)
         # remove the event to be deleted
         if idx_to_remove is not None:
             target_state["calendar"].pop(idx_to_remove)
@@ -1004,6 +1091,42 @@ class RemoveEventTask(Task):
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
         return app_state_comparison.compare()
+
+
+@functools.lru_cache(maxsize=1)
+def _todo_translations() -> dict[str, tuple[str, ...]]:
+    """English todo title -> its rendering in every translated todo pack.
+
+    Read from the packs' ``todo_translations`` maps
+    (``config/apps/todo/content/*.yaml``). Tasks name todos in English; under
+    ``apps/todo/content=german`` the app renders "Oma besuchen" where the goal
+    says "Visit grandma", and the task has to target that row.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "todo" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("todo_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_todo(todos: list, name: str) -> Optional[int]:
+    """Index of the todo ``name`` refers to: an exact title match, else the
+    row carrying one of its translations (see :func:`_todo_translations`).
+    The last match wins, as the classes below always did."""
+    found = None
+    for i, item in enumerate(todos):
+        if item["title"] == name:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_todo_translations().get(name, ()))
+    for i, item in enumerate(todos):
+        if item["title"] in aliases:
+            found = i
+    return found
 
 
 @dataclass
@@ -1048,14 +1171,13 @@ class MarkToDoDoneTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        target_idx = None
-        for i, todo_item in enumerate(target_state["todo"]):
-            if self.todo_name == todo_item["title"]:
-                new_todo_item = {"title": self.todo_name, "done": 1}
-                target_idx = i
+        # Under a translated todo pack the row carries the translated title;
+        # it keeps that title and only its done flag changes.
+        target_idx = _find_todo(target_state["todo"], self.todo_name)
         if target_idx is None:
             raise ValueError(f"Todo item {self.todo_name} not found")
-        target_state["todo"][target_idx] = new_todo_item
+        title = target_state["todo"][target_idx]["title"]
+        target_state["todo"][target_idx] = {"title": title, "done": 1}
         return target_state
 
     def check_if_task_is_complete(
@@ -1204,6 +1326,151 @@ class DeleteContactTask(Task):
         return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
 
 
+_PASSWORD_FIELDS = ("title", "username", "password", "website", "security", "notes", "favorite")
+
+
+def _password_item(kind: str, title: str, username: str = "", password: str = "", website: str = "",
+                   security: str = "", notes: str = "", favorite: bool = False) -> dict:
+    """A ``/passwords_all`` item as the app would store it: fields the kind
+    has no use for are empty, as ``passwords_app._clean`` leaves them."""
+    return {
+        "id": None,
+        "kind": kind,
+        "title": title,
+        "username": username if kind == "login" else "",
+        "password": password if kind in ("login", "wifi") else "",
+        "website": website if kind == "login" else "",
+        "security": security if kind == "wifi" else "",
+        "notes": notes or "",
+        "favorite": bool(favorite),
+        "deleted": False,
+        "edited_on": None,
+    }
+
+
+def _match_password_item(match, state: dict) -> dict:
+    """The one live item ``match`` names: a title (exact, case-insensitive),
+    or ``{title, username}`` when titles repeat. Zero or several matches is a
+    ``ValueError`` naming the candidates."""
+    vault = (state.get("passwords") or {}).get("items") or []
+    if isinstance(match, str):
+        title, username = match, None
+    else:
+        title, username = match.get("title"), match.get("username")
+    wanted = " ".join(str(title or "").split()).casefold()
+    found = [
+        i for i in vault
+        if not i.get("deleted")
+        and " ".join(str(i.get("title", "")).split()).casefold() == wanted
+        and (username is None or i.get("username") == username)
+    ]
+    if len(found) != 1:
+        who = ", ".join(f"{i.get('title')!r} ({i.get('username') or i.get('kind')})" for i in found)
+        raise ValueError(f"{match!r} matches {len(found)} items{': ' + who if who else ''}; a task needs exactly one")
+    return found[0]
+
+
+#: The security the passwords app's new-item form preselects: the first of the
+#: default content pack's ``security_options`` (the other packs inherit them).
+#: tests/test_password_tasks.py checks the two agree.
+WIFI_DEFAULT_SECURITY = "WPA3"
+
+
+@dataclass
+class AddPasswordTask(Task):
+    """Add one item to OpenPasswords: a login, a Wi-Fi network or a note.
+
+    The target is the initial vault plus this item. The password and
+    username are compared exactly (see
+    ``AppStateComparison._password_fields_match``); the title, website and
+    notes loosely, like any other text.
+    """
+
+    kind: str = "login"
+    title: str = ""
+    username: str = ""
+    password: str = ""
+    website: str = ""
+    security: str = ""
+    notes: str = ""
+    favorite: bool = False
+
+    def __post_init__(self) -> None:
+        # The new-item form always submits a security option and offers no
+        # empty one, so a Wi-Fi target with security="" could never be
+        # reached. Unnamed, it is what the form preselects.
+        if self.kind == "wifi" and not self.security:
+            self.security = WIFI_DEFAULT_SECURITY
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        vault = target_state.setdefault("passwords", {}).setdefault("items", [])
+        vault.append(_password_item(self.kind, self.title, self.username, self.password, self.website,
+                                    self.security, self.notes, self.favorite))
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class EditPasswordTask(Task):
+    """Change fields on one item.
+
+    ``match`` names the item (see :func:`_match_password_item`); ``set`` maps
+    fields to their new values. Anything else on the item must stay as it
+    was, and the item's kind can't change.
+    """
+
+    match: object = ""
+    set: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        unknown = set(self.set or {}) - set(_PASSWORD_FIELDS)
+        if unknown:
+            raise ValueError(f"EditPasswordTask can't set {sorted(unknown)}; fields are {_PASSWORD_FIELDS}")
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        item = _match_password_item(self.match, target_state)
+        for key, value in (self.set or {}).items():
+            item[key] = bool(value) if key == "favorite" else str(value)
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
+@dataclass
+class DeletePasswordTask(Task):
+    """Delete one item: it moves to Recently Deleted. Deleting it there as
+    well fails -- the same call as deleting a file."""
+
+    match: object = ""
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        _match_password_item(self.match, target_state)["deleted"] = True
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
 @dataclass
 class SavePlaceTask(Task):
     """Save a place to the map at ``(latitude, longitude)``.
@@ -1263,10 +1530,7 @@ class DeleteToDoTask(Task):
 
     def get_target_state(self, initial_state: dict) -> dict:
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, item in enumerate(target_state["todo"]):
-            if item["title"] == self.todo_name:
-                idx_to_remove = i
+        idx_to_remove = _find_todo(target_state["todo"], self.todo_name)
         if idx_to_remove is not None:
             target_state["todo"].pop(idx_to_remove)
         return target_state
@@ -1303,6 +1567,64 @@ class RemoveLandmarkTask(Task):
         return app_state_comparison.compare()
 
 
+# The English ledger wording the purchase tasks default to, keyed by the bank
+# content-pack key it mirrors (``config/apps/openbanking/content/default.yaml``).
+_BANK_ENGLISH_WORDING = {
+    "purchase_type": "Card",
+    "overlimit_type": "Fee",
+    "overlimit_description": "OVERLIMIT NOTICE - credit limit exceeded by {amount}",
+    "declined_type": "Declined",
+    "declined_description": "DECLINED - {merchant} {amount} - insufficient available credit",
+    # Not a pack key: the pack's ``posting_date_style`` spelling of the pinned
+    # ``as_of_date`` (``_bank_packs`` fills it in per pack).
+    "posting_date": BANK_POSTING_DATE,
+}
+
+
+@functools.lru_cache(maxsize=1)
+def _bank_packs() -> tuple[tuple[frozenset, dict], ...]:
+    """``(account holders, ledger wording)`` for every bank content pack that
+    restates its accounts and translates the payment rows (german, mandarin).
+
+    The holders identify a pack from a state: the translated packs name the
+    seeded businesses in their own language ("Cardinal Freight GmbH",
+    "Cardinal 货运有限公司"), while the noise packs append to the English ones.
+    """
+    from open_apps import config_dir
+    from open_apps.apps.openbanking_app import statements
+
+    packs = []
+    for path in sorted((config_dir() / "apps" / "openbanking" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        accounts = pack.get("accounts") or []
+        wording = {k: str(pack[k]) for k in _BANK_ENGLISH_WORDING if pack.get(k) is not None}
+        if not accounts or not wording or wording == _BANK_ENGLISH_WORDING:
+            continue
+        wording["posting_date"] = statements.format_posting_date(
+            date.fromisoformat(FILES_TODAY), str(pack.get("posting_date_style") or "en")
+        )
+        packs.append((frozenset(str(a.holder) for a in accounts), wording))
+    return tuple(packs)
+
+
+def _bank_wording(bank: dict) -> dict:
+    """The payment-row wording of the bank pack ``bank`` (an
+    ``/openbanking_all`` slice) was seeded from; English when no translated
+    pack's account holders are all present."""
+    holders = {str(a.get("holder")) for a in bank.get("accounts") or []}
+    for pack_holders, wording in _bank_packs():
+        if pack_holders <= holders:
+            return {**_BANK_ENGLISH_WORDING, **wording}
+    return dict(_BANK_ENGLISH_WORDING)
+
+
+def _worded(value: str, key: str, wording: dict) -> str:
+    """``value``, unless it is the English default for ``key`` -- then the
+    bank pack's own wording, so a task config written in English scores a
+    run on the german/mandarin bank. An explicit override is left alone."""
+    return wording[key] if value == _BANK_ENGLISH_WORDING[key] else value
+
+
 @dataclass
 class BuyWithCardTask(Task):
     """Cross-app task: buy ``sku`` in the shop, paying with a bank card.
@@ -1324,7 +1646,10 @@ class BuyWithCardTask(Task):
 
     ``descriptor`` and ``charge_type`` mirror ``apps.onlineshop.card_descriptor``
     and ``apps.openbanking.purchase_type``; a run that overrides either has to
-    override it here too, or the ledger row will not match.
+    override it here too, or the ledger row will not match. Left at their
+    English defaults, ``charge_type`` and the overlimit wording follow the
+    bank's content pack (german/mandarin, see ``_bank_wording``), so the same
+    task config scores a run in every language.
     """
 
     sku: str
@@ -1352,8 +1677,8 @@ class BuyWithCardTask(Task):
     # always going to approve.
     overlimit_grace: float = 10.0
     # Wording of that second row, mirroring ``overlimit_type`` and
-    # ``overlimit_description`` in the bank's content pack. A run on the
-    # german/mandarin packs has to override both.
+    # ``overlimit_description`` in the bank's content pack. At these English
+    # defaults the german/mandarin bank's wording is used (``_worded``).
     overlimit_type: str = "Fee"
     overlimit_description: str = "OVERLIMIT NOTICE - credit limit exceeded by {amount}"
     # The date the charge posts with, mirroring the bank's (see BANK_POSTING_DATE).
@@ -1380,6 +1705,7 @@ class BuyWithCardTask(Task):
         total = self.total
         options = dict(self.options or {})
         account = self._card_account(bank.get("accounts") or [])
+        wording = _bank_wording(bank)
 
         # Refuse to build a target for a charge the bank would decline. Past
         # the grace band `authorize_card_purchase` posts only a declined row
@@ -1447,9 +1773,9 @@ class BuyWithCardTask(Task):
                 "position": None,
                 # Posted at once, on the pinned day, with the card's running
                 # balance -- nothing in the bank is pending.
-                "date": self.posting_date,
+                "date": _worded(self.posting_date, "posting_date", wording),
                 "description": self.descriptor.format(order_id=order_id),
-                "type": self.charge_type,
+                "type": _worded(self.charge_type, "purchase_type", wording),
                 "amount": -total,
                 "balance": balance,
             }
@@ -1477,11 +1803,11 @@ class BuyWithCardTask(Task):
                     "id": None,
                     "account_id": account.get("id"),
                     "position": None,
-                    "date": self.posting_date,
-                    "description": self.overlimit_description.format(
-                        amount=_fmt_money(over_by)
-                    ),
-                    "type": self.overlimit_type,
+                    "date": _worded(self.posting_date, "posting_date", wording),
+                    "description": _worded(
+                        self.overlimit_description, "overlimit_description", wording
+                    ).format(amount=_fmt_money(over_by)),
+                    "type": _worded(self.overlimit_type, "overlimit_type", wording),
                     "amount": 0.0,
                     "balance": balance,
                 }
@@ -1549,8 +1875,8 @@ class DeclinedCardPurchaseTask(Task):
     overlimit_grace: float = 10.0
     # The declined row, mirroring `declined_type` / `declined_description` in
     # the bank's content pack and the shop's `card_descriptor` with the order
-    # id dropped. A run on the german/mandarin packs has to override the two
-    # strings, the same as BuyWithCardTask's overlimit wording.
+    # id dropped. At these English defaults the german/mandarin bank's wording
+    # is used, the same as BuyWithCardTask's overlimit wording (`_worded`).
     merchant: str = "OPENAPPS SHOP"
     declined_type: str = "Declined"
     declined_description: str = "DECLINED - {merchant} {amount} - insufficient available credit"
@@ -1594,6 +1920,7 @@ class DeclinedCardPurchaseTask(Task):
         total = self.total
         options = dict(self.options or {})
         account = self._card_account(bank.get("accounts") or [])
+        wording = _bank_wording(bank)
 
         # Refuse to build a target for a charge the bank would actually take.
         # Inside the grace band the purchase goes through and this target --
@@ -1639,11 +1966,11 @@ class DeclinedCardPurchaseTask(Task):
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
-                "date": self.posting_date,
-                "description": self.declined_description.format(
-                    merchant=self.merchant, amount=_fmt_money(total)
-                ),
-                "type": self.declined_type,
+                "date": _worded(self.posting_date, "posting_date", wording),
+                "description": _worded(
+                    self.declined_description, "declined_description", wording
+                ).format(merchant=self.merchant, amount=_fmt_money(total)),
+                "type": _worded(self.declined_type, "declined_type", wording),
                 "amount": 0.0,
                 # No money moved: the card's balance as it stood.
                 "balance": round(float(account.get("present_balance") or 0.0), 2),

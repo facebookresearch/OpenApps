@@ -129,6 +129,16 @@ Tasks are split across two files, both composed into `all_tasks.yaml`:
 * `config/tasks/user_goal_variations.yaml` — the variations, keyed
   `<original_task>__<style>_<n>` (e.g. `mark_water_plants_as_done__casual_2`).
 
+`all_tasks` is the paper's inventory and nothing more. Other sets —
+`longer_horizon`, `openbanking` — are groups of their own, so adding one never
+changes what a default sweep measures. Pick one with `tasks=openbanking`, or
+combine several into one inventory with Hydra's list form (quote it for the
+shell):
+
+```shell
+uv run launch_agent.py 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking
+```
+
 Every variation copies its original's fields verbatim — only the `goal` is
 reworded, and an optional `goal_style` field records the style — so the reward
 logic is identical to the base task:
@@ -337,4 +347,52 @@ How the reward reads a payment:
 
 Payments compose: a `CompositeTask` of two `SendMoneyTask`s scores whichever
 order the agent paid in.
+
+## Password tasks
+
+`config/tasks/passwords.yaml` is a standalone group, selected with
+`tasks=passwords`: add, edit and delete items in OpenPasswords, six base tasks
+with casual, formal and unrelated-context phrasings.
+
+```shell
+uv run launch_agent.py agent=dummy tasks=passwords task_name=fix_mail_username
+```
+
+Three task classes cover it, each building its target from the initial
+`/passwords_all`:
+
+```yaml
+add_gym_login:
+  _target_: open_apps.tasks.tasks.AddPasswordTask
+  kind: login                # login | wifi | note
+  title: Harbor Climbing Gym
+  username: dana.reyes@example.com
+  password: Chalk-Bag-77
+  website: https://harborclimb.example
+
+fix_mail_username:
+  _target_: open_apps.tasks.tasks.EditPasswordTask
+  match: {title: Mail, username: dana.reyes@example.com}
+  set: {username: dreyes@mail.example}
+
+delete_old_netflix_login:
+  _target_: open_apps.tasks.tasks.DeletePasswordTask
+  match: Netflix (old)
+```
+
+* `match` is a title, or a title and username where titles repeat. A match
+  that names no item, or several, makes the task unwinnable rather than
+  guessing; the misleading content pack adds a second "Mail" for exactly this.
+* `set` takes `title`, `username`, `password`, `website`, `security`, `notes`
+  and `favorite`. An item's kind cannot change.
+* Delete means Recently Deleted (`deleted: true`). Deleting permanently
+  removes the item, which fails the task.
+* Passwords, usernames and a secure note's text (whitespace aside) compare
+  exactly: `AppStateComparison` checks (kind, username, password, note text,
+  deleted) item by item, in the order the fuzzy diff pairs items, before that
+  diff runs, so a near-miss secret cannot pass on string similarity and two
+  items cannot trade secrets. A login's notes stay fuzzy.
+* A Wi-Fi `AddPasswordTask` that names no `security` expects the one the form
+  preselects (`WPA3`, the first of the pack's `security_options`): the form
+  always submits one.
 
