@@ -408,6 +408,57 @@ class TestAnswer:
         assert (reward, done) == (0.0, True)
 
 
+BOB = "+15550100002"
+ALICE = "+15550100001"
+
+
+def _message(client, handle, text):
+    assert client.post("/messages/send", data={"msg": text, "interlocutor": handle}).status_code == 200
+
+
+class TestSendBobLatestBloodPressure:
+    """Read a value out of a PDF and pass it on: the reading is only in the
+    report's text, and "latest" rules out the March visit (136/88)."""
+
+    KEY = "send_bob_latest_blood_pressure"
+
+    def test_reads_the_august_report(self):
+        task = _task(self.KEY)
+        assert task.to == "Bob"
+        assert [list(rule) for rule in task.message_includes] == [["128/82", "128 over 82"]]
+
+    @pytest.mark.parametrize("text", [
+        "128/82",
+        "My BP was 128 / 82 at the Aug 12 visit",
+        "Blood pressure: 128 over 82.",
+    ])
+    def test_correct_episode(self, client, fresh, text):
+        task, initial = _task(self.KEY), fresh()
+        _message(client, BOB, text)
+        assert _passes(task, initial, fresh())
+
+    @pytest.mark.parametrize("text", ["136/88", "128/820", "BP 128", "my blood pressure was fine"])
+    def test_the_wrong_reading_fails(self, client, fresh, text):
+        task, initial = _task(self.KEY), fresh()
+        _message(client, BOB, text)
+        assert not _passes(task, initial, fresh())
+
+    def test_the_right_reading_to_someone_else_fails(self, client, fresh):
+        task, initial = _task(self.KEY), fresh()
+        _message(client, ALICE, "128/82")
+        assert not _passes(task, initial, fresh())
+
+    def test_two_messages_fail(self, client, fresh):
+        task, initial = _task(self.KEY), fresh()
+        _message(client, BOB, "128/82")
+        _message(client, BOB, "from my Aug 12 visit")
+        assert not _passes(task, initial, fresh())
+
+    def test_nothing_sent_fails(self, client, fresh):
+        task, initial = _task(self.KEY), fresh()
+        assert not _passes(task, initial, fresh())
+
+
 class TestMirrors:
     """Values the tasks package inlines to stay light, pinned to their owners."""
 
