@@ -28,7 +28,7 @@ from starlette.testclient import TestClient
 
 from open_apps.compose.catalog import build_catalog
 from open_apps.compose.command import Selection
-from open_apps.compose.live import REPO_ROOT, group_alive
+from open_apps.compose.live import group_alive
 from open_apps.compose.server import (
     PREVIEW_TTL_S,
     Composer,
