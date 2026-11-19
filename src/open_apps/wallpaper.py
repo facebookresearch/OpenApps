@@ -12,7 +12,7 @@ then scaled back up with nearest-neighbour so it reads as chunky 8-bit
 halftone rather than a smooth gradient.
 
 Nothing is downloaded and nothing is random. The whole image is a function of
-``(variant, width, height)``, so the same variant renders byte-identically on
+``(variant, width, height, tone)``, so the same variant renders byte-identically on
 any machine -- which matters here, because a wallpaper that differed per run
 would change every screenshot an agent is scored against.
 
@@ -71,6 +71,72 @@ META_PALETTE: list[tuple[int, int, int]] = [
     (0xFF, 0xFF, 0xFF),  # White
 ]
 
+#: The night rendering (``tone="dark"``): the same hills under a deep navy to
+#: violet sky, for themes whose tone is dark. Fading the daytime image toward a
+#: near-black page colour reads as a dimmed screen, not as a dark desktop.
+NIGHT_PALETTE: list[tuple[int, int, int]] = [
+    (0x05, 0x0A, 0x24),  # night sky
+    (0x0B, 0x1A, 0x4A),  # deep navy
+    (0x1C, 0x2B, 0x33),  # Meta Gray 1000
+    (0x2A, 0x0F, 0x5C),  # dusk violet
+    (0x4A, 0x16, 0x6E),  # horizon plum
+    (0x06, 0x1A, 0x40),  # front ridge
+    (0x08, 0x2A, 0x66),  # ridge blue
+    (0x0A, 0x2F, 0x80),  # ridge blue, lit
+    (0x0B, 0x5E, 0x57),  # ridge teal
+    (0x1F, 0x4D, 0x5A),  # far haze
+    (0x00, 0x00, 0x00),  # black
+]
+
+#: ``tone="mono"``: the daytime picture in five greys, so the monochrome theme
+#: does not get the one saturated surface on the screen.
+MONO_PALETTE: list[tuple[int, int, int]] = [
+    (0x1A, 0x1A, 0x1A),
+    (0x4D, 0x4D, 0x4D),
+    (0x80, 0x80, 0x80),
+    (0xB3, 0xB3, 0xB3),
+    (0xE6, 0xE6, 0xE6),
+]
+
+#: tone -> (sky stops, ridge colours back to front, palette). An unknown tone
+#: renders the daytime picture.
+_DAY_SKY = [
+    (0.00, (0x00, 0x33, 0xFF)),
+    (0.16, (0x00, 0x6F, 0xFF)),
+    (0.28, (0x93, 0x1E, 0xFA)),
+    (0.38, (0xF2, 0x4E, 0xED)),
+]
+_DAY_RIDGES = [
+    (0xA5, 0xF0, 0xE6),
+    (0x00, 0xD1, 0xAE),
+    (0x00, 0x6F, 0xFF),
+    (0x00, 0x64, 0xE0),
+    (0x01, 0x43, 0xB5),
+]
+_NIGHT_SKY = [
+    (0.00, (0x05, 0x0A, 0x24)),
+    (0.16, (0x0B, 0x1A, 0x4A)),
+    (0.28, (0x2A, 0x0F, 0x5C)),
+    (0.38, (0x4A, 0x16, 0x6E)),
+]
+_NIGHT_RIDGES = [
+    (0x1F, 0x4D, 0x5A),
+    (0x0B, 0x5E, 0x57),
+    (0x0A, 0x2F, 0x80),
+    (0x08, 0x2A, 0x66),
+    (0x06, 0x1A, 0x40),
+]
+_TONES = {
+    "light": (_DAY_SKY, _DAY_RIDGES, META_PALETTE),
+    "dark": (_NIGHT_SKY, _NIGHT_RIDGES, NIGHT_PALETTE),
+    "mono": (_DAY_SKY, _DAY_RIDGES, MONO_PALETTE),
+}
+
+
+def _tone(tone: str | None) -> str:
+    return tone if tone in _TONES else "light"
+
+
 #: Rendered at 1/PIXEL_SCALE, then scaled up nearest-neighbour. This is what
 #: produces the blocky halftone; dithering at full size would give fine noise
 #: that vanishes into the page instead of reading as a deliberate texture.
@@ -86,23 +152,26 @@ _IMG_DIR = Path(__file__).resolve().parent / "apps" / "assets" / "img"
 URL_PREFIX = "/assets/img"
 
 
-def wallpaper_filename(variant: int) -> str:
-    return f"desktop-meta-hills-{variant}.png"
+def wallpaper_filename(variant: int, tone: str = "light") -> str:
+    # The light file keeps its original name, so caches and references to the
+    # daytime wallpaper are untouched.
+    suffix = "" if _tone(tone) == "light" else f"-{_tone(tone)}"
+    return f"desktop-meta-hills-{variant}{suffix}.png"
 
 
-def wallpaper_path(variant: int) -> Path:
-    return _IMG_DIR / wallpaper_filename(variant)
+def wallpaper_path(variant: int, tone: str = "light") -> Path:
+    return _IMG_DIR / wallpaper_filename(variant, tone)
 
 
-def wallpaper_url(variant: int) -> str:
-    return f"{URL_PREFIX}/{wallpaper_filename(variant)}"
+def wallpaper_url(variant: int, tone: str = "light") -> str:
+    return f"{URL_PREFIX}/{wallpaper_filename(variant, tone)}"
 
 
 # ---------------------------------------------------------------------------
 # Geometry
 # ---------------------------------------------------------------------------
 
-def _ridges(variant: int) -> list[dict]:
+def _ridges(variant: int, colours: list[tuple[int, int, int]] = _DAY_RIDGES) -> list[dict]:
     """Wave parameters for each hill layer, front to back.
 
     Derived from ``variant`` arithmetically rather than from a seeded RNG, so
@@ -121,13 +190,7 @@ def _ridges(variant: int) -> list[dict]:
                 "phase": (variant * 0.7 + i * 1.3) % (2 * math.pi),
                 # Back to front: pale teal haze in the distance down to deep
                 # blue up close. Reads as depth; the reverse reads as stripes.
-                "colour": [
-                    (0xA5, 0xF0, 0xE6),
-                    (0x00, 0xD1, 0xAE),
-                    (0x00, 0x6F, 0xFF),
-                    (0x00, 0x64, 0xE0),
-                    (0x01, 0x43, 0xB5),
-                ][i],
+                "colour": colours[i],
             }
         )
     return layers
@@ -137,9 +200,11 @@ def _ridges(variant: int) -> list[dict]:
 # Renderer
 # ---------------------------------------------------------------------------
 
-def _render(variant: int, width: int, height: int, out: Path) -> Path:
+def _render(variant: int, width: int, height: int, out: Path, tone: str = "light") -> Path:
     import numpy as np
     from PIL import Image
+
+    stops, ridge_colours, palette = _TONES[_tone(tone)]
 
     w, h = width // PIXEL_SCALE, height // PIXEL_SCALE
     ys, xs = np.mgrid[0:h, 0:w]
@@ -149,12 +214,6 @@ def _render(variant: int, width: int, height: int, out: Path) -> Path:
     # the horizon. Built in float RGB; the palette snap happens at the end.
     # The first ridge crests near v=0.37, so the whole sky ramp has to finish
     # above that. Stops past the horizon are painted over and never seen.
-    stops = [
-        (0.00, (0x00, 0x33, 0xFF)),
-        (0.16, (0x00, 0x6F, 0xFF)),
-        (0.28, (0x93, 0x1E, 0xFA)),
-        (0.38, (0xF2, 0x4E, 0xED)),
-    ]
     img = np.zeros((h, w, 3), dtype=np.float64)
     for (p0, c0), (p1, c1) in zip(stops, stops[1:]):
         band = (v >= p0) & (v < p1)
@@ -168,7 +227,7 @@ def _render(variant: int, width: int, height: int, out: Path) -> Path:
     # a smaller base sits higher on screen and is farther away. Iterating it
     # reversed painted the farthest ridge last, so it covered every nearer one
     # and five hills rendered as a single silhouette.
-    for layer in _ridges(variant):
+    for layer in _ridges(variant, ridge_colours):
         ridge = layer["base"] + layer["amplitude"] * (
             np.sin(2 * math.pi * layer["frequency"] * u + layer["phase"])
             + 0.4 * np.sin(4 * math.pi * layer["frequency"] * u + layer["phase"] * 1.7)
@@ -196,7 +255,12 @@ def _render(variant: int, width: int, height: int, out: Path) -> Path:
     img = np.clip(img + threshold[..., None] * 56.0, 0, 255)
 
     # Snap to the palette: nearest entry per pixel, vectorised.
-    pal = np.array(META_PALETTE, dtype=np.float64)
+    if _tone(tone) == "mono":
+        # Luminance first, so the five greys follow the picture's light and
+        # shade rather than whichever grey is nearest a saturated blue.
+        lum = img @ np.array([0.299, 0.587, 0.114])
+        img = np.repeat(lum[..., None], 3, axis=2)
+    pal = np.array(palette, dtype=np.float64)
     d = ((img[:, :, None, :] - pal[None, None, :, :]) ** 2).sum(axis=3)
     quantised = pal[d.argmin(axis=2)].astype(np.uint8)
 
@@ -204,7 +268,7 @@ def _render(variant: int, width: int, height: int, out: Path) -> Path:
     big = small.resize((width, height), Image.NEAREST)
     # Mode "P" keeps it a true 8-bit indexed bitmap and makes the file tiny --
     # flat blocks over 13 colours compress extremely well.
-    big.convert("P", palette=Image.ADAPTIVE, colors=len(META_PALETTE)).save(out, optimize=True)
+    big.convert("P", palette=Image.ADAPTIVE, colors=len(palette)).save(out, optimize=True)
     return out
 
 
@@ -217,22 +281,26 @@ def ensure_wallpaper(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
     force: bool = False,
+    tone: str = "light",
 ) -> str | None:
     """Return the URL for ``variant``'s wallpaper, rendering it if needed.
+
+    ``tone`` is the shell theme's ``tone`` asset: ``dark`` renders the night
+    picture, ``mono`` a greyscale one, anything else the daytime original.
 
     Cached by filename: an existing file is reused unless ``force``. Returns
     ``None`` if rendering failed, which the caller should treat as "use the CSS
     gradient" rather than as an error -- this is decoration, and nothing about
     it should be able to take a page down.
     """
-    out = wallpaper_path(variant)
+    out = wallpaper_path(variant, tone)
     if out.exists() and not force:
-        return wallpaper_url(variant)
+        return wallpaper_url(variant, tone)
 
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
-        _render(variant, width, height, out)
-        return wallpaper_url(variant)
+        _render(variant, width, height, out, tone)
+        return wallpaper_url(variant, tone)
     except Exception:
         return None
 
@@ -245,11 +313,12 @@ def _main() -> None:
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--tone", default="light", choices=sorted(_TONES))
     ns = parser.parse_args()
 
-    out = wallpaper_path(ns.variant)
+    out = wallpaper_path(ns.variant, ns.tone)
     out.parent.mkdir(parents=True, exist_ok=True)
-    _render(ns.variant, ns.width, ns.height, out)
+    _render(ns.variant, ns.width, ns.height, out, ns.tone)
     print(f"{out}  ({out.stat().st_size // 1024} KiB)")
 
 

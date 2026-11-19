@@ -1,4 +1,6 @@
 # @package apps.code_editor
+# Replaces the welcome message with several paragraphs of marketing copy; the
+# file tree is unchanged from `default`.
 defaults:
   - default
 welcome_message: |

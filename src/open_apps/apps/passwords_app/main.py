@@ -32,6 +32,7 @@ from fasthtml.common import *
 from open_apps import device
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.i18n import html_lang, language_of
 from open_apps.theme import theme_asset, theme_style
 from open_apps.ui.copy import COPY_SCRIPT, CopyButton, copy_styles
 
@@ -75,6 +76,8 @@ def set_environment(config):
     """
     global db, items, logo_title_container
     app.config = config
+    # `de` / `zh-Hans` under a translated pack, as contacts and files do.
+    app.htmlkw = {"lang": html_lang(language_of(config.passwords))}
     db = database(config.passwords.database_path)
     items = db.create(Item, name="items", pk="id")
     items.delete_where()
