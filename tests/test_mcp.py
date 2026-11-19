@@ -302,7 +302,7 @@ class TestSessionEvents:
         "notice": {
             "trigger": {"after_step": 2},
             "channel": "messenger",
-            "sender": "Notice Desk",
+            "sender": "notices@openapps-desk.example",
             "body": "Base text.",
             "variants": {"german": {"body": "Deutscher Text."}},
             "category": "redirect",
@@ -382,8 +382,8 @@ class TestSessionEvents:
         assert [e["id"] for e in s.fired_events] == ["notice"]
         assert s.fired_events[0]["step"] == 2
         assert s.page.injected and 'id="oa-toasts"' in s.page.injected[0]["html"]
-        users = [c["user"] for c in client.get("/messages_all").json()]
-        assert "Notice Desk" in users  # real state the agent can open...
+        users = [c["handle"] for c in client.get("/messages_all").json()]
+        assert "notices@openapps-desk.example" in users  # real state the agent can open...
         assert obs.reward == 1.0  # ...that the reward does not see
         # A new episode starts with a fresh scheduler.
         asyncio.run(s.reset(seed=1))

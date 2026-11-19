@@ -72,6 +72,8 @@ def test_every_task_composes_like_the_launcher_builds_it(cfg, name):
 def _rows(state: dict, app: str) -> list:
     if app == "messenger":
         return list(state.get("messenger") or [])
+    if app == "contacts":
+        return list((state.get("contacts") or {}).get("contacts") or [])
     coll = next(c for c in COLLECTIONS if c.app == app)
     return coll.items(state)
 
@@ -92,7 +94,9 @@ def test_premise_holds_against_the_default_content(cfg, initial, name):
         if "goal_lacks" in check:
             assert not re.search(check["goal_lacks"], task.goal), (name, check)
             continue
-        app = resolve_app(check["app"])
+        # Contacts holds who exists (the messenger only knows handles); it
+        # has no change collection, so it is read directly.
+        app = "contacts" if check["app"] == "contacts" else resolve_app(check["app"])
         assert app, (name, check)
         rows = [
             r

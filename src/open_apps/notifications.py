@@ -10,7 +10,7 @@ Server side of the adversarial events: delivery and the unread-toast store.
 and POSTs it to ``/events/fire``. This module does what that route promises:
 
 * ``channel: messenger`` -- writes the message into OpenMessages through the
-  app's own ``receive_message`` (new senders become contacts), so it is real
+  app's own ``receive_message`` (a new sender opens a thread), so it is real
   state the agent can open and answer;
 * every channel -- records an unread toast. Every full page the server sends
   renders the unread ones (``open_apps.ui.toast`` via the start page's page
