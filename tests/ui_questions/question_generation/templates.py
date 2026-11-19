@@ -112,6 +112,8 @@ def _events_in_month(events: list[dict], year: int, month: int) -> list[dict]:
         recurring = (e.get("recurring") or "").lower()
         if ev_date.year == year and ev_date.month == month:
             visible.append(e)
+        elif (year, month) < (ev_date.year, ev_date.month):
+            continue  # a series shows nothing before its first date
         elif recurring == "yearly" and ev_date.month == month:
             visible.append(e)
         elif recurring == "monthly":
