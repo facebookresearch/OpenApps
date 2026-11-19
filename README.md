@@ -123,7 +123,7 @@ Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars 
 
 ```bash
 uv run launch_parallel_agents.py tasks=original_tasks.yaml,longer_horizon.yaml \
-    agents=dummy,GPT-5.5-computer-use-abstention
+    agents=dummy,GPT-5.5-computer-use
 ```
 
 This runs every task from each file with every agent and each configured app

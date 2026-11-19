@@ -441,6 +441,16 @@ def _group_label(path: str) -> str:
 # What leaving a nullable group unset means, where "No <group>" undersells
 # it. A null apps/theme is not "no theme": every app falls back to the look it
 # prefers (config.yaml's defaults-list comment), which is a choice in itself.
+#: Options the composer does not offer. Abstention -- whether an agent acts,
+#: asks or refuses -- is ongoing research: the agent config and the example
+#: tasks stay for the experiments built on them (launch_agent.py still takes
+#: them by name), but the composer is the front door, so it leaves them out
+#: until the protocol settles.
+_HIDDEN_OPTIONS: dict[str, frozenset[str]] = {
+    "agent": frozenset({"GPT-5.5-computer-use-abstention"}),
+    "tasks": frozenset({"abstention_examples"}),
+}
+
 _NULL_OPTIONS = {
     "apps/theme": (
         "App defaults",
@@ -672,7 +682,14 @@ def _build(path: Path | None, capabilities: str) -> Catalog:
 
         groups: dict[str, Group] = {}
         for group_path in _walk_groups(loader):
-            names = sorted(loader.get_group_options(group_path), key=str.lower)
+            names = sorted(
+                (
+                    n
+                    for n in loader.get_group_options(group_path)
+                    if n not in _HIDDEN_OPTIONS.get(group_path, ())
+                ),
+                key=str.lower,
+            )
             present = {c: group_path in choices[c] for c in PRIMARY_CONFIGS}
             append = not any(present.values())
             home = next((c for c in PRIMARY_CONFIGS if present[c]), None)
