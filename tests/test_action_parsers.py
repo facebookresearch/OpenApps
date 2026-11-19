@@ -146,6 +146,18 @@ def test_qwen_type_action_accepts_text_alias(qwen):
     assert qwen.parse(response, viewport=VIEWPORT)["action"] == "keyboard_type(text='hi\\n')"
 
 
+def test_qwen_type_reads_a_trailing_literal_backslash_n_as_submit(qwen):
+    # The model copied the schema's escaped ``\\n``: JSON "\\\\n" decodes to a
+    # backslash and an n, which would be typed as such instead of submitting.
+    response = '<tool_call>{"name": "computer_use", "arguments": {"action": "type", "content": "Let\'s meet\\\\n"}}</tool_call>'
+    assert qwen.parse(response, viewport=VIEWPORT)["action"] == 'keyboard_type(text="Let\'s meet\\n")'
+
+
+def test_qwen_type_keeps_a_literal_backslash_n_inside_the_text(qwen):
+    response = _qwen_response("type", content='print("a\\nb")')
+    assert qwen.parse(response, viewport=VIEWPORT)["action"] == "keyboard_type(text='print(\"a\\\\nb\")')"
+
+
 def test_qwen_parses_scroll_down_as_positive_delta(qwen):
     # delta [0, 500] in 0-1000 -> (0, round(500*1080/1000)=540).
     response = _qwen_response("scroll", delta=[0, 500])

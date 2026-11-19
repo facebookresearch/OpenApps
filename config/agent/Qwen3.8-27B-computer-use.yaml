@@ -1,0 +1,11 @@
+# Qwen3.8-27B (dense vision-language model) via the Qwen3.6-VL tool_call
+# action_parser. bf16 weights are ~56 GB: one H200, or two H100s.
+# Set hostname/port to your served model before running.
+defaults:
+- Qwen3.6-VL-computer-use
+- _self_
+model_name: Qwen/Qwen3.8-27B
+model_pretty_name: Qwen3.8-27B
+hostname: null
+host_name_updated_on: null
+client_type: vllm

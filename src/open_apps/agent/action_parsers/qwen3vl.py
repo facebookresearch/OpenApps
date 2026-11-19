@@ -18,6 +18,9 @@ from .base import ActionParser, ActionParserResult
 _TOOL_CALL_RE = re.compile(r"<tool_call>\s*(\{.*?\})\s*(?:</tool_call>|$)", re.DOTALL)
 _THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL | re.IGNORECASE)
 _ACTION_LINE_RE = re.compile(r"^\s*Action:\s*(.+?)\s*$", re.MULTILINE | re.IGNORECASE)
+# The <tools> schema shows the submit newline escaped (``\\n``), and some
+# models copy it verbatim: a literal backslash-n where they meant Enter.
+_LITERAL_NEWLINES_RE = re.compile(r"(?:\\n)+$")
 
 
 @dataclass
@@ -77,6 +80,9 @@ class Qwen3VLActionParser(ActionParser):
             text = args.get("content", args.get("text"))
             if text is None:
                 raise ParseError("type action missing 'content'.")
+            # Only trailing ones: the prompt defines a final newline as submit,
+            # while a backslash-n inside typed code may be meant literally.
+            text = _LITERAL_NEWLINES_RE.sub(lambda m: "\n" * (len(m.group(0)) // 2), str(text))
             return f"keyboard_type(text={text!r})"
 
         if action_name == "scroll":
