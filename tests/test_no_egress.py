@@ -47,7 +47,16 @@ ROUTES = [
     "/onlineshop",
     "/openbanking",
     "/openbanking/accounts/0",
+    "/openbanking/send?from=3",
+    "/openbanking/send/review?from=3&to=sam.ortiz%40example.com&amount=60",
+    "/files",
     "/onlineshop",
+    "/contacts",
+    "/contacts/1",
+    "/contacts/1/edit",
+    "/passwords",
+    "/passwords/1",
+    "/passwords/new?kind=login",
 ]
 
 # External origins each route is still allowed to reference, by hostname.
@@ -70,6 +79,20 @@ ALLOWED_EXTERNAL_HOSTS = {
     # starts in the goal state. Keep it there.
     "/openbanking": set(),
     "/openbanking/accounts/0": set(),
+    "/openbanking/send?from=3": set(),
+    "/openbanking/send/review?from=3&to=sam.ortiz%40example.com&amount=60": set(),
+    # Theme tokens and local assets only, like the bank. Keep it there.
+    "/files": set(),
+    # Same construction as the bank: shared tokens, one inline stylesheet,
+    # inline SVG glyphs. Goal state from the start.
+    "/contacts": set(),
+    "/contacts/1": set(),
+    "/contacts/1/edit": set(),
+    # Same construction as Contacts. Websites are on `.example`, so even a
+    # clicked item link cannot leave the sandbox. Goal state from the start.
+    "/passwords": set(),
+    "/passwords/1": set(),
+    "/passwords/new?kind=login": set(),
     # Unlike every other entry here, this is content rather than a styling
     # dependency: the default `content=webshop` pack sets
     # `product_images: hotlink`, so each product renders its own Amazon photo.

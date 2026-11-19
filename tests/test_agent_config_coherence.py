@@ -70,7 +70,7 @@ class TestGemmaSomConfig:
             "select_option",
             "scroll",
             "noop",
-            # How every agent ends an episode (tests/test_report_actions.py).
+            # Answer, ask or refuse; see tests/test_report_actions.py.
             "send_msg_to_user",
             "report_infeasible",
         }

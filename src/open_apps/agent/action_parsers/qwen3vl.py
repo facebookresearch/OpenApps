@@ -3,8 +3,8 @@
 Prompts (the <tools> schema and examples) live in config/agent/Qwen3.6-VL-computer-use.yaml.
 Action names mirror UI-TARS's vocabulary; ``type`` maps to keyboard_type and
 ``wait`` to noop. ``answer`` and ``terminate`` are how the agent speaks: both
-become BrowserGym's chat actions, which is what the task reads as a claim,
-question or refusal (see OpenAppsTask._new_agent_messages).
+become BrowserGym's chat actions, which is what answer and abstention tasks
+score (``AnswerTask.reply``, ``AbstentionTask.explicit_outcome``).
 """
 from __future__ import annotations
 

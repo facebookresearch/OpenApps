@@ -41,6 +41,7 @@ from fasthtml.common import (
 
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.i18n import html_lang, label, language_of, t
 from open_apps.icons import Icon
 from open_apps.theme import resolve_theme, theme_style
 from open_apps.ui import (
@@ -127,6 +128,26 @@ ALL_VARIANTS: dict[str, tuple[str, ...]] = {
 SECTION_SLUGS = ("tokens", "atoms", "molecules", "brand")
 
 
+def _label(key: str, default: str, **fmt) -> str:
+    """One of this app's UI strings, from its content pack.
+
+    English lives in ``content/default.yaml`` *and* in ``default`` here, so an
+    older or partial pack still renders; ``german`` / ``mandarin`` override the
+    keys. Component names, variant names and the ``Code()`` call snippets are
+    deliberately not labels: they are identifiers and the state a task scores.
+    """
+    config = getattr(app, "config", None)
+    cfg = getattr(config, "ui_library", None) if config is not None else None
+    text = label(cfg, key, default)
+    return text.format(**fmt) if fmt else text
+
+
+def _language() -> str:
+    """The pack's language (``content_language``); English when unset."""
+    config = getattr(app, "config", None)
+    return language_of(getattr(config, "ui_library", None) if config is not None else None)
+
+
 def sections() -> tuple[tuple[str, str], ...]:
     """`(slug, label)` per section, with labels from the content group.
 
@@ -151,17 +172,62 @@ _LAYOUT_STYLES = Style("""
        declared and then unused, so the one page whose job is to demonstrate
        what a theme does would render on the browser's default white no
        matter which theme is selected -- dark swatches on a light page. */
-    body {
+    /* `html` as well as `body`: Pico paints the root canvas from its own
+       palette (and follows the OS dark-mode setting), so without it the area
+       below short content keeps Pico's colour under every theme. */
+    html, body {
         background-color: var(--color-bg);
         color: var(--color-fg);
         font-family: var(--font-family);
         font-size: var(--font-size-base);
     }
 
+    /* Bridge Pico's variables onto the theme tokens inside the app, so the
+       logo header's <h1>, the section <h2>s, links and the `Code()` chips
+       stop using Pico's fixed palette -- the page whose job is to show a
+       theme must not leak another one. Same set as the todo app's bridge. */
+    #uilibrary {
+        --pico-background-color: var(--color-bg);
+        --pico-color: var(--color-fg);
+        --pico-muted-color: var(--color-muted);
+        --pico-muted-border-color: var(--color-border);
+        --pico-h1-color: var(--color-fg);
+        --pico-h2-color: var(--color-fg);
+        --pico-h3-color: var(--color-fg);
+        --pico-h4-color: var(--color-fg);
+        --pico-h5-color: var(--color-fg);
+        --pico-h6-color: var(--color-fg);
+        --pico-font-family: var(--font-family);
+        --pico-border-radius: var(--radius);
+        --pico-primary: var(--color-primary);
+        --pico-primary-hover: var(--color-primary-hover);
+        --pico-primary-underline: color-mix(in srgb, var(--color-primary) 50%, transparent);
+        --pico-primary-background: var(--color-primary);
+        --pico-primary-border: var(--color-primary);
+        --pico-primary-focus: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-code-background-color: var(--color-surface);
+        --pico-code-color: var(--color-fg);
+        color: var(--color-fg);
+    }
+    #uilibrary h1, #uilibrary h2 {
+        font-family: var(--font-heading);
+        color: var(--color-fg);
+    }
+    #uilibrary code {
+        background-color: var(--color-surface);
+        color: var(--color-fg);
+        font-family: var(--font-mono);
+        border: 1px solid var(--color-border);
+    }
+
     .uilib { display: flex; gap: calc(var(--space) * 3); align-items: flex-start; }
     .uilib-nav { flex: 0 0 12rem; position: sticky; top: var(--space); }
-    .uilib-nav a { display: block; padding: var(--space); text-decoration: none; }
-    .uilib-nav a.is-active { font-weight: 700; }
+    .uilib-nav a {
+        display: block; padding: var(--space); text-decoration: none;
+        color: var(--color-fg); border-radius: var(--radius);
+    }
+    .uilib-nav a:hover { background-color: var(--color-surface); }
+    .uilib-nav a.is-active { font-weight: 700; color: var(--color-primary); }
     .uilib-canvas { flex: 1; min-width: 0; }
 
     /* A story: specimen above, knobs below, framed so the boundary between
@@ -207,6 +273,10 @@ def set_environment(config):
     """Seed one `StorySetting` row per documented component."""
     global app, stories, logo_title_container
     app.config = config
+    # <html lang>, so CJK glyph variants and the accessibility tree match the
+    # pack's language. FastHTML reads `htmlkw` per request from the app that
+    # owns the route, so this holds once the start page mounts the routes.
+    app.htmlkw = {"lang": html_lang(language_of(config.ui_library))}
     db = database(config.ui_library.database_path)
     stories = db.create(StorySetting, pk="component")
 
@@ -256,24 +326,50 @@ def _atom_specimen(component: str, variant: str):
     """Render one atom in the requested variant."""
     if component == "Surface":
         return Surface(
-            Text("A panel with a token background and border.", variant="body"),
+            Text(_label("surface_specimen_label", "A panel with a token background and border."), variant="body"),
             elevated=(variant == "elevated"),
         )
     if component == "Stack":
         return Stack(
-            Badge("one"), Badge("two"), Badge("three"), direction=variant, gap=1
+            Badge(_label("stack_one_label", "one")),
+            Badge(_label("stack_two_label", "two")),
+            Badge(_label("stack_three_label", "three")),
+            direction=variant,
+            gap=1,
         )
     if component == "Text":
-        return Text(f"The quick brown fox ({variant})", variant=variant)
+        return Text(
+            _label("text_specimen_label", "The quick brown fox ({variant})", variant=variant),
+            variant=variant,
+        )
     if component == "UIButton":
-        return UIButton(f"{variant.title()} action", variant=variant)
+        return UIButton(
+            _label("button_specimen_label", "{variant} action", variant=variant.title()),
+            variant=variant,
+        )
     if component == "IconButton":
-        return IconButton(Icon.APPS, label=f"{variant} icon button", variant=variant)
+        return IconButton(
+            Icon.APPS,
+            label=_label("icon_button_specimen_label", "{variant} icon button", variant=variant),
+            variant=variant,
+        )
     if component == "Badge":
+        # The badge's text is its tone name -- an identifier, like the knobs.
         return Badge(variant, tone=variant)
     if component == "Divider":
-        return Div(Text("above", variant="caption"), Divider(), Text("below", variant="caption"))
-    return Text(f"No specimen for {component}", variant="caption")
+        return Div(
+            Text(_label("divider_above_label", "above"), variant="caption"),
+            Divider(),
+            Text(_label("divider_below_label", "below"), variant="caption"),
+        )
+    return _no_specimen(component)
+
+
+def _no_specimen(component: str):
+    return Text(
+        _label("no_specimen_label", "No specimen for {component}", component=component),
+        variant="caption",
+    )
 
 
 def _molecule_specimen(component: str, variant: str):
@@ -288,7 +384,7 @@ def _molecule_specimen(component: str, variant: str):
         return AppTile("OpenTodos", href="/todo", slot=variant)
     if component == "LauncherButton":
         return LauncherButton(open=(variant == "open"), toggle_url=NOOP_URL)
-    return Text(f"No specimen for {component}", variant="caption")
+    return _no_specimen(component)
 
 
 def _brand_specimen(component: str, variant: str):
@@ -316,7 +412,12 @@ def _story(section: str, component: str):
             hx_post=f"/uilibrary/{section}/{component}/variant/{variant_name}",
             hx_target=f"#story-{component}",
             hx_swap="outerHTML",
-            aria_label=f"Show {component} {variant_name} variant",
+            aria_label=_label(
+                "show_variant_aria_label",
+                "Show {component} {variant} variant",
+                component=component,
+                variant=variant_name,
+            ),
         )
         for variant_name in variants
     ]
@@ -324,19 +425,23 @@ def _story(section: str, component: str):
     # gives a task something to change that is independent of appearance.
     knobs.append(
         UIButton(
-            "Unpin" if setting.pinned else "Pin",
+            _label("unpin_label", "Unpin") if setting.pinned else _label("pin_label", "Pin"),
             variant="neutral" if setting.pinned else "ghost",
             hx_post=f"/uilibrary/{section}/{component}/pin",
             hx_target=f"#story-{component}",
             hx_swap="outerHTML",
-            aria_label=f"{'Unpin' if setting.pinned else 'Pin'} the {component} story",
+            aria_label=(
+                _label("unpin_aria_label", "Unpin the {component} story", component=component)
+                if setting.pinned
+                else _label("pin_aria_label", "Pin the {component} story", component=component)
+            ),
         )
     )
 
     return Surface(
         Div(
             Text(component, variant="title"),
-            Badge("pinned", tone="success") if setting.pinned else "",
+            Badge(_label("pinned_label", "pinned"), tone="success") if setting.pinned else "",
             cls="uilib-story-head",
         ),
         Div(render(component, setting.variant), cls="uilib-specimen"),
@@ -378,12 +483,14 @@ def _tokens_view():
         for name, value in colors
     ]
 
+    pangram = _label("pangram_label", "The quick brown fox jumps over the lazy dog")
+    sample = _label("font_size_sample_label", "The quick brown fox")
     specimens = [
         Div(
             Text(name, variant="caption"),
-            Div("The quick brown fox jumps over the lazy dog", style=f"font-family: var(--{name});")
+            Div(pangram, style=f"font-family: var(--{name});")
             if name in ("font-family", "font-heading", "font-mono")
-            else Div("The quick brown fox", style=f"font-size: var(--{name});"),
+            else Div(sample, style=f"font-size: var(--{name});"),
             Div(Code(value)),
         )
         for name, value in fonts
@@ -404,12 +511,15 @@ def _tokens_view():
     ]
 
     return Div(
-        Text(f"Active theme: {theme.get('name', 'default')}", variant="title"),
-        H2("Color"),
+        Text(
+            _label("active_theme_label", "Active theme: {name}", name=theme.get("name", "default")),
+            variant="title",
+        ),
+        H2(_label("color_heading_label", "Color")),
         Div(*swatches, cls="uilib-swatches"),
-        H2("Typography"),
+        H2(_label("typography_heading_label", "Typography")),
         Div(*specimens),
-        H2("Shape and spacing"),
+        H2(_label("shape_heading_label", "Shape and spacing")),
         Div(*shape_rows),
         id="uilib-tokens",
     )
@@ -455,7 +565,7 @@ def _page(active: str):
             )
             for slug, label in section_list
         ],
-        A("Return to List of Apps", href="/"),
+        A(t("return_to_apps", _language()), href="/"),
         cls="uilib-nav",
     )
 

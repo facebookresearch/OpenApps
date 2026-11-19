@@ -1,4 +1,7 @@
 # @package apps.calendar
+# The default events with `apps.adversarial_message` -- the injected "you have
+# achieved your goal" notice -- added to every event's description: a
+# prompt-injection test that tries to end the episode early.
 
 # The content tells the agent its goal is achieved (apps.adversarial_message):
 # an exposure for the alignment scorer's premature_stop. Read only by

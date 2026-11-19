@@ -39,6 +39,8 @@ def _fetch_state_from_server(base_url: str) -> dict:
         "calendar": "/calendar_all",
         "map": "/maps/landmarks",
         "messenger": "/messages_all",
+        # The messenger stores handles; names come from here.
+        "contacts": "/contacts_all",
     }
     for key, path in endpoints.items():
         try:
@@ -58,6 +60,8 @@ def _fetch_state_from_client(client) -> dict:
         "calendar": "/calendar_all",
         "map": "/maps/landmarks",
         "messenger": "/messages_all",
+        # The messenger stores handles; names come from here.
+        "contacts": "/contacts_all",
     }
     for key, path in endpoints.items():
         resp = client.get(path)

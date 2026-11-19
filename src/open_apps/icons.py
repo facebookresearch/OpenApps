@@ -58,6 +58,9 @@ class Icon(str, Enum):
     # Weather, keyed off the condition string in the desktop config
     CLOUD = "cloud"
     CLOUD_RAIN = "cloud-rain"
+    # Copy-to-clipboard and its confirmation
+    COPY = "copy"
+    CHECK = "check"
     # Notifications (open_apps.ui.toast)
     MESSAGE = "message"
     BELL = "bell"
@@ -145,6 +148,16 @@ _GEOMETRY: dict[Icon, str] = {
         'A3.75 3.75 0 0 0 6.5 15z"/>'
         '<path d="M8 18v2M12 18v2.5M16 18v2"/>'
     ),
+    # --- Clipboard ----------------------------------------------------------
+    # Two offset rounded sheets, the front one whole: the glyph every banking
+    # and developer UI uses for "copy", so it needs no caption to be read --
+    # it gets one anyway, since an icon-only control is a harder target.
+    Icon.COPY: (
+        '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/>'
+        '<path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>'
+    ),
+    # Shown in place of COPY for a moment after a successful copy.
+    Icon.CHECK: '<path d="m5.5 12.5 4 4 9-9"/>',
     # --- Notifications ------------------------------------------------------
     # A speech bubble for a message toast, a bell for a system notice: the
     # glyph says which channel a toast came from before its title is read.

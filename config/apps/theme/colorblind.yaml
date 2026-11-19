@@ -18,14 +18,41 @@ tokens:
   color-danger: "#fe6100"         # orange -- separable from magenta, unlike red
   color-neutral: "#ffb000"        # amber
   color-btn-fg: "#000000"
-  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
-  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-size-base: "16px"
   font-size-sm: "14px"
   font-size-heading: "1.5rem"
   radius: "8px"
   space: "8px"
+  # Syntax colours for the code editor's highlight layer. Okabe-Ito / IBM hues, darkened for AA on white; no red-green pair carries a distinction.
+  color-syntax-keyword: "#0072b2"
+  color-syntax-control: "#6447d6"
+  color-syntax-string: "#a84800"
+  color-syntax-number: "#b01d6b"
+  color-syntax-comment: "#5a5a5a"
+  color-syntax-function: "#7a5200"
+  color-syntax-type: "#007a5e"
+  color-syntax-property: "#004d80"
+  color-syntax-constant: "#b01d6b"
+  color-syntax-tag: "#6447d6"
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#648fff"
+  color-warning: "#ffb000"
+  color-emphasis: "#fe6100"
+  color-info: "#dbe4ff"
+  color-accent-pink: "#dc267f"
+  color-accent-violet: "#785ef0"
+  color-accent-teal: "#648fff"
+  ring-blue: "#648fff"
+  ring-dark-blue: "#785ef0"
+  ring-pink: "#dc267f"
+  ring-teal: "#648fff"
+  ring-violet: "#785ef0"
 assets:
   tone: light
   icon_set: color

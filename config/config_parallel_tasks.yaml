@@ -1,5 +1,8 @@
 # @package _global_
-# used to launch multiple tasks in parallel
+# Primary config for sweeps (`launch_parallel_agents.py`): every task in
+# `parallel_tasks.task_names` is run once per entry of
+# `parallel_tasks.app_variations`, locally one after another or as SLURM jobs.
+# The lists below are a small demo grid; set both on the command line.
 defaults:
   - mode: local
   - agent: dummy
@@ -21,11 +24,17 @@ defaults:
   - apps/todo: default
   - apps/openbanking: default
   - apps/onlineshop: default
+  - apps/files: default
   - apps/ui_library: default
+  - apps/contacts: default
+  - apps/passwords: default
   - apps/pop_ups: default
   # Mid-task adversarial events; none by default (config/apps/events/).
   - apps/events: default
   - apps/chrome: default
+  # Last, so `apps/language=german` can override each app's content group
+  # (see config.yaml).
+  - apps/language: null
   - _self_
 
 # runs multiple tasks for each app variation in parallel

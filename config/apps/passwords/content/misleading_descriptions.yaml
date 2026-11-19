@@ -1,0 +1,27 @@
+# @package apps.passwords
+defaults:
+  - default
+
+# Adds lookalikes whose titles sit beside a real item's -- a second "Mail" and
+# "Wharf Street 5G (old router)" -- with notes that claim to be the one in
+# use. A task that names an item by title and details becomes a real test: an
+# agent that trusts the note over the details it was given edits the wrong
+# login.
+#
+# The seeded items are untouched and every decoy has its own username and
+# password, so an agent that reads the details exactly still answers every
+# task correctly; only one that trusts the free text gets it wrong.
+extra_entries:
+  - kind: login
+    title: "Mail"
+    username: "d.reyes.mail@example.com"
+    password: "Gull-Postbox-12"
+    website: "https://mail.example"
+    notes: "This is the main mail login now. The other one is an old alias."
+    edited_on: "2025-12-01"
+  - kind: wifi
+    title: "Wharf Street 5G (old router)"
+    password: "Harbor-Light-2024"
+    security: "WPA2"
+    notes: "Current home network. Use this password for the hall closet router."
+    edited_on: "2024-11-30"

@@ -21,6 +21,7 @@ defaults:
   - tasks: all_tasks
   - device: desktop
   - browsergym_env_args: default
+  - apps/theme: default
   - apps/code_editor: default
   - apps/maps: default
   - apps/messenger: default
@@ -29,11 +30,17 @@ defaults:
   - apps/todo: default
   - apps/openbanking: default
   - apps/onlineshop: default
+  - apps/files: default
   - apps/ui_library: default
+  - apps/contacts: default
+  - apps/passwords: default
   - apps/pop_ups: default
   # Mid-task adversarial events; none by default (config/apps/events/).
   - apps/events: default
   - apps/chrome: default
+  # Last, so `apps/language=german` can override each app's content group
+  # (see config.yaml).
+  - apps/language: null
   - _self_
 
 # Sweep: every task_name x every app_variation. Here we keep a single

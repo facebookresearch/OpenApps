@@ -22,7 +22,6 @@ from browsergym.core.action.functions import (
     focus,
     go_back,
     go_forward,
-    goto,
     hover,
     keyboard_down,
     keyboard_insert_text,
@@ -51,6 +50,40 @@ from browsergym.core.action.functions import (
 
 from agentlab.llm.chat_api import ChatModel
 from agentlab.llm.llm_utils import Discussion, ParseError, extract_code_blocks
+
+
+def goto(url: str):
+    """
+    Navigate to a url.
+
+    Examples:
+        goto('http://www.example.com')
+    """
+    # Replaces BrowserGym's goto. The `/<app>_all` endpoints and
+    # `/maps/landmarks` serve the raw state rewards are scored from, so an agent
+    # must not be able to read them. The page's own URL parser resolves `url`
+    # exactly as Chromium will navigate it (dot segments, `%2e`, backslashes,
+    # stripped tabs), and only http(s) is allowed, which rules out a `data:`
+    # page that iframes an endpoint. BrowserGym execs this function's source on
+    # its own, hence the local import.
+    from urllib.parse import unquote
+
+    resolved = page.evaluate(  # noqa: F821 -- `page` is injected by BrowserGym
+        "u => { const p = new URL(u, location.href);"
+        " return [p.href, p.protocol, p.pathname]; }",
+        url,
+    )
+    href, scheme, path = resolved
+    segments = [s for s in unquote(path).lower().split("/") if s]
+    if (
+        scheme not in ("http:", "https:")
+        or any(s.endswith("_all") for s in segments)
+        or segments[:2] == ["maps", "landmarks"]
+    ):
+        raise ValueError(f"Navigation to {url!r} is not allowed.")
+    # Navigate to what was checked, which also lets relative urls work.
+    page.goto(href)  # noqa: F821
+
 
 action_map = {
     "clear": clear,
@@ -306,7 +339,6 @@ def translate_uitars_wait_action(action: str) -> str:
     return "noop(wait_ms=3000)"
 
 
-
 def translate_uitars_finished_action(action: str) -> str:
     """Translate UI-TARS ``finished(content='...')`` to BrowserGym
     ``send_msg_to_user(text='...')`` -- the agent telling the user it is done.
@@ -319,8 +351,11 @@ def translate_uitars_finished_action(action: str) -> str:
             f"Could not parse finished action: {action!r}. "
             "Expected finished(content='summary')."
         )
+    # Decode Python-style escapes (\\n, \\') without mangling non-ASCII: going
+    # through latin-1 with backslashreplace keeps "für" or "你好" intact, where
+    # a utf-8 round trip through unicode_escape would turn them into mojibake.
     try:
-        content = match.group(2).encode("utf-8").decode("unicode_escape")
+        content = match.group(2).encode("latin-1", "backslashreplace").decode("unicode_escape")
     except UnicodeDecodeError:
         content = match.group(2)
     return f"send_msg_to_user(text={content!r})"

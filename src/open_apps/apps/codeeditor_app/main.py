@@ -9,11 +9,13 @@ import os
 import shutil
 from typing import Dict
 import json
+from urllib.parse import quote
 from starlette.responses import Response
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.i18n import html_lang, language_of, t
 from open_apps.icons import Icon, icon
-from open_apps.theme import _as_plain, load_theme, resolve_theme, theme_asset, theme_style
+from open_apps.theme import _THEME_DIR, _as_plain, load_theme, resolve_theme, theme_asset, theme_style
 
 # Static, theme-agnostic component styles. Colors, fonts, radii and spacing
 # are design tokens from the shared theme (`config/apps/theme/`), emitted
@@ -40,6 +42,46 @@ _COMPONENT_STYLES = Style(
         background-color: var(--color-bg);
         color: var(--color-fg);
         font-family: var(--font-family);
+    }
+    /* Bridge Pico's own variables onto the theme tokens. Pico colours
+       headings, links and form controls from its fixed light palette, so the
+       app title (an <h1> from the shared logo header, outside
+       `.codeeditor-app`) stayed Pico's near-black on a dark page. On `body`,
+       not `:root`: that header sits outside the app's container, and Pico
+       declares its palette on `:root:not([data-theme=dark])`, which outranks
+       a bare `:root` -- a descendant's declaration wins by inheritance. */
+    body {
+        --pico-background-color: var(--color-bg);
+        --pico-color: var(--color-fg);
+        --pico-muted-color: var(--color-muted);
+        --pico-h1-color: var(--color-fg);
+        --pico-h2-color: var(--color-fg);
+        --pico-h3-color: var(--color-fg);
+        --pico-h4-color: var(--color-fg);
+        --pico-font-family: var(--font-family);
+        --pico-border-radius: var(--radius);
+        --pico-primary: var(--color-primary);
+        --pico-primary-background: var(--color-primary);
+        --pico-primary-border: var(--color-primary);
+        --pico-primary-hover: color-mix(in srgb, var(--color-primary) 85%, var(--color-fg));
+        --pico-primary-inverse: var(--color-on-primary);
+        --pico-primary-focus: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-secondary: var(--color-muted);
+        --pico-muted-border-color: var(--color-border);
+        --pico-form-element-background-color: var(--color-bg);
+        --pico-form-element-selected-background-color: var(--color-bg);
+        --pico-form-element-border-color: var(--color-border);
+        --pico-form-element-color: var(--color-fg);
+        --pico-form-element-placeholder-color: var(--color-muted);
+        --pico-form-element-active-background-color: var(--color-bg);
+        --pico-form-element-active-border-color: var(--color-primary);
+        --pico-form-element-focus-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+        --pico-card-background-color: var(--color-surface);
+        --pico-code-background-color: var(--color-surface);
+        --pico-code-color: var(--color-fg);
+    }
+    h1, h2, h3, h4 {
+        color: var(--color-fg);
     }
     body {
         padding: calc(var(--space) * 2);
@@ -513,6 +555,80 @@ _COMPONENT_STYLES = Style(
         font-size: var(--font-size-sm);
     }
 
+    /* Syntax highlighting without CodeMirror (`syntax_highlight`): the
+       textarea stays the input and turns transparent over a highlighted
+       <pre>. Both layers share every rule that moves a glyph -- font, size,
+       line height, padding, tab size, no wrapping -- or the colours drift
+       off the text they belong to. The textarea only goes transparent once
+       code_highlight.js has attached (`is-highlighted`), so a page whose
+       script failed still shows readable text. */
+    .codeeditor-app .ce-code-wrap {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        background-color: var(--color-bg);
+    }
+    .codeeditor-app .ce-code-wrap > .ce-code,
+    .codeeditor-app .ce-code-wrap > .ce-hl {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: var(--space) calc(var(--space) * 2);
+        border: 0;
+        font-family: var(--font-mono);
+        font-size: var(--font-size-sm);
+        font-variant-ligatures: none;
+        letter-spacing: normal;
+        word-spacing: normal;
+        line-height: 1.6;
+        tab-size: 4;
+        white-space: pre;
+        overflow-wrap: normal;
+    }
+    .codeeditor-app .ce-hl {
+        /* Extra room at the bottom: the textarea's horizontal scrollbar adds
+           to how far it can scroll, and the layer has to be able to follow. */
+        padding-bottom: calc(var(--space) + 24px);
+        overflow: hidden;
+        background: transparent;
+        color: var(--color-fg);
+        pointer-events: none;
+    }
+    .codeeditor-app .ce-hl code {
+        display: block;
+        padding: 0;
+        background: none;
+        color: inherit;
+        font: inherit;
+    }
+    .codeeditor-app .ce-code-wrap.is-highlighted > .ce-code {
+        background: transparent;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        caret-color: var(--color-fg);
+    }
+    .codeeditor-app .ce-code-wrap.is-highlighted > .ce-code::selection {
+        background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+    }
+    /* Every theme defines the `color-syntax-*` tokens (VS Code Dark+ or
+       Light+ where they fit, AA-adjusted hues elsewhere); a theme that does
+       not falls back to uncoloured text, not to a palette picked for some
+       other background. Punctuation and operators stay in --color-fg, as in
+       Dark+/Light+. */
+    .codeeditor-app .tok-keyword { color: var(--color-syntax-keyword, var(--color-fg)); }
+    .codeeditor-app .tok-control { color: var(--color-syntax-control, var(--color-fg)); }
+    .codeeditor-app .tok-string { color: var(--color-syntax-string, var(--color-fg)); }
+    .codeeditor-app .tok-number { color: var(--color-syntax-number, var(--color-fg)); }
+    .codeeditor-app .tok-comment { color: var(--color-syntax-comment, var(--color-fg)); }
+    .codeeditor-app .tok-function { color: var(--color-syntax-function, var(--color-fg)); }
+    .codeeditor-app .tok-type { color: var(--color-syntax-type, var(--color-fg)); }
+    .codeeditor-app .tok-property { color: var(--color-syntax-property, var(--color-fg)); }
+    .codeeditor-app .tok-constant { color: var(--color-syntax-constant, var(--color-fg)); }
+    .codeeditor-app .tok-tag { color: var(--color-syntax-tag, var(--color-fg)); }
+
     /* `default` only: the ways out as full buttons under the code. */
     .codeeditor-app .ce-editor-footer {
         display: flex;
@@ -766,6 +882,9 @@ def set_environment(config):
     """Set environment variables for the code editor app"""
     # Create styles with environment variables
     global app, _base_hdrs, list_of_modes, list_of_themes, list_of_editor_themes, current_dir, logo_title_container
+    # <html lang> from the content pack. FastHTML reads `htmlkw` per request,
+    # so a live reconfigure to another pack takes effect on the next page.
+    app.htmlkw = {"lang": html_lang(language_of(config.code_editor))}
     if getattr(config.code_editor, 'no_css', False):
         app.hdrs = ()
         app.config = config
@@ -777,7 +896,7 @@ def set_environment(config):
         )
         return
     list_of_modes = config.code_editor.list_of_modes
-    list_of_themes = config.code_editor.list_of_themes
+    list_of_themes = selectable_themes(config)
     list_of_editor_themes = config.code_editor.list_of_editor_themes
     current_dir = config.code_editor.database_path + '/'
     if os.path.exists(current_dir):
@@ -892,6 +1011,36 @@ def current_editor_theme():
     return by_tone.get(tone, cfg.editor_theme)
 
 
+def available_design_themes() -> list[str]:
+    """Every shared theme in `config/apps/theme/`, by file stem."""
+    return sorted(path.stem for path in _THEME_DIR.glob("*.yaml"))
+
+
+def selectable_themes(config) -> list[str]:
+    """The design themes the in-editor selector offers.
+
+    `code_editor.list_of_themes` when it names any, else every theme in
+    `config/apps/theme/` -- so a theme added there shows up in the selector
+    with no second list to keep in step. A configured name with no theme file
+    is dropped: the selector would offer a theme that renders as `default`.
+    """
+    configured = list(getattr(config.code_editor, "list_of_themes", None) or [])
+    known = set(available_design_themes())
+    if not configured:
+        return available_design_themes()
+    return [name for name in configured if name in known]
+
+
+def editor_theme_for(config, theme: dict) -> str:
+    """CodeMirror stylesheet for a design ``theme`` (a :func:`load_theme`
+    dict), via its tone -- the mapping :func:`current_editor_theme` applies to
+    the live theme."""
+    cfg = config.code_editor
+    tone = _as_plain(theme.get("assets", {})).get("tone", "light")
+    by_tone = _as_plain(getattr(cfg, "editor_theme_by_tone", None) or {})
+    return by_tone.get(tone, cfg.editor_theme)
+
+
 def theme_switcher_script(config) -> Script:
     """Embed every selectable theme's tokens so the selector can swap live.
 
@@ -905,10 +1054,19 @@ def theme_switcher_script(config) -> Script:
     the same keys, and a key only the previous theme set would otherwise stay
     on :root and leak into the new one.
     """
-    names = list(getattr(config.code_editor, "list_of_themes", []) or [])
+    names = selectable_themes(config)
     palettes = {name: _as_plain(load_theme(name).get("tokens", {})) for name in names}
+    # The code pane's half of a swap: each design theme's CodeMirror
+    # stylesheet, picked through its tone exactly as `current_editor_theme`
+    # picks it server-side, so a live switch to `dark` darkens the code too
+    # instead of waiting for the next page load.
+    editor_themes = {name: editor_theme_for(config, load_theme(name)) for name in names}
     return Script(f"""
         window.OPENAPPS_THEMES = {json.dumps(palettes)};
+        window.OPENAPPS_EDITOR_THEMES = {json.dumps(editor_themes)};
+        window.editorThemeFor = function(name) {{
+            return window.OPENAPPS_EDITOR_THEMES[name] || name;
+        }};
         window.applyTheme = function(name) {{
             var tokens = window.OPENAPPS_THEMES[name];
             if (!tokens) {{ return false; }}
@@ -928,6 +1086,87 @@ def theme_switcher_script(config) -> Script:
             return true;
         }};
     """)
+
+
+# The editor's own UI strings: pack key -> English. Each is
+# `apps.code_editor.<key>` from the content pack when set (german.yaml /
+# mandarin.yaml translate them), else the English here, so a pack that
+# predates a key still renders. `{name}`-style placeholders are filled in
+# where the string is used. File and folder *names* are data and never
+# translated: tasks address them by path.
+LABELS: dict[str, str] = {
+    "index_page_label": "Code Editor Index Page",
+    "explorer_label": "Explorer",
+    "new_file_label": "New File",
+    "new_folder_label": "New Folder",
+    "folder_name_title_label": "Enter Folder Name",
+    "folder_name_placeholder_label": "Folder Name",
+    "create_label": "Create",
+    "error_title_label": "Error",
+    "save_first_label": "Please save the current new file first",
+    "untitled_folder_error_label": 'Cannot create folders with "Untitled-" in the name. This prefix is reserved for new files.',
+    "create_folder_failed_label": "Failed to create folder: ",
+    "update_mode_failed_label": "Failed to update mode: ",
+    "update_theme_failed_label": "Failed to update theme: ",
+    "language_label": "Language: ",
+    "theme_label": "Theme: ",
+    "no_file_selected_label": "No file selected",
+    "delete_folder_label": "Delete Folder",
+    "folder_title_label": "Folder: {folder}",
+    "delete_folder_failed_label": "Failed to delete folder: ",
+    "select_file_prompt_label": "Select a file to edit or create a new one.",
+    "save_failed_label": "Failed to save file: ",
+    "delete_file_failed_label": "Failed to delete file: ",
+    "rename_failed_label": "Failed to rename: ",
+    "close_tab_label": "Close {name}",
+    "file_name_aria_label": "File name: {file}. Double-click to rename.",
+    "rename_hint_label": "Double-click to rename",
+    "code_editor_aria_label": "Code editor - {file}",
+    "code_editor_short_label": "Code editor",
+    "editor_description_label": "Code editor for editing {file}",
+    "spaces_label": "Spaces: {n}",
+    "reveal_in_files_label": "Reveal in Files",
+    "welcome_fallback_label": "Welcome! Happy coding everyday!",
+}
+
+
+def current_language() -> str:
+    """The code editor pack's `content_language` (English when unset)."""
+    config = getattr(app, "config", None)
+    return language_of(getattr(config, "code_editor", None) if config is not None else None)
+
+
+def L(key: str, **fmt) -> str:
+    """One of :data:`LABELS` in the pack's language, or a shared string from
+    :mod:`open_apps.i18n` (``return_to_apps``, ``save``, ``delete``,
+    ``cancel``, ``close``) when ``key`` is not one of the editor's own."""
+    if key not in LABELS:
+        return t(key, current_language(), **fmt)
+    config = getattr(app, "config", None)
+    cfg = getattr(config, "code_editor", None) if config is not None else None
+    value = cfg.get(key) if cfg is not None and hasattr(cfg, "get") else None
+    text = str(value) if value else LABELS[key]
+    return text.format(**fmt) if fmt else text
+
+
+def _js(text: str) -> str:
+    """``text`` as a single-quoted JS string literal, safe in an inline
+    script or an HTML attribute (FastHTML escapes the attribute itself)."""
+    escaped = (
+        text.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\n", "\\n")
+        .replace("</", "<\\/")
+    )
+    return f"'{escaped}'"
+
+
+def _tpl(text: str) -> str:
+    """``text`` for a JS template literal that becomes ``innerHTML``:
+    HTML-escaped, with the template's own metacharacters neutralised."""
+    import html as _html
+
+    return _html.escape(text, quote=True).replace("`", "\\`").replace("${", "\\${")
 
 
 def current_layout():
@@ -1056,6 +1295,69 @@ _CODE_EXTENSIONS = (
 )
 
 
+# Language per file extension, the way an editor picks one when a file opens.
+# Values are `list_of_modes` names (CodeMirror's) plus `json` and `html`,
+# which only the offline highlighter knows.
+_LANGUAGE_BY_EXTENSION = {
+    ".py": "python",
+    ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript",
+    ".jsx": "javascript", ".ts": "javascript", ".tsx": "javascript",
+    ".css": "css",
+    ".yaml": "yaml", ".yml": "yaml",
+    ".md": "markdown", ".markdown": "markdown",
+    ".sh": "shell", ".bash": "shell", ".zsh": "shell",
+    ".c": "clike", ".cc": "clike", ".cpp": "clike", ".h": "clike",
+    ".hpp": "clike", ".java": "clike", ".rs": "clike",
+    ".go": "go",
+    ".json": "json",
+    ".html": "html", ".htm": "html",
+}
+
+HIGHLIGHT_SCRIPT_URL = "/assets/js/code_highlight.js"
+
+
+def language_for(path: str) -> str:
+    """The language a file opens in: by extension, else the configured mode.
+
+    Per file rather than global, so a `.yaml` opened after a `.py` is not
+    coloured as Python. The Language picker still switches it live; for an
+    extension not listed here the picker's choice is what persists (it is
+    written back to `code_editor.mode`).
+    """
+    ext = os.path.splitext(path)[1].lower()
+    return _LANGUAGE_BY_EXTENSION.get(ext, app.config.code_editor.mode)
+
+
+def syntax_overlay_enabled() -> bool:
+    """Whether the offline highlight layer renders under the textarea.
+
+    Never alongside CodeMirror (`highlight`): CodeMirror replaces the textarea
+    and colours the code itself, and two highlighters would fight over it.
+    """
+    cfg = app.config.code_editor
+    return bool(cfg.get("syntax_highlight", False)) and not cfg.get("highlight", False)
+
+
+def code_area(textarea, language: str):
+    """The editable textarea, wrapped with its highlight layer when enabled.
+
+    The textarea is untouched -- same id, aria attributes and value -- so
+    Save, `fill()` and the accessibility tree see exactly what they did
+    before. The layer is `aria-hidden`: it duplicates the text for the eye
+    only. The script tag sits here, before `editor_script`, so the
+    highlighter exists by the time the page binds `editor`.
+    """
+    if not syntax_overlay_enabled():
+        return textarea
+    return Div(
+        Pre(Code(), cls="ce-hl", id="editor-highlight", aria_hidden="true"),
+        textarea,
+        Script(src=HIGHLIGHT_SCRIPT_URL),
+        cls="ce-code-wrap",
+        data_language=language,
+    )
+
+
 def _file_icon(name: str) -> I:
     if name.lower().endswith(_CODE_EXTENSIONS):
         return _icon("far fa-file-code ce-icon-code")
@@ -1093,14 +1395,14 @@ def _nav_in_status_bar() -> bool:
 
 def return_to_index(prominent: bool = False):
     if prominent:
-        return A("Code Editor Index Page", href="/codeeditor", cls="ce-btn ce-btn-nav")
-    return A(_icon("fas fa-code"), "Code Editor Index Page", href="/codeeditor", cls="ce-status-item")
+        return A(L("index_page_label"), href="/codeeditor", cls="ce-btn ce-btn-nav")
+    return A(_icon("fas fa-code"), L("index_page_label"), href="/codeeditor", cls="ce-status-item")
 
 
 def return_to_home(prominent: bool = False):
     if prominent:
-        return A("Return to List of Apps", href="/", cls="ce-btn ce-btn-nav")
-    return A(_icon("fas fa-home"), "Return to List of Apps", href="/", cls="ce-status-item")
+        return A(L("return_to_apps"), href="/", cls="ce-btn ce-btn-nav")
+    return A(_icon("fas fa-home"), L("return_to_apps"), href="/", cls="ce-status-item")
 
 
 def editor_footer() -> list:
@@ -1240,20 +1542,20 @@ def create_sidebar(current_path: str = None) -> Div:
         # the layout rules target it. `sidebar` carries its own surface colour.
         cls="codeeditor-sidebar sidebar main-content",
     )(
-        H2("Explorer", cls="ce-pane-title"),
+        H2(L("explorer_label"), cls="ce-pane-title"),
         # New File / New Folder keep their visible labels: the UI questions
         # (tests/ui_questions) ask for "two buttons labeled 'New File' and
         # 'New Folder' at the top of the sidebar".
         Div(cls="ce-explorer-actions")(
             Button(
                 _icon("far fa-file"),
-                "New File",
+                L("new_file_label"),
                 cls="ce-btn",
                 onclick=f"""
                     const path = '{folder_path or ""}';
                     // Check if current path is already an unsaved Untitled file
                     if (path.includes('Untitled-') && !path.includes('/')) {{
-                        showErrorModal('Please save the current new file first');
+                        showErrorModal({_js(L('save_first_label'))});
                         return;
                     }}
                     const newPath = path ? path + '/Untitled-{next_index}' : 'Untitled-{next_index}';
@@ -1262,7 +1564,7 @@ def create_sidebar(current_path: str = None) -> Div:
             ),
             Button(
                 _icon("far fa-folder"),
-                "New Folder",
+                L("new_folder_label"),
                 cls="ce-btn",
                 onclick=f"""
                     const path = '{folder_path or ""}';
@@ -1271,11 +1573,11 @@ def create_sidebar(current_path: str = None) -> Div:
                     modal.className = 'modal modal-open'; // daisyUI classes to open the modal
                     modal.innerHTML = `
                         <div class="modal-box">
-                            <h3 class="font-bold text-lg">Enter Folder Name</h3>
-                            <input type="text" id="folderNameInput" class="input input-bordered w-full max-w-xs" placeholder="Folder Name">
+                            <h3 class="font-bold text-lg">{_tpl(L('folder_name_title_label'))}</h3>
+                            <input type="text" id="folderNameInput" class="input input-bordered w-full max-w-xs" placeholder="{_tpl(L('folder_name_placeholder_label'))}">
                             <div class="modal-action">
-                                <button class="btn btn-primary" onclick="createFolder(this.closest('.modal'))">Create</button>
-                                <button class="btn" onclick="this.closest('.modal').remove()">Cancel</button>
+                                <button class="btn btn-primary" onclick="createFolder(this.closest('.modal'))">{_tpl(L('create_label'))}</button>
+                                <button class="btn" onclick="this.closest('.modal').remove()">{_tpl(L('cancel'))}</button>
                             </div>
                         </div>
                     `;
@@ -1289,7 +1591,7 @@ def create_sidebar(current_path: str = None) -> Div:
                         if (folderName) {{
                             if (folderName.includes('Untitled-')) {{
                                 modalElement.remove();
-                                showErrorModal('Cannot create folders with "Untitled-" in the name. This prefix is reserved for new files.');
+                                showErrorModal({_js(L('untitled_folder_error_label'))});
                                 return;
                             }}
                             const newPath = path ? path + '/' + folderName : folderName;
@@ -1301,7 +1603,7 @@ def create_sidebar(current_path: str = None) -> Div:
                                 modalElement.remove(); // Close the modal
                                 if (data.success) window.location.reload();
                                 else {{
-                                    showErrorModal('Failed to create folder: ' + data.error);
+                                    showErrorModal({_js(L('create_folder_failed_label'))} + data.error);
                                 }};
                             }});
                         }} else {{
@@ -1314,9 +1616,9 @@ def create_sidebar(current_path: str = None) -> Div:
         Div(cls="codeeditor-tree")(
             *[render_tree_item(child) for child in file_tree['children']]
         ),
-        Script("""
-            document.addEventListener('DOMContentLoaded', () => {
-                document.querySelectorAll('.folder-container').forEach(container => {
+        Script(f"""
+            document.addEventListener('DOMContentLoaded', () => {{
+                document.querySelectorAll('.folder-container').forEach(container => {{
                     const folderHeader = container.querySelector('.flex');
                     const icon = container.querySelector('.folder-icon');
                     const content = container.querySelector('.folder-content');
@@ -1331,29 +1633,29 @@ def create_sidebar(current_path: str = None) -> Div:
                     folderHeader.classList.toggle('is-expanded', isExpanded);
                     icon.setAttribute('aria-expanded', isExpanded.toString());
                     container.classList.toggle('is-open', isExpanded);
-                });
-            });
-            function showErrorModal(message) {
+                }});
+            }});
+            function showErrorModal(message) {{
                 const modal = document.createElement('div');
                 modal.className = 'modal modal-open';
                 modal.innerHTML = `
                     <div class="modal-box">
-                        <h3 class="font-bold text-lg text-error">Error</h3>
-                        <p class="py-4">${message}</p>
+                        <h3 class="font-bold text-lg text-error">{_tpl(L('error_title_label'))}</h3>
+                        <p class="py-4">${{message}}</p>
                         <div class="modal-action">
-                            <button class="btn" onclick="this.closest('.modal').remove()">Close</button>
+                            <button class="btn" onclick="this.closest('.modal').remove()">{_tpl(L('close'))}</button>
                         </div>
                     </div>
                 `;
                 document.body.appendChild(modal);
-            }
+            }}
         """)
     )
 
 # The Language / Theme pickers' change handlers. One copy for all three
 # views: the folder and file views used to omit the error report the index
 # view had, so a failed update there was silent.
-_MODE_ONCHANGE = """
+_MODE_ONCHANGE_TEMPLATE = """
     editor.setOption('mode', this.value);
     fetch('/codeeditor/update_config', {
         method: 'POST',
@@ -1366,14 +1668,19 @@ _MODE_ONCHANGE = """
     .then(r => r.json())
     .then(data => {
         if (!data.success) {
-            showErrorModal('Failed to update mode: ' + data.error);
+            showErrorModal(__MODE_FAILED__ + data.error);
         }
     });
 """
 
-_THEME_ONCHANGE = """
+# The design theme repaints the chrome (tokens on :root); the code pane follows
+# through the theme's tone -- CodeMirror swaps to that tone's syntax stylesheet
+# (`window.editorThemeFor`, see `theme_switcher_script`), and the plain
+# textarea's shim has no stylesheet to swap. No `//` comments in here: this
+# ends up in an inline `onchange` attribute.
+_THEME_ONCHANGE_TEMPLATE = """
     window.applyTheme(this.value);
-    editor.setOption('theme', this.value);
+    editor.setOption('theme', window.editorThemeFor(this.value));
     fetch('/codeeditor/update_config', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1385,10 +1692,18 @@ _THEME_ONCHANGE = """
     .then(r => r.json())
     .then(data => {
         if (!data.success) {
-            showErrorModal('Failed to update theme: ' + data.error);
+            showErrorModal(__THEME_FAILED__ + data.error);
         }
     });
 """
+
+
+def _mode_onchange() -> str:
+    return _MODE_ONCHANGE_TEMPLATE.replace("__MODE_FAILED__", _js(L("update_mode_failed_label")))
+
+
+def _theme_onchange() -> str:
+    return _THEME_ONCHANGE_TEMPLATE.replace("__THEME_FAILED__", _js(L("update_theme_failed_label")))
 
 
 def _selects_in_status_bar() -> bool:
@@ -1402,43 +1717,77 @@ def _selects_in_status_bar() -> bool:
     return current_layout() != "default"
 
 
-def editor_selects():
+def editor_selects(language: str | None = None):
     """The Language and Theme pickers -- ids, names, labels and options as
-    they always were; only their placement and styling vary."""
+    they always were; only their placement and styling vary.
+
+    ``language`` is the open file's (see :func:`language_for`), so the picker
+    names what the code is coloured as. One the configured list lacks
+    (``json``, ``html``) is offered too, rather than the picker claiming a
+    language the file is not shown in.
+    """
+    selected = language or app.config.code_editor.mode
+    modes = list(list_of_modes)
+    if selected not in modes:
+        modes.append(selected)
     return Div(cls="ce-selects")(
         Div(cls="ce-field")(
-            Label("Language: "),
-            Select(id="mode-selector", cls="ce-select", onchange=_MODE_ONCHANGE)(
-                *[Option(mode, value=mode, selected=(mode == app.config.code_editor.mode)) for mode in list_of_modes]
+            Label(L("language_label")),
+            Select(id="mode-selector", cls="ce-select", onchange=_mode_onchange())(
+                *[Option(mode, value=mode, selected=(mode == selected)) for mode in modes]
             ),
         ),
         Div(cls="ce-field")(
-            Label("Theme: "),
-            Select(id="theme-selector", cls="ce-select", onchange=_THEME_ONCHANGE)(
+            Label(L("theme_label")),
+            Select(id="theme-selector", cls="ce-select", onchange=_theme_onchange())(
                 *[Option(theme, value=theme, selected=(theme == current_design_theme())) for theme in list_of_themes]
             ),
         ),
     )
 
 
-def editor_header(title, *actions):
+def reveal_in_files(path: str, is_file: bool):
+    """"Reveal in Files": the workspace *is* Files' Code folder, so this opens
+    the folder the item lives in there -- with a file, its folder and
+    ``selected=<name>``, the way Finder's Reveal selects what it reveals.
+
+    ``None`` for a file that has not been saved yet: there is nothing on disk
+    to reveal.
+    """
+    parts = [p for p in str(path).split("/") if p]
+    if is_file and not os.path.isfile(os.path.join(current_dir, *parts)):
+        return None
+    folder = parts[:-1] if is_file else parts
+    href = "/files/Code" + "".join(f"/{quote(p)}" for p in folder)
+    if is_file:
+        href += f"?selected={quote(parts[-1])}"
+    return A(
+        icon(Icon.FOLDER, size=14),
+        L("reveal_in_files_label"),
+        href=href,
+        cls="ce-btn",
+        id="ce-reveal-in-files",
+    )
+
+
+def editor_header(title, *actions, language: str | None = None):
     """The row above the code: what is open on the left, actions and (in
     `default`) the pickers on the right."""
-    selects = [] if _selects_in_status_bar() else [editor_selects()]
+    selects = [] if _selects_in_status_bar() else [editor_selects(language)]
     return Div(cls="ce-editor-header")(
         title,
         Div(cls="ce-editor-actions")(*actions, *selects),
     )
 
 
-def status_bar(*meta):
+def status_bar(*meta, language: str | None = None):
     """The strip along the bottom of the window.
 
     Outside `default`, navigation out of the editor sits bottom-left, where
     VS Code keeps its remote indicator, and the pickers join the file facts
     bottom-right.
     """
-    selects = [editor_selects()] if _selects_in_status_bar() else []
+    selects = [editor_selects(language)] if _selects_in_status_bar() else []
     nav = [return_to_home(), return_to_index()] if _nav_in_status_bar() else []
     return Div(cls="ce-statusbar")(
         Div(cls="ce-status-group")(*nav),
@@ -1472,16 +1821,32 @@ def editor_binding(options_js: str) -> str:
         )
     return """
         var editorTextarea = document.getElementById('editor');
+        // The offline highlight layer, when `code_area` rendered one (an open
+        // file with `syntax_highlight` on). Null otherwise, and every use
+        // below tolerates that.
+        var editorLayer = document.querySelector('#editor-highlight code');
+        var editorHighlight = (editorLayer && window.OpenAppsHighlight)
+            ? window.OpenAppsHighlight.attach(
+                editorTextarea, editorLayer,
+                editorLayer.closest('.ce-code-wrap').getAttribute('data-language'))
+            : null;
         var editor = {
             getValue: function() { return editorTextarea.value; },
-            setValue: function(value) { editorTextarea.value = value; },
+            setValue: function(value) {
+                editorTextarea.value = value;
+                if (editorHighlight) { editorHighlight.refresh(); }
+            },
             getOption: function() { return null; },
             setOption: function(name, value) {
                 // Themes are design tokens, applied to :root by
                 // window.applyTheme, so this works with no CodeMirror on the
-                // page and nothing fetched from a CDN.
+                // page and nothing fetched from a CDN. The syntax colours are
+                // tokens too, so they follow along.
                 if (name === 'theme' && window.applyTheme) {
                     window.applyTheme(value);
+                }
+                if (name === 'mode' && editorHighlight) {
+                    editorHighlight.setLanguage(value);
                 }
             },
             setSize: function() {},
@@ -1525,10 +1890,10 @@ def index():
     # by default, the main screen should display an empty code editor
     main_screen = Div(cls="ce-editor")(
         # "No file selected" stays the header text: a UI question asks for it.
-        editor_header(H2("No file selected", cls="ce-editor-title")),
+        editor_header(H2(L("no_file_selected_label"), cls="ce-editor-title")),
         Div(cls="ce-editor-body")(
             Textarea(
-                app.config.code_editor.welcome_message or "Welcome! Happy coding everyday!",
+                app.config.code_editor.welcome_message or L("welcome_fallback_label"),
                 id="editor",
                 cls="ce-code",
                 disabled="disabled"
@@ -1566,7 +1931,7 @@ def get_folder(folder: str):
     """Handle folder view with empty editor"""
     side_bar = create_sidebar(folder)
     delete_folder = Button(
-        "Delete Folder",
+        L("delete_folder_label"),
         cls="ce-btn ce-btn-danger",
         onclick=f"""
             fetch('/codeeditor/delete/{folder}', {{
@@ -1577,16 +1942,20 @@ def get_folder(folder: str):
                 if (data.success) {{
                     window.location = '/codeeditor/';
                 }} else {{
-                    showErrorModal('Failed to delete folder: ' + data.error);
+                    showErrorModal({_js(L('delete_folder_failed_label'))} + data.error);
                 }}
             }});
         """
     )
     main_screen = Div(cls="ce-editor")(
-        editor_header(H2(f"Folder: {folder}", cls="ce-editor-title"), delete_folder),
+        editor_header(
+            H2(L("folder_title_label", folder=folder), cls="ce-editor-title"),
+            reveal_in_files(folder, is_file=False),
+            delete_folder,
+        ),
         Div(cls="ce-editor-body")(
             Textarea(
-                "Select a file to edit or create a new one.",
+                L("select_file_prompt_label"),
                 id="editor",
                 cls="ce-code",
                 disabled="disabled"
@@ -1616,7 +1985,7 @@ def get_file(file: str):
     side_bar = create_sidebar(file)
     file_name = file.split('/')[-1]
     save_button = Button(
-        "Save",
+        L("save"),
         cls="ce-btn ce-btn-primary",
         onclick=f"""
             const content = editor.getValue();
@@ -1630,13 +1999,13 @@ def get_file(file: str):
                 if (data.success) {{
                     window.location.reload();
                 }} else {{
-                    showErrorModal('Failed to save file: ' + data.error);
+                    showErrorModal({_js(L('save_failed_label'))} + data.error);
                 }}
             }});
         """,
     )
     delete_button = Button(
-        "Delete",
+        L("delete"),
         cls="ce-btn ce-btn-danger",
         onclick=f"""
             fetch('/codeeditor/delete/{file}', {{method: 'POST'}})
@@ -1649,7 +2018,7 @@ def get_file(file: str):
                         // Navigate to the index page after deleting
                         window.location = '/codeeditor/';
                     }}
-                    else showErrorModal('Failed to delete file: ' + data.error);
+                    else showErrorModal({_js(L('delete_file_failed_label'))} + data.error);
                 }});
         """,
     )
@@ -1666,7 +2035,7 @@ def get_file(file: str):
             Div(cls="editor-tab is-active")(
                 _file_icon(file_name),
                 Span(file_name),
-                Button("×", cls="editor-tab-close", aria_label=f"Close {file_name}"),
+                Button("×", cls="editor-tab-close", aria_label=L("close_tab_label", name=file_name)),
             ),
             Script("""
                 // Use sessionStorage to track if a session is active
@@ -1736,7 +2105,7 @@ def get_file(file: str):
                         const closeBtn = document.createElement('button');
                         closeBtn.className = 'editor-tab-close';
                         closeBtn.innerHTML = '×';
-                        closeBtn.setAttribute('aria-label', 'Close ' + name);
+                        closeBtn.setAttribute('aria-label', """ + json.dumps(L('close_tab_label')).replace('</', '<\\/') + """.replace('{name}', name));
                         closeBtn.onclick = (e) => {
                             e.stopPropagation();
                             openedFiles = openedFiles.filter(f => f !== file);
@@ -1779,10 +2148,10 @@ def get_file(file: str):
             """,
             role="button",
             tabindex="0",
-            **{'aria-label': f"File name: {file}. Double-click to rename."}
+            **{'aria-label': L("file_name_aria_label", file=file)}
         )(
             file,
-            Span(cls="ce-rename-hint")("Double-click to rename"),
+            Span(cls="ce-rename-hint")(L("rename_hint_label")),
         ),
         Div(cls="hidden")(
             Input(
@@ -1805,7 +2174,7 @@ def get_file(file: str):
                                 // After successful save, proceed with rename
                                 return fetch('/codeeditor/rename/{file}?new_file=' + encodeURIComponent(newName), {{method: 'POST'}});
                             }} else {{
-                                showErrorModal('Failed to save file: ' + data.error);
+                                showErrorModal({_js(L('save_failed_label'))} + data.error);
                             }}
                         }})
                         .then(r => r.json())
@@ -1815,7 +2184,7 @@ def get_file(file: str):
                                 updateTabOnRename('{file}', newName);                                            
                                 window.location = '/codeeditor/' + newName;
                             }} else {{
-                                showErrorModal('Failed to rename: ' + data.error);
+                                showErrorModal({_js(L('rename_failed_label'))} + data.error);
                             }}
                         }})
                         .catch(error => showErrorModal(error.message));
@@ -1829,11 +2198,15 @@ def get_file(file: str):
             ),
         ),
     )
+    language = language_for(file)
+    # CodeMirror only has the modes in `list_of_modes` loaded; anything else
+    # (json, html) would ask it for a mode script that is not on the page.
+    codemirror_mode = language if language in list_of_modes else app.config.code_editor.mode
     main_screen = Div(cls="ce-editor")(
         tab_bar,
-        editor_header(title),
+        editor_header(title, reveal_in_files(file, is_file=True), language=language),
         Div(cls="ce-editor-body")(
-            Textarea(
+            code_area(Textarea(
                 content,  # or "" for index() function
                 id="editor",
                 cls="ce-code",
@@ -1841,19 +2214,19 @@ def get_file(file: str):
                 spellcheck="false",
                 wrap="off",
                 **{
-                    "aria-label": f"Code editor - {file}",
+                    "aria-label": L("code_editor_aria_label", file=file),
                     "aria-multiline": "true",
                     "aria-describedby": "editor-description",
                     "aria-atomic": "true",
                     "aria-live": "off"
                 }
-            ),
+            ), language),
             Div(
                 id="editor-description",
                 cls="sr-only"
-            )(f"Code editor for editing {file}"),
+            )(L("editor_description_label", file=file)),
             editor_script(f"""{{
-                        mode: '{app.config.code_editor.mode}',
+                        mode: '{codemirror_mode}',
                         theme: '{current_editor_theme()}',
                         lineNumbers: true,
                         indentUnit: 4,
@@ -1861,7 +2234,7 @@ def get_file(file: str):
                         indentWithTabs: false,
                         smartIndent: true,
                         lineWrapping: true,
-                        screenReaderLabel: 'Code editor',
+                        screenReaderLabel: {_js(L('code_editor_short_label'))},
                         inputStyle: 'contenteditable',
                         role: 'textbox',
                         'aria-multiline': true,
@@ -1875,7 +2248,7 @@ def get_file(file: str):
     # Facts, not decoration: CodeMirror is configured with `indentUnit: 4`,
     # and files are read and written in the platform default text encoding,
     # UTF-8 on the hosts this runs on.
-    page = editor_page(side_bar, main_screen, status_bar("Spaces: 4", "UTF-8"))
+    page = editor_page(side_bar, main_screen, status_bar(L("spaces_label", n=4), "UTF-8", language=language))
     return Div(codeeditor_theme(), logo_title_container, page)
 
 @app.post("/codeeditor/create_folder/{folder:path}")

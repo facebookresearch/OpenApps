@@ -62,7 +62,7 @@ CONTENT_VARIANTS = [
     "misleading_descriptions",
     "adversarial_descriptions",
 ]
-LAYOUTS = ["default", "card_list"]
+LAYOUTS = ["default", "card_list", "grouped_by_date"]
 
 # The three accounts every content variant must agree on, and the figures the
 # task set reads off them. Anything that appends extra accounts (the
@@ -71,6 +71,9 @@ SEEDED_ACCOUNTS = [
     "BUS COMPLETE CHK (...5555)",
     "BUS SELECT SAVINGS (...8891)",
     "INK BUSINESS CARD (...2043)",
+    # The user's own account -- the one the payment tasks pay from. Appended,
+    # so the three business accounts keep ids 0-2.
+    "EVERYDAY CHECKING (...4417)",
 ]
 
 
@@ -231,6 +234,20 @@ class TestContentInvariants:
         assert names[: len(SEEDED_ACCOUNTS)] == SEEDED_ACCOUNTS
         assert len(names) > len(SEEDED_ACCOUNTS), "the `+accounts` append did not apply"
 
+    @pytest.mark.parametrize("variant", CONTENT_VARIANTS)
+    def test_the_personal_account_is_danas_checking(self, tmp_path, variant):
+        """The payment tasks pay "from my Everyday Checking": a deposit account
+        in Dana's name, after the three business ones. Its balance stays under
+        the savings account's, or it would become the answer to
+        `reconcile_the_largest_account`."""
+        accounts = _compose(tmp_path, [f"apps/openbanking/content={variant}"]).apps.openbanking.accounts
+        dana = accounts[3]
+        assert dana.name == SEEDED_ACCOUNTS[3]
+        assert dana.holder == "Dana Reyes"
+        assert dana.get("kind", "deposit") == "deposit"
+        assert str(dana.account_number).endswith("4417")
+        assert dana.available_balance < accounts[1].available_balance
+
     def test_adversarial_variant_injects_the_shared_message(self, tmp_path):
         cfg = _compose(tmp_path, ["apps/openbanking/content=adversarial_descriptions"])
         message = _norm(cfg.apps.adversarial_message)
@@ -269,10 +286,15 @@ class TestRendering:
         assert "COOL APPS INC" in html
         assert "Available balance" in html
 
-    def test_pending_transaction_has_no_posted_balance(self, client):
+    def test_nothing_is_pending(self, client):
+        """Every row has a posting date and a running balance -- including the
+        real-time transfer, which used to be seeded as pending."""
+        from open_apps.apps.openbanking_app import main as bank
+
         html = client.get("/openbanking/accounts/0").text
-        assert "Pending" in html
-        assert "—" in html
+        assert "Pending" not in html
+        assert "Aug 26, 2026" in html
+        assert all(t.date and t.balance is not None for t in bank.transactions())
 
     def test_unknown_account_does_not_500(self, client):
         assert client.get("/openbanking/accounts/999").status_code == 200
@@ -304,6 +326,24 @@ class TestRendering:
         html = client.get("/openbanking/accounts/0").text
         assert table_markup in html
         assert card_markup not in html
+
+    def test_grouped_by_date_layout_renders_the_same_data(self, client):
+        """The third layout swaps per-request too: day headings, no table,
+        no cards, and the same rows (by id) as the table."""
+        table_html = client.get("/openbanking/accounts/0?expand=1").text
+        table_ids = re.findall(r'id="(txn-\d+)"', table_html)
+        original = app.config.openbanking.layout
+        try:
+            app.config.openbanking.layout = "grouped_by_date"
+            html = client.get("/openbanking/accounts/0?expand=1").text
+            assert 'class="ob-timeline"' in html
+            assert 'class="ob-day-heading"' in html
+            assert "<table" not in html
+            assert 'class="ob-txn-card"' not in html
+            assert "COOL APPS INC" in html
+            assert re.findall(r'id="(txn-\d+)"', html) == table_ids
+        finally:
+            app.config.openbanking.layout = original
 
 
 class TestBalancesComeFromSqlite:
@@ -598,6 +638,103 @@ class TestAccountNumbers:
         assert client.get("/openbanking_all").json() == before
 
 
+class TestCopyButtons:
+    """Icon-and-text Copy controls beside the account, routing and card numbers.
+
+    The number itself never ships in the markup -- the click fetches it -- so
+    the click-to-reveal contract above survives for agents reading the HTML.
+    """
+
+    def test_deposit_account_offers_both_copies(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert 'data-testid="copy-account-number"' in html
+        assert 'data-testid="copy-routing-number"' in html
+        assert 'data-copy-url="/openbanking/accounts/0/copy/account"' in html
+        assert 'data-copy-url="/openbanking/accounts/0/copy/routing"' in html
+
+    def test_buttons_carry_a_visible_caption_and_an_accessible_name(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert '<span aria-live="polite" class="ob-copy-text">Copy</span>' in html
+        assert 'aria-label="Copy: Account number"' in html
+        assert 'aria-label="Copy: Routing number"' in html
+
+    def test_the_numbers_stay_out_of_the_markup(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert "447109255555" not in html
+        assert "123456789" not in html
+
+    def test_copy_survives_the_reveal_swap(self, client):
+        html = client.get("/openbanking/accounts/0/numbers?account=1&routing=0").text
+        assert html.count('class="ob-copy"') == 2
+
+    def test_card_face_offers_a_card_number_copy(self, client):
+        card_id = next(
+            a["id"] for a in client.get("/openbanking_all").json()["accounts"]
+            if a["kind"] == "credit_card"
+        )
+        html = client.get(f"/openbanking/accounts/{card_id}").text
+        face = html[html.index('id="ob-cardface"'):]
+        assert 'data-testid="copy-card-number"' in face
+        assert 'data-testid="copy-routing-number"' not in html
+
+    def test_copy_route_returns_the_bare_digits(self, client):
+        accounts = client.get("/openbanking_all").json()["accounts"]
+        deposit = next(a for a in accounts if a["kind"] == "deposit")
+        card = next(a for a in accounts if a["kind"] == "credit_card")
+        for path, expected in [
+            (f"/openbanking/accounts/{deposit['id']}/copy/account", deposit["account_number"]),
+            (f"/openbanking/accounts/{deposit['id']}/copy/routing", deposit["routing_number"]),
+            (f"/openbanking/accounts/{card['id']}/copy/card", card["account_number"]),
+        ]:
+            response = client.get(path)
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("text/plain")
+            assert response.text == expected
+
+    @pytest.mark.parametrize("path", [
+        "/openbanking/accounts/999/copy/account",
+        "/openbanking/accounts/0/copy/card",
+        "/openbanking/accounts/0/copy/cvv",
+    ])
+    def test_copy_route_refuses_what_does_not_exist(self, client, path):
+        assert client.get(path).status_code == 404
+
+    def test_copying_does_not_mutate_state(self, client):
+        before = client.get("/openbanking_all").json()
+        client.get("/openbanking/accounts/0/copy/account")
+        client.get("/openbanking/accounts/0/copy/routing")
+        assert client.get("/openbanking_all").json() == before
+
+    @pytest.mark.parametrize("variant,caption", [("german", "Kopieren"), ("mandarin", "复制")])
+    def test_captions_are_translated(self, tmp_path, variant, caption):
+        cfg = _compose(tmp_path, [f"apps/openbanking/content={variant}"])
+        assert cfg.apps.openbanking.copy_label == caption
+
+
+class TestAccountRowsAreLinks:
+    """Opening an account is a full page load, so the window chrome comes too.
+
+    The rows used to `hx-get` the account page into `body`; the chrome
+    middleware passes htmx requests through undecorated, so the title bar and
+    dock vanished as soon as an account was opened.
+    """
+
+    def test_rows_are_anchors_to_the_account_page(self, client):
+        html = client.get("/openbanking").text
+        for account in client.get("/openbanking_all").json()["accounts"]:
+            assert re.search(
+                rf'<a href="/openbanking/accounts/{account["id"]}"[^>]*class="ob-account-row"'
+                rf'|<a [^>]*class="ob-account-row"[^>]*href="/openbanking/accounts/{account["id"]}"',
+                html,
+            )
+        assert 'hx-target="body"' not in html
+
+    def test_account_page_carries_the_window_chrome(self, client):
+        html = client.get("/openbanking/accounts/0").text
+        assert 'id="oa-titlebar"' in html
+        assert 'id="oa-dock"' in html
+
+
 class TestMasthead:
     """The bar carries no control that swallows a click.
 
@@ -808,10 +945,11 @@ class TestSeeMoreActivity:
         html = client.get(self.DETAIL).text
         assert "/openbanking/accounts/0?showing=0&amp;q=&amp;expand=1" in html
 
-    def test_truncation_applies_under_card_list_too(self, client):
+    @pytest.mark.parametrize("layout", ["card_list", "grouped_by_date"])
+    def test_truncation_applies_under_every_layout(self, client, layout):
         original = app.config.openbanking.layout
         try:
-            app.config.openbanking.layout = "card_list"
+            app.config.openbanking.layout = layout
             assert self.HIDDEN not in client.get(self.DETAIL).text
             assert self.HIDDEN in client.get(f"{self.DETAIL}?expand=1").text
         finally:
@@ -910,6 +1048,12 @@ class TestRewardState:
         assert set(state) == {"accounts", "transactions"}
         assert len(state["accounts"]) == len(SEEDED_ACCOUNTS)
         assert state["transactions"]
+
+    def test_seeded_rows_carry_no_counterparty_or_memo(self, client):
+        """Only a payment the user sends names a payee; every seeded and card
+        row reports both fields as null, so the shape is the same everywhere."""
+        for txn in client.get("/openbanking_all").json()["transactions"]:
+            assert txn["counterparty"] is None and txn["memo"] is None
 
     def test_state_is_byte_stable_across_fetches(self, client):
         first = client.get("/openbanking_all").text
@@ -1040,14 +1184,14 @@ class TestTaskAnswersMatchTheSeed:
         }
         assert expected == {_norm(f"Card {abs(a):.2f}") for a in charges}
 
-    def test_exactly_one_pending_transaction_and_its_amount(self, accounts):
+    def test_exactly_one_part_corp_transfer_and_its_amount(self, accounts):
         checking = accounts["BUS COMPLETE CHK (...5555)"]
-        pending = [t for t in checking.transactions if t.date is None]
-        assert len(pending) == 1, (
-            "the goal says 'one transaction that is still pending'"
+        transfers = [t for t in checking.transactions if "PART CORP" in t.description]
+        assert len(transfers) == 1, (
+            "the goal says 'one real-time transfer from Part Corp'"
         )
-        expected = self._expected("note_pending_transfer_in_calendar_and_todo", index=1)
-        assert _norm(expected) == _norm(f"Pending {pending[0].amount:.2f}")
+        expected = self._expected("note_realtime_transfer_in_calendar_and_todo", index=1)
+        assert _norm(expected) == _norm(f"Transfer {transfers[0].amount:.2f}")
 
     def test_highest_available_balance_account(self, accounts):
         richest = max(accounts.values(), key=lambda a: a.available_balance)
@@ -1309,8 +1453,6 @@ class TestVariantFanout:
         read = gen.VARIANTS[stem].read_date
         for account in gen.load_accounts(gen.content_path(stem)):
             for txn in account["transactions"]:
-                if txn["date"] is None:  # pending rows carry no date
-                    continue
                 assert read(txn["date"]) is not None, txn["date"]
 
     @pytest.mark.parametrize("stem", ["default", "german", "mandarin"])
@@ -1483,3 +1625,31 @@ class TestVariantFanout:
             gen.splice_all(plan)
         for path in content.glob("*.yaml"):
             assert path.read_text("utf-8") == before[path.name]
+
+
+def test_a_seeded_row_without_a_date_or_balance_is_refused(tmp_path):
+    """Nothing in the bank is pending; a pack that still seeds a pending row
+    fails at launch instead of rendering one."""
+    from open_apps.apps.openbanking_app import main as bank
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=[f"logs_dir={tmp_path}"])
+    Path(config.databases_dir).mkdir(parents=True, exist_ok=True)
+    OmegaConf.update(config, "apps.openbanking.accounts.0.transactions.0.date", None)
+    with pytest.raises(ValueError, match="Nothing in the bank is pending"):
+        bank.set_environment(config.apps)
+
+
+def test_the_tasks_posting_date_mirrors_the_bank():
+    """BuyWithCardTask / DeclinedCardPurchaseTask predict the posted row's date
+    from BANK_POSTING_DATE; it has to be the bank's pinned day, spelled the
+    default pack's way."""
+    from open_apps.apps.openbanking_app import statements
+    from open_apps.tasks.tasks import BANK_POSTING_DATE
+
+    with initialize(version_base=None, config_path="../config/"):
+        config = compose(config_name="config", overrides=["logs_dir=/tmp/openapps-posting-date"])
+    bank_cfg = config.apps.openbanking
+    assert BANK_POSTING_DATE == statements.format_posting_date(
+        date.fromisoformat(str(bank_cfg.as_of_date)), str(bank_cfg.posting_date_style)
+    )

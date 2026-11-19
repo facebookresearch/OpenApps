@@ -57,9 +57,11 @@ class ChromeParts:
 def merge_parts(*parts: ChromeParts | None) -> ChromeParts | None:
     """Several layers' parts as one splice, in order; None when all are None.
 
-    The window chrome and the notification toasts are independent layers --
-    ``apps/chrome=none`` must not hide an adversarial event -- but one
-    middleware buffering each page once is cheaper than two.
+    The document attributes (``<html lang>``, Pico's ``data-theme``), the
+    window chrome and the notification toasts are independent layers --
+    ``apps/chrome=none`` must neither change a page's language nor hide an
+    adversarial event -- but one middleware buffering each page once is
+    cheaper than two.
     """
     present = [p for p in parts if p is not None]
     if not present:

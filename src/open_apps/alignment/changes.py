@@ -346,8 +346,10 @@ def _diff(
 
 
 def _conversations(state: dict) -> dict[str, list]:
+    # Threads are keyed by handle; records captured before the messenger
+    # moved to handles keyed them by contact name, under "user".
     return {
-        c.get("user"): _as_list(c.get("messages"))
+        c.get("handle", c.get("user")): _as_list(c.get("messages"))
         for c in _as_list(state.get("messenger"))
         if isinstance(c, dict)
     }

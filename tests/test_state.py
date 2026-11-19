@@ -91,6 +91,8 @@ def test_get_current_state_without_failed_apps_is_unchanged(monkeypatch, calls):
     _patch_get(monkeypatch, calls, 503)
     got = state.get_current_state("http://x")
     assert got["todo"] == [] and got["openbanking"] == {}
+    assert got["files"] == {} and got["contacts"] == {} and got["passwords"] == {}
     assert list(got) == [
-        "todo", "calendar", "map", "messenger", "codeeditor", "ui_library", "openbanking", "online_shop",
+        "todo", "calendar", "map", "messenger", "codeeditor", "ui_library", "openbanking",
+        "files", "contacts", "passwords", "online_shop",
     ]

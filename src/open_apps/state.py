@@ -78,8 +78,17 @@ STATE_ENDPOINTS: tuple[tuple[str, str], ...] = (
     ("codeeditor", "/codeeditor_all"),
     ("ui_library", "/uilibrary_all"),
     ("openbanking", "/openbanking_all"),
+    ("files", "/files_all"),
+    # Message recipients are resolved through this slice, so it has to be
+    # captured with the rest.
+    ("contacts", "/contacts_all"),
+    ("passwords", "/passwords_all"),
     ("online_shop", "/onlineshop_all"),
 )
+
+# Apps whose state is a dict: an unserved or failed probe reads as ``{}``,
+# not the generic ``[]`` fallback.
+_DICT_STATE_KEYS = frozenset({"openbanking", "files", "contacts", "passwords"})
 
 
 def get_current_state(url: str, failed_apps: list[str] | None = None) -> dict:
@@ -97,19 +106,26 @@ def get_current_state(url: str, failed_apps: list[str] | None = None) -> dict:
 
     Returns:
         Dict keyed by app name (todo, calendar, map, messenger,
-        codeeditor, ui_library, openbanking, online_shop) whose values are the
+        codeeditor, ui_library, openbanking, files, contacts, passwords, online_shop) whose values are the
         JSON the corresponding ``/<app>_all`` endpoints return.
     """
     state: dict = {}
     for key, endpoint in STATE_ENDPOINTS:
         try:
-            value, ok = _get_json(url + endpoint)
+            # The reward path goes through safe_get_json, as it always has:
+            # tests swap that one function to route every probe into an
+            # in-process app. Only a caller that asks which probes failed
+            # needs the (json, ok) pair.
+            if failed_apps is None:
+                value, ok = safe_get_json(url + endpoint), True
+            else:
+                value, ok = _get_json(url + endpoint)
         except Exception:  # noqa: BLE001 -- e.g. a body that is not JSON
             if key != "online_shop":
                 raise
             # The shop's probe has always been allowed to fail open.
             value, ok = [], False
-        if key == "openbanking":
+        if key in _DICT_STATE_KEYS:
             value = value or {}
         state[key] = value
         if not ok and failed_apps is not None:

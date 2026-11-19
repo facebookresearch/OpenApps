@@ -400,11 +400,13 @@ def todo_input_location(state, config, rng, **_):
 
 
 def todo_return_button_location(state, config, rng, **_):
+    # Asks about the Add button, which sits at the end of the new-todo input
+    # row (the answer once hand-corrected in ui_questions.json, f728f65).
     choices, correct_letter = _shuffle_choices(
-        "Top right next to the search bar",
+        "Inside the new-todo input row",
         [
             "Above the app title",
-            "Inside the new-todo input row",
+            "Top right next to the search bar",
             "In the right edge of each todo item",
         ],
         rng,
@@ -796,11 +798,38 @@ def messenger_count_conversations(state, config, rng, **_):
     ]
 
 
+def _thread_names(state, config) -> list[str]:
+    """The names the conversation list draws, one per thread.
+
+    ``/messages_all`` holds handles only; the list labels a thread with its
+    contact's name, the group's title, or the formatted number of an unknown
+    sender -- the same lookups the messenger makes at render time.
+    """
+    from open_apps.handles import format_handle
+    from open_apps.tasks.tasks import _contact_display_name
+
+    people = (state.get("contacts") or {}).get("contacts") or []
+    by_handle = {
+        h["value"]: _contact_display_name(c)
+        for c in people
+        for h in [*c.get("phones", []), *c.get("emails", [])]
+    }
+    groups = (config or {}).get("groups") or {}
+    names = []
+    for thread in state.get("messenger", []):
+        handle = thread["handle"]
+        if handle in groups:
+            names.append(groups[handle].get("title", handle))
+        else:
+            names.append(by_handle.get(handle, format_handle(handle)))
+    return names
+
+
 def messenger_contact_exists(state, config, rng, **_):
     conversations = state.get("messenger", [])
     if len(conversations) < 1:
         return []
-    contact_names = [c["user"] for c in conversations]
+    contact_names = _thread_names(state, config)
     fake_contacts = ["Diana", "Eve", "Frank", "Grace", "Henry", "Ivan", "Julia"]
     fake_contacts = [f for f in fake_contacts if f not in contact_names]
     if len(fake_contacts) < 3:
@@ -823,7 +852,7 @@ def messenger_contact_exists(state, config, rng, **_):
 
 def messenger_contact_not_exists(state, config, rng, **_):
     conversations = state.get("messenger", [])
-    contact_names = [c["user"] for c in conversations]
+    contact_names = _thread_names(state, config)
     fake_contacts = ["Diana", "Eve", "Frank", "Grace", "Henry"]
     fake_contacts = [f for f in fake_contacts if f not in contact_names]
     if len(fake_contacts) < 3 or len(contact_names) < 3:
@@ -846,11 +875,15 @@ def messenger_contact_not_exists(state, config, rng, **_):
 
 
 def messenger_group_chat_exists(state, config, rng, **_):
-    conversations = state.get("messenger", [])
-    group_chats = [c for c in conversations if "group" in c["user"].lower()]
-    has_group = len(group_chats) > 0
+    groups = (config or {}).get("groups") or {}
+    group_titles = [
+        groups[t["handle"]].get("title", t["handle"])
+        for t in state.get("messenger", [])
+        if t["handle"] in groups
+    ]
+    has_group = len(group_titles) > 0
     if has_group:
-        correct = f"Yes — '{group_chats[0]['user']}'"
+        correct = f"Yes — '{group_titles[0]}'"
         distractors = [
             "No, only individual conversations",
             "Yes — 'Team Chat'",
@@ -1247,7 +1280,7 @@ def map_app_title(state, config, rng, **_):
 
 def map_tile_provider_options(state, config, rng, **_):
     choices, correct_letter = _shuffle_choices(
-        "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, CartoDB Dark, CartoDB Voyager, OpenStreetMap Transport",
+        "OpenStreetMap, OpenStreetMap HOT, OpenTopoMap, ESRI Satellite, ESRI Terrain, ESRI Dark Gray, ESRI Light Gray, OpenStreetMap Transport",
         [
             "Google Maps, Apple Maps, Bing Maps",
             "Mapbox Streets, Mapbox Satellite, Mapbox Outdoors",
@@ -1655,6 +1688,10 @@ def _headline(config) -> str:
         desktop = config.get("desktop") or {}
         if desktop.get("headline"):
             return str(desktop["headline"])
+        # Mirrors `desktop_headline` in apps/start_page/main.py: the pack's
+        # own desktop line, then its gallery headline.
+        if config.get("desktop_headline"):
+            return str(config["desktop_headline"])
     return str(config.get("headline") or "Welcome to OpenApps!")
 
 
@@ -1885,7 +1922,13 @@ def start_page_shell_toolbar_contents(state, config, rng, **_):
 
 
 def start_page_shell_pinned_apps(state, config, rng, **_):
-    """What is on the desktop, and what is only behind the launcher.
+    """What is in the dock, and what is only behind the launcher.
+
+    The desktop draws no app icons of its own; pins are what the window
+    chrome's dock shows (``apps.chrome.dock.show: pinned``). A run that sets
+    ``dock.show=all`` or ``dock.exclude`` changes the dock without changing
+    the pins, and these questions do not model that -- regenerate with the
+    defaults.
 
     Which question is fair depends on the config. Everything is pinned by
     default, so "which app is pinned?" has no wrong answer to offer and is
@@ -1899,8 +1942,8 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
     desktop = config.get("desktop") or {}
     # Both sets come off the inventory, not the raw `apps:` block. The online
     # shop is listed there with a title but gated off globally, so building
-    # titles from the block would have made it the answer to "which app has no
-    # desktop shortcut" -- an app that is not on the page at all.
+    # titles from the block would have made it the answer to "which app is not
+    # in the dock" -- an app that is not on the page at all.
     inventory = _inventory_keys(config)
     # Not `desktop["pinned"]` -- that is `all` by default, and list("all") is
     # three letters. Resolution also subtracts `unpinned`.
@@ -1922,7 +1965,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
     )
     questions = [
         MCQuestion(
-            question="How many app shortcuts are on the desktop?",
+            question="How many apps are pinned to the dock?",
             choices=choices,
             correct=correct_letter,
             category="element_counting",
@@ -1939,7 +1982,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
         choices, correct_letter = _shuffle_choices(app_name, distractors, rng)
         questions.append(
             MCQuestion(
-                question="Which of these apps has a shortcut pinned to the desktop?",
+                question="Which of these apps is pinned to the dock?",
                 choices=choices,
                 correct=correct_letter,
                 category="element_content",
@@ -1948,7 +1991,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
             )
         )
     # The inverse is the one that matters for a launcher task: naming the app
-    # with no shortcut is naming the app you have to open the menu to reach.
+    # with no dock icon is naming the app you have to open the menu to reach.
     if len(pinned) >= 3 and unpinned:
         for app_name in unpinned:
             distractors = rng.sample(pinned, 3)
@@ -1956,7 +1999,7 @@ def start_page_shell_pinned_apps(state, config, rng, **_):
             questions.append(
                 MCQuestion(
                     question=(
-                        "Which of these apps has no desktop shortcut, so it can "
+                        "Which of these apps is not in the dock, so it can "
                         "only be opened from the launcher?"
                     ),
                     choices=choices,

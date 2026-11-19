@@ -1,0 +1,8 @@
+# @package _global_
+# label: English
+# English everywhere: every app keeps its default content pack.
+#
+# The same as selecting no language, so it overrides nothing. (Not every
+# app's English pack is named `default`: the shop's is `webshop`.) It exists so
+# a sweep over `apps/language=default,german,mandarin` has an English cell to
+# compare against.

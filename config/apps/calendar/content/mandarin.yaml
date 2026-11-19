@@ -1,6 +1,9 @@
 # @package apps.calendar
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# Mandarin add-event form: translates the placeholders and aria labels only.
+# The events themselves come from `default` unchanged, so tasks that name an
+# event still find it.
+
+# The pack's language: drives the calendar's UI strings and <html lang>.
 content_language: mandarin
 defaults:
   - default
@@ -22,3 +25,604 @@ style:
           url: '活动网址'
           invitees: '活动参与者'
           location: '活动地点'
+
+# UI strings (keys documented in default.yaml).
+add_event_label: "添加活动"
+prev_label: "< 上个月"
+next_label: "下个月 >"
+prev_title: "上个月"
+next_title: "下个月"
+today_label: "今天"
+today_title_format: "{month}{day}日 {weekday}"
+calendar_view_label: "日历"
+agenda_view_label: "日程"
+view_group_label: "视图"
+month_year_format: "{year}年{month}"
+agenda_date_format: "{month} {weekday}"
+all_day_label: "全天"
+agenda_empty_title: "{month_year}没有活动"
+agenda_empty_hint: "点击“添加活动”来安排，或点击“下个月 >”向后查看。"
+date_label: "日期"
+location_label: "地点"
+recurring_label: "重复"
+event_link_label: "活动链接"
+delete_event_label: "删除活动"
+back_to_calendar_label: "返回日历"
+create_event_page_title: "新建活动"
+create_event_heading: "创建新活动"
+title_field_label: "标题"
+date_field_label: "日期"
+description_field_label: "描述"
+url_field_label: "网址"
+invitees_field_label: "参与者"
+location_field_label: "地点"
+recurring_field_label: "重复"
+submit_label: "提交"
+recurrence_options:
+  none: "不重复"
+  weekly: "每周"
+  monthly: "每月"
+  yearly: "每年"
+error_messages:
+  "Failed to delete event": "删除活动失败"
+  "No content provided": "标题和日期为必填项"
+  "Invalid date format": "日期格式无效（应为 年-月-日）"
+  "Failed to process form": "表单处理失败"
+month_names: [1月, 2月, 3月, 4月, 5月, 6月, 7月, 8月, 9月, 10月, 11月, 12月]
+month_abbr: [1月, 2月, 3月, 4月, 5月, 6月, 7月, 8月, 9月, 10月, 11月, 12月]
+day_names: [星期一, 星期二, 星期三, 星期四, 星期五, 星期六, 星期日]
+day_abbr: [周一, 周二, 周三, 周四, 周五, 周六, 周日]
+day_initials: [一, 二, 三, 四, 五, 六, 日]
+
+# Every event is translated, in the default pack's order and with its dates,
+# links, recurrence and invitees, so a task starts from the same calendar in
+# every language. Invitees are people and keep their names.
+events:
+  - title: "WACV 2026 摘要截止"
+    date: 2025-07-11
+    description: |
+      # WACV 2026 摘要截止
+
+      计算机视觉应用冬季会议（WACV）摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年7月11日
+      - 全文截止：2025年7月18日
+
+      请通过会议系统提交摘要。
+    url: https://wacv2026.thecvf.com
+    location: 线上
+    invitees: null
+
+  - title: "WACV 2026 论文截止"
+    date: 2025-07-18
+    description: |
+      # WACV 2026 全文截止
+
+      计算机视觉应用冬季会议（WACV）论文提交的最终截止日期。
+
+      论文须按规定格式提交，并附上全部补充材料。
+    url: https://wacv2026.thecvf.com
+    location: 线上
+    invitees: null
+
+  - title: "AAAI 2026 摘要截止"
+    date: 2025-07-25
+    description: |
+      # AAAI 2026 摘要提交截止
+
+      第40届AAAI人工智能大会摘要提交截止日期。
+
+      ## 时间安排：
+      - 摘要截止：2025年7月25日
+      - 全文截止：2025年8月1日
+
+      涵盖人工智能各个领域的顶级会议之一。
+    url: https://aaai.org/conference/
+    location: 线上
+    invitees: null
+
+  - title: "SIGKDD 2026 摘要截止"
+    date: 2025-07-24
+    description: |
+      # SIGKDD 2026 摘要截止
+
+      知识发现与数据挖掘大会（SIGKDD）摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年7月24日
+      - 全文截止：2025年7月31日
+
+      SIGKDD是数据挖掘、数据科学和知识发现领域的顶级会议。
+    url: https://kdd.org/
+    location: 线上
+    invitees: null
+
+  - title: "AAAI 2026 论文截止"
+    date: 2025-08-01
+    description: |
+      # AAAI 2026 全文提交截止
+
+      第40届AAAI人工智能大会论文提交的最终截止日期。
+
+      AAAI是人工智能研究领域最重要的会议之一。
+    url: https://aaai.org/conference/
+    location: 线上
+    invitees: null
+
+  - title: "SIGKDD 2026 论文截止"
+    date: 2025-07-31
+    description: |
+      # SIGKDD 2026 全文截止
+
+      知识发现与数据挖掘大会（SIGKDD）论文提交的最终截止日期。
+
+      论文须遵循ACM格式规范，并通过会议系统提交。
+    url: https://kdd.org/
+    location: 线上
+    invitees: null
+
+  - title: "UbiComp/ISWC 2025 投稿截止"
+    date: 2025-08-01
+    description: |
+      # UbiComp/ISWC 2025 八月投稿截止
+
+      ACM普适计算国际联合会议（UbiComp/ISWC）八月投稿截止日期。
+
+      该会议采用滚动截稿，每季度接受一次投稿。
+    url: https://www.ubicomp.org/
+    location: 线上
+    invitees: null
+
+  - title: "WSDM 2026 摘要截止"
+    date: 2025-08-07
+    description: |
+      # WSDM 2026 摘要截止
+
+      网络搜索与数据挖掘会议（WSDM）摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年8月7日
+      - 全文截止：2025年8月14日
+
+      WSDM是网络相关研究领域的顶级会议之一。
+    url: https://www.wsdm-conference.org/
+    location: 线上
+    invitees: null
+
+  - title: "WSDM 2026 论文截止"
+    date: 2025-08-14
+    description: |
+      # WSDM 2026 全文截止
+
+      网络搜索与数据挖掘会议（WSDM）论文提交的最终截止日期。
+
+      欢迎提交关于网络搜索与数据挖掘及相关方向的研究。
+    url: https://www.wsdm-conference.org/
+    location: 线上
+    invitees: null
+
+  - title: "3DV 2026 投稿截止"
+    date: 2025-08-18
+    description: |
+      # 3DV 2026 投稿截止
+
+      国际三维视觉会议（3DV）论文投稿截止日期。
+
+      欢迎提交三维计算机视觉各方向的研究，包括三维重建、感知与分析。
+    url: https://3dv2026.org/
+    location: 线上
+    invitees: null
+
+  - title: "CHI 2026 摘要截止"
+    date: 2025-09-04
+    description: |
+      # CHI 2026 摘要截止
+
+      ACM CHI人机交互大会摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年9月4日
+      - 全文截止：2025年9月11日
+
+      CHI是人机交互领域首屈一指的国际会议。
+    url: https://chi2026.acm.org/
+    location: 线上
+    invitees: null
+
+  - title: "CHI 2026 论文截止"
+    date: 2025-09-11
+    description: |
+      # CHI 2026 全文截止
+
+      ACM CHI人机交互大会论文提交的最终截止日期。
+
+      论文须匿名，并遵循ACM模板要求。
+    url: https://chi2026.acm.org/
+    location: 线上
+    invitees: null
+
+  - title: "WACV 2026 第二轮摘要截止"
+    date: 2025-09-12
+    description: |
+      # WACV 2026 第二轮摘要截止
+
+      计算机视觉应用冬季会议（WACV）第二轮摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年9月12日
+      - 全文截止：2025年9月19日
+    url: https://wacv2026.thecvf.com
+    location: 线上
+    invitees: null
+
+  - title: "WACV 2026 第二轮论文截止"
+    date: 2025-09-19
+    description: |
+      # WACV 2026 第二轮论文截止
+
+      计算机视觉应用冬季会议（WACV）第二轮全文提交截止日期。
+
+      这是向WACV 2026投稿的最后机会。
+    url: https://wacv2026.thecvf.com
+    location: 线上
+    invitees: null
+
+  - title: "ICASSP 2026 投稿截止"
+    date: 2025-09-17
+    description: |
+      # ICASSP 2026 投稿截止
+
+      IEEE国际声学、语音与信号处理会议（ICASSP）论文投稿截止日期。
+
+      ICASSP是全球规模最大的信号处理及其应用技术会议。
+    url: https://2026.ieeeicassp.org/
+    location: 线上
+    invitees: null
+
+  - title: "ICLR 2026 摘要截止"
+    date: 2025-09-20
+    description: |
+      # ICLR 2026 摘要截止
+
+      国际学习表征会议（ICLR）摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年9月20日
+      - 全文截止：2025年9月25日
+
+      ICLR是人工智能表征学习领域的顶级会议。
+    url: https://iclr.cc/
+    location: 线上
+    invitees: null
+
+  - title: "ICLR 2026 论文截止"
+    date: 2025-09-25
+    description: |
+      # ICLR 2026 全文截止
+
+      国际学习表征会议（ICLR）论文提交的最终截止日期。
+
+      ICLR聚焦深度学习与人工智能中的表征学习方法。
+    url: https://iclr.cc/
+    location: 线上
+    invitees: null
+
+  - title: "SATML 2026 投稿截止"
+    date: 2025-09-24
+    description: |
+      # SATML 2026 投稿截止
+
+      安全可信机器学习会议（SATML）论文投稿截止日期。
+
+      SATML汇聚安全、隐私、机器学习与AI安全领域的研究者。
+    url: https://satml.org/
+    location: 线上
+    invitees: null
+
+  - title: "IUI 2026 摘要截止"
+    date: 2025-10-03
+    description: |
+      # IUI 2026 摘要截止
+
+      ACM智能用户界面会议（IUI）摘要提交截止日期。
+
+      ## 重要日期：
+      - 摘要截止：2025年10月3日
+      - 全文截止：2025年10月10日
+
+      IUI关注人与AI系统之间的交互。
+    url: https://iui.acm.org/2026/
+    location: 线上
+    invitees: null
+
+  - title: "IUI 2026 论文截止"
+    date: 2025-10-10
+    description: |
+      # IUI 2026 全文截止
+
+      ACM智能用户界面会议（IUI）论文提交的最终截止日期。
+
+      欢迎提交利用AI技术的创新界面研究。
+    url: https://iui.acm.org/2026/
+    location: 线上
+    invitees: null
+
+  - title: "LREC 2026 投稿截止"
+    date: 2025-10-17
+    description: |
+      # LREC 2026 投稿截止
+
+      语言资源与评测会议（LREC）论文投稿截止日期。
+
+      LREC是语言资源与语言技术评测领域最重要的会议。
+    url: https://lrec-conf.org/2026/
+    location: 线上
+    invitees: null
+
+  - title: "UbiComp/ISWC 2025 十一月投稿截止"
+    date: 2025-11-01
+    description: |
+      # UbiComp/ISWC 2025 十一月投稿截止
+
+      ACM普适计算国际联合会议（UbiComp/ISWC）十一月投稿截止日期。
+
+      这是滚动投稿流程中的第四个季度截止日期。
+    url: https://www.ubicomp.org/
+    location: 线上
+    invitees: null
+
+  - title: "CPAL 2025 投稿截止"
+    date: 2025-11-25
+    description: |
+      # CPAL 2025 投稿截止
+
+      AI隐私、问责与正当性会议（CPAL）论文投稿截止日期。
+
+      CPAL关注AI技术的社会影响与治理。
+    url: https://cpal-conference.org/
+    location: 线上
+    invitees: null
+
+  - title: "IJCNN 2026 投稿截止"
+    date: 2026-01-31
+    description: |
+      # IJCNN 2026 投稿截止
+
+      国际神经网络联合会议（IJCNN）论文投稿截止日期。
+
+      IJCNN是涵盖神经网络及相关领域全部主题的顶级会议。
+    url: https://www.ijcnn.org/
+    location: 线上
+    invitees: null
+
+  - title: "InterSpeech 2026 投稿截止"
+    date: 2026-03-02
+    description: |
+      # InterSpeech 2026 投稿截止
+
+      全球规模最大的语音处理会议论文投稿截止日期。
+
+      欢迎提交语音科学与技术各方面的研究。
+    url: https://www.isca-speech.org/
+    location: 线上
+    invitees: null
+
+  - title: "ECCV 2026 论文截止"
+    date: 2026-03-06
+    description: |
+      # ECCV 2026 全文截止
+
+      欧洲计算机视觉会议（ECCV）论文投稿截止日期。
+
+      ECCV是计算机视觉研究领域的顶级会议之一。
+    url: https://eccv2026.org/
+    location: 线上
+    invitees: null
+
+  # Birthdays
+  - title: "Bob的生日"
+    date: 1980-04-15
+    description: |
+      # Bob的生日
+
+      别忘了送礼物或贺卡！
+    recurring: yearly
+    invitees: Bob
+
+  - title: "Alice的生日"
+    date: 1982-06-23
+    description: |
+      # Alice的生日
+
+      记得打电话祝她生日快乐！
+    recurring: yearly
+    invitees: Alice
+
+  - title: "Charlie的生日"
+    date: 1978-09-08
+    description: |
+      # Charlie的生日
+    recurring: yearly
+    invitees: Charlie
+
+  - title: "Gottfried的生日"
+    date: 1975-11-30
+    description: |
+      # Gottfried的生日
+    recurring: yearly
+    invitees: Gottfried
+
+  - title: "Siegline的生日"
+    date: 1987-02-14
+    description: |
+      # Siegline的生日
+    recurring: yearly
+    invitees: Siegline
+
+  - title: "Hans的生日"
+    date: 1965-03-22
+    description: |
+      # Hans的生日
+    recurring: yearly
+    invitees: Hans
+
+  - title: "Greta的生日"
+    date: 1992-05-10
+    description: |
+      # Greta的生日
+    recurring: yearly
+    invitees: Greta
+
+  - title: "Luka的生日"
+    date: 1993-07-17
+    description: |
+      # Luka的生日
+    recurring: yearly
+    invitees: Luka
+
+  - title: "Anna的生日"
+    date: 1985-08-03
+    description: |
+      # Anna的生日
+    recurring: yearly
+    invitees: Anna
+
+  - title: "Franz的生日"
+    date: 1970-01-25
+    description: |
+      # Franz的生日
+    recurring: yearly
+    invitees: Franz
+
+  - title: "Josef的生日"
+    date: 1968-10-12
+    description: |
+      # Josef的生日
+    recurring: yearly
+    invitees: Josef
+
+  - title: "Karl的生日"
+    date: 1972-12-05
+    description: |
+      # Karl的生日
+    recurring: yearly
+    invitees: Karl
+
+  - title: "Helga的生日"
+    date: 1967-06-29
+    description: |
+      # Helga的生日
+    recurring: yearly
+    invitees: Helga
+
+  - title: "Otto的生日"
+    date: 1990-04-02
+    description: |
+      # Otto的生日
+    recurring: yearly
+    invitees: Otto
+
+  - title: "Zack的生日"
+    date: 1995-07-30
+    description: |
+      # Zack的生日
+    recurring: yearly
+    invitees: Zack
+
+  - title: "爸爸的生日"
+    date: 1960-02-28
+    description: |
+      # 爸爸的生日
+
+      别忘了打电话！
+    recurring: yearly
+    invitees: Dad
+
+  - title: "Alex的生日"
+    date: 1988-11-15
+    description: |
+      # Alex的生日
+    recurring: yearly
+    invitees: Alex
+
+  - title: "奶奶的生日"
+    date: 1940-05-18
+    description: |
+      # 奶奶的生日
+
+      记得送花！
+    recurring: yearly
+    invitees: Granni
+
+  - title: "Jamal的生日"
+    date: 1987-09-22
+    description: |
+      # Jamal的生日
+    recurring: yearly
+    invitees: Jamal
+
+  - title: "Priya的生日"
+    date: 1991-01-12
+    description: |
+      # Priya的生日
+    recurring: yearly
+    invitees: Priya
+
+  - title: "Elena的生日"
+    date: 1984-08-20
+    description: |
+      # Elena的生日
+    recurring: yearly
+    invitees: Elena
+
+# English title (as the task configs name it) -> the title rendered above.
+# See german.yaml; tests/test_calendar_i18n.py keeps it in step with `events`.
+event_translations:
+  "WACV 2026 Abstract Deadline": "WACV 2026 摘要截止"
+  "WACV 2026 Paper Deadline": "WACV 2026 论文截止"
+  "AAAI 2026 Abstract Deadline": "AAAI 2026 摘要截止"
+  "SIGKDD 2026 Abstract Deadline": "SIGKDD 2026 摘要截止"
+  "AAAI 2026 Paper Deadline": "AAAI 2026 论文截止"
+  "SIGKDD 2026 Paper Deadline": "SIGKDD 2026 论文截止"
+  "UbiComp/ISWC 2025 Deadline": "UbiComp/ISWC 2025 投稿截止"
+  "WSDM 2026 Abstract Deadline": "WSDM 2026 摘要截止"
+  "WSDM 2026 Paper Deadline": "WSDM 2026 论文截止"
+  "3DV 2026 Deadline": "3DV 2026 投稿截止"
+  "CHI 2026 Abstract Deadline": "CHI 2026 摘要截止"
+  "CHI 2026 Paper Deadline": "CHI 2026 论文截止"
+  "WACV 2026 Second Abstract Deadline": "WACV 2026 第二轮摘要截止"
+  "WACV 2026 Second Paper Deadline": "WACV 2026 第二轮论文截止"
+  "ICASSP 2026 Deadline": "ICASSP 2026 投稿截止"
+  "ICLR 2026 Abstract Deadline": "ICLR 2026 摘要截止"
+  "ICLR 2026 Paper Deadline": "ICLR 2026 论文截止"
+  "SATML 2026 Deadline": "SATML 2026 投稿截止"
+  "IUI 2026 Abstract Deadline": "IUI 2026 摘要截止"
+  "IUI 2026 Paper Deadline": "IUI 2026 论文截止"
+  "LREC 2026 Deadline": "LREC 2026 投稿截止"
+  "UbiComp/ISWC 2025 November Deadline": "UbiComp/ISWC 2025 十一月投稿截止"
+  "CPAL 2025 Deadline": "CPAL 2025 投稿截止"
+  "IJCNN 2026 Deadline": "IJCNN 2026 投稿截止"
+  "InterSpeech 2026 Deadline": "InterSpeech 2026 投稿截止"
+  "ECCV 2026 Paper Deadline": "ECCV 2026 论文截止"
+  "Bob's Birthday": "Bob的生日"
+  "Alice's Birthday": "Alice的生日"
+  "Charlie's Birthday": "Charlie的生日"
+  "Gottfried's Birthday": "Gottfried的生日"
+  "Siegline's Birthday": "Siegline的生日"
+  "Hans's Birthday": "Hans的生日"
+  "Greta's Birthday": "Greta的生日"
+  "Luka's Birthday": "Luka的生日"
+  "Anna's Birthday": "Anna的生日"
+  "Franz's Birthday": "Franz的生日"
+  "Josef's Birthday": "Josef的生日"
+  "Karl's Birthday": "Karl的生日"
+  "Helga's Birthday": "Helga的生日"
+  "Otto's Birthday": "Otto的生日"
+  "Zack's Birthday": "Zack的生日"
+  "Dad's Birthday": "爸爸的生日"
+  "Alex's Birthday": "Alex的生日"
+  "Granni's Birthday": "奶奶的生日"
+  "Jamal's Birthday": "Jamal的生日"
+  "Priya's Birthday": "Priya的生日"
+  "Elena's Birthday": "Elena的生日"

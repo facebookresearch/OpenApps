@@ -95,7 +95,22 @@ def test_gpt55_abstention_config_is_the_baseline():
         assert _action(native) == native
 
 
+def test_wait_prompts_describe_the_actual_sleep():
+    # wait() becomes noop(wait_ms=3000); prompts must not promise another duration.
+    from open_apps import config_dir
+
+    for path in (config_dir() / "agent").glob("*.yaml"):
+        text = path.read_text()
+        if "wait()" in text:
+            assert "for 3s" in text and "for 5s" not in text, path.name
+
+
 def test_finished_becomes_a_message_to_the_user():
     assert _action("finished(content='Added the todo.')") == "send_msg_to_user(text='Added the todo.')"
     assert _action('finished(content="It\'s done.")') == 'send_msg_to_user(text="It\'s done.")'
     assert _action("finished()") == "send_msg_to_user(text='Done.')"
+
+
+def test_finished_keeps_non_ascii_answers_intact():
+    # Content variations are German and Mandarin; the answer must survive.
+    assert _action("finished(content='Für 3€: 你好\\nOK')") == "send_msg_to_user(text='Für 3€: 你好\\nOK')"

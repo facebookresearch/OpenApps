@@ -243,12 +243,22 @@ class TestLedgerRows:
         charge(120.00)
         assert ledger(ob)[0].type == ob.cfg().purchase_type
 
-    def test_the_charge_posts_pending(self, ob):
-        """No `datetime.now()` in the reward payload -- see the module docstring."""
+    def test_the_charge_posts_on_the_pinned_day_with_its_balance(self, ob):
+        """Nothing in the bank is pending, and still no `datetime.now()` in the
+        reward payload: the date is the pinned `as_of_date`, in the pack's
+        spelling, and the balance is what the card owes after the charge."""
+        owed = card(ob).present_balance
         charge(120.00)
         row = ledger(ob)[0]
-        assert row.date is None
-        assert row.balance is None
+        assert row.date == ob.posting_date() == "Aug 26, 2026"
+        assert row.balance == round(owed - 120.00, 2) == card(ob).present_balance
+
+    def test_a_declined_row_is_dated_and_keeps_the_balance(self, ob):
+        owed = card(ob).present_balance
+        charge(round(card(ob).available_credit + 5000.0, 2))
+        row = ledger(ob)[0]
+        assert row.date == "Aug 26, 2026"
+        assert row.balance == owed
 
     def test_the_new_row_sorts_above_the_seeded_ones(self, ob):
         seeded_top = ledger(ob)[0]
@@ -286,6 +296,7 @@ class TestLedgerRows:
     def test_a_refusal_for_credit_posts_one_declined_row(self, ob):
         """So a refused checkout is distinguishable from one never attempted."""
         before = len(ledger(ob))
+        owed = card(ob).present_balance
         attempted = round(card(ob).available_credit + 5000.0, 2)
         charge(attempted, merchant="OPENAPPS SHOP")
         rows = ledger(ob)
@@ -293,7 +304,7 @@ class TestLedgerRows:
         row = rows[0]
         assert row.type == ob.cfg().declined_type
         assert row.amount == 0.0
-        assert row.date is None and row.balance is None
+        assert row.date == ob.posting_date() and row.balance == owed
         assert row.description == (
             f"DECLINED - OPENAPPS SHOP {ob.fmt_money(attempted)} - "
             "insufficient available credit"

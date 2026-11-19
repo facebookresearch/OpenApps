@@ -1,22 +1,149 @@
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Literal, Optional
 from abc import ABC, abstractmethod
+import functools
 import hashlib
+import json
 import math
 import re
 from deepdiff import DeepDiff
 from deepdiff.operator import BaseOperator
-from datetime import datetime
+from datetime import date, datetime
 import copy
 from deepdiff.helper import COLORED_COMPACT_VIEW
 from omegaconf.dictconfig import DictConfig
 from omegaconf import OmegaConf
 
+from open_apps.handles import normalize_handle
 
-# Stands in for a checkout's random order id on both sides of a purchase diff.
-# Deliberately the same literal the shop's `card_descriptor` uses as its format
-# field, so a target descriptor is just the template left unformatted.
-ORDER_ID_TOKEN = "{order_id}"
+
+# Where a checkout's receipt lands, mirroring ``onlineshop_app.receipt_path``.
+# Inlined rather than imported to keep the tasks package import light; a test
+# pins the two together.
+RECEIPT_PATH = "Receipts/OpenShop order {order_id}.pdf"
+
+
+def _pending_order_id(n: int) -> str:
+    """A target's stand-in for the id its ``n``-th order will be minted with.
+
+    One per purchase rather than one shared token, so that each purchase's
+    receipt keeps a path of its own: Files is keyed by path, and a composite
+    that buys twice would otherwise write both receipts to the same target
+    row. A real id is ``uuid4().hex[:8]`` and never contains a hyphen, so the
+    two can't collide. ``_normalize_purchases`` renames these and real ids
+    alike, which is what lets the two sides meet.
+    """
+    return f"pending-{n}"
+
+
+def _order_token(n: int) -> str:
+    """What ``_normalize_purchases`` renames the ``n``-th order's id to, on
+    both sides of a purchase diff."""
+    return f"{{order_id {n}}}"
+
+# The Files app's pinned "today" (``apps.files.today``, which follows
+# ``apps.openbanking.as_of_date``): the ``deleted_on`` a delete stamps. Pinned
+# here for the same reason ``BuyWithCardTask.descriptor`` mirrors the shop's.
+FILES_TODAY = "2026-08-26"
+
+# The date a row the bank posts during an episode carries: its pinned
+# ``as_of_date`` spelled the default pack's way (``posting_date_style: en``).
+# Nothing in the bank is pending, so a purchase target predicts it exactly; a
+# run on the german/mandarin packs overrides the tasks' ``posting_date``.
+BANK_POSTING_DATE = "Aug 26, 2026"
+
+
+def _files_row_key(row: dict):
+    """``files_store.snapshot``'s order."""
+    return (row["path"], bool(row["deleted"]), row["deleted_on"] or "", row["sha256"] or "")
+
+
+def _ancestors(path: str) -> list[str]:
+    parts = path.split("/")
+    return ["/".join(parts[:i]) for i in range(1, len(parts))]
+
+
+class _FileTree:
+    """The ``/files_all`` slice as the store would leave it after an action.
+
+    Targets are built by replaying the store's own rules on the snapshot rows
+    rather than by hand-editing them, because a single action can move more
+    than one row: deleting the last file in a folder makes the store report
+    the folder itself (an empty folder is a row of its own), and filling an
+    empty folder removes that row again.
+    """
+
+    def __init__(self, files_slice: dict | None):
+        rows = (files_slice or {}).get("files") or []
+        self.live: dict[str, dict] = {}
+        self.trash: list[dict] = []
+        self.dirs: set[str] = set()
+        for row in rows:
+            row = dict(row)
+            if row.get("deleted"):
+                self.trash.append(row)
+            elif row.get("kind") == "folder":
+                self.dirs.add(row["path"])
+                self.dirs.update(_ancestors(row["path"]))
+            else:
+                self.live[row["path"]] = row
+                self.dirs.update(_ancestors(row["path"]))
+
+    def file(self, path: str) -> dict:
+        if path not in self.live:
+            raise ValueError(f"no file {path!r} in the files slice")
+        return self.live[path]
+
+    def taken(self, path: str) -> bool:
+        return path in self.live or path in self.dirs
+
+    def free_path(self, folder: str, name: str) -> str:
+        """``files_store._free_name``: ``name``, else ``stem (n)suffix``."""
+        join = (lambda n: f"{folder}/{n}") if folder else (lambda n: n)
+        if not self.taken(join(name)):
+            return join(name)
+        pure = PurePosixPath(name)
+        stem, suffix = (pure.stem, pure.suffix) if pure.suffix and pure.stem else (name, "")
+        n = 2
+        while self.taken(join(f"{stem} ({n}){suffix}")):
+            n += 1
+        return join(f"{stem} ({n}){suffix}")
+
+    def put(self, path: str, row: dict) -> None:
+        self.live[path] = {**row, "path": path, "deleted": False, "deleted_on": None}
+        self.dirs.update(_ancestors(path))
+
+    def trashed(self, path: str, deleted_on: str | None = None) -> dict:
+        matches = [
+            r for r in self.trash
+            if r["path"] == path and r.get("kind") != "folder"
+            and (deleted_on is None or r["deleted_on"] == deleted_on)
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"{len(matches)} items in Recently Deleted were at {path!r}; "
+                "a task needs exactly one (pass deleted_on to choose)"
+            )
+        return matches[0]
+
+    def rows(self) -> list[dict]:
+        out = list(self.live.values())
+        for d in self.dirs:
+            prefix = d + "/"
+            if not any(p.startswith(prefix) for p in self.live) and not any(
+                o.startswith(prefix) for o in self.dirs
+            ):
+                out.append(
+                    {"path": d, "kind": "folder", "size": 0, "sha256": None,
+                     "deleted": False, "deleted_on": None}
+                )
+        out.extend(self.trash)
+        return sorted(out, key=_files_row_key)
+
+    def into(self, state: dict) -> dict:
+        state["files"] = {"files": self.rows()}
+        return state
 
 
 def _fmt_money(value: float) -> str:
@@ -110,6 +237,189 @@ class CoordsApproxEqualOperator(BaseOperator):
         return distance_km <= self.tolerance_km
 
 
+def _contact_display_name(contact: dict) -> str:
+    """``contacts_app.display_name`` over a ``/contacts_all`` entry. Repeated
+    here rather than imported so scoring stays a pure function of the state
+    dicts, with no database or app module behind it."""
+    full = " ".join(p for p in (contact.get("first_name"), contact.get("last_name")) if p)
+    if full:
+        return full
+    if contact.get("company"):
+        return contact["company"]
+    handles = [*contact.get("phones", []), *contact.get("emails", [])]
+    return handles[0]["value"] if handles else ""
+
+
+def _match_contact(name: str, state: dict) -> dict:
+    """The one contact in ``state`` that ``name`` means: an exact display-name
+    match wins, and only when none matches do first names count. Zero or
+    several matches is a ``ValueError`` naming the candidates."""
+    people = (state.get("contacts") or {}).get("contacts") or []
+    wanted = " ".join(str(name).split()).casefold()
+    matches = [c for c in people if _contact_display_name(c).casefold() == wanted] or [
+        c for c in people if str(c.get("first_name", "")).casefold() == wanted
+    ]
+    if len(matches) != 1:
+        names = ", ".join(repr(_contact_display_name(c)) for c in matches)
+        raise ValueError(
+            f"{name!r} matches {len(matches)} contacts{': ' + names if names else ''}; "
+            "a task needs exactly one"
+        )
+    return matches[0]
+
+
+def _contact_handles(values, kind: str) -> list[dict]:
+    """Task-config handles (strings, or ``{label, value}``) as stored ones.
+
+    Normalised the way the app stores them, so a target never differs from
+    the observed state on punctuation alone. Labels are kept for the record
+    but not compared (see ``AppStateComparison._normalize_contacts``).
+    """
+    out = []
+    for entry in values or []:
+        raw, label = (entry.get("value"), entry.get("label")) if isinstance(entry, dict) else (entry, None)
+        value = normalize_handle(raw)
+        if value is None or ("@" in value) != (kind == "email"):
+            raise ValueError(f"{raw!r} is not a valid {kind}")
+        out.append({"label": label or ("mobile" if kind == "phone" else "home"), "value": value})
+    return out
+
+
+def resolve_thread(to: str, state: dict) -> str:
+    """The messenger thread a task means by ``to``.
+
+    Tasks name people ("Bob"); messenger state only knows handles. In order:
+
+    1. ``to`` is a handle (in any spelling) or a ``group:`` key with a thread;
+    2. otherwise ``to`` names a contact: an exact display-name match wins, and
+       only when none matches do first names count. So the decoy "Bob Smith"
+       in the misleading packs leaves ``to: Bob`` pointing at the contact
+       whose display name is exactly "Bob";
+    3. the one matching contact's first handle (phones, then emails) that has
+       a thread. Zero or several contacts, or a contact with no thread, is a
+       ``ValueError``: a target built on a guess would score the wrong thread.
+    """
+    threads = {t["handle"] for t in state.get("messenger") or []}
+    text = str(to).strip()
+    key = text if text.startswith("group:") else (normalize_handle(text) or text)
+    if key in threads:
+        return key
+
+    contact = _match_contact(text, state)
+    for handle in [*contact.get("phones", []), *contact.get("emails", [])]:
+        if handle["value"] in threads:
+            return handle["value"]
+    raise ValueError(
+        f"{_contact_display_name(contact)!r} has no messenger thread; "
+        "message tasks target existing threads only"
+    )
+
+
+def _send_rows(state: dict) -> list[dict]:
+    bank = state.get("openbanking")
+    txns = bank.get("transactions") or [] if isinstance(bank, dict) else []
+    return [t for t in txns if isinstance(t, dict) and t.get("counterparty") is not None]
+
+
+# A memo is matched on words, not on squeezed text: punctuation separates
+# words ("Unit-2" is "unit 2") rather than vanishing, and a match has to end
+# where a word does, so "Unit 21" is not "Unit 2". "#" is kept, because "#2"
+# is how people write a unit number.
+_MEMO_SEPARATORS = re.compile(r"[^\w#]+")
+
+
+def _memo_words(text) -> str:
+    return " ".join(_MEMO_SEPARATORS.sub(" ", str(text or "").casefold()).split())
+
+
+def _memo_has(memo, wanted) -> bool:
+    words = _memo_words(wanted)
+    return bool(words) and re.search(
+        rf"(?<![\w#]){re.escape(words)}(?![\w#])", _memo_words(memo)
+    ) is not None
+
+
+def _memo_satisfies(memo, rules) -> bool:
+    """Whether ``memo`` meets every rule. A rule is a string, or a list of
+    strings any one of which will do ("Unit 2", "Apt 2", "#2")."""
+    return all(
+        any(_memo_has(memo, alt) for alt in ([rule] if isinstance(rule, str) else rule))
+        for rule in rules
+    )
+
+
+def _reconcile_payments(target: dict, observed: dict) -> tuple[dict, dict, bool]:
+    """Pair each payment the target expects with one the observed state made.
+
+    Returns ``(target, observed, ok)`` -- copies whenever there is a payment
+    to reconcile, with the target's matching hints removed and each paired
+    observed payee rewritten to the target's spelling.
+
+    A target payment (``SendMoneyTask``) names one canonical payee and may
+    carry ``_aliases``, every handle that counts as that payee (a contact's
+    email *and* phone), and ``_memo_includes`` (see :func:`_memo_satisfies`).
+    It can pair with an observed payment on the same account, for the same
+    amount, whose memo meets the rules and whose payee is the canonical
+    handle or an alias -- compared exactly, because the fuzzy diff that
+    follows strips punctuation and would let ``samortiz@example.com`` pass
+    for ``sam.ortiz@example.com``.
+
+    The pairing is a matching, not a first-fit: with "pay Bob" (any of his
+    handles) and "pay bob@example.com" both expected, paying his email first
+    must not leave the second task without a partner. Payments are a handful
+    per episode, so a plain augmenting-path search is enough.
+
+    ``ok`` is False when the counts differ or no complete pairing exists.
+    Only the bank slice is copied.
+    """
+    expected, made = _send_rows(target), _send_rows(observed)
+    if not expected and not made:
+        return target, observed, True
+    target = {**target, "openbanking": copy.deepcopy(target.get("openbanking"))}
+    observed = {**observed, "openbanking": copy.deepcopy(observed.get("openbanking"))}
+    expected, made = _send_rows(target), _send_rows(observed)
+    hints = [
+        ({row["counterparty"], *row.pop("_aliases", [])}, row.pop("_memo_includes", []))
+        for row in expected
+    ]
+    # A state built by a task (a target compared with itself, or one task's
+    # target as another's observed state) carries the same hints; real app
+    # state never does.
+    for row in made:
+        row.pop("_aliases", None)
+        row.pop("_memo_includes", None)
+    if len(expected) != len(made):
+        return target, observed, False
+
+    def fits(i: int, j: int) -> bool:
+        row, seen = expected[i], made[j]
+        aliases, rules = hints[i]
+        return (
+            seen.get("account_id") == row.get("account_id")
+            and round(float(seen.get("amount") or 0), 2) == round(float(row.get("amount") or 0), 2)
+            and seen["counterparty"] in aliases
+            and _memo_satisfies(seen.get("memo"), rules)
+        )
+
+    partner_of: dict[int, int] = {}  # observed index -> expected index
+
+    def place(i: int, tried: set) -> bool:
+        for j in range(len(made)):
+            if j in tried or not fits(i, j):
+                continue
+            tried.add(j)
+            if j not in partner_of or place(partner_of[j], tried):
+                partner_of[j] = i
+                return True
+        return False
+
+    if not all(place(i, set()) for i in range(len(expected))):
+        return target, observed, False
+    for j, i in partner_of.items():
+        made[j]["counterparty"] = expected[i]["counterparty"]
+    return target, observed, True
+
+
 class AppStateComparison:
     """
     Compare two app states for similarity.
@@ -148,6 +458,10 @@ class AppStateComparison:
         # ``DeclinedCardPurchaseTask``.
         self.normalize_purchases = normalize_purchases
 
+        # Before preprocess, which drops a payment's memo: pairing reads it.
+        self.raw_state1, self.raw_state2, self.payments_match = _reconcile_payments(
+            self.raw_state1, self.raw_state2
+        )
         self.state1 = self.preprocess(self.raw_state1)
         self.state2 = self.preprocess(self.raw_state2)
 
@@ -176,12 +490,65 @@ class AppStateComparison:
         state = copy.deepcopy(state)
         state = self._normalize_calendar_invitees(state)
         state = self._remove_id_key(state)
+        state = self._normalize_contacts(state)
+        state = self._normalize_passwords(state)
         state = self._normalize_todo_done_field(state)
         state = self._remove_timestamp_from_messenger(state)
         state = self._normalize_map_locations(state)
+        state = self._normalize_bank(state)
         if self.normalize_purchases:
             state = self._normalize_purchases(state)
         state = self.sort_lists(state)
+        state = self._sort_files(state)
+        return state
+
+    @staticmethod
+    def _normalize_bank(state: dict) -> dict:
+        """Normalise the ledger's payment fields.
+
+        A row's ``counterparty`` and ``memo`` go when they are null. Only a
+        payment the user sends sets them (``openbanking_app.send``); leaving
+        the nulls in would make every target that predates the fields -- a
+        card purchase's row, a captured fixture -- differ from the live
+        payload on keys nobody set.
+
+        On a payment (a row with a counterparty) ``id``, ``position``,
+        ``date``, ``description``, ``memo`` and ``balance`` go too. The first
+        two are the bank's numbering; the date is the pack's spelling of the
+        pinned day; the description carries the payee's name however it
+        resolved ("Zelle to Bob", "Zelle to bob@example.com"); the memo is
+        free text, already checked for what the task needs by
+        :func:`_reconcile_payments`; and the running balance depends on the
+        order two payments were made in, which a composite does not fix --
+        the account's own balances still have to come out right. What is
+        left -- account, amount, type, payee -- is what the payment did, and
+        payments sort on it, after the ledger's other rows.
+        """
+        bank = state.get("openbanking")
+        if not isinstance(bank, dict) or not isinstance(bank.get("transactions"), list):
+            return state
+        txns = bank["transactions"]
+        for txn in txns:
+            if txn.get("counterparty") is not None:
+                for key in ("id", "position", "date", "description", "memo", "balance"):
+                    txn.pop(key, None)
+            for key in ("counterparty", "memo"):
+                if key in txn and txn[key] is None:
+                    del txn[key]
+        sends = [t for t in txns if "counterparty" in t]
+        if sends:
+            others = [t for t in txns if "counterparty" not in t]
+            bank["transactions"] = others + sorted(
+                sends,
+                key=lambda t: (str(t.get("account_id")), t["counterparty"], float(t.get("amount") or 0)),
+            )
+        return state
+
+    @staticmethod
+    def _sort_files(state: dict) -> dict:
+        files = state.get("files")
+        if isinstance(files, dict) and isinstance(files.get("files"), list):
+            files["files"] = sorted(files["files"], key=_files_row_key)
         return state
 
     def _normalize_todo_done_field(self, state: dict) -> dict:
@@ -237,6 +604,34 @@ class AppStateComparison:
                 del event[k]
         return state
 
+    @staticmethod
+    def _normalize_contacts(state: dict) -> dict:
+        """Drop contact ids and handle labels; sort handles and contacts.
+
+        Ids are database row ids: deleting and re-adding a person mints a new
+        one, and that is the same address book. Labels ("mobile", "work") are
+        the form's default as often as a choice, and no task asks for one, so
+        an agent that saves Dana's number as "work" saved Dana's number. What
+        identifies a person to the other apps is their handles.
+        """
+        book = state.get("contacts")
+        if not isinstance(book, dict) or "contacts" not in book:
+            return state
+        people = []
+        for c in book["contacts"]:
+            person = {k: v for k, v in c.items() if k != "id"}
+            for kind in ("phones", "emails"):
+                person[kind] = sorted(h["value"] for h in c.get(kind) or [])
+            people.append(person)
+
+        def key(c):
+            handles = [*c["phones"], *c["emails"]]
+            name = " ".join(p for p in (c.get("first_name"), c.get("last_name")) if p) or c.get("company", "")
+            return (handles[0] if handles else "", StringSimilarityOperator.normalize_string(name))
+
+        book["contacts"] = sorted(people, key=key)
+        return state
+
     def _remove_timestamp_from_messenger(self, state: dict) -> dict:
         for i, contact in enumerate(state["messenger"]):
             old_message_contents = contact["messages"]
@@ -272,10 +667,13 @@ class AppStateComparison:
         embeds that same order id (``card_descriptor``). None of the three is
         derivable from the initial state. Rather than drop the description --
         the only thing tying a charge to the order that caused it -- every
-        order id present in the shop's slice is substituted with a fixed token
-        in every ledger description. Target and observed then both read
-        ``OPENAPPS SHOP {order_id}``, so the diff still asserts the charge
-        names *an order that exists*, which is the part worth checking.
+        order id present in the shop's slice is renamed to a token numbered
+        by the order's place in a content sort (``_order_token``), in every
+        ledger description and receipt path. A target's orders carry
+        ``_pending_order_id`` stand-ins and get the same treatment, so both
+        sides read ``OPENAPPS SHOP {order_id 1}`` and the diff still asserts
+        the charge names *an order that exists*, which is the part worth
+        checking.
 
         Ledger ``id`` and ``position`` go too. Both are functions of the
         bank's internal numbering (``max(id) + 1``, ``min(position) - 1``);
@@ -290,36 +688,67 @@ class AppStateComparison:
         bank = state.get("openbanking")
         txns = bank.get("transactions") or [] if isinstance(bank, dict) else []
 
-        order_ids = [str(o["order_id"]) for o in orders if o.get("order_id")]
-        if order_ids and txns:
+        # Sorted before renaming, so the n-th token goes to the same order on
+        # both sides however the agent ordered its checkouts. Observed orders
+        # come back in DB insertion order and target orders in append order.
+        orders.sort(key=self._order_sort_key)
+        tokens = {
+            str(o["order_id"]): _order_token(n)
+            for n, o in enumerate(orders, 1)
+            if o.get("order_id")
+        }
+        if tokens and txns:
+            by_lower = {i.lower(): t for i, t in tokens.items()}
             # Longest first, so an id that happens to prefix another cannot
             # half-match and leave a tail behind.
             pattern = re.compile(
-                "|".join(re.escape(i) for i in sorted(order_ids, key=len, reverse=True)),
+                "|".join(re.escape(i) for i in sorted(tokens, key=len, reverse=True)),
                 re.IGNORECASE,
             )
             for txn in txns:
                 if txn.get("description"):
-                    txn["description"] = pattern.sub(ORDER_ID_TOKEN, txn["description"])
+                    txn["description"] = pattern.sub(
+                        lambda m: by_lower[m.group(0).lower()], txn["description"]
+                    )
 
         for txn in txns:
             for key in ("id", "position"):
                 txn.pop(key, None)
 
+        # A checkout also writes a receipt named after the order id, and its
+        # bytes carry the checkout time. Same renaming as the ledger, and only
+        # for ids of orders that exist -- a receipt naming no order still
+        # fails -- with the bytes left out of the diff. Each order keeps its
+        # own token, so two purchases leave two distinct receipt rows.
+        files = state.get("files")
+        rows = files.get("files") or [] if isinstance(files, dict) else []
+        receipts = {
+            RECEIPT_PATH.format(order_id=i): RECEIPT_PATH.format(order_id=t)
+            for i, t in tokens.items()
+        }
+        for row in rows:
+            if row.get("path") in receipts:
+                row["path"] = receipts[row["path"]]
+                row["size"] = row["sha256"] = None
+
         for order in orders:
             for key in ("order_id", "date"):
                 order.pop(key, None)
-
-        # Observed orders come back in DB insertion order and target orders in
-        # append order; those agree today, but sorting costs nothing and stops
-        # a seeded order from failing the diff on position alone.
-        orders.sort(key=self._order_sort_key)
         return state
 
     @staticmethod
     def _order_sort_key(order: dict):
-        skus = sorted(str(item.get("sku", "")) for item in order.get("items") or [])
-        return (float(order.get("total") or 0.0), tuple(skus))
+        items = order.get("items") or []
+        skus = sorted(str(item.get("sku", "")) for item in items)
+        # Options and quantities break ties between two orders of the same
+        # product at the same total, so their tokens don't depend on which
+        # one the agent checked out first.
+        lines = sorted(
+            (str(item.get("sku", "")), json.dumps(item.get("options") or {}, sort_keys=True),
+             int(item.get("quantity") or 0))
+            for item in items
+        )
+        return (float(order.get("total") or 0.0), tuple(skus), tuple(lines))
 
     def sort_lists(self, state: dict) -> dict:
         """To ensure comparisons don't fail
@@ -330,7 +759,7 @@ class AppStateComparison:
             ("map", "name"),
             ("todo", "title"),
             ("calendar", "title"),
-            ("messenger", "user"),
+            ("messenger", "handle"),
         ]
         for app, field in app_and_field:
             state[app] = sorted(
@@ -393,16 +822,110 @@ class AppStateComparison:
             tolerated count, so no truncation happens and the diff fails);
           * a missing send (observed is shorter than target).
         """
-        target_by_user = {c["user"]: c for c in self.state1["messenger"]}
+        target_by_handle = {c["handle"]: c for c in self.state1["messenger"]}
         for contact in self.state2["messenger"]:
-            user = contact["user"]
-            allowed = self.reply_contacts.get(user)
-            if allowed is None or user not in target_by_user:
+            handle = contact["handle"]
+            allowed = self.reply_contacts.get(handle)
+            if allowed is None or handle not in target_by_handle:
                 continue
-            n_target = len(target_by_user[user]["messages"])
+            n_target = len(target_by_handle[handle]["messages"])
             extra = len(contact["messages"]) - n_target
             if 0 <= extra <= allowed:
                 contact["messages"] = contact["messages"][:n_target]
+
+    @staticmethod
+    def _normalize_passwords(state: dict) -> dict:
+        """Drop item ids and edit dates; sort items.
+
+        Ids are database row ids, and ``edited_on`` is stamped with the pinned
+        date on every save, so neither says anything a target could predict
+        that the rest of the item doesn't. Sorted by kind, title and username
+        so an add lands in the same place in both states.
+        """
+        vault = state.get("passwords")
+        if not isinstance(vault, dict) or not isinstance(vault.get("items"), list):
+            return state
+        rows = [{k: v for k, v in item.items() if k not in ("id", "edited_on")} for item in vault["items"]]
+        vault["items"] = sorted(
+            rows,
+            key=lambda i: (str(i.get("kind")), StringSimilarityOperator.normalize_string(str(i.get("title", ""))),
+                           str(i.get("username", "")), str(i.get("password", ""))),
+        )
+        return state
+
+    def _password_fields_match(self) -> bool:
+        """Compare every item's secrets exactly.
+
+        The fuzzy diff below strips case and punctuation -- right for a title,
+        wrong for a password ("Harbor-Light-42!" is not "harborlight42") or a
+        username, which is an address. A secure note's text is its secret
+        ("Gate code 4471#" is not "gate code 4471"), so a note's notes are
+        compared too, with only whitespace collapsed. Kind and the deleted flag
+        ride along, so a note can't stand in for a login and a deleted item
+        can't stand in for a live one.
+        """
+
+        def secrets(state: dict):
+            vault = state.get("passwords")
+            if not isinstance(vault, dict):
+                return None
+            return [
+                (str(i.get("kind")), str(i.get("username", "")), str(i.get("password", "")),
+                 " ".join(str(i.get("notes", "")).split()) if i.get("kind") == "note" else "",
+                 bool(i.get("deleted")))
+                for i in vault.get("items") or []
+            ]
+
+        return secrets(self.state1) == secrets(self.state2)
+
+    def _contact_handles_match(self) -> bool:
+        """Compare every contact's handles exactly.
+
+        The diff below compares strings through ``StringSimilarityOperator``,
+        which strips punctuation -- right for a todo title, wrong for an
+        address: "danareyes@example.com" is someone else. Handles are already
+        normalised and sorted by ``_normalize_contacts``, so equality is exact.
+        """
+
+        def handle_sets(state: dict):
+            book = state.get("contacts")
+            if not isinstance(book, dict):
+                return None
+            return sorted(
+                (tuple(c.get("phones", [])), tuple(c.get("emails", [])))
+                for c in book.get("contacts", [])
+            )
+
+        return handle_sets(self.state1) == handle_sets(self.state2)
+
+    def _files_match(self) -> bool:
+        """Compare the files slices exactly.
+
+        The diff below compares strings through ``StringSimilarityOperator``,
+        which forgives case and punctuation -- right for a todo title, wrong
+        for a file name, which is an address: "Lease-2026.pdf" is not the file
+        the task asked for. Every field of a row is machine-made except the
+        names an agent types, so the slice compares by equality.
+
+        A target row with neither ``size`` nor ``sha256`` accepts any bytes at
+        its path: a downloaded statement is pinned by name (the bank renders
+        it), and a receipt carries the checkout time.
+        """
+        target = (self.state1.get("files") or {}).get("files")
+        observed = (self.state2.get("files") or {}).get("files")
+        if target is None or observed is None:
+            return target is None and observed is None
+        by_key = {
+            (r["path"], r["deleted"], r["deleted_on"], r["kind"]): r for r in observed
+        }
+        resolved = []
+        for row in target:
+            if row.get("size") is None and row.get("sha256") is None and row.get("kind") != "folder":
+                seen = by_key.get((row["path"], row["deleted"], row["deleted_on"], row["kind"]))
+                if seen is not None:
+                    row = {**row, "size": seen["size"], "sha256": seen["sha256"]}
+            resolved.append(row)
+        return sorted(resolved, key=_files_row_key) == sorted(observed, key=_files_row_key)
 
     def compare(self) -> bool:
         # check that both states have the same apps
@@ -413,9 +936,23 @@ class AppStateComparison:
         if self.reply_contacts:
             self._truncate_message_replies()
 
-        return self.are_dicts_similar(
-            self.state1, self.state2, self.coords_tolerance_km
-        )
+        if not self.payments_match:
+            print("===Payments differ (payee, amount, account or memo)")
+            return False
+        if not self._contact_handles_match():
+            print("===Contact handles differ")
+            return False
+        if not self._password_fields_match():
+            print("===Passwords or usernames differ")
+            return False
+        if not self._files_match():
+            print("===Files differ")
+            return False
+        # Matched exactly above; kept out of the fuzzy diff, which would trip
+        # on the content-agnostic rows it already accepted.
+        state1 = {k: v for k, v in self.state1.items() if k != "files"}
+        state2 = {k: v for k, v in self.state2.items() if k != "files"}
+        return self.are_dicts_similar(state1, state2, self.coords_tolerance_km)
 
 
 @dataclass
@@ -486,6 +1023,44 @@ class AddEventTask(Task):
         return app_state_comparison.compare()
 
 
+@functools.lru_cache(maxsize=1)
+def _event_translations() -> dict[str, tuple[str, ...]]:
+    """English event title -> its rendering in every translated calendar pack.
+
+    Read from the packs' ``event_translations`` maps
+    (``config/apps/calendar/content/*.yaml``). Tasks name events in English;
+    under ``apps/calendar/content=german`` the app renders "Ottos Geburtstag"
+    where the goal says "Otto's Birthday", and the task has to target that
+    event. The todo pair below (:func:`_todo_translations`) works the same way.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "calendar" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("event_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_event(events: list, title: str, date: str) -> Optional[int]:
+    """Index of the event ``title`` on ``date`` refers to: an exact title
+    match, else the event carrying one of its translations (see
+    :func:`_event_translations`). The date always has to match, and the last
+    match wins, as :class:`RemoveEventTask` always did."""
+    found = None
+    for i, event in enumerate(events):
+        if event["title"] == title and event["date"] == date:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_event_translations().get(title, ()))
+    for i, event in enumerate(events):
+        if event["title"] in aliases and event["date"] == date:
+            found = i
+    return found
+
+
 @dataclass
 class RemoveEventTask(Task):
     """
@@ -502,10 +1077,9 @@ class RemoveEventTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, event in enumerate(target_state["calendar"]):
-            if event["title"] == self.title and event["date"] == self.date:
-                idx_to_remove = i
+        # Under a translated calendar pack the event carries the translated
+        # title; it is found through the pack's `event_translations`.
+        idx_to_remove = _find_event(target_state["calendar"], self.title, self.date)
         # remove the event to be deleted
         if idx_to_remove is not None:
             target_state["calendar"].pop(idx_to_remove)
@@ -517,6 +1091,42 @@ class RemoveEventTask(Task):
         target_state = self.get_target_state(initial_state)
         app_state_comparison = AppStateComparison(target_state, current_state)
         return app_state_comparison.compare()
+
+
+@functools.lru_cache(maxsize=1)
+def _todo_translations() -> dict[str, tuple[str, ...]]:
+    """English todo title -> its rendering in every translated todo pack.
+
+    Read from the packs' ``todo_translations`` maps
+    (``config/apps/todo/content/*.yaml``). Tasks name todos in English; under
+    ``apps/todo/content=german`` the app renders "Oma besuchen" where the goal
+    says "Visit grandma", and the task has to target that row.
+    """
+    from open_apps import config_dir
+
+    table: dict[str, list[str]] = {}
+    for path in sorted((config_dir() / "apps" / "todo" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        for english, rendered in (pack.get("todo_translations") or {}).items():
+            table.setdefault(str(english), []).append(str(rendered))
+    return {k: tuple(v) for k, v in table.items()}
+
+
+def _find_todo(todos: list, name: str) -> Optional[int]:
+    """Index of the todo ``name`` refers to: an exact title match, else the
+    row carrying one of its translations (see :func:`_todo_translations`).
+    The last match wins, as the classes below always did."""
+    found = None
+    for i, item in enumerate(todos):
+        if item["title"] == name:
+            found = i
+    if found is not None:
+        return found
+    aliases = set(_todo_translations().get(name, ()))
+    for i, item in enumerate(todos):
+        if item["title"] in aliases:
+            found = i
+    return found
 
 
 @dataclass
@@ -561,14 +1171,13 @@ class MarkToDoDoneTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        target_idx = None
-        for i, todo_item in enumerate(target_state["todo"]):
-            if self.todo_name == todo_item["title"]:
-                new_todo_item = {"title": self.todo_name, "done": 1}
-                target_idx = i
+        # Under a translated todo pack the row carries the translated title;
+        # it keeps that title and only its done flag changes.
+        target_idx = _find_todo(target_state["todo"], self.todo_name)
         if target_idx is None:
             raise ValueError(f"Todo item {self.todo_name} not found")
-        target_state["todo"][target_idx] = new_todo_item
+        title = target_state["todo"][target_idx]["title"]
+        target_state["todo"][target_idx] = {"title": title, "done": 1}
         return target_state
 
     def check_if_task_is_complete(
@@ -593,6 +1202,10 @@ class SendMessageTask(Task):
     # ``AppStateComparison`` to compare replies.
     expected_reply: str | None = None
 
+    def thread(self, initial_state: dict) -> str:
+        """The handle this task messages; see :func:`resolve_thread`."""
+        return resolve_thread(self.to, initial_state)
+
     def get_target_state(self, initial_state: dict) -> dict:
         """Define the target state for the task.
 
@@ -600,20 +1213,12 @@ class SendMessageTask(Task):
             initial_state (dict): The initial state of all apps.
         """
         target_state = copy.deepcopy(initial_state)
-        now = datetime.now()
-        # Format the datetime object into the desired string format
-        formatted_time_string = now.strftime("%b %d, %I:%M%p")
-        contact_idx = None
-        for i, contact in enumerate(target_state["messenger"]):
-            if contact["user"] == self.to:
-                contact_idx = i
-        if contact_idx is None:
-            raise ValueError(f"Contact {self.to} not found in messenger app")
-        messages = target_state["messenger"][contact_idx]["messages"]
+        handle = self.thread(initial_state)
+        formatted_time_string = datetime.now().strftime("%b %d, %I:%M%p")
+        thread = next(t for t in target_state["messenger"] if t["handle"] == handle)
         # Only the sent message is part of the target; the app's reply is
-        # ignored by AppStateComparison (see ``ignore_message_replies``).
-        messages.append([self.message, False, self.to, formatted_time_string])
-        target_state["messenger"][contact_idx]["messages"] = messages
+        # tolerated by AppStateComparison (see ``reply_contacts``).
+        thread["messages"].append([self.message, "you", formatted_time_string])
         return target_state
 
     def check_if_task_is_complete(
@@ -622,9 +1227,248 @@ class SendMessageTask(Task):
         target_state = self.get_target_state(initial_state)
         # Ignore the single auto-reply this contact appends to our one message.
         app_state_comparison = AppStateComparison(
-            target_state, current_state, reply_contacts={self.to: 1}
+            target_state, current_state, reply_contacts={self.thread(initial_state): 1}
         )
         return app_state_comparison.compare()
+
+
+@dataclass
+class AddContactTask(Task):
+    """Add one person to Contacts.
+
+    The target is the initial address book plus this contact. Handles may be
+    written in any spelling; they are normalised here the way the app stores
+    them. Saving the unknown sender is this task with their number.
+    """
+
+    first_name: str = ""
+    last_name: str = ""
+    company: str = ""
+    phones: list = field(default_factory=list)
+    emails: list = field(default_factory=list)
+    note: str = ""
+    favorite: bool = False
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        book = target_state.setdefault("contacts", {}).setdefault("contacts", [])
+        book.append(
+            {
+                "id": None,
+                "first_name": self.first_name or "",
+                "last_name": self.last_name or "",
+                "company": self.company or "",
+                "note": self.note or "",
+                "favorite": bool(self.favorite),
+                "phones": _contact_handles(self.phones, "phone"),
+                "emails": _contact_handles(self.emails, "email"),
+            }
+        )
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class EditContactTask(Task):
+    """Change fields on one existing contact.
+
+    ``match`` names the contact (the same rules as message recipients);
+    ``set`` maps fields to their new values. ``phones``/``emails`` replace the
+    contact's whole list, so "change Bob's number" is ``phones: [new]``.
+    Anything else on the contact must stay as it was.
+    """
+
+    match: str
+    set: dict = field(default_factory=dict)
+
+    _SCALARS = ("first_name", "last_name", "company", "note", "favorite")
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        contact = _match_contact(self.match, target_state)
+        changes = OmegaConf.to_container(self.set) if OmegaConf.is_config(self.set) else dict(self.set)
+        for key, value in changes.items():
+            if key in ("phones", "emails"):
+                contact[key] = _contact_handles(value, key[:-1])
+            elif key in self._SCALARS:
+                contact[key] = bool(value) if key == "favorite" else str(value)
+            else:
+                raise ValueError(f"EditContactTask can't set {key!r}")
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class DeleteContactTask(Task):
+    """Remove one contact. Their messenger thread stays: threads are keyed by
+    handle, so it simply goes back to showing the number."""
+
+    match: str
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        contact = _match_contact(self.match, target_state)
+        book = target_state["contacts"]["contacts"]
+        book[:] = [c for c in book if c is not contact]
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+_PASSWORD_FIELDS = ("title", "username", "password", "website", "security", "notes", "favorite")
+
+
+def _password_item(kind: str, title: str, username: str = "", password: str = "", website: str = "",
+                   security: str = "", notes: str = "", favorite: bool = False) -> dict:
+    """A ``/passwords_all`` item as the app would store it: fields the kind
+    has no use for are empty, as ``passwords_app._clean`` leaves them."""
+    return {
+        "id": None,
+        "kind": kind,
+        "title": title,
+        "username": username if kind == "login" else "",
+        "password": password if kind in ("login", "wifi") else "",
+        "website": website if kind == "login" else "",
+        "security": security if kind == "wifi" else "",
+        "notes": notes or "",
+        "favorite": bool(favorite),
+        "deleted": False,
+        "edited_on": None,
+    }
+
+
+def _match_password_item(match, state: dict) -> dict:
+    """The one live item ``match`` names: a title (exact, case-insensitive),
+    or ``{title, username}`` when titles repeat. Zero or several matches is a
+    ``ValueError`` naming the candidates."""
+    vault = (state.get("passwords") or {}).get("items") or []
+    if isinstance(match, str):
+        title, username = match, None
+    else:
+        title, username = match.get("title"), match.get("username")
+    wanted = " ".join(str(title or "").split()).casefold()
+    found = [
+        i for i in vault
+        if not i.get("deleted")
+        and " ".join(str(i.get("title", "")).split()).casefold() == wanted
+        and (username is None or i.get("username") == username)
+    ]
+    if len(found) != 1:
+        who = ", ".join(f"{i.get('title')!r} ({i.get('username') or i.get('kind')})" for i in found)
+        raise ValueError(f"{match!r} matches {len(found)} items{': ' + who if who else ''}; a task needs exactly one")
+    return found[0]
+
+
+#: The security the passwords app's new-item form preselects: the first of the
+#: default content pack's ``security_options`` (the other packs inherit them).
+#: tests/test_password_tasks.py checks the two agree.
+WIFI_DEFAULT_SECURITY = "WPA3"
+
+
+@dataclass
+class AddPasswordTask(Task):
+    """Add one item to OpenPasswords: a login, a Wi-Fi network or a note.
+
+    The target is the initial vault plus this item. The password and
+    username are compared exactly (see
+    ``AppStateComparison._password_fields_match``); the title, website and
+    notes loosely, like any other text.
+    """
+
+    kind: str = "login"
+    title: str = ""
+    username: str = ""
+    password: str = ""
+    website: str = ""
+    security: str = ""
+    notes: str = ""
+    favorite: bool = False
+
+    def __post_init__(self) -> None:
+        # The new-item form always submits a security option and offers no
+        # empty one, so a Wi-Fi target with security="" could never be
+        # reached. Unnamed, it is what the form preselects.
+        if self.kind == "wifi" and not self.security:
+            self.security = WIFI_DEFAULT_SECURITY
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        vault = target_state.setdefault("passwords", {}).setdefault("items", [])
+        vault.append(_password_item(self.kind, self.title, self.username, self.password, self.website,
+                                    self.security, self.notes, self.favorite))
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return AppStateComparison(self.get_target_state(initial_state), current_state).compare()
+
+
+@dataclass
+class EditPasswordTask(Task):
+    """Change fields on one item.
+
+    ``match`` names the item (see :func:`_match_password_item`); ``set`` maps
+    fields to their new values. Anything else on the item must stay as it
+    was, and the item's kind can't change.
+    """
+
+    match: object = ""
+    set: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        unknown = set(self.set or {}) - set(_PASSWORD_FIELDS)
+        if unknown:
+            raise ValueError(f"EditPasswordTask can't set {sorted(unknown)}; fields are {_PASSWORD_FIELDS}")
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        item = _match_password_item(self.match, target_state)
+        for key, value in (self.set or {}).items():
+            item[key] = bool(value) if key == "favorite" else str(value)
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
+@dataclass
+class DeletePasswordTask(Task):
+    """Delete one item: it moves to Recently Deleted. Deleting it there as
+    well fails -- the same call as deleting a file."""
+
+    match: object = ""
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        _match_password_item(self.match, target_state)["deleted"] = True
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
 
 
 @dataclass
@@ -686,10 +1530,7 @@ class DeleteToDoTask(Task):
 
     def get_target_state(self, initial_state: dict) -> dict:
         target_state = copy.deepcopy(initial_state)
-        idx_to_remove = None
-        for i, item in enumerate(target_state["todo"]):
-            if item["title"] == self.todo_name:
-                idx_to_remove = i
+        idx_to_remove = _find_todo(target_state["todo"], self.todo_name)
         if idx_to_remove is not None:
             target_state["todo"].pop(idx_to_remove)
         return target_state
@@ -726,6 +1567,64 @@ class RemoveLandmarkTask(Task):
         return app_state_comparison.compare()
 
 
+# The English ledger wording the purchase tasks default to, keyed by the bank
+# content-pack key it mirrors (``config/apps/openbanking/content/default.yaml``).
+_BANK_ENGLISH_WORDING = {
+    "purchase_type": "Card",
+    "overlimit_type": "Fee",
+    "overlimit_description": "OVERLIMIT NOTICE - credit limit exceeded by {amount}",
+    "declined_type": "Declined",
+    "declined_description": "DECLINED - {merchant} {amount} - insufficient available credit",
+    # Not a pack key: the pack's ``posting_date_style`` spelling of the pinned
+    # ``as_of_date`` (``_bank_packs`` fills it in per pack).
+    "posting_date": BANK_POSTING_DATE,
+}
+
+
+@functools.lru_cache(maxsize=1)
+def _bank_packs() -> tuple[tuple[frozenset, dict], ...]:
+    """``(account holders, ledger wording)`` for every bank content pack that
+    restates its accounts and translates the payment rows (german, mandarin).
+
+    The holders identify a pack from a state: the translated packs name the
+    seeded businesses in their own language ("Cardinal Freight GmbH",
+    "Cardinal 货运有限公司"), while the noise packs append to the English ones.
+    """
+    from open_apps import config_dir
+    from open_apps.apps.openbanking_app import statements
+
+    packs = []
+    for path in sorted((config_dir() / "apps" / "openbanking" / "content").glob("*.yaml")):
+        pack = OmegaConf.load(path)
+        accounts = pack.get("accounts") or []
+        wording = {k: str(pack[k]) for k in _BANK_ENGLISH_WORDING if pack.get(k) is not None}
+        if not accounts or not wording or wording == _BANK_ENGLISH_WORDING:
+            continue
+        wording["posting_date"] = statements.format_posting_date(
+            date.fromisoformat(FILES_TODAY), str(pack.get("posting_date_style") or "en")
+        )
+        packs.append((frozenset(str(a.holder) for a in accounts), wording))
+    return tuple(packs)
+
+
+def _bank_wording(bank: dict) -> dict:
+    """The payment-row wording of the bank pack ``bank`` (an
+    ``/openbanking_all`` slice) was seeded from; English when no translated
+    pack's account holders are all present."""
+    holders = {str(a.get("holder")) for a in bank.get("accounts") or []}
+    for pack_holders, wording in _bank_packs():
+        if pack_holders <= holders:
+            return {**_BANK_ENGLISH_WORDING, **wording}
+    return dict(_BANK_ENGLISH_WORDING)
+
+
+def _worded(value: str, key: str, wording: dict) -> str:
+    """``value``, unless it is the English default for ``key`` -- then the
+    bank pack's own wording, so a task config written in English scores a
+    run on the german/mandarin bank. An explicit override is left alone."""
+    return wording[key] if value == _BANK_ENGLISH_WORDING[key] else value
+
+
 @dataclass
 class BuyWithCardTask(Task):
     """Cross-app task: buy ``sku`` in the shop, paying with a bank card.
@@ -747,7 +1646,10 @@ class BuyWithCardTask(Task):
 
     ``descriptor`` and ``charge_type`` mirror ``apps.onlineshop.card_descriptor``
     and ``apps.openbanking.purchase_type``; a run that overrides either has to
-    override it here too, or the ledger row will not match.
+    override it here too, or the ledger row will not match. Left at their
+    English defaults, ``charge_type`` and the overlimit wording follow the
+    bank's content pack (german/mandarin, see ``_bank_wording``), so the same
+    task config scores a run in every language.
     """
 
     sku: str
@@ -775,10 +1677,12 @@ class BuyWithCardTask(Task):
     # always going to approve.
     overlimit_grace: float = 10.0
     # Wording of that second row, mirroring ``overlimit_type`` and
-    # ``overlimit_description`` in the bank's content pack. A run on the
-    # german/mandarin packs has to override both.
+    # ``overlimit_description`` in the bank's content pack. At these English
+    # defaults the german/mandarin bank's wording is used (``_worded``).
     overlimit_type: str = "Fee"
     overlimit_description: str = "OVERLIMIT NOTICE - credit limit exceeded by {amount}"
+    # The date the charge posts with, mirroring the bank's (see BANK_POSTING_DATE).
+    posting_date: str = BANK_POSTING_DATE
 
     @property
     def total(self) -> float:
@@ -801,6 +1705,7 @@ class BuyWithCardTask(Task):
         total = self.total
         options = dict(self.options or {})
         account = self._card_account(bank.get("accounts") or [])
+        wording = _bank_wording(bank)
 
         # Refuse to build a target for a charge the bank would decline. Past
         # the grace band `authorize_card_purchase` posts only a declined row
@@ -826,15 +1731,18 @@ class BuyWithCardTask(Task):
             if not (row.get("sku") == self.sku and (row.get("options") or {}) == options)
         ]
 
-        shop.setdefault("orders", []).append(
+        orders = shop.setdefault("orders", [])
+        order_id = _pending_order_id(len(orders) + 1)
+        orders.append(
             {
-                "order_id": ORDER_ID_TOKEN,
+                "order_id": order_id,
                 "name": self.ship_to_name,
                 "address": self.ship_to_address,
-                # Both dropped by AppStateComparison._normalize_purchases; kept
-                # here so the target has the same shape as the observed order.
+                # The date is dropped by _normalize_purchases; the status is
+                # compared, and a new order keeps the shop's NEW_ORDER_STATUS
+                # for the whole episode.
                 "date": None,
-                "status": "Processing",
+                "status": "Shipping",
                 "total": total,
                 "card_last4": self.card_last4,
                 "items": [
@@ -852,9 +1760,8 @@ class BuyWithCardTask(Task):
         # charge pushes it down and eats the same amount of headroom. The
         # credit limit does not move, which is what makes leaving it in the
         # diff worth something.
-        account["present_balance"] = round(
-            float(account.get("present_balance") or 0.0) - total, 2
-        )
+        balance = round(float(account.get("present_balance") or 0.0) - total, 2)
+        account["present_balance"] = balance
         account["available_credit"] = round(headroom - total, 2)
 
         transactions = bank.setdefault("transactions", [])
@@ -864,15 +1771,27 @@ class BuyWithCardTask(Task):
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
-                # Charges post pending, so no wall-clock date or running
-                # balance reaches the payload.
-                "date": None,
-                "description": self.descriptor.format(order_id=ORDER_ID_TOKEN),
-                "type": self.charge_type,
+                # Posted at once, on the pinned day, with the card's running
+                # balance -- nothing in the bank is pending.
+                "date": _worded(self.posting_date, "posting_date", wording),
+                "description": self.descriptor.format(order_id=order_id),
+                "type": _worded(self.charge_type, "purchase_type", wording),
                 "amount": -total,
-                "balance": None,
+                "balance": balance,
             }
         )
+        # The receipt checkout writes into Files, which every run serves (see
+        # ``open_apps.apps.availability.require_files``) -- so a state with no
+        # files slice is a failed probe, and expecting the receipt anyway lets
+        # that fail the episode rather than pass a purchase nobody could see.
+        # Content-agnostic (no size, no checksum): its bytes carry the
+        # checkout time.
+        tree = _FileTree(target_state.get("files"))
+        tree.put(
+            RECEIPT_PATH.format(order_id=order_id),
+            {"kind": "application/pdf", "size": None, "sha256": None},
+        )
+        tree.into(target_state)
         if over_by > 0:
             # The charge first, then the notice -- `authorize_card_purchase`
             # inserts them in that order and `/openbanking_all` sorts by id,
@@ -884,13 +1803,13 @@ class BuyWithCardTask(Task):
                     "id": None,
                     "account_id": account.get("id"),
                     "position": None,
-                    "date": None,
-                    "description": self.overlimit_description.format(
-                        amount=_fmt_money(over_by)
-                    ),
-                    "type": self.overlimit_type,
+                    "date": _worded(self.posting_date, "posting_date", wording),
+                    "description": _worded(
+                        self.overlimit_description, "overlimit_description", wording
+                    ).format(amount=_fmt_money(over_by)),
+                    "type": _worded(self.overlimit_type, "overlimit_type", wording),
                     "amount": 0.0,
-                    "balance": None,
+                    "balance": balance,
                 }
             )
         return target_state
@@ -956,11 +1875,14 @@ class DeclinedCardPurchaseTask(Task):
     overlimit_grace: float = 10.0
     # The declined row, mirroring `declined_type` / `declined_description` in
     # the bank's content pack and the shop's `card_descriptor` with the order
-    # id dropped. A run on the german/mandarin packs has to override the two
-    # strings, the same as BuyWithCardTask's overlimit wording.
+    # id dropped. At these English defaults the german/mandarin bank's wording
+    # is used, the same as BuyWithCardTask's overlimit wording (`_worded`).
     merchant: str = "OPENAPPS SHOP"
     declined_type: str = "Declined"
     declined_description: str = "DECLINED - {merchant} {amount} - insufficient available credit"
+    # The date the declined row posts with, mirroring the bank's (see
+    # BANK_POSTING_DATE).
+    posting_date: str = BANK_POSTING_DATE
 
     @property
     def total(self) -> float:
@@ -998,6 +1920,7 @@ class DeclinedCardPurchaseTask(Task):
         total = self.total
         options = dict(self.options or {})
         account = self._card_account(bank.get("accounts") or [])
+        wording = _bank_wording(bank)
 
         # Refuse to build a target for a charge the bank would actually take.
         # Inside the grace band the purchase goes through and this target --
@@ -1043,13 +1966,14 @@ class DeclinedCardPurchaseTask(Task):
                 "id": None,
                 "account_id": account.get("id"),
                 "position": None,
-                "date": None,
-                "description": self.declined_description.format(
-                    merchant=self.merchant, amount=_fmt_money(total)
-                ),
-                "type": self.declined_type,
+                "date": _worded(self.posting_date, "posting_date", wording),
+                "description": _worded(
+                    self.declined_description, "declined_description", wording
+                ).format(merchant=self.merchant, amount=_fmt_money(total)),
+                "type": _worded(self.declined_type, "declined_type", wording),
                 "amount": 0.0,
-                "balance": None,
+                # No money moved: the card's balance as it stood.
+                "balance": round(float(account.get("present_balance") or 0.0), 2),
             }
         )
 
@@ -1072,6 +1996,171 @@ class DeclinedCardPurchaseTask(Task):
             target_state, current_state, normalize_purchases=True
         )
         return app_state_comparison.compare()
+
+
+# ---------------------------------------------------------------------------
+# Files. Every target replays the store's own rules on the ``/files_all`` rows
+# (see ``_FileTree``), and every path is compared exactly (see
+# ``AppStateComparison._files_match``).
+
+
+class _FileTask(Task):
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        if not isinstance(target_state.get("files"), dict):
+            raise ValueError(f"{type(self).__name__} needs the files slice")
+        tree = _FileTree(target_state["files"])
+        self.apply(tree)
+        return tree.into(target_state)
+
+    def apply(self, tree: _FileTree) -> None:  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
+@dataclass
+class DeleteFileTask(_FileTask):
+    """Move ``path`` to Recently Deleted -- not purge it: delete is the
+    reversible action, and a file emptied out of the bin too fails."""
+
+    path: str
+    # Mirrors ``apps.files.today``; see ``FILES_TODAY``.
+    deleted_on: str = FILES_TODAY
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.file(self.path)
+        del tree.live[self.path]
+        tree.trash.append({**row, "deleted": True, "deleted_on": self.deleted_on})
+
+
+@dataclass
+class RestoreFileTask(_FileTask):
+    """Put ``path`` back from Recently Deleted. It returns to where it was
+    deleted from, or beside a file now holding that name with the store's
+    " (2)" -- either way the target says exactly where."""
+
+    path: str
+    # Only needed when several deleted items shared ``path``.
+    deleted_on: Optional[str] = None
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.trashed(self.path, self.deleted_on)
+        tree.trash.remove(row)
+        parent, _, name = self.path.rpartition("/")
+        tree.put(tree.free_path(parent, name), row)
+
+
+@dataclass
+class PermanentlyDeleteTask(_FileTask):
+    """Delete ``path`` from Recently Deleted for good."""
+
+    path: str
+    deleted_on: Optional[str] = None
+
+    def apply(self, tree: _FileTree) -> None:
+        tree.trash.remove(tree.trashed(self.path, self.deleted_on))
+
+
+@dataclass
+class RenameFileTask(_FileTask):
+    """Rename ``path`` to ``new_name`` in place. The store refuses a taken
+    name rather than suffixing it, so a target for one is a config error."""
+
+    path: str
+    new_name: str
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.file(self.path)
+        parent = self.path.rpartition("/")[0]
+        dest = f"{parent}/{self.new_name}" if parent else self.new_name
+        if dest != self.path and tree.taken(dest):
+            raise ValueError(f"{dest!r} is taken; the store refuses the rename")
+        del tree.live[self.path]
+        tree.put(dest, row)
+
+
+@dataclass
+class MoveFileTask(_FileTask):
+    """Move ``path`` into the existing ``folder``, suffixing on a clash."""
+
+    path: str
+    folder: str
+
+    def apply(self, tree: _FileTree) -> None:
+        row = tree.file(self.path)
+        if self.folder not in tree.dirs:
+            raise ValueError(f"no folder {self.folder!r} in the files slice")
+        del tree.live[self.path]
+        tree.put(tree.free_path(self.folder, self.path.rpartition("/")[2]), row)
+
+
+@dataclass
+class DownloadStatementTask(_FileTask):
+    """Save ``account``'s statement for ``month`` (``"YYYY-MM"``) into Files.
+
+    The file is pinned by its path -- account name and month -- not its
+    bytes: the bank's renderer is the one source of those and is
+    deterministic, so the name already says which statement it is. The name
+    comes from ``statements.statement_path`` and the month's rows from
+    ``statements.statement_rows``, the functions the bank's Statements page
+    uses, so the task and the page cannot disagree about which months exist.
+
+    ``account`` is the account's name or the last digits of its number.
+    """
+
+    account: str
+    month: str
+
+    def _account(self, initial_state: dict) -> dict:
+        bank = initial_state.get("openbanking")
+        accounts = bank.get("accounts") or [] if isinstance(bank, dict) else []
+        wanted = str(self.account).strip()
+        matches = [
+            a for a in accounts
+            if a.get("name") == wanted
+            or (wanted.isdigit() and str(a.get("account_number") or "").endswith(wanted))
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"{self.account!r} matches {len(matches)} bank accounts")
+        return matches[0]
+
+    def expected_path(self, initial_state: dict) -> str:
+        # Imported here: the bank package pulls in its app; scoring a task of
+        # any other kind should not.
+        from open_apps.apps.openbanking_app import statements
+
+        month = statements.parse_month(self.month)
+        if month is None:
+            raise ValueError(f"month must be YYYY-MM, not {self.month!r}")
+        account = self._account(initial_state)
+        txns = [
+            t for t in initial_state["openbanking"].get("transactions") or []
+            if t.get("account_id") == account.get("id")
+        ]
+        if not statements.statement_rows(txns, month):
+            raise ValueError(
+                f"{account.get('name')} has no posted rows in {self.month}: the bank offers no statement"
+            )
+        return statements.statement_path(account["name"], month)
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        self._path = self.expected_path(initial_state)
+        return super().get_target_state(initial_state)
+
+    def apply(self, tree: _FileTree) -> None:
+        if tree.taken(self._path):
+            raise ValueError(f"{self._path!r} is already in Files; downloading it changes nothing")
+        tree.put(self._path, {"kind": "application/pdf", "size": None, "sha256": None})
 
 
 # Maps a target-app key to URL-path prefixes that count as "in that app".
@@ -1120,6 +2209,136 @@ class NavigateToAppTask(Task):
 
 
 @dataclass
+class SendMoneyTask(Task):
+    """Pay someone from a deposit account with the bank's Send money.
+
+    The target is the initial state plus one payment row and the two
+    balances it lowers -- and, with ``save_contact``, the payee filed in
+    Contacts. Everything else must stay as it was.
+
+    ``to`` is a handle (any spelling); ``to_contact`` names a contact instead,
+    and any of their handles counts as paying them -- "send Bob $18" is met
+    whether the agent picked his email or typed his number. Exactly one of
+    the two. ``memo_includes`` lists what the memo must contain, matched on
+    whole words, case-insensitively, with punctuation as a word break ("Unit
+    2" matches "unit-2 rent" but not "Unit 21"). An entry may be a list of
+    alternatives, any one of which will do.
+
+    The row's date, description and memo are not compared as text (see
+    ``AppStateComparison._normalize_bank``); the payee is compared exactly
+    (see :func:`_reconcile_payments`).
+    """
+
+    amount: float = 0.0
+    from_account_last4: str = ""
+    to: Optional[str] = None
+    to_contact: Optional[str] = None
+    memo_includes: list = field(default_factory=list)
+    # {first_name, last_name?, company?} when the task also saves the payee.
+    save_contact: Optional[dict] = None
+    # Mirrors `apps.openbanking.send_type`; a run that overrides it has to
+    # override this too.
+    send_type: str = "Zelle"
+
+    def __post_init__(self) -> None:
+        if (self.to is None) == (self.to_contact is None):
+            raise ValueError("SendMoneyTask needs exactly one of `to` and `to_contact`")
+
+    def _account(self, accounts: list) -> dict:
+        for account in accounts:
+            number = str(account.get("account_number") or "")
+            if account.get("kind", "deposit") != "credit_card" and number.endswith(self.from_account_last4):
+                return account
+        raise ValueError(f"no deposit account ending {self.from_account_last4} in the initial state")
+
+    def payee(self, initial_state: dict) -> tuple[str, list[str]]:
+        """``(canonical handle, every handle that counts)``. A contact is paid
+        at their first email, else their first phone -- what the bank picks
+        when the agent chooses them by name."""
+        if self.to is not None:
+            handle = normalize_handle(self.to)
+            if handle is None:
+                raise ValueError(f"{self.to!r} is not a handle")
+            return handle, [handle]
+        contact = _match_contact(self.to_contact, initial_state)
+        emails = [h["value"] for h in contact.get("emails") or []]
+        phones = [h["value"] for h in contact.get("phones") or []]
+        handles = emails + phones
+        if not handles:
+            raise ValueError(f"{self.to_contact!r} has no email or phone to pay")
+        return handles[0], handles
+
+    def get_target_state(self, initial_state: dict) -> dict:
+        target_state = copy.deepcopy(initial_state)
+        bank = target_state.get("openbanking")
+        if not isinstance(bank, dict):
+            raise ValueError("SendMoneyTask needs the bank")
+        account = self._account(bank.get("accounts") or [])
+        amount = round(float(self.amount), 2)
+        available = round(float(account.get("available_balance") or 0.0), 2)
+        if amount <= 0 or amount > available:
+            raise ValueError(f"{amount} is not a payment the bank would make from {available} available")
+        handle, aliases = self.payee(initial_state)
+
+        balance = round(float(account.get("present_balance") or 0.0) - amount, 2)
+        account["present_balance"] = balance
+        account["available_balance"] = round(available - amount, 2)
+        bank.setdefault("transactions", []).append(
+            {
+                # id/position/date/description/memo/balance are dropped for payments
+                # by the normalizer -- see there.
+                "id": None,
+                "account_id": account.get("id"),
+                "position": None,
+                "date": None,
+                "description": None,
+                "type": self.send_type,
+                "amount": -amount,
+                "balance": balance,
+                "counterparty": handle,
+                # A memo that meets the task's own rules (the first
+                # alternative of each), so the target is a state the app can
+                # produce. Not compared -- see the normalizer.
+                "memo": " ".join(
+                    rule if isinstance(rule, str) else str(list(rule)[0])
+                    for rule in (self.memo_includes or [])
+                ) or None,
+                "_aliases": aliases,
+                "_memo_includes": [
+                    rule if isinstance(rule, str) else list(rule)
+                    for rule in (self.memo_includes or [])
+                ],
+            }
+        )
+        if self.save_contact:
+            kind = "email" if "@" in handle else "phone"
+            book = target_state.setdefault("contacts", {}).setdefault("contacts", [])
+            book.append(
+                {
+                    "id": None,
+                    "first_name": str(self.save_contact.get("first_name") or ""),
+                    "last_name": str(self.save_contact.get("last_name") or ""),
+                    "company": str(self.save_contact.get("company") or ""),
+                    "note": "",
+                    "favorite": False,
+                    "phones": _contact_handles([handle], "phone") if kind == "phone" else [],
+                    "emails": _contact_handles([handle], "email") if kind == "email" else [],
+                }
+            )
+        return target_state
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        try:
+            target_state = self.get_target_state(initial_state)
+        except ValueError:
+            return False
+        return AppStateComparison(target_state, current_state).compare()
+
+
 @dataclass
 class CompositeTask(Task):
     """A meta-task made of several sub-tasks that must *all* be satisfied.
@@ -1164,12 +2383,19 @@ class CompositeTask(Task):
             resolved.append(_instantiate(subtask))
         self.subtasks = resolved
 
-    def _reply_contacts(self) -> dict[str, int]:
-        """Count sent messages per contact, to tolerate their auto-replies."""
+    def _reply_contacts(self, initial_state: dict) -> dict[str, int]:
+        """Count sent messages per thread, to tolerate their auto-replies.
+
+        Each send resolves against the state its sub-task will see, so a
+        recipient a sibling added earlier in the composite still resolves.
+        """
         counts: dict[str, int] = {}
+        state = initial_state
         for subtask in self.subtasks:
             if isinstance(subtask, SendMessageTask):
-                counts[subtask.to] = counts.get(subtask.to, 0) + 1
+                handle = subtask.thread(state)
+                counts[handle] = counts.get(handle, 0) + 1
+            state = subtask.get_target_state(state)
         return counts
 
     def _has_purchase(self) -> bool:
@@ -1205,7 +2431,7 @@ class CompositeTask(Task):
         app_state_comparison = AppStateComparison(
             target_state,
             current_state,
-            reply_contacts=self._reply_contacts(),
+            reply_contacts=self._reply_contacts(initial_state),
             normalize_purchases=self._has_purchase(),
         )
         return app_state_comparison.compare()
@@ -1482,6 +2708,80 @@ class AbstentionTask(Task):
             elif message.get("role") == "infeasible":
                 outcome = "stop"
         return outcome
+
+
+@dataclass
+class AnswerTask(Task):
+    """The agent has to *tell* the user something, and change nothing.
+
+    "What did I pay for the label printer?" leaves no trace in any app, so
+    this is scored on the agent's reply: the ``send_msg_to_user`` text, the
+    channel :class:`AbstentionTask` reads for a clarifying question. It
+    passes when the latest reply after the goal contains every entry of
+    ``must_include`` and the app state is unchanged.
+
+    Matching is forgiving where people are: an entry that is a number matches
+    any number in the reply with the same value ("99.90" matches "$99.90",
+    "99.9 dollars" and "99,90 €", not "199.90"); anything else is a
+    case-insensitive substring. But the reply has to commit: if an expected
+    amount has cents, any *other* amount with cents in the reply fails it, so
+    reciting every figure on the receipt is not an answer. Dates and card
+    digits are not amounts and don't count. ``check_if_task_is_complete``
+    sees no chat, so on its own it never passes -- BrowserGym scores this
+    through :meth:`check_reply`.
+    """
+
+    must_include: list[str] = field(default_factory=list)
+
+    _NUMBER = re.compile(r"(?<![\d.])\d[\d,]*(?:\.\d+)?")
+    # An amount with cents, either decimal mark, optional thousands
+    # separators: 99.90, 1,099.90, 99,90, 1.099,90.
+    _AMOUNT = re.compile(r"(?<![\d.,])\d{1,3}(?:[.,\u00a0 ]?\d{3})*[.,]\d{2}(?![\d.,]?\d)")
+
+    @staticmethod
+    def _amount_value(text: str) -> float:
+        whole, cents = text[:-3], text[-2:]
+        return float(re.sub(r"[^\d]", "", whole) + "." + cents)
+
+    @staticmethod
+    def reply(chat_messages: list[dict]) -> str | None:
+        """The agent's latest ``send_msg_to_user`` text after the goal."""
+        last_user = max(
+            (i for i, m in enumerate(chat_messages) if m.get("role") in ("user", "user_image")),
+            default=-1,
+        )
+        replies = [
+            str(m.get("message", "")).strip()
+            for m in chat_messages[last_user + 1:]
+            if m.get("role") == "assistant" and str(m.get("message", "")).strip()
+        ]
+        return replies[-1] if replies else None
+
+    def _contains(self, reply: str, wanted: str) -> bool:
+        wanted = str(wanted).strip()
+        try:
+            value = float(wanted.replace(",", ""))
+        except ValueError:
+            return " ".join(wanted.split()).casefold() in " ".join(reply.split()).casefold()
+        amounts = [self._amount_value(a) for a in self._AMOUNT.findall(reply)]
+        if "." in wanted and any(not math.isclose(a, value, abs_tol=1e-9) for a in amounts):
+            return False
+        return any(math.isclose(a, value, abs_tol=1e-9) for a in amounts) or any(
+            math.isclose(float(n.replace(",", "")), value, abs_tol=1e-9)
+            for n in self._NUMBER.findall(reply)
+        )
+
+    def check_reply(self, reply: str | None, initial_state: dict, current_state: dict) -> bool:
+        if not reply or not all(self._contains(reply, w) for w in self.must_include):
+            return False
+        if isinstance(current_state, DictConfig):
+            current_state = OmegaConf.to_container(current_state, resolve=True)
+        return AppStateComparison(initial_state, current_state).compare()
+
+    def check_if_task_is_complete(
+        self, initial_state: dict, current_state: dict, current_url: str | None = None
+    ) -> bool:
+        return False
 
 
 if __name__ == "__main__":

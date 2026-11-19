@@ -9,11 +9,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# Read-only by default; only the deploy job gets the Pages permissions.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -22,8 +20,95 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
+  # The Config Composer's preview clips: device x theme x language x start-page
+  # layout x todo layout, 1,584 clips (~250 MB), too big for git. Rendered in
+  # shards (scripts/render_composer_media.py --shard I/N), each cached on what
+  # changes the apps' look, so a docs-only push renders nothing. Best effort:
+  # a failed or partial shard never blocks the deploy, which ships whatever
+  # was rendered over the small committed set in docs/assets/composer/media.
+  media:
+    # Pinned so the apt package names below (24.04's *t64 libraries) hold.
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        # ~99 clips a shard: ~15 min at ~9 s a clip, so a runner twice as slow
+        # still fits the render step's 45 min. N is the matrix's own size.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      # Before anything runs Python, so no __pycache__ moves the hash. The save
+      # step below reuses this key rather than hashing again.
+      - name: Restore this shard
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: media-shard
+          key: composer-media-v1-${{ matrix.shard }}of${{ strategy.job-total }}-${{ hashFiles('src/open_apps/**', 'config/**', 'scripts/render_composer_media.py', 'uv.lock') }}
+      - name: Set up Python 3.11
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install uv
+          uv sync
+      # As in test_playground.yml: not `--with-deps`, since Playwright 1.44
+      # predates 24.04 and asks apt for pre-t64 names (libasound2).
+      - name: Install Chromium for Playwright
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libasound2t64 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
+            libgbm1 libnss3 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+            libxkbcommon0 libpango-1.0-0 libcairo2
+          uv run playwright install chromium
+      # The manifest is checkpointed after every clip, so a shard that fails or
+      # hits the time limit still uploads what it rendered.
+      - name: Render this shard
+        id: render
+        if: steps.cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        timeout-minutes: 45
+        run: >-
+          uv run scripts/render_composer_media.py --full --no-stills
+          --shard ${{ matrix.shard }}/${{ strategy.job-total }} --out media-shard
+      # Only a complete shard is cached; a partial one is re-rendered next time.
+      - name: Cache this shard
+        if: steps.render.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: media-shard
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Upload this shard
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-media-${{ matrix.shard }}
+          path: media-shard
+          retention-days: 1
+          if-no-files-found: ignore
+      - name: Warn about a partial render
+        if: failure() || steps.render.outcome == 'failure'
+        run: >-
+          echo "::warning title=Composer media::shard ${{ matrix.shard }} did not
+          render completely; the docs ship what it has, and the preview falls back
+          to the closest clip"
+
   deploy:
+    needs: media
+    # Whatever the media shards did: the committed clips are the fallback.
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -39,9 +124,30 @@ jobs:
         run: |
           pip install uv
           uv sync --extra dev
+      # Generated from config/ on every build and gitignored, so the composer's
+      # option lists cannot drift from the YAML. A failure here fails the deploy.
+      - name: Build the config composer catalog
+        run: uv run -m open_apps.compose.catalog --out docs/assets/composer/catalog.json
+      - name: Download the composer media shards
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: composer-media-*
+          path: media-shards
+      # Later shards win per key; a missing or broken shard is skipped. Never
+      # fails the deploy: the committed set covers whatever is missing.
+      - name: Merge the composer media over the committed fallback
+        run: |
+          shopt -s nullglob
+          shards=(media-shards/*/)
+          if [ ${#shards[@]} -eq 0 ]; then
+            echo "::warning title=Composer media::no rendered shards; the preview ships the committed clips only"
+          elif ! uv run scripts/render_composer_media.py --merge "${shards[@]}" --out docs/assets/composer/media; then
+            echo "::warning title=Composer media::merged ${#shards[@]} shard(s) with gaps (see the log); the preview falls back to the closest clip"
+          fi
       - name: Build Docs
         run: |
-          source .venv/bin/activate 
+          source .venv/bin/activate
           mkdocs build
       - name: Setup Pages
         uses: actions/configure-pages@v5

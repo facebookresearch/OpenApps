@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ html_lang }}">
 
 <head>
-    <title>World Map</title>
+    <title>{{ L.page_title_label }}</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
@@ -505,6 +505,67 @@
             border-radius: var(--radius);
         }
 
+        .leaflet-container a.leaflet-popup-close-button {
+            color: var(--color-muted);
+        }
+
+        .leaflet-container .leaflet-bar a.leaflet-disabled {
+            background-color: var(--color-surface);
+            color: var(--color-muted);
+        }
+
+        /* Attribution strip: Leaflet paints it translucent white with a
+           blue link, which reads as a light bar across a dark map. */
+        .leaflet-container .leaflet-control-attribution {
+            background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+            color: var(--color-muted);
+            font-family: var(--font-family);
+        }
+
+        .leaflet-container .leaflet-control-attribution a {
+            color: var(--color-primary);
+        }
+
+        /* --- Marker customization dialog (diy popup rule) --------------- */
+        #markerCustomizationModal {
+            background: var(--color-bg);
+            color: var(--color-fg);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 0 calc(var(--space) * 1.5) color-mix(in srgb, var(--color-fg) 30%, transparent);
+        }
+
+        #markerCustomizationModal select {
+            background: var(--color-bg);
+            color: var(--color-fg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+        }
+
+        #markerCustomizationModal .marker-cancel-btn {
+            background: var(--color-surface);
+            color: var(--color-fg);
+            border: 1px solid var(--color-border);
+            padding: 5px 15px;
+            border-radius: 3px;
+        }
+
+        /* Bookmark button on each search result. */
+        .save-result-btn {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background-color: var(--color-primary);
+            color: var(--color-on-primary);
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        /* Route option badge for a transit line with no colour of its own. */
+        .subway-letter-icon {
+            background-color: var(--color-neutral);
+            color: var(--color-btn-fg);
+        }
+
         /* --- Layout variants ---------------------------------------------
            Structure only; colors still come from the shared theme. The active
            layout arrives as a `layout-<name>` class on <body> (set in
@@ -649,47 +710,59 @@
     <!-- Shared design tokens (open_apps.theme). Every color and font above
          is a var() into this block. -->
     <style>{{ theme_css|safe }}</style>
+    {% if tile_filter %}
+    <!-- The theme's tone over the street-map tiles (`filter_by_tone`, see
+         current_tile_filter in main.py). Only the tile pane's layers: the
+         markers, popups and controls live in other panes and keep their
+         colours, and imagery layers carry `no-tone-filter`. -->
+    <style>
+        /* tile-tone-filter */
+        .leaflet-tile-pane .leaflet-layer:not(.no-tone-filter) {
+            filter: {{ tile_filter }};
+        }
+    </style>
+    {% endif %}
 </head>
 
 {# Panel pieces, assembled per layout below so that DOM order always
    matches visual order. Ids, names and visible labels are identical in
    every layout. #}
 {% macro return_button() -%}
-<button id="returnButton" onclick="window.location.href='/'"><i class="fas fa-arrow-left" aria-hidden="true"></i> Return to List of Apps</button>
+<button id="returnButton" onclick="window.location.href='/'"><i class="fas fa-arrow-left" aria-hidden="true"></i> {{ L.return_to_apps }}</button>
 {%- endmacro %}
 
 {% macro search_box() -%}
 <div class="search-container">
                 <i class="fas fa-search search-icon" aria-hidden="true"></i>
-                <input type="text" id="searchInput" placeholder="Search location...">
-                <button id="searchBtn">Search</button>
+                <input type="text" id="searchInput" placeholder="{{ L.search_placeholder_label }}">
+                <button id="searchBtn">{{ L.search }}</button>
             </div>
             <div id="searchResults"></div>
 {%- endmacro %}
 
 {% macro panel_body() -%}
 <section class="panel-section">
-                <h3>Current Location Info</h3>
-                <div id="currentLocationInfo" class="info-box"><p class="info-empty"><i class="fas fa-map-pin" aria-hidden="true"></i> Click anywhere on the map to see its address and coordinates.</p></div>
+                <h3>{{ L.current_location_label }}</h3>
+                <div id="currentLocationInfo" class="info-box"><p class="info-empty"><i class="fas fa-map-pin" aria-hidden="true"></i> {{ L.current_location_empty_label }}</p></div>
             </section>
             {% if allow_planning %}
-            <h3>Route Planning</h3>
+            <h3>{{ L.route_planning_label }}</h3>
             <div class="route-container">
                 <div class="location-input-container">
-                    <input type="text" id="fromLocation" placeholder="From location">
+                    <input type="text" id="fromLocation" placeholder="{{ L.from_placeholder_label }}">
                     <div id="fromLocationResults" class="search-results-mini"></div>
                 </div>
                 <div class="location-input-container">
-                    <input type="text" id="toLocation" placeholder="To location">
+                    <input type="text" id="toLocation" placeholder="{{ L.to_placeholder_label }}">
                     <div id="toLocationResults" class="search-results-mini"></div>
                 </div>
-                <button id="calculateRouteBtn" class="route-btn">Calculate Route</button>
+                <button id="calculateRouteBtn" class="route-btn">{{ L.calculate_route_label }}</button>
                 <div id="routeResult" class="info-box"></div>
                 <div id="itinerarySelectorContainer" style="margin-top: 10px; display: none;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Select Route Option:</label>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">{{ L.select_route_option_label }}</label>
                     <div class="custom-select-container">
                         <div class="custom-select-header">
-                            <span>Select an option</span>
+                            <span>{{ L.select_an_option_label }}</span>
                             <i class="fas fa-chevron-down"></i>
                         </div>
                         <div class="custom-select-options"></div>
@@ -698,7 +771,7 @@
             </div>
             {% endif %}
             <section class="panel-section">
-                <h3>Saved Locations</h3>
+                <h3>{{ L.saved_locations_label }}</h3>
                 <div id="popupList"></div>
             </section>
 {%- endmacro %}
@@ -741,6 +814,15 @@
         {% endif %}
     </div>
     <script>
+
+        // The page's strings in the content pack's language (page_labels()
+        // in main.py) -- the same dict the markup above is rendered from.
+        // Not `L`: that is Leaflet's global.
+        const TEXT = {{ labels_json|safe }};
+        // Fill `{name}`-style placeholders in one of TEXT's strings.
+        function fmt(text, vars) {
+            return text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+        }
 
         let markerCustomizationResolve = null;
 
@@ -881,27 +963,29 @@
             // Satellite & Terrain
             'ESRI Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 19,
-                attribution: '© Esri'
+                attribution: '© Esri',
+                className: 'no-tone-filter'
             }),
             'ESRI Terrain': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 13,
-                attribution: '© Esri'
+                attribution: '© Esri',
+                className: 'no-tone-filter'
             }),
             
-            // Dark Theme
-            'CartoDB Dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors, © CartoDB'
+            // Greyscale canvases, selectable by hand or through
+            // `layer_by_tone`. The themes no longer pick them by default --
+            // they carry no place labels -- and darken the street map with
+            // `filter_by_tone` instead. `no-tone-filter` on the imagery and
+            // canvas layers: they are already toned, or are photographs.
+            'ESRI Dark Gray': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 16,
+                attribution: '© Esri',
+                className: 'no-tone-filter'
             }),
-            'CartoDB Voyager': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors, © CartoDB'
-            }),
-            // Greyscale basemap -- what the `mono` theme selects, so the map
-            // carries no hue either.
-            'CartoDB Positron': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors, © CartoDB'
+            'ESRI Light Gray': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 16,
+                attribution: '© Esri',
+                className: 'no-tone-filter'
             }),
 
             'OpenStreetMap Transport': L.tileLayer('https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png', {
@@ -1067,7 +1151,7 @@
             const markerElement = marker.getElement();
             if (markerElement) {
                 markerElement.setAttribute('role', 'button');
-                markerElement.setAttribute('aria-label', `Marker for ${name}`);
+                markerElement.setAttribute('aria-label', fmt(TEXT.marker_aria_label, { name }));
                 markerElement.setAttribute('tabindex', '0'); // Make it focusable
             }
 
@@ -1094,7 +1178,7 @@
                 item.innerHTML = `
                     <span class="place-icon" aria-hidden="true"><i class="fas fa-map-marker-alt"></i></span>
                     <span class="place-name">${name}</span>
-                    <button class="delete-btn" onclick="deletePopup('${name}')" aria-label="Delete ${name}">×</button>
+                    <button class="delete-btn" onclick="deletePopup('${name}')" aria-label="${fmt(TEXT.delete_place_aria_label, { name })}">×</button>
                 `;
                 item.addEventListener('click', function (e) {
                     if (!e.target.classList.contains('delete-btn')) {
@@ -1177,14 +1261,10 @@
                 // Add save button
                 const saveBtn = document.createElement('button');
                 saveBtn.innerHTML = '<i class="fas fa-bookmark"></i>';
-                saveBtn.setAttribute('aria-label', `Save location: ${result.display_name}`);
-                saveBtn.style.marginLeft = '10px';
-                saveBtn.style.padding = '5px 10px';
-                saveBtn.style.backgroundColor = '#2ecc71';
-                saveBtn.style.border = 'none';
-                saveBtn.style.borderRadius = '3px';
-                saveBtn.style.color = 'white';
-                saveBtn.style.cursor = 'pointer';
+                saveBtn.setAttribute('aria-label', fmt(TEXT.save_location_aria_label, { name: result.display_name }));
+                // Styled by `.save-result-btn` from the theme's primary
+                // colour, not a fixed green.
+                saveBtn.className = 'save-result-btn';
                 
                 resultContent.appendChild(text);
                 resultContent.appendChild(saveBtn);
@@ -1252,8 +1332,8 @@
 
             const infoDiv = document.getElementById('currentLocationInfo');
             infoDiv.innerHTML = `
-                <strong>Location:</strong> ${data.display_name}<br>
-                <strong>Coordinates:</strong> ${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}
+                <strong>${TEXT.location_label}</strong> ${data.display_name}<br>
+                <strong>${TEXT.coordinates_label}</strong> ${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}
             `;
         }
 
@@ -1264,7 +1344,7 @@
 
             if (!searchBtn) { // Only create if it doesn't exist
                 searchBtn = document.createElement('button');
-                searchBtn.textContent = 'Search';
+                searchBtn.textContent = TEXT.search;
                 searchBtn.className = 'search-btn';
                 // Insert button before the results div, or adjust as per your layout
                 resultsDiv.parentNode.insertBefore(searchBtn, resultsDiv); 
@@ -1280,7 +1360,7 @@
                 e.preventDefault(); 
                 e.stopPropagation(); 
                 if (input.value) {
-                    resultsDiv.innerHTML = 'Searching...';
+                    resultsDiv.textContent = TEXT.searching_label;
                     try {
                         const results = await searchLocation(input.value);
                         resultsDiv.innerHTML = ''; 
@@ -1304,10 +1384,10 @@
                                 resultsDiv.appendChild(item);
                             });
                         } else {
-                            resultsDiv.innerHTML = 'No results found.';
+                            resultsDiv.textContent = TEXT.no_results_label;
                         }
                     } catch (error) {
-                        resultsDiv.innerHTML = 'Search failed.';
+                        resultsDiv.textContent = TEXT.search_failed_label;
                         console.error("Search error:", error);
                     }
                 } else {
@@ -1432,7 +1512,7 @@
 
             if (!itineraryNode || !itineraryNode.legs || itineraryNode.legs.length === 0) {
                 document.getElementById('routeResult').innerHTML = `
-                    <strong>No route found or route has no legs.</strong> Check locations or try different modes/times.
+                    <strong>${TEXT.no_route_legs_label}</strong> ${TEXT.route_hint_label}
                 `;
                 console.warn('No legs found in itinerary node:', itineraryNode);
                 return;
@@ -1445,7 +1525,7 @@
             // Format time helper function
             const formatTime = (dateStr) => {
                 const date = new Date(dateStr);
-                return date.toLocaleTimeString('en-US', { 
+                return date.toLocaleTimeString(TEXT.time_locale, { 
                     hour: '2-digit', 
                     minute: '2-digit',
                     hour12: false 
@@ -1453,11 +1533,11 @@
             };
 
             let routeDetailsHtml = `
-                <strong>Route Details:</strong>
+                <strong>${TEXT.route_details_label}</strong>
                 <div style="margin: 10px 0;">
-                    <span style="font-weight: bold;">Departure:</span> ${formatTime(legs[0].startTime)}
+                    <span style="font-weight: bold;">${TEXT.departure_label}</span> ${formatTime(legs[0].startTime)}
                     <span style="margin: 0 10px;">→</span>
-                    <span style="font-weight: bold;">Arrival:</span> ${formatTime(legs[legs.length-1].endTime)}
+                    <span style="font-weight: bold;">${TEXT.arrival_label}</span> ${formatTime(legs[legs.length-1].endTime)}
                 </div>
                 <ul>
             `;
@@ -1482,7 +1562,7 @@
                 routeDetailsHtml += `<strong>${formatTime(leg.startTime)} - ${formatTime(leg.endTime)}</strong><br>`;
                 routeDetailsHtml += `<strong>${leg.mode || 'N/A'}</strong>: ${legDurationMin} min, ${legDistanceKm} km`;
                 if (leg.route && leg.route.shortName) {
-                    routeDetailsHtml += ` (Line: ${leg.route.shortName} ${leg.route.longName ? '- ' + leg.route.longName : ''})`;
+                    routeDetailsHtml += ` (${TEXT.line_label} ${leg.route.shortName} ${leg.route.longName ? '- ' + leg.route.longName : ''})`;
                 }
                 routeDetailsHtml += `</li>`;
             });
@@ -1496,15 +1576,15 @@
 
             document.getElementById('routeResult').innerHTML = routeDetailsHtml;
             document.getElementById('routeResult').innerHTML += `
-                <strong>Total Duration:</strong> ${totalDurationMinutes} minutes<br>
-                <strong>Total Distance:</strong> ${totalDistanceKm} km
+                <strong>${TEXT.total_duration_label}</strong> ${totalDurationMinutes} ${TEXT.minutes_label}<br>
+                <strong>${TEXT.total_distance_label}</strong> ${totalDistanceKm} km
             `;
         }
         {% if allow_planning %}
         document.getElementById('calculateRouteBtn').addEventListener('click', async function() {
             if (!routeLocations.from || !routeLocations.to) {
                 document.getElementById('routeResult').innerHTML = `
-                    <strong>Error:</strong> Please select both locations
+                    <strong>${TEXT.error_label}</strong> ${TEXT.select_both_label}
                 `;
                 return;
             }
@@ -1561,7 +1641,7 @@
                         }
                     }
                     document.getElementById('routeResult').innerHTML = `
-                        <strong>Error:</strong> ${errorMessage} <br> <small>${errorDetails || ''}</small>
+                        <strong>${TEXT.error_label}</strong> ${errorMessage} <br> <small>${errorDetails || ''}</small>
                     `;
                     document.getElementById('itinerarySelectorContainer').style.display = 'none';
                     console.error('Route API Error:', data);
@@ -1600,7 +1680,7 @@
                                 
                                 // Format times as HH:MM
                                 const formatTime = (date) => {
-                                    return date.toLocaleTimeString('en-US', { 
+                                    return date.toLocaleTimeString(TEXT.time_locale, { 
                                         hour: '2-digit', 
                                         minute: '2-digit',
                                         hour12: false 
@@ -1616,9 +1696,13 @@
                                         if (representation.startsWith('fas fa-')) { // It's a FontAwesome class
                                             return `<i class="${representation}" title="${title}" style="margin-right: 3px; vertical-align: middle;"></i>`;
                                         } else { // It's a subway letter or other custom representation
-                                            const bgColor = (leg.route && leg.route.color) ? '#' + leg.route.color : '#808080'; // Default gray
-                                            const fgColor = (leg.route && leg.route.textColor) ? '#' + leg.route.textColor : '#FFFFFF'; // Default white
-                                            return `<span class="subway-letter-icon" title="${title}" style="background-color: ${bgColor}; color: ${fgColor}; padding: 1px 5px; border-radius: 3px; margin-right: 3px; font-weight: bold; font-size: 0.8em; display: inline-block; vertical-align: middle; line-height: 1.2;">${representation}</span>`;
+                                            // A line's own GTFS colours when it has them (they are
+                                            // the line's identity); otherwise `.subway-letter-icon`
+                                            // paints it from the theme's neutral tokens.
+                                            const lineColors = (leg.route && leg.route.color)
+                                                ? `background-color: #${leg.route.color}; color: ${leg.route.textColor ? '#' + leg.route.textColor : 'var(--color-btn-fg)'}; `
+                                                : '';
+                                            return `<span class="subway-letter-icon" title="${title}" style="${lineColors}padding: 1px 5px; border-radius: 3px; margin-right: 3px; font-weight: bold; font-size: 0.8em; display: inline-block; vertical-align: middle; line-height: 1.2;">${representation}</span>`;
                                         }
                                     }
                                     return '';
@@ -1626,7 +1710,7 @@
 
                                 let content = `
                                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                        <div>Option ${index + 1}: ${icons}</div>
+                                        <div>${fmt(TEXT.option_label, { n: index + 1 })}: ${icons}</div>
                                         <div style="color: var(--color-muted); font-size: 0.9em;">
                                             ${formatTime(startTime)} → ${formatTime(endTime)}
                                         </div>
@@ -1635,7 +1719,7 @@
 
                                 option.innerHTML = content;
                             } else {
-                                option.textContent = `Option ${index + 1}: Details unavailable`;
+                                option.textContent = `${fmt(TEXT.option_label, { n: index + 1 })}: ${TEXT.details_unavailable_label}`;
                             }
 
                             option.addEventListener('click', () => {
@@ -1676,19 +1760,19 @@
                             displayItinerary(allItineraries[0].node);
                         }
                     } else {
-                        document.getElementById('routeResult').innerHTML = `<strong>No route found.</strong>`;
+                        document.getElementById('routeResult').innerHTML = `<strong>${TEXT.no_route_label}</strong>`;
                         itinerarySelectorContainer.style.display = 'none';
                     }
                 } else {
                     document.getElementById('routeResult').innerHTML = `
-                        <strong>No route found.</strong> Check locations or try different modes/times.
+                        <strong>${TEXT.no_route_label}</strong> ${TEXT.route_hint_label}
                     `;
                     document.getElementById('itinerarySelectorContainer').style.display = 'none';
                     console.warn('No planConnection.edges found in response:', data);
                 }
             } catch (error) {
                 document.getElementById('routeResult').innerHTML = `
-                    <strong>Error:</strong> Failed to fetch or process route. Check console for details.
+                    <strong>${TEXT.error_label}</strong> ${TEXT.route_failed_label}
                 `;
                 document.getElementById('itinerarySelectorContainer').style.display = 'none';
                 console.error('Route calculation error:', error);
@@ -1697,74 +1781,33 @@
         {% endif %}
 
     </script>
-    <div id="markerCustomizationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--color-bg); padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 1000;">
-        <h3>Customize Marker</h3>
+    <div id="markerCustomizationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; border-radius: 5px; z-index: 1000;">
+        <h3>{{ L.customize_marker_label }}</h3>
         <div style="margin-bottom: 15px;">
-            <label for="markerIcon">Icon:</label>
+            <label for="markerIcon">{{ L.icon_label }}</label>
             <select id="markerIcon" style="width: 100%; padding: 5px; margin-top: 5px;">
-                {% if granularity == 'coarse' %}
-                <option value="map-marker">Default Marker</option>
-                <option value="utensils">Restaurant</option>
-                <option value="tree">Park</option>
-                <option value="hospital">Hospital</option>
-                <option value="graduation-cap">School</option>
-                <option value="shopping-cart">Shop</option>
-                <option value="coffee">Cafe</option>
-                <option value="bed">Hotel</option>
-                <option value="dumbbell">Gym</option>
-                <option value="book">Library</option>
-                <option value="landmark">Museum</option>
-                {% else %}
-                <!-- Places & Buildings -->
-                <option value="map-marker">Default Marker</option>
-                <option value="utensils">Restaurant</option>
-                <option value="tree">Park</option>
-                <option value="hospital">Hospital</option>
-                <option value="graduation-cap">School</option>
-                <option value="shopping-cart">Shop</option>
-                <option value="coffee">Cafe</option>
-                <option value="bed">Hotel</option>
-                <option value="dumbbell">Gym</option>
-                <option value="book">Library</option>
-                <option value="landmark">Museum</option>
-                
-                <!-- Transportation -->
-                <option value="plane">Airport</option>
-                <option value="train">Train Station</option>
-                <option value="bus">Bus Station</option>
-                <option value="ship">Port/Harbor</option>
-                <option value="parking">Parking</option>
-                
-                <!-- Entertainment -->
-                <option value="film">Theater/Cinema</option>
-                <option value="futbol">Stadium</option>
-                <option value="swimming-pool">Swimming Pool</option>
-                
-                <!-- Services -->
-                <option value="money-bill">Bank/ATM</option>
-                <option value="envelope">Post Office</option>
-                <option value="prescription-bottle-alt">Pharmacy</option>
+                {# Coarse granularity offers the first eleven (places and
+                   buildings); fine adds transport, entertainment and services.
+                   Values are what the landmark row stores, so only the
+                   captions are translated. #}
+                {% for value, caption in L.marker_icons.items() %}
+                {% if granularity != 'coarse' or loop.index <= 11 %}
+                <option value="{{ value }}">{{ caption }}</option>
                 {% endif %}
+                {% endfor %}
             </select>
         </div>
         <div style="margin-bottom: 15px;">
-            <label for="markerColor">Color:</label>
+            <label for="markerColor">{{ L.color_label }}</label>
             <select id="markerColor" style="width: 100%; padding: 5px; margin-top: 5px;">
-                <option value="red">Red</option>
-                <option value="blue">Blue</option>
-                <option value="green">Green</option>
-                <option value="orange">Orange</option>
-                <option value="purple">Purple</option>
-                <option value="darkred">Dark Red</option>
-                <option value="darkblue">Dark Blue</option>
-                <option value="darkgreen">Dark Green</option>
-                <option value="darkpurple">Dark Purple</option>
-                <option value="cadetblue">Cadet Blue</option>
+                {% for value, caption in L.marker_colors.items() %}
+                <option value="{{ value }}">{{ caption }}</option>
+                {% endfor %}
             </select>
         </div>
         <div style="text-align: right;">
-            <button onclick="cancelMarkerCustomization()" style="margin-right: 10px;">Cancel</button>
-            <button onclick="confirmMarkerCustomization()" style="background-color: var(--color-primary); color: var(--color-on-primary); border: none; padding: 5px 15px; border-radius: 3px;">Confirm</button>
+            <button class="marker-cancel-btn" onclick="cancelMarkerCustomization()" style="margin-right: 10px;">{{ L.cancel }}</button>
+            <button onclick="confirmMarkerCustomization()" style="background-color: var(--color-primary); color: var(--color-on-primary); border: none; padding: 5px 15px; border-radius: 3px;">{{ L.confirm }}</button>
         </div>
     </div>
 </body>

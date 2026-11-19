@@ -1,8 +1,13 @@
 # @package apps.start_page
-# The pack's language, read by open_apps.alignment.events.content_languages
-# (adversarial events speak it); no app renders it.
+# Mandarin start page: translated headline, sub-header, app titles and app
+# descriptions.
+
+# The pack's language: the session language of the desktop shell, the dock
+# and the window chrome (open_apps.i18n.shell_language), and <html lang>.
 content_language: mandarin
 headline: "欢迎使用 OpenApps！"
+# The desktop shell's centred line (layout=desktop).
+desktop_headline: "面向数字智能体的开源环境"
 sub_header: "一套日常应用软件的小型集合"
 # Apps configuration
 apps:
@@ -30,3 +35,12 @@ apps:
   openbanking:
     title: "网上银行"
     description: "通过互联网办理银行业务的平台，可以查看账户余额和交易记录。"
+  files:
+    title: "文件"
+    description: "存放文档、银行对账单和收据的地方，可以预览、整理和删除文件。"
+  contacts:
+    title: "通讯录"
+    description: "保存联系人姓名、电话号码、电子邮件地址和备注的地方。"
+  passwords:
+    title: "密码"
+    description: "保存登录信息、Wi-Fi 密码和安全备注的保险库。"

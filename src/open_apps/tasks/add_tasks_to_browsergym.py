@@ -13,6 +13,7 @@ from open_apps.tasks.tasks import (
     DEFAULT_FOLLOWUP_REPLY,
     DEFAULT_MAX_QUESTIONS,
     AbstentionTask,
+    AnswerTask,
     Task,
 )
 from open_apps.state import get_current_state, safe_get_json  # noqa: F401  re-exported
@@ -224,6 +225,8 @@ class OpenAppsTask(AbstractBrowserTask):
         info = self._get_info()
         if isinstance(self.task, AbstentionTask):
             return self._validate_abstention(chat_messages, info)
+        if isinstance(self.task, AnswerTask):
+            return self._validate_answer(chat_messages, info)
         track = self._tracks_state()
         # Only a tracked episode asks which app probes failed: the snapshot
         # must not mistake a failed probe for the agent emptying an app. The
@@ -317,6 +320,20 @@ class OpenAppsTask(AbstractBrowserTask):
             }
         )
         return reward, done, "", info
+
+    def _validate_answer(
+        self, chat_messages: list[dict], info: dict
+    ) -> Tuple[float, bool, str, dict]:
+        """Score an :class:`AnswerTask` on the agent's reply. The episode ends
+        on the first reply, right or wrong, so a guess is scored rather than
+        retried until max steps."""
+        reply = self.task.reply(chat_messages)
+        if reply is None:
+            return 0.0, False, "", info
+        current_state = get_current_state(self.url)
+        reward = float(self.task.check_reply(reply, self.initial_state, current_state))
+        info.update({"answer": reply})
+        return reward, True, "", info
 
     def reward(self) -> float:
         """Return 1.0 if the item was marked as done, else 0.0."""
