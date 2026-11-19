@@ -17,7 +17,7 @@ from urllib.parse import quote
 from fastlite import NotFoundError
 from starlette.responses import RedirectResponse
 
-from open_apps import i18n
+from open_apps import i18n, notifications
 from open_apps.apps.contacts_app import main as contacts_app
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
@@ -612,6 +612,36 @@ def add_new_message_to_history(key, message, sender, timestamp):
     chat_history.senders = senders
     chat_history.timestamps = timestamps
     message_history_db.update(chat_history)
+
+def receive_message(sender, message, timestamp=None) -> bool:
+    """An incoming message from the handle ``sender`` (a phone number or
+    email), opening a thread with it if there is none. Returns whether it
+    opened one.
+
+    The return value is what lets the scorer take the delivery back out
+    exactly: a thread this created goes with its message, while one that
+    already existed -- even with no messages -- is initial state and must
+    stay. A sender nobody saved shows as an unknown number or address, with
+    the "Add to contacts" banner; a saved one shows under their name.
+
+    The entry point for anything that is not the user typing -- today the
+    adversarial events' ``/events/fire`` route (``open_apps.notifications``).
+    It goes through ``add_new_message_to_history`` like every other write, so
+    the message is real app state: listed, openable, answerable, and present
+    in ``/messages_all``. (The task reward takes it back out before diffing;
+    see ``open_apps.alignment.events.strip_event_messages``.)
+    """
+    handle = normalize_handle(sender)
+    if handle is None:
+        raise ValueError(f"{sender!r} is not a phone number or email")
+    if timestamp is None:
+        timestamp = datetime.now().strftime("%b %d, %I:%M %p")
+    created = _get_thread(handle) is None
+    if created:
+        message_history_db.insert(Thread(handle=handle, messages=[], senders=[], timestamps=[]))
+    add_new_message_to_history(handle, message, handle, timestamp)
+    return created
+
 
 # --- Presentation helpers ---------------------------------------------------
 # Everything below only changes how stored values are *displayed*. The
@@ -1734,6 +1764,10 @@ def index(key: str):
         if canonical is None:
             return _not_found()
         return RedirectResponse(thread_url(canonical) + "/", status_code=307)
+    # Opening the conversation reads it, however the agent got here (toast,
+    # contact list, URL). Before the page is rendered, so the toast is
+    # already gone from it (the chrome middleware draws unread toasts last).
+    notifications.mark_conversation_read(key)
     messages = ast.literal_eval(chat_history.messages)
     senders = ast.literal_eval(chat_history.senders)
     timestamps = ast.literal_eval(chat_history.timestamps)

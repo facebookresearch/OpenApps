@@ -20,6 +20,7 @@ parallel envs.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from dataclasses import dataclass
 
@@ -31,6 +32,8 @@ from open_apps.mcp.appserver import AppServer
 
 
 __all__ = ["Observation", "Session"]
+
+logger = logging.getLogger(__name__)
 
 
 # Per-action settle: HTMX partial swaps often do not trip networkidle, so
@@ -142,6 +145,13 @@ class Session:
         self._initial_state: dict | None = None
         self._step_count = 0
         self._started = False
+        # Adversarial events (``apps/events=...`` in ``extra_overrides``),
+        # fired after each ``act`` exactly as ``OpenAppsTask.validate`` fires
+        # them in a BrowserGym run: same scheduler, same ``/events/fire``
+        # route, same injected toast. Rebuilt on every ``reset``.
+        self.event_scheduler = None
+        # EventRecord dicts, one per delivered event, in firing order.
+        self.fired_events: list[dict] = []
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -226,8 +236,58 @@ class Session:
         except Exception:
             pass
         self._step_count = 0
+        self._start_events(seed)
         # Reset carries no reward (gym convention); skip the redundant probe.
         return await self.observe(with_reward=False)
+
+    def _start_events(self, seed: int | None) -> None:
+        """A fresh scheduler for the episode ``reset`` just began.
+
+        Built from the live config each time, so ``reconfigure`` (content
+        language included) is honoured. ``reconfigure`` recomposes from its
+        own overrides only, so an ``apps/events=`` given in
+        ``extra_overrides`` does not survive it -- the same is true of every
+        other extra override today.
+        """
+        self.fired_events = []
+        self.event_scheduler = None
+        apps = self.appserver.config.get("apps") or {}
+        raw = apps.get("events")
+        if not raw:
+            return
+        from open_apps.alignment.events import content_languages, scheduler_from_config
+
+        self.event_scheduler = scheduler_from_config(
+            raw,
+            seed=seed if seed is not None else self.appserver.config.get("seed"),
+            languages=content_languages(apps),
+        )
+
+    async def _fire_due_events(self) -> None:
+        """Deliver every event due after action ``self._step_count`` and show
+        its toast before the observation's screenshot. Never raises; an event
+        the server refused was not delivered, so it is not logged (mirrors
+        ``OpenAppsTask._fire_due_events``)."""
+        if self.event_scheduler is None:
+            return
+        from open_apps.alignment.events import deliver_due
+        from open_apps.notifications import INJECT_TOAST_JS
+
+        # The same delivery core as OpenAppsTask, off the event loop (it
+        # makes blocking HTTP calls); only the toast injection is async here.
+        deliveries = await asyncio.to_thread(
+            deliver_due,
+            self.event_scheduler,
+            self.appserver.base_url,
+            step=self._step_count,
+            page_url=self.page.url,
+        )
+        for delivery in deliveries:
+            self.fired_events.append(delivery.record)
+            try:
+                await self.page.evaluate(INJECT_TOAST_JS, delivery.toast)
+            except Exception as exc:  # noqa: BLE001 -- it renders on the next load
+                logger.warning("Toast for event %r not injected: %s", delivery.record["id"], exc)
 
     async def reconfigure(
         self,
@@ -267,6 +327,7 @@ class Session:
             desc = action
             error = f"{type(e).__name__}: {e}"
         await self._settle(url_before)
+        await self._fire_due_events()
         return await self.observe(
             action_desc=desc, with_reward=with_reward, error=error
         )
@@ -345,6 +406,12 @@ class Session:
         if self.task is None or self._initial_state is None:
             return 0.0
         cur = await asyncio.to_thread(self.appserver.get_state)
+        if self.fired_events:
+            # A delivered message is real messenger state but no goal's doing;
+            # take it out before the reward diff, as OpenAppsTask does.
+            from open_apps.alignment.events import strip_event_messages
+
+            cur = strip_event_messages(cur, self.fired_events, self._initial_state)
         cur["_url"] = self.page.url  # for URL-based tasks (NavigateToAppTask)
         try:
             done = self.task.check_if_task_is_complete(self._initial_state, cur)

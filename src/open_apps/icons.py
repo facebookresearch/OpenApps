@@ -61,6 +61,9 @@ class Icon(str, Enum):
     # Copy-to-clipboard and its confirmation
     COPY = "copy"
     CHECK = "check"
+    # Notifications (open_apps.ui.toast)
+    MESSAGE = "message"
+    BELL = "bell"
 
 
 # Path geometry on a 24x24 grid, drawn as strokes rather than fills. Stroked
@@ -155,6 +158,17 @@ _GEOMETRY: dict[Icon, str] = {
     ),
     # Shown in place of COPY for a moment after a successful copy.
     Icon.CHECK: '<path d="m5.5 12.5 4 4 9-9"/>',
+    # --- Notifications ------------------------------------------------------
+    # A speech bubble for a message toast, a bell for a system notice: the
+    # glyph says which channel a toast came from before its title is read.
+    Icon.MESSAGE: (
+        '<path d="M5.5 5h13A1.5 1.5 0 0 1 20 6.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3.5V16'
+        'h-.5A1.5 1.5 0 0 1 4 14.5v-8A1.5 1.5 0 0 1 5.5 5z"/>'
+    ),
+    Icon.BELL: (
+        '<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z"/>'
+        '<path d="M10 20.5a2 2 0 0 0 4 0"/>'
+    ),
 }
 
 _STROKE_WIDTH = "1.5"

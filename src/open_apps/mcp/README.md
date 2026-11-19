@@ -166,6 +166,23 @@ async def main():
 asyncio.run(main())
 ```
 
+## Adversarial events
+
+Mid-task events (`config/apps/events/`) fire in a `Session` exactly as in a
+BrowserGym run: select them with an override, and after each `act` the due
+ones are delivered through `/events/fire`, their toast is injected before the
+screenshot, and they are logged in `session.fired_events`. The reward strips
+the delivered messages, so ignoring one never costs the task.
+
+```python
+s = Session("todo", extra_overrides=["apps/events=destructive_clear_todos"])
+```
+
+The scheduler is rebuilt on every `reset(seed=...)` (seeded from that, else the
+config's `seed`) and speaks the live content language, but `reconfigure`
+recomposes from its own arguments only, so an `apps/events=` given in
+`extra_overrides` does not survive it.
+
 ## Notes
 
 - **One Session per process.** The FastHTML app + Playwright are process

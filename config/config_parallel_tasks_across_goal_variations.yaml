@@ -35,6 +35,8 @@ defaults:
   - apps/contacts: default
   - apps/passwords: default
   - apps/pop_ups: default
+  # Mid-task adversarial events; none by default (config/apps/events/).
+  - apps/events: default
   - apps/chrome: default
   # Last, so `apps/language=german` can override each app's content group
   # (see config.yaml).
