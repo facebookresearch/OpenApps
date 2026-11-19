@@ -14,6 +14,7 @@ import requests
 from fasthtml.common import *
 import requests
 import json
+from open_apps.i18n import html_lang, language_of, t
 from open_apps.theme import render_theme_css, resolve_theme, theme_asset
 from datetime import datetime, timezone
 import subprocess
@@ -103,10 +104,12 @@ def current_tile_layer() -> str:
     """Leaflet basemap for the active theme.
 
     Tiles are raster images served from a CDN, so no design token can recolor
-    them -- a dark theme would otherwise render a dark sidebar around a bright
-    map. The theme instead names a `tone`, and `layer_by_tone` maps that onto
-    one of the layers defined in templates/map.html; anything unmapped keeps
-    the configured `default_layer`.
+    them. A theme names a `tone`; `layer_by_tone` may map that onto one of the
+    layers defined in templates/map.html, and anything unmapped keeps the
+    configured `default_layer`. The shipped config maps nothing: dark and mono
+    darken or grey the default layer with `filter_by_tone` instead (see
+    :func:`current_tile_filter`), so a themed map shows the same streets and
+    labels as the light one and loads from the same tile server.
     """
     cfg = app.config.maps
     tone = theme_asset(app.config, "maps", "tone", "light")
@@ -114,6 +117,155 @@ def current_tile_layer() -> str:
     if by_tone is not None and tone in by_tone:
         return by_tone[tone]
     return cfg.default_layer
+
+
+# A CSS filter value may not close the declaration, the rule or the <style>.
+_UNSAFE_FILTER_CHARS = set("<>;{}\"'\\")
+
+
+def current_tile_filter() -> str:
+    """CSS `filter` drawn over the street-map tiles for the active tone, or "".
+
+    The robust way to theme raster tiles: `invert(1) hue-rotate(180deg)` turns
+    OpenStreetMap's light cartography into a dark map with its hues roughly
+    intact (water stays blue, parks green), and `grayscale(1)` drains it for
+    `mono`. It needs no keyed style CDN -- the dark CartoDB layer rendered
+    every tile as "API KEY REQUIRED" -- and, unlike a separate dark canvas,
+    it keeps the place labels, so the dark map carries the same information
+    as the light one. The template applies it to the tile layers only, so
+    markers, popups and controls (other panes) are never inverted, and the
+    imagery/canvas layers in the switcher opt out (an inverted satellite
+    photo is noise, not a dark theme).
+    """
+    by_tone = getattr(app.config.maps, "filter_by_tone", None)
+    if not by_tone:
+        return ""
+    tone = theme_asset(app.config, "maps", "tone", "light")
+    value = str(by_tone.get(tone, "") or "").strip()
+    if any(c in _UNSAFE_FILTER_CHARS for c in value):
+        return ""
+    return value
+
+
+# The page's own strings: pack key -> English. Each is `apps.maps.<key>` from
+# the content pack when set (german.yaml / mandarin.yaml translate them), else
+# the English here, so a pack that predates a key still renders. `{name}` /
+# `{n}` placeholders are filled in by the page script.
+LABELS: dict[str, str] = {
+    "page_title_label": "World Map",
+    "search_placeholder_label": "Search location...",
+    "current_location_label": "Current Location Info",
+    "current_location_empty_label": "Click anywhere on the map to see its address and coordinates.",
+    "route_planning_label": "Route Planning",
+    "from_placeholder_label": "From location",
+    "to_placeholder_label": "To location",
+    "calculate_route_label": "Calculate Route",
+    "select_route_option_label": "Select Route Option:",
+    "select_an_option_label": "Select an option",
+    "saved_locations_label": "Saved Locations",
+    "location_label": "Location:",
+    "coordinates_label": "Coordinates:",
+    "save_location_aria_label": "Save location: {name}",
+    "marker_aria_label": "Marker for {name}",
+    "delete_place_aria_label": "Delete {name}",
+    "searching_label": "Searching...",
+    "no_results_label": "No results found.",
+    "search_failed_label": "Search failed.",
+    "error_label": "Error:",
+    "select_both_label": "Please select both locations",
+    "no_route_legs_label": "No route found or route has no legs.",
+    "no_route_label": "No route found.",
+    "route_hint_label": "Check locations or try different modes/times.",
+    "route_failed_label": "Failed to fetch or process route. Check console for details.",
+    "route_details_label": "Route Details:",
+    "departure_label": "Departure:",
+    "arrival_label": "Arrival:",
+    "line_label": "Line:",
+    "total_duration_label": "Total Duration:",
+    "total_distance_label": "Total Distance:",
+    "minutes_label": "minutes",
+    "option_label": "Option {n}",
+    "details_unavailable_label": "Details unavailable",
+    "customize_marker_label": "Customize Marker",
+    "icon_label": "Icon:",
+    "color_label": "Color:",
+    "location_not_found_label": "Location not found",
+    "route_unsupported_label": "route planning not supported, stay tuned!",
+}
+
+# Marker dialog options: value (Font Awesome icon / awesome-markers colour,
+# stored in the landmark row) -> English caption. Values never change; packs
+# translate only the captions, via `marker_icon_labels` / `marker_color_labels`.
+MARKER_ICONS: dict[str, str] = {
+    "map-marker": "Default Marker",
+    "utensils": "Restaurant",
+    "tree": "Park",
+    "hospital": "Hospital",
+    "graduation-cap": "School",
+    "shopping-cart": "Shop",
+    "coffee": "Cafe",
+    "bed": "Hotel",
+    "dumbbell": "Gym",
+    "book": "Library",
+    "landmark": "Museum",
+    "plane": "Airport",
+    "train": "Train Station",
+    "bus": "Bus Station",
+    "ship": "Port/Harbor",
+    "parking": "Parking",
+    "film": "Theater/Cinema",
+    "futbol": "Stadium",
+    "swimming-pool": "Swimming Pool",
+    "money-bill": "Bank/ATM",
+    "envelope": "Post Office",
+    "prescription-bottle-alt": "Pharmacy",
+}
+MARKER_COLORS: dict[str, str] = {
+    "red": "Red",
+    "blue": "Blue",
+    "green": "Green",
+    "orange": "Orange",
+    "purple": "Purple",
+    "darkred": "Dark Red",
+    "darkblue": "Dark Blue",
+    "darkgreen": "Dark Green",
+    "darkpurple": "Dark Purple",
+    "cadetblue": "Cadet Blue",
+}
+
+# Locale for the route planner's clock times.
+_TIME_LOCALE = {"english": "en-US", "german": "de-DE", "mandarin": "zh-CN"}
+
+
+def current_language() -> str:
+    """The maps pack's `content_language` (English when unset)."""
+    config = getattr(app, "config", None)
+    return language_of(getattr(config, "maps", None) if config is not None else None)
+
+
+def page_labels() -> dict:
+    """Every string the page renders, in the pack's language.
+
+    One dict for both consumers: Jinja reads it as `L`, and the page script
+    gets the same dict as JSON, so a string never has two sources.
+    """
+    cfg = app.config.maps
+    lang = language_of(cfg)
+    labels: dict = {key: str(cfg.get(key) or default) for key, default in LABELS.items()}
+    for key in ("return_to_apps", "search", "cancel", "confirm"):
+        labels[key] = t(key, lang)
+    icon_names = cfg.get("marker_icon_labels") or {}
+    color_names = cfg.get("marker_color_labels") or {}
+    labels["marker_icons"] = {k: str(icon_names.get(k) or v) for k, v in MARKER_ICONS.items()}
+    labels["marker_colors"] = {k: str(color_names.get(k) or v) for k, v in MARKER_COLORS.items()}
+    labels["time_locale"] = _TIME_LOCALE.get(lang, "en-US")
+    return labels
+
+
+def _label(key: str) -> str:
+    """One of :data:`LABELS` in the pack's language, for server responses."""
+    cfg = getattr(getattr(app, "config", None), "maps", None)
+    return str((cfg.get(key) if cfg is not None else None) or LABELS[key])
 
 
 def current_layout() -> str:
@@ -152,10 +304,16 @@ def map_controls(layout: str) -> dict:
 
 @app.get("/maps", response_class=HTMLResponse)
 async def map_page(request: Request):
+    labels = page_labels()
     return templates.TemplateResponse(
         "map.html",
         {
             "request": request,
+            "L": labels,
+            # `</` escaped so a translated string can never close the <script>.
+            "labels_json": json.dumps(labels, ensure_ascii=False).replace("</", "<\\/"),
+            "html_lang": html_lang(current_language()),
+            "tile_filter": current_tile_filter(),
             "layout": current_layout(),
             "controls": map_controls(current_layout()),
             "enable_layer_control": app.config.maps.enable_layer_control,
@@ -191,7 +349,7 @@ async def where(q: str):
             osm_id = data[0].get("osm_id")
             return {"osm_id": osm_id}
         else:
-            return {"error": "Location not found"}
+            return {"error": _label("location_not_found_label")}
     except requests.exceptions.RequestException as e:
         return {"error": f"API request failed: {e}"}
     except Exception as e:
@@ -390,10 +548,12 @@ async def get_route(
         # print(response.json()) 
         return response.json()
     except requests.exceptions.RequestException as e:
-        return {"error": f"route planning not supported, stay tuned!"}
+        return {"error": _label("route_unsupported_label")}
     except Exception as e:
+        # The exception stays in the server log: its text can carry internals
+        # (URLs, stack frames) that a page must not show.
         print(f"An error occurred during route planning: {e}")
-        return {"error": f"route planning not supported, stay tuned!", "details": str(e)}
+        return {"error": _label("route_unsupported_label")}
 
 
 def get_map_routes():

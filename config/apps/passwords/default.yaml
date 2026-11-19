@@ -1,0 +1,15 @@
+# The password manager. Logins, Wi-Fi networks and secure notes in one vault,
+# in 1Password's shape: categories, a list, and the selected item's fields.
+defaults:
+  - content: default
+  - layout: default
+
+database_path: ${databases_dir}/passwords.db
+
+# Per-app theme override. null = inherit the global `apps/theme` selection.
+theme: null
+
+# The day a save is stamped with ("Last edited"). Pinned with the rest of the
+# run's calendar rather than read off the wall clock, so editing an item
+# writes the same state on every run.
+today: ${apps.files.today}

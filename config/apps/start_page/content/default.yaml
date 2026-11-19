@@ -1,5 +1,11 @@
 # @package apps.start_page
+# The start page's headline and each app's tile title (OpenTodos,
+# OpenCalendar, ...). Several apps (maps, messenger, OpenBanking) read their
+# own titles from here, so a pack that renames their tile renames the app.
 headline: "Welcome to OpenApps!"
+# The desktop shell's centred line (layout=desktop); the gallery shows
+# `headline` instead. See `desktop_headline` in apps/start_page/main.py.
+desktop_headline: "An open source environment for digital agents"
 sub_header: ""
 
 # Apps configuration
@@ -34,3 +40,6 @@ apps:
   contacts:
     title: "OpenContacts"
     description: # "Keep your contacts in one place"
+  passwords:
+    title: "OpenPasswords"
+    description: # "Keep your passwords in one secure vault"

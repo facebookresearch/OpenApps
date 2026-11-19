@@ -1,3 +1,8 @@
+# label: UI-TARS 1.5 7B
+# UI-TARS-1.5-7B served by vLLM: screenshot-only, coordinate actions, with the
+# UI-TARS action grammar in the prompt. The vLLM node changes per allocation,
+# so pass `agent.hostname=<node>` (or launch through scripts/conduct_slurm.sh,
+# which discovers it).
 defaults:
 - default
 - _self_

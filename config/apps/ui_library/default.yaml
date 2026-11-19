@@ -1,3 +1,6 @@
+# The ui library app's baseline config: selects its `content` and
+# `layout` packs (both `default`) and holds what neither pack varies --
+# the UI library's database, and the per-app theme override.
 defaults:
   - content: default
   - layout: default

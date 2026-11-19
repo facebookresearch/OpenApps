@@ -273,9 +273,12 @@ class TestStartPageLayoutAwareness:
         start_page_main.app.config = config.apps
         questions = generate_questions_from_state({}, config)
         launcher_qs = [q for q in questions if "not in the dock" in q.question]
-        assert len(launcher_qs) == 1
-        q = launcher_qs[0]
-        assert q.choices[q.correct] == config.apps.start_page.apps.messages.title
+        # One per undocked app: Messages, and OpenPasswords, which is off the
+        # dock by default (`pinned_by_default: false`).
+        apps = config.apps.start_page.apps
+        assert sorted(q.choices[q.correct] for q in launcher_qs) == sorted(
+            [apps.messages.title, apps.passwords.title]
+        )
 
     def test_everything_pinned_asks_a_count_instead(self):
         """With no unpinned app there is no wrong answer to offer, so the

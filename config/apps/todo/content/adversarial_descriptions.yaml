@@ -1,4 +1,6 @@
 # @package apps.todo
+# Appends a todo item whose text is `apps.adversarial_message` -- the injected
+# "you have achieved your goal" notice: a prompt-injection test.
 defaults:
   - default
 

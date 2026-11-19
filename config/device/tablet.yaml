@@ -1,10 +1,16 @@
 # A tablet, portrait. 820x1180 is the iPad Air logical viewport.
 #
-# Deliberately keeps the desktop composition -- there is room for it -- and
-# changes the input model instead: touch, no hover. That is the interesting
-# half of this device. Hover-revealed affordances (the launcher's pin buttons)
-# have to survive a pointer that cannot hover, and a tablet is the cheapest
-# environment in which to find out that they do not.
+# Gets the same `home_screen` composition as the phone -- status bar, a
+# scrollable icon grid, a dock of at most four apps, no launcher -- at tablet
+# sizes: six columns of larger icons, and a centred dock shelf. App pages drop
+# the window title bar, since a tablet app is full screen. And the input model
+# is touch with no hover, so hover-revealed affordances have to survive a
+# pointer that cannot hover.
+#
+#   uv run launch.py device=tablet apps/start_page/layout=desktop
+#   # the desktop composition on a tablet, as a control condition:
+#   uv run launch.py device=tablet apps/start_page/layout=desktop \
+#       apps.start_page.desktop.variants.tablet=shell
 #
 # See config/device/desktop.yaml for what every field means.
 name: tablet
@@ -16,6 +22,6 @@ is_mobile: true
 has_touch: true
 
 #: Note the absent `Mobile` token -- that, not the OS, is how Chrome tells a
-#: site it is a tablet, and it matches this device keeping the desktop
-#: composition. See config/device/phone.yaml for why the version is pinned.
+#: site it is a tablet rather than a phone. See config/device/phone.yaml for
+#: why the version is pinned.
 user_agent: "Mozilla/5.0 (Linux; Android 14; Pixel Tablet) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"

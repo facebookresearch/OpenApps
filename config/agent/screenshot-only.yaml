@@ -1,3 +1,8 @@
+# label: Screenshot only
+# Observation/action preset: screenshot only (no AXTree), with the coordinate
+# mouse/keyboard action set and a prompt to match. Like axtree-only it sets no
+# `_target_` and no model, so it is a fragment to merge into a full agent
+# config rather than something `agent=screenshot-only` runs by itself.
 custom_actions: ["go_back", "go_forward", "goto", "mouse_click", "mouse_dblclick", "scroll", "mouse_move", "mouse_down", "mouse_up", "mouse_click", "mouse_dblclick", "mouse_drag_and_drop", "mouse_upload_file", "keyboard_down", "keyboard_up", "keyboard_press", "keyboard_type", "keyboard_insert_text"]
 use_axtree: False # enable AXTREE observation
 use_screenshot: True # enable screenshot observation

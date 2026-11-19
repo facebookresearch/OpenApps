@@ -119,6 +119,13 @@ ICONS = [
       <path d="M14.5 23h4.5M14.5 32h4.5M14.5 41h4.5"/>
       <circle cx="34" cy="27.5" r="5.5"/>
       <path d="M24.5 42.5c1.2-5.2 5-8 9.5-8s8.3 2.8 9.5 8"/>"""),
+    # Padlock with a keyhole. Brass -- a lock's metal -- warm without
+    # crowding the shop's kraft or the files' terracotta.
+    AppIcon("passwords", "#b8892a", "#94691a", """
+      <path d="M23.5 29v-5.5a8.5 8.5 0 0 1 17 0V29"/>
+      <rect x="17" y="29" width="30" height="21" rx="5"/>
+      <circle cx="32" cy="37.5" r="3" fill="#fff" stroke="none"/>
+      <path d="M32 39.5v5"/>"""),
 ]
 
 # Messenger avatars. Round rather than a tile: an avatar is a person, not an

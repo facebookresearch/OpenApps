@@ -32,6 +32,7 @@ from open_apps.app_icons import app_glyph
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.handles import format_handle, handle_kind, normalize_handle
+from open_apps.i18n import html_lang, language_of
 from open_apps.theme import theme_asset, theme_style
 from open_apps.ui.copy import COPY_SCRIPT, CopyButton, copy_styles
 
@@ -83,6 +84,9 @@ def set_environment(config):
     """
     global db, contacts, handles, logo_title_container
     app.config = config
+    # `de` / `zh-Hans` under a translated pack, as the files app does: the
+    # browser picks CJK glyphs and the accessibility tree names the language.
+    app.htmlkw = {"lang": html_lang(language_of(config.contacts))}
     db = database(config.contacts.database_path)
     contacts = db.create(Contact, name="contacts", pk="id")
     handles = db.create(ContactHandle, name="contact_handles", pk="id")
@@ -794,6 +798,25 @@ def _store_handles(contact_id: int, clean: list) -> None:
         handles.insert(ContactHandle(id=None, contact_id=contact_id, kind=kind, label=label, value=value))
 
 
+def add_contact(values: dict) -> tuple[Optional[Contact], dict]:
+    """Validate and store a new contact; ``(contact, {})`` or ``(None, errors)``.
+
+    The one insert path. The New Contact form uses it, and so does the bank's
+    "Save to Contacts" on a payment to someone new -- a second copy of the
+    rules would let the bank file a handle the form refuses (a duplicate, a
+    malformed number). ``values`` is :func:`parse_form`'s shape.
+    """
+    errors, clean = validate(values)
+    if errors:
+        return None, errors
+    person = contacts.insert(
+        Contact(id=None, first_name=values["first_name"], last_name=values["last_name"],
+                company=values["company"], note=values["note"], favorite=values["favorite"])
+    )
+    _store_handles(person.id, clean)
+    return person, {}
+
+
 # --- Page frame ---------------------------------------------------------------
 
 styles = Style("""
@@ -1113,14 +1136,9 @@ def contacts_edit(contact_id: int):
 @app.post("/contacts")
 async def contacts_create(req):
     values = parse_form(await req.form())
-    errors, clean = validate(values)
+    person, errors = add_contact(values)
     if errors:
         return _form_error(req, contact_form(values, errors))
-    person = contacts.insert(
-        Contact(id=None, first_name=values["first_name"], last_name=values["last_name"],
-                company=values["company"], note=values["note"], favorite=values["favorite"])
-    )
-    _store_handles(person.id, clean)
     return _saved(req, f"/contacts/{person.id}")
 
 

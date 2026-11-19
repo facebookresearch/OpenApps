@@ -335,8 +335,9 @@ def oldest_posting(account: dict) -> tuple[float, Optional[date]]:
 
     The *last* row is the oldest one -- the ledger is ordered newest-first --
     and its balance is the running balance after it posted, so the next row
-    back carries ``balance - amount``. Pending rows (``balance: null``) are
-    skipped: they have no posted balance to chain from.
+    back carries ``balance - amount``. A row without a balance is skipped:
+    the bank refuses one at launch, but a pack being written may still have
+    one, and it has nothing to chain from.
     """
     txns = list(account.get("transactions") or [])
     for txn in reversed(txns):

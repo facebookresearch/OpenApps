@@ -46,6 +46,7 @@ from open_apps import device, files_store
 from open_apps.apps.files_app.styles import styles
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
+from open_apps.i18n import html_lang, language_of
 from open_apps.icons import Icon, icon
 from open_apps.theme import theme_asset, theme_style
 
@@ -80,6 +81,10 @@ def set_environment(config):
     files_store.configure(config.files.root, config.code_editor.database_path, config.files.today)
     files_store.reset()
     seed(_plain(config.files.get("documents")) or {}, str(config.files.today))
+    # FastHTML reads `htmlkw` per request, so a reset onto another pack
+    # re-tags the page: `de` for german, `zh-Hans` for mandarin, so the
+    # browser picks CJK glyphs and the accessibility tree names the language.
+    app.htmlkw = {"lang": html_lang(language_of(config.files))}
     logo_title_container = create_logo_header(
         app_config=config.start_page.apps.files,
         base_url="/files",
@@ -185,7 +190,7 @@ def kind_label(kind: str) -> str:
 
 def format_size(n: int) -> str:
     if n < 1000:
-        return f"{n} bytes"
+        return str(ui().get("bytes_label") or "{n} bytes").format(n=n)
     if n < 1000 * 1000:
         return f"{n / 1000:.0f} KB"
     return f"{n / 1000 / 1000:.1f} MB"

@@ -25,9 +25,15 @@ tokens:
   # (`font_family: 'Arial'`), so the `default` theme looks like the app did
   # before it was migrated to tokens rather than falling back to the browser's
   # serif. Pick `mono` or `challenging_font` to vary this deliberately.
-  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+  #
+  # Every theme's stacks end in Simplified-Chinese faces, *after* the generic
+  # family: a browser walks the whole list per character, so Latin text never
+  # reaches them and renders exactly as before, while a Mandarin pack gets a
+  # real CJK face instead of whatever the host falls back to (tofu, in a bare
+  # container).
+  font-family: "system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-heading: "inherit"
-  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  font-mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'Droid Sans Fallback'"
   font-size-base: "16px"
   font-size-sm: "14px"            # chat bubbles, editor gutter, dense lists
   font-size-heading: "1.5rem"
@@ -47,6 +53,22 @@ tokens:
 # Non-CSS choices. `tone` is app-agnostic: each app maps it onto its own
 # concrete asset (maps -> Leaflet tile layer, code editor -> CodeMirror
 # stylesheet, start page -> tile fill). `icon_set` picks an icon dir.
+  # Desktop-shell tokens: semantic colours, the accents that tint the
+  # phone home screen's app icons (apps.start_page.desktop.accents) and the
+  # brand rings behind the wallpaper's CSS fallback and the agent cursor.
+  # Every theme declares them so the shell never reads an undefined var().
+  color-success: "#16a34a"
+  color-warning: "#d97706"
+  color-emphasis: "#ea580c"
+  color-info: "#dbeafe"
+  color-accent-pink: "#db2777"
+  color-accent-violet: "#7c3aed"
+  color-accent-teal: "#0d9488"
+  ring-blue: "#2563eb"
+  ring-dark-blue: "#1d4ed8"
+  ring-pink: "#db2777"
+  ring-teal: "#0d9488"
+  ring-violet: "#7c3aed"
 assets:
   tone: light
   icon_set: color
