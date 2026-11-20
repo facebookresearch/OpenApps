@@ -39,5 +39,7 @@ jobs:
             libxkbcommon0 libpango-1.0-0 libcairo2
           uv run playwright install chromium
       - name: Test with pytest
+        # One worker per core (pytest-xdist). Tests that start the web app
+        # take their ports from a block per worker (tests/conftest.py).
         run: |
-          uv run -m pytest tests/
+          uv run -m pytest tests/ -n auto

@@ -818,10 +818,23 @@ measure how robust an agent is to how the same task is worded.
 
 ## Testing
 
-Run all tests via:
+Run all tests, one worker per CPU core (about 5 min on a 10-core laptop;
+one at a time it is about 25):
 
-```python
-uv run -m pytest tests/
+```bash
+uv run -m pytest tests/ -n auto
+```
+
+While working on one app, run just its files, e.g.
+`uv run -m pytest tests/test_todo*.py`. Leave `-n` off when you want a
+debugger (`ipdb` and `-s` need the test in your own process), or skip the
+tests that start the real web app or a browser with `-m "not slow"`.
+
+To see where the time goes, per app, file and test:
+
+```bash
+uv run -m pytest tests/ -n auto --junitxml=/tmp/junit.xml -o junit_family=xunit1
+uv run scripts/test_timings.py /tmp/junit.xml
 ```
 
 ## Attribution
