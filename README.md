@@ -121,28 +121,44 @@ Learn more about launching with OpenAI, Claude, and VLLM models such as UI-Tars 
 
 ### Sweep tasks and agents
 
+`launch_parallel_agents.py` is the one entry point for running many episodes,
+on this machine or on SLURM. A sweep is task files × agents × app variations ×
+tasks × repeats, and every run gets its own web app, port window, logs and
+databases.
+
 ```bash
+# every task in two files, with two agents, across the configured app variations
 uv run launch_parallel_agents.py tasks=original_tasks.yaml,longer_horizon.yaml \
-    agents=dummy,GPT-5.5-computer-use-abstention
+    agents=dummy,GPT-5.5-computer-use
+
+# four runs at a time on this machine, each task three times, grouped in W&B
+uv run launch_parallel_agents.py agents=GPT-5.5-computer-use \
+    max_parallel=4 parallel_tasks.repeats=3 use_wandb=True
+
+# on SLURM, one job per run, against the node serving a self-hosted model
+uv run launch_parallel_agents.py mode=slurm_cluster \
+    agents=gemma-4-31B-computer-use agent.hostname=auto
 ```
 
-This runs every task from each file with every agent and each configured app
-variation. Config names may omit `.yaml`; overlapping task names in different
-files remain separate runs. Local jobs run one at a time unless `max_parallel=N`;
-`mode=slurm_cluster` submits them concurrently using the existing SLURM settings.
+| Option | Effect |
+| --- | --- |
+| `tasks=a.yaml,b.yaml` | Task files to sweep (`.yaml` optional). The same task name in two files is two runs. |
+| `agents=a,b` | Agents to sweep. Not combinable with `agent=...` or `--multirun`. |
+| `parallel_tasks.task_names=[x,y]` | A subset of tasks across the files; `all` for every task. An explicit single `tasks=...` file runs in full with `agents=...` unless this selects a subset. |
+| `parallel_tasks.app_variations=[[],["apps/theme=dark"]]` | App variations; each inner list is one variation's overrides (`[]` is the default apps). |
+| `parallel_tasks.repeats=N` | Every run N times with the seed fixed, to measure run-to-run variance. |
+| `max_parallel=N` | Local only: N runs at once, each in its own process, logging to `<job_id>/run.log`, with a summary at the end. The default, 1, runs them one at a time and streams to the terminal. |
+| `mode=slurm_cluster` | Submit through submitit, one CPU job per run, with `slurm_sweep_launcher` from `config/mode/slurm_cluster.yaml`. |
+| `agent.hostname=auto` | Find the SLURM node serving a self-hosted (vLLM) agent's model, from your running jobs. |
+| `use_wandb=True` | The sweep's runs share a W&B group named after its `run-<id>` directory, with the agent as `job_type`. |
 
-Use `parallel_tasks.task_names=[task_a,task_b]` to select a subset across the
-files. `parallel_tasks.repeats=N` runs every job N times with the seed fixed, to
-measure run-to-run variance. Locally, `max_parallel=N` runs N jobs at once, each
-writing to its own `<job_id>/run.log`. With `use_wandb=True`, a sweep's runs
-share a W&B group named after its `run-<id>` directory, with the agent as
-`job_type`. `mode=slurm_cluster` runs the same command on SLURM, one job per
-run, and `agent.hostname=auto` finds the node serving a self-hosted model; see
-the [agents docs](docs/agents.md). Existing `agent=...`, `tasks=...` and Hydra `--multirun` commands retain
-their behavior. `agents=...` selects one parallel sweep and cannot be combined
-with `agent=...` or `--multirun`.
-An explicit single `tasks=...` file also runs in full with `agents=...`, unless
-`parallel_tasks.task_names` selects a subset.
+**Stopping a local sweep.** Ctrl-C stops it: queued runs never start, and
+running ones stop their web apps and exit (Ctrl-C again kills them at once).
+The launcher exits with status 130. Any failed run makes it exit non-zero too.
+
+SLURM setup (account, QOS, a shared `logs_dir`, the vLLM serve job) is in the
+[agents docs](docs/agents.md). Existing `agent=...`, `tasks=...` and Hydra
+`--multirun` commands keep their behavior.
 
 `logs_dir` is a parent directory. Every launcher invocation creates a fresh
 `run-<id>/` underneath it and prints `Run directory: <path>`. Job configs, logs

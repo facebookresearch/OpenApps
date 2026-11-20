@@ -6,7 +6,10 @@ LICENSE file in the root directory of this source tree.
 """
 import json
 import os
+import signal
 import subprocess
+import sys
+import textwrap
 import time
 from pathlib import Path
 
@@ -29,6 +32,15 @@ def failing_job(config) -> None:
     if config.job_id == 1:
         raise RuntimeError("boom in job 1")
     sleepy_job(config)
+
+
+def interruptible_job(config) -> None:
+    """Stands in for AgentLauncher.launch: cleanup lives in a `finally`."""
+    Path(config.logs_dir, "started").touch()
+    try:
+        time.sleep(config.sleep)
+    finally:
+        Path(config.logs_dir, "cleaned_up").touch()
 
 
 def _configs(tmp_path, n: int, sleep: float = 0.0):
@@ -112,3 +124,64 @@ def test_run_locally_exits_non_zero_when_a_pooled_job_fails(monkeypatch, tmp_pat
     with pytest.raises(SystemExit) as exit_info:
         parallel_launcher.run_locally(OmegaConf.create({"max_parallel": 2}), _configs(tmp_path, n=2), 2)
     assert exit_info.value.code == 1
+
+
+_SWEEP = textwrap.dedent(
+    """
+    import sys
+    from omegaconf import OmegaConf
+    from open_apps.parallel_launcher import run_concurrently
+    from tests.test_parallel_local_concurrency import interruptible_job
+
+    if __name__ == "__main__":
+        root = sys.argv[1]
+        configs = [
+            OmegaConf.create({"job_id": i, "task_name": f"task_{i}", "logs_dir": f"{root}/{i}", "sleep": 60})
+            for i in range(4)
+        ]
+        run_concurrently(configs, 2, interruptible_job)
+    """
+)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+def test_ctrl_c_stops_the_sweep_without_starting_queued_jobs(tmp_path):
+    """Ctrl-C used to leave through the executor's shutdown(wait=True), which
+    started and finished every queued job before the sweep exited."""
+    script = tmp_path / "sweep.py"
+    script.write_text(_SWEEP)
+    root = tmp_path / "runs"
+    repo = Path(__file__).resolve().parent.parent
+    # Its own session, so the SIGINT below reaches it and its workers -- the
+    # foreground process group a terminal Ctrl-C signals -- and not pytest.
+    sweep = subprocess.Popen(
+        [sys.executable, str(script), str(root)],
+        cwd=repo,
+        env={**os.environ, "PYTHONPATH": str(repo)},
+        start_new_session=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 60
+        while len(list(root.glob("*/started"))) < 2:
+            assert sweep.poll() is None, sweep.stdout.read()
+            assert time.monotonic() < deadline, "the first two jobs never started"
+            time.sleep(0.1)
+        os.killpg(sweep.pid, signal.SIGINT)
+        # `uv run` forwards the SIGINT its child already got from the
+        # terminal: one Ctrl-C, delivered twice. The echo must not escalate
+        # to "kill now" and skip the jobs' cleanup.
+        time.sleep(0.05)
+        os.kill(sweep.pid, signal.SIGINT)
+        output, _ = sweep.communicate(timeout=20)
+    finally:
+        if sweep.poll() is None:
+            os.killpg(sweep.pid, signal.SIGKILL)
+    assert sweep.returncode != 0
+    assert "cancelled 2 queued job(s), stopping 2 running" in output
+    assert sorted(p.parent.name for p in root.glob("*/started")) == ["0", "1"]
+    # The running jobs unwound through their `finally` -- where AgentLauncher
+    # stops its web app -- rather than being killed outright.
+    assert sorted(p.parent.name for p in root.glob("*/cleaned_up")) == ["0", "1"]
