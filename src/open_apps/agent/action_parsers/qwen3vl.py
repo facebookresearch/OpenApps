@@ -7,6 +7,7 @@ Action names mirror UI-TARS's vocabulary; ``type`` maps to keyboard_type and
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 
@@ -57,6 +58,8 @@ class Qwen3VLActionParser(ActionParser):
             )
 
         args = call.get("arguments") or {}
+        if not isinstance(args, dict):
+            raise ParseError("tool_call arguments must be a JSON object.")
         bg_action = self._to_browsergym(args.get("action"), args, viewport)
         return {
             "action": bg_action,
@@ -75,8 +78,8 @@ class Qwen3VLActionParser(ActionParser):
 
         if action_name == "type":
             text = args.get("content", args.get("text"))
-            if text is None:
-                raise ParseError("type action missing 'content'.")
+            if not isinstance(text, str):
+                raise ParseError("type action missing 'content' or content is not a string.")
             return f"keyboard_type(text={text!r})"
 
         if action_name == "scroll":
@@ -85,15 +88,17 @@ class Qwen3VLActionParser(ActionParser):
                 raise ParseError(
                     f"scroll 'delta' must be a [dx, dy] list, got {delta!r}."
                 )
-            dx, dy = self.rescale(delta[0], delta[1], viewport)
+            dx, dy = self._checked_rescale(delta[0], delta[1], viewport)
             return f"scroll({dx}, {dy})"
 
         if action_name == "wait":
             wait_ms = args.get("wait_ms", 5000)
             try:
                 wait_ms = float(wait_ms)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 raise ParseError(f"wait wait_ms must be numeric, got {wait_ms!r}.")
+            if not math.isfinite(wait_ms) or wait_ms < 0:
+                raise ParseError("wait wait_ms must be finite and nonnegative.")
             return f"noop(wait_ms={wait_ms})"
 
         raise ParseError(
@@ -105,4 +110,10 @@ class Qwen3VLActionParser(ActionParser):
         coord = args.get("coordinate")
         if not (isinstance(coord, (list, tuple)) and len(coord) == 2):
             raise ParseError(f"'coordinate' must be a [x, y] list, got {coord!r}.")
-        return self.rescale(coord[0], coord[1], viewport)
+        return self._checked_rescale(coord[0], coord[1], viewport)
+
+    def _checked_rescale(self, x, y, viewport: tuple[int, int]) -> tuple[int, int]:
+        try:
+            return self.rescale(x, y, viewport)
+        except (TypeError, ValueError, OverflowError) as e:
+            raise ParseError(f"Coordinates must be finite numbers, got {[x, y]!r}.") from e
