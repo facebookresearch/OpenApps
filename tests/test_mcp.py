@@ -289,3 +289,50 @@ class TestEndToEnd:
                 await session.close()
 
         assert asyncio.run(run()) == 1.0
+
+
+class TestSeed:
+    """``reset(seed=...)`` reaches the AppServer and seeds the apps' RNG.
+
+    Runs without a browser: the AppServer's apps and the Playwright page
+    are stubbed out.
+    """
+
+    def _appserver(self, monkeypatch):
+        from omegaconf import OmegaConf
+
+        from open_apps.mcp import appserver
+
+        monkeypatch.setattr(appserver, "reset_all_apps", lambda apps: None)
+        server = appserver.AppServer.__new__(appserver.AppServer)
+        server.config = OmegaConf.create({"seed": 233, "apps": {}})
+        return server
+
+    def test_reset_with_seed_reseeds_rng(self, monkeypatch):
+        import random
+
+        server = self._appserver(monkeypatch)
+        server.reset(seed=7)
+        first = [random.random() for _ in range(3)]
+        server.reset(seed=7)
+        assert [random.random() for _ in range(3)] == first
+        assert server.config.seed == 7
+
+    def test_reset_without_seed_keeps_config_seed(self, monkeypatch):
+        server = self._appserver(monkeypatch)
+        server.reset()
+        assert server.config.seed == 233
+
+    def test_session_reset_forwards_seed(self):
+        from open_apps.mcp.session import Session
+
+        session = Session("todo")
+        session._started = True
+        session.appserver = MagicMock()
+        session.appserver.get_state.return_value = {}
+        session.page = AsyncMock()
+        session.page.url = "http://127.0.0.1/todo"
+        session.page.screenshot.return_value = b"png"
+
+        asyncio.run(session.reset(seed=7))
+        session.appserver.reset.assert_called_once_with(seed=7)
