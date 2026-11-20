@@ -10,6 +10,7 @@ Orchestrates the configs to launch the web envirnoment,
 task, and agent.
 """
 
+import contextlib
 import os
 import random
 import re
@@ -106,6 +107,25 @@ def _group_alive(pgid: int) -> bool:
     except PermissionError:
         # Something in the group belongs to another user; it still exists.
         return True
+
+
+@contextlib.contextmanager
+def sigint_deferred():
+    """Ignore Ctrl-C for the duration (main thread only; elsewhere a no-op).
+
+    For cleanup that must not be cut short: one Ctrl-C under ``uv run``
+    arrives twice (the terminal signals the group and uv forwards it again),
+    and the echo would otherwise land in the middle of stopping the web app.
+    """
+    try:
+        previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    except ValueError:  # not the main thread
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, previous)
 
 
 def stop_process_group(process: subprocess.Popen, timeout: float = 10.0) -> None:
@@ -347,7 +367,6 @@ class OpenAppsLauncher:
             start_new_session=True,
             executable="/bin/bash",  # Use bash explicitly for 'source' command
         )
-        sleep(30)
         return process
 
     def is_app_running(self) -> bool:
@@ -608,7 +627,10 @@ class AgentLauncher(OpenAppsLauncher):
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:
             wandb.finish()
-        stop_process_group(apps_process)
+        # Bounded (SIGKILL after 2 x 10 s), so it is safe to make it
+        # uninterruptible: a Ctrl-C mid-stop would leave the web app serving.
+        with sigint_deferred():
+            stop_process_group(apps_process)
         print("OpenApps successfully stopped.")
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
@@ -672,6 +694,11 @@ class AgentLauncher(OpenAppsLauncher):
         # never came up, an agent error, and Ctrl-C, which raises
         # KeyboardInterrupt and so slips past `except Exception`.
         try:
+            # `serve()` blocks, so there is no ready signal to wait on: give the
+            # app a head start before polling. Inside the `try`, so a Ctrl-C (or
+            # a sweep's SIGTERM) during the wait still stops the web app --
+            # outside it, the first 30 s of every run leaked one.
+            sleep(30)
             self.wait_until_apps_start(apps_process)
             # TODO: check if agent model is available in case of VLLM or API
             self.launch_agent()

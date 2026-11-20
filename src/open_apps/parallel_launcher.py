@@ -1,15 +1,18 @@
 """Shared entry points for task and agent sweeps, locally or on SLURM."""
 
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import collections
 import functools
 import json
 import multiprocessing
+import multiprocessing.connection
 import os
 from pathlib import Path
+import signal
 import socket
 import subprocess
 import sys
 import tempfile
+import time
 import traceback
 from typing import Callable, Optional, Sequence
 import urllib.request
@@ -250,14 +253,24 @@ def run_locally(
     a time, each in its own process writing to ``<job logs_dir>/run.log``."""
     max_parallel = int(config.get("max_parallel", 1) or 1)
     if max_parallel <= 1:
-        for job_config in parallel_configs:
-            print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
-            run_task(job_config, launcher_class)
+        try:
+            for job_config in parallel_configs:
+                print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
+                run_task(job_config, launcher_class)
+        except KeyboardInterrupt:
+            # The job's own `finally` has stopped its web app; the rest never start.
+            print("Sweep stopped by Ctrl-C.", file=sys.stderr)
+            raise SystemExit(130) from None
         print(f"\nFinished {num_jobs} local jobs.")
         return
     print(f"Running {num_jobs} local jobs, {max_parallel} at a time; each logs to <job>/{RUN_LOG}")
     task = functools.partial(run_task, launcher_class=launcher_class)
-    failures = run_concurrently(parallel_configs, max_parallel, task)
+    try:
+        failures = run_concurrently(parallel_configs, max_parallel, task)
+    except KeyboardInterrupt:
+        # The jobs are already stopped; spare the user a traceback.
+        print("Sweep stopped by Ctrl-C.", file=sys.stderr)
+        raise SystemExit(130) from None
     print(f"\nFinished {num_jobs} local jobs: {num_jobs - len(failures)} ok, {len(failures)} failed.")
     if failures:
         raise SystemExit(1)
@@ -294,7 +307,7 @@ def run_concurrently(
 ) -> list[DictConfig]:
     """Run every config, at most ``max_parallel`` at once. Returns the failures.
 
-    Each job runs in a fresh spawned process (``max_tasks_per_child=1``):
+    Each job runs in a fresh spawned process:
 
     * **spawn, not fork** -- by the time jobs start, this process has imported
       Playwright and may have started wandb, both of which run threads, and
@@ -307,26 +320,136 @@ def run_concurrently(
     ``databases_dir`` (``create_job_configs``), which keep concurrent jobs off
     each other's ports and databases. ``task`` must be importable by name, since
     a spawned process receives it by reference.
+
+    A plain process per job rather than a ``ProcessPoolExecutor``, so Ctrl-C
+    can stop the sweep: the executor queues a job beyond its workers that can
+    no longer be cancelled, replaces a worker that exits, and its own shutdown
+    waits for every queued job to run. Here a job that has not started is just
+    a list entry. On Ctrl-C (or any error in this loop) no further job starts,
+    and the running ones are stopped -- see :func:`_stop_jobs`.
     """
+    context = multiprocessing.get_context("spawn")
+    queued = collections.deque(configs)
+    running: dict = {}
     failures: list[DictConfig] = []
-    with ProcessPoolExecutor(
-        max_workers=max_parallel,
-        mp_context=multiprocessing.get_context("spawn"),
-        max_tasks_per_child=1,
-    ) as pool:
-        futures = {pool.submit(_run_logged, task, config): config for config in configs}
-        for future in as_completed(futures):
-            config = futures[future]
-            try:
-                error = future.result()
-            except Exception as exc:  # the worker process itself died
-                error = repr(exc)
-            log_path = Path(config.logs_dir) / RUN_LOG
-            status = "ok" if error is None else "FAILED"
-            print(f"[done] job {config.job_id} {config.task_name}: {status} -> {log_path}", flush=True)
-            if error is not None:
-                failures.append(config)
+    interrupts = _Interrupts()
+    previous = interrupts.install()
+    try:
+        while queued or running:
+            while queued and len(running) < max_parallel:
+                config = queued.popleft()
+                process = context.Process(
+                    target=_run_job_process, args=(task, config), name=f"job-{config.job_id}"
+                )
+                process.start()
+                running[process] = config
+            finished = multiprocessing.connection.wait([p.sentinel for p in running])
+            for process in [p for p in running if p.sentinel in finished]:
+                process.join()
+                config = running.pop(process)
+                log_path = Path(config.logs_dir) / RUN_LOG
+                if process.exitcode == 0:
+                    status = "ok"
+                else:
+                    status = f"FAILED (exit {process.exitcode})"
+                    failures.append(config)
+                print(f"[done] job {config.job_id} {config.task_name}: {status} -> {log_path}", flush=True)
+    except BaseException:
+        _stop_jobs(list(running), len(queued), interrupts)
+        raise
+    finally:
+        interrupts.restore(previous)
     return failures
+
+
+#: Repeat SIGINTs within this many seconds of the first are the same Ctrl-C.
+#: ``uv run`` forwards the SIGINT its child already got from the terminal, so
+#: one keypress arrives twice; a later one is the user asking to kill now.
+SAME_CTRL_C_S = 1.0
+
+
+class _Interrupts:
+    """SIGINT handler for the sweep's loop: the first raises KeyboardInterrupt,
+    an echo of it is ignored, and a later one asks :func:`_stop_jobs` to kill."""
+
+    def __init__(self) -> None:
+        self.first: Optional[float] = None
+        self.kill_now = False
+
+    def __call__(self, _signum, _frame) -> None:
+        now = time.monotonic()
+        if self.first is None:
+            self.first = now
+            raise KeyboardInterrupt
+        if now - self.first > SAME_CTRL_C_S:
+            self.kill_now = True
+
+    def install(self):
+        try:
+            return signal.signal(signal.SIGINT, self)
+        except ValueError:  # not the main thread: leave signals alone
+            return None
+
+    def restore(self, previous) -> None:
+        if previous is not None:
+            signal.signal(signal.SIGINT, previous)
+
+
+#: Seconds a running job gets to clean up (stop its web app) after Ctrl-C
+#: before it is killed. ``stop_process_group`` alone allows 10 s + 10 s.
+STOP_GRACE_S = 30.0
+
+
+def _run_job_process(task: Callable[[DictConfig], None], config: DictConfig) -> None:
+    """Body of one job's process: exit 0 if ``task`` succeeded, 1 if it raised.
+
+    Ctrl-C belongs to the parent. A terminal Ctrl-C signals the whole
+    foreground process group, so every job would otherwise raise its own
+    KeyboardInterrupt at an arbitrary point. Jobs swallow SIGINT instead (with
+    a Python handler rather than ``SIG_IGN``, which every process a job starts
+    would inherit), and the parent stops them with SIGTERM, which becomes
+    ``SystemExit``: it unwinds through ``AgentLauncher.launch``'s ``finally``,
+    so the job's web app is stopped rather than orphaned.
+    """
+    signal.signal(signal.SIGINT, lambda *_: None)
+    signal.signal(signal.SIGTERM, _exit_on_sigterm)
+    sys.exit(0 if _run_logged(task, config) is None else 1)
+
+
+def _exit_on_sigterm(signum, _frame) -> None:
+    # Once only: a second SIGTERM must not interrupt the cleanup the first
+    # one started. A job that hangs anyway is killed after STOP_GRACE_S.
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    raise SystemExit(128 + signum)
+
+
+def _stop_jobs(
+    processes: list, queued: int, interrupts: Optional[_Interrupts] = None, grace: float = STOP_GRACE_S
+) -> None:
+    """SIGTERM the running jobs and wait ``grace`` seconds for them to clean up.
+
+    A job still alive after that, or every job on a second Ctrl-C, is killed.
+    """
+    print(
+        f"\nInterrupted: cancelled {queued} queued job(s), stopping {len(processes)} "
+        f"running (Ctrl-C again to kill them now)...",
+        file=sys.stderr,
+        flush=True,
+    )
+    for process in processes:
+        process.terminate()
+    deadline = time.monotonic() + grace
+    try:
+        while any(p.is_alive() for p in processes) and time.monotonic() < deadline:
+            if interrupts is not None and interrupts.kill_now:
+                break
+            multiprocessing.connection.wait([p.sentinel for p in processes if p.is_alive()], timeout=0.2)
+    except KeyboardInterrupt:  # no handler installed (not the main thread)
+        pass
+    for process in processes:
+        if process.is_alive():
+            process.kill()
+        process.join()
 
 
 def run_via_slurm(

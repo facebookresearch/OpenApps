@@ -65,3 +65,37 @@ def test_already_exited_process_is_a_no_op(tmp_path):
     process = subprocess.Popen(["true"], start_new_session=True)
     process.wait()
     stop_process_group(process, timeout=1)  # must not raise
+
+
+def test_a_ctrl_c_during_the_startup_wait_still_stops_the_web_app(monkeypatch):
+    """The 30 s head start used to sit in launch_apps_via_shell, before
+    launch()'s try/finally, so interrupting it left the web app serving."""
+    from open_apps import launcher as launcher_module
+
+    launcher = object.__new__(launcher_module.AgentLauncher)
+    started = object()
+    stopped = []
+    monkeypatch.setattr(launcher, "check_task_can_run", lambda: None, raising=False)
+    monkeypatch.setattr(launcher, "launch_apps_via_shell", lambda: started, raising=False)
+    monkeypatch.setattr(launcher, "cleanup", stopped.append, raising=False)
+
+    def interrupted(_seconds):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(launcher_module, "sleep", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        launcher.launch()
+    assert stopped == [started]
+
+
+def test_stopping_the_web_app_is_not_cut_short_by_ctrl_c():
+    """One Ctrl-C under `uv run` arrives twice; the echo must not land mid-stop."""
+    import signal
+
+    from open_apps.launcher import sigint_deferred
+
+    before = signal.getsignal(signal.SIGINT)
+    with sigint_deferred():
+        os.kill(os.getpid(), signal.SIGINT)
+        time.sleep(0.1)  # would raise KeyboardInterrupt here if not deferred
+    assert signal.getsignal(signal.SIGINT) is before
