@@ -336,21 +336,36 @@
   // -------------------------------------------------------------------------
 
   const ALL_TASKS = "all";
-  const POOL_TARGETS = ["pool", "slurm_pool"];
+  // Targets an old share link may name: the worker pools the composer used to
+  // render. Both load as the sweep, which does what they did (command.py).
+  const LEGACY_TARGETS = ["pool", "slurm_pool"];
 
-  /** The full form of a Selection.to_dict() (missing fields filled in). */
+  /** The full form of a Selection.to_dict() (missing fields filled in), with
+   * the worker-pool form upgraded as Selection.from_dict does: a pool target
+   * is the sweep (slurm_pool adds mode=slurm_cluster), a pool's count becomes
+   * enough repeats per agent to cover it, and sbatch options are dropped. */
   function fromDict(data) {
     data = data || {};
     const choices = {};
     for (const [k, v] of Object.entries(data.choices || {})) choices[k] = [...v];
+    let target = data.target || null;
+    let repeats = data.repeats ?? null;
+    if (LEGACY_TARGETS.includes(target)) {
+      if (target === "slurm_pool" && !has(choices, "mode")) choices.mode = ["slurm_cluster"];
+      target = "sweep";
+    }
+    const count = data.count;
+    if (repeats === null && Number.isInteger(count) && count > 1) {
+      const agents = Math.max(1, (choices.agent || []).length);
+      repeats = Math.ceil(count / agents);
+    }
     return {
       choices,
-      target: data.target || null,
-      count: data.count ?? null,
+      target,
+      repeats,
       max_parallel: data.max_parallel ?? null,
       extra: [...(data.extra || [])],
       env: [...(data.env || [])],
-      sbatch_args: [...(data.sbatch_args || [])],
     };
   }
 
@@ -362,8 +377,8 @@
       out.choices = {};
       for (const [k, v] of Object.entries(sel.choices)) out.choices[k] = [...v];
     }
-    for (const key of ["count", "max_parallel"]) if (sel[key] !== null) out[key] = sel[key];
-    for (const key of ["extra", "env", "sbatch_args"]) if (sel[key].length) out[key] = [...sel[key]];
+    for (const key of ["repeats", "max_parallel"]) if (sel[key] !== null) out[key] = sel[key];
+    for (const key of ["extra", "env"]) if (sel[key].length) out[key] = [...sel[key]];
     return out;
   }
 
@@ -409,25 +424,24 @@
   function resolveTarget(sel, catalog) {
     const targets = catalog.targets;
     const choices = sel.choices;
-    const slurm = (choices.mode || []).includes("slurm_cluster");
     if (sel.target) {
       if (!has(targets, sel.target)) {
         throw new CommandError(
           `unknown target ${pyRepr(sel.target)}; one of ${Object.keys(targets).join(", ")}`
         );
       }
-      // The Worker pool pill on the SLURM mode (see Target.pill).
-      if (sel.target === "pool" && slurm) return "slurm_pool";
       return sel.target;
     }
     const pinned = bound(choices, catalog);
     if (pinned.length) return catalog.groups[pinned[0]].targets[0];
-    if ((choices.agent || []).length > 1 || (sel.count || 0) > 1 || sel.max_parallel !== null) {
-      return slurm ? "slurm_pool" : "pool";
-    }
-    const varied = variedKeys(choices, catalog).filter((k) => k !== "agent");
-    if (varied.length || listEq(choices.task_name, [ALL_TASKS])) return "sweep";
-    return slurm ? "slurm_pool" : "single";
+    if (
+      variedKeys(choices, catalog).length ||
+      listEq(choices.task_name, [ALL_TASKS]) ||
+      (sel.repeats || 0) > 1 ||
+      (sel.max_parallel || 0) > 1 ||
+      (choices.mode || []).includes("slurm_cluster")
+    ) return "sweep";
+    return "single";
   }
 
   function defaultFor(key, target, catalog) {
@@ -455,30 +469,14 @@
       if (unique.length) choices[key] = unique;
     }
     let sel = { ...selection, choices };
-    if (sel.target === "slurm_pool") {
-      // Not a pill: Worker pool + the SLURM mode. Keeps old links working.
-      if (!has(choices, "mode")) choices.mode = ["slurm_cluster"];
-      sel = { ...sel, target: "pool" };
-    }
+    // 1 is each one's default (config_parallel_tasks.yaml), so it says nothing.
+    if (sel.repeats !== null && sel.repeats <= 1) sel = { ...sel, repeats: null };
+    if (sel.max_parallel !== null && sel.max_parallel <= 1) sel = { ...sel, max_parallel: null };
     const target = resolveTarget(sel, catalog);
-    if (target === "slurm_pool" && !has(choices, "mode")) choices.mode = ["slurm_cluster"];
-    if (POOL_TARGETS.includes(target)) {
-      // render always spells out AGENTS, so the agent is never dropped as a
-      // default: that would lose it on a switch to the other pool, whose
-      // script defaults differ. Fill in the one the UI shows instead.
-      if (!has(choices, "agent")) choices.agent = [defaultFor("agent", target, catalog)];
-      if (target === "slurm_pool" && sel.count === choices.agent.length) sel = { ...sel, count: null };
-    }
-    if (!POOL_TARGETS.includes(target)) sel = { ...sel, count: null, max_parallel: null, sbatch_args: [] };
-    if (target !== "slurm_pool") sel = { ...sel, sbatch_args: [] };
+    if (target !== "sweep") sel = { ...sel, repeats: null, max_parallel: null };
 
     for (const key of Object.keys(choices)) {
       const values = choices[key];
-      if (key === "mode" && POOL_TARGETS.includes(target)) {
-        if (listEq(values, ["local"])) delete choices[key];
-        continue;
-      }
-      if (key === "agent" && POOL_TARGETS.includes(target)) continue; // always emitted, see above
       if (values.length === 1 && pyEq(values[0], defaultFor(key, target, catalog))) delete choices[key];
     }
     if (sel.target && resolveTarget({ ...sel, target: null }, catalog) === target) {
@@ -519,17 +517,15 @@
     const varied = variedKeys(sel.choices, catalog);
     let allowed;
     if (target === "single") allowed = [];
-    else if (target === "sweep") {
+    else {
       allowed = Object.keys(catalog.groups).filter((k) => catalog.groups[k].sweepable);
-      allowed.push("task_name");
-    } else allowed = ["agent"];
+      allowed.push("task_name", "agent");
+    }
     for (const key of varied) {
       if (allowed.includes(key)) continue;
       let why;
-      if (key === "agent") why = "several agents run as a worker pool, which cannot also sweep";
-      else if (POOL_TARGETS.includes(target)) why = "a worker pool varies only the agent; run one sweep per agent";
-      else if (has(catalog.groups, key) && target === "sweep") {
-        why = "a sweep varies only apps/* groups and task_name -- create_configs copies just `apps` out of each cell";
+      if (has(catalog.groups, key) && target === "sweep") {
+        why = "a sweep varies only apps/* groups, task_name and the agent -- create_configs copies just `apps` out of each cell";
       } else why = `a ${catalog.targets[target].label.toLowerCase()} takes one value per axis`;
       throw new CommandError(`cannot vary ${pyRepr(key)}: ${why}`);
     }
@@ -552,11 +548,8 @@
           `and app variations; drop ${axes.join(", ")}`);
       }
     }
-    if (POOL_TARGETS.includes(target)) {
-      const expected = target === "slurm_pool" ? "slurm_cluster" : "local";
-      if (!listEq(sel.choices.mode || [expected], [expected])) {
-        throw new CommandError(`mode must be ${pyRepr(expected)} for the ${target} target`);
-      }
+    if (sel.max_parallel !== null && (sel.choices.mode || []).includes("slurm_cluster")) {
+      throw new CommandError("max_parallel runs local jobs at once; on SLURM the scheduler decides");
     }
   }
 
@@ -576,28 +569,13 @@
     const target = resolveTarget(sel, catalog);
     checkExpressible(sel, target, catalog);
 
-    const env = [];
     const overrides = [];
-    const pool = POOL_TARGETS.includes(target);
     for (const key of orderedKeys(sel.choices, catalog)) {
       const values = sel.choices[key];
-      const scalar = has(catalog.scalars, key) ? catalog.scalars[key] : null;
-      if (pool && key === "agent") env.push("AGENTS=" + values.join(" "));
-      else if (pool && key === "mode") continue;
-      else if (pool && scalar && scalar.pool_env) env.push(`${scalar.pool_env}=${formatValue(values[0])}`);
+      // launch_parallel_agents.py's selector: every job once per agent.
+      if (key === "agent" && values.length > 1) overrides.push("agents=" + values.join(","));
       else if (target === "sweep" && (key === "task_name" || (has(catalog.groups, key) && catalog.groups[key].sweepable))) continue;
       else overrides.push(choiceOverride(key, values, catalog));
-    }
-
-    if (pool) {
-      let count = sel.count;
-      // conduct_slurm.sh defaults COUNT to 1, not to one run per agent.
-      if (count === null && target === "slurm_pool" && sel.choices.agent.length > 1) count = sel.choices.agent.length;
-      if (count !== null) env.push(`COUNT=${count}`);
-      if (sel.max_parallel !== null) env.push(`MAX_PARALLEL=${sel.max_parallel}`);
-      const order = ["AGENTS=", "COUNT=", "MAX_PARALLEL=", "HEADLESS="];
-      const rank = (a) => order.findIndex((p) => a.startsWith(p));
-      env.sort((a, b) => rank(a) - rank(b));
     }
 
     if (target === "sweep" && !suiteKey(sel, catalog)) {
@@ -611,11 +589,12 @@
         overrides.push(`parallel_tasks.task_names=${value}`);
       }
     }
+    if (sel.repeats !== null) overrides.push(`parallel_tasks.repeats=${sel.repeats}`);
+    if (sel.max_parallel !== null) overrides.push(`max_parallel=${sel.max_parallel}`);
 
-    let program = pySplit(catalog.targets[target].command);
-    if (target === "slurm_pool") program = [program[0], ...sel.sbatch_args, ...program.slice(1)];
+    const program = pySplit(catalog.targets[target].command);
     const words = [...program, ...overrides, ...sel.extra].map(shlexQuote);
-    const envWords = [...env, ...sel.env].map(quoteAssignment);
+    const envWords = sel.env.map(quoteAssignment);
     return [...envWords, ...words].join(" ");
   }
 
@@ -630,14 +609,11 @@
     const sel = normalizeSel(selection, catalog);
     const target = resolveTarget(sel, catalog);
     if (suiteKey(sel, catalog)) return null; // the frozen suite decides
-    if (POOL_TARGETS.includes(target)) {
-      if (sel.count !== null) return sel.count;
-      return sel.choices.agent.length; // COUNT, rendered or the default
-    }
     if (target === "sweep") {
       let names = sel.choices.task_name || [null];
       if (listEq(names, [ALL_TASKS])) names = taskNames(sel, target, catalog);
-      return sweepCells(sel, catalog).length * names.length;
+      const agents = (sel.choices.agent || [null]).length;
+      return sweepCells(sel, catalog).length * names.length * agents * (sel.repeats || 1);
     }
     return 1;
   }
@@ -649,9 +625,10 @@
   const SCRIPTS = {
     "launch_agent.py": "single",
     "launch_parallel_agents.py": "sweep",
-    "conduct.sh": "pool",
-    "conduct_slurm.sh": "slurm_pool",
   };
+  // The worker-pool scripts the composer no longer writes (command.py).
+  const RETIRED_SCRIPTS = ["conduct.sh", "conduct_slurm.sh"];
+  const AGENT_LIST = /^[\w.\-]+(,[\w.\-]+)+$/;
   const ENV_ASSIGNMENT = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/;
   const OVERRIDE = /^(\+\+|\+|~)?([A-Za-z_][\p{L}\p{N}_./@-]*)=([\s\S]*)$/u;
 
@@ -679,6 +656,13 @@
     }
     if (i >= tokens.length) throw new CommandError("no launch script found");
     const script = tokens[i].split("/").pop();
+    if (RETIRED_SCRIPTS.includes(script)) {
+      throw new CommandError(
+        `${tokens[i]} is a worker pool; the composer runs parallel jobs with ` +
+        "launch_parallel_agents.py (agents=a,b, parallel_tasks.repeats=N, " +
+        "max_parallel=N, mode=slurm_cluster)"
+      );
+    }
     if (!has(SCRIPTS, script)) throw new CommandError(`unknown launch script ${pyRepr(tokens[i])}`);
     return [SCRIPTS[script], sbatch, tokens.slice(i + 1)];
   }
@@ -722,28 +706,55 @@
       tokens = tokens.slice(1);
     }
     const [target, sbatchArgs, rest] = splitProgram(tokens);
-    const pool = POOL_TARGETS.includes(target);
+    if (sbatchArgs.length) {
+      throw new CommandError("sbatch submits a script; a sweep goes to SLURM with mode=slurm_cluster");
+    }
 
-    const sel = fromDict({ sbatch_args: sbatchArgs });
+    const sel = fromDict({ env: env.map(([name, value]) => `${name}=${value}`) });
     const choices = sel.choices;
-    for (const [name, value] of env) {
-      if (pool && name === "AGENTS" && !has(choices, "agent")) choices.agent = pySplit(value);
-      else if (pool && (name === "COUNT" || name === "MAX_PARALLEL") && /^[0-9]+$/.test(value)) {
-        sel[name.toLowerCase()] = Number(value);
-      } else if (pool && name === "HEADLESS" && ["true", "false"].includes(value.toLowerCase())) {
-        choices["browsergym_env_args.headless"] = [value.toLowerCase() === "true"];
-      } else sel.env.push(`${name}=${value}`);
-    }
-    if (target === "slurm_pool") {
-      choices.mode = ["slurm_cluster"];
-      if (sel.count === null) sel.count = 1; // conduct_slurm.sh: COUNT="${COUNT:-1}"
-    }
-
     for (const token of rest) {
-      if (!parseOverride(token, target, choices, catalog)) sel.extra.push(token);
+      if (!parseRunSetting(token, target, sel, catalog) && !parseOverride(token, target, choices, catalog)) {
+        sel.extra.push(token);
+      }
+    }
+    if (sel.max_parallel !== null && (choices.mode || []).includes("slurm_cluster")) {
+      // Not something the composer can show (it refuses the pair): keep it
+      // as the launcher would see it.
+      sel.extra.push(`max_parallel=${sel.max_parallel}`);
+      sel.max_parallel = null;
     }
     sel.target = resolveTarget(sel, catalog) === target ? null : target;
     return normalizeSel(sel, catalog);
+  }
+
+  const positiveInt = (raw) => (/^[0-9]+$/.test(raw) && Number(raw) >= 1 ? Number(raw) : null);
+
+  /** A sweep's agents=, parallel_tasks.repeats= or max_parallel= into sel;
+   * false for anything else (or a repeat). command._parse_run_setting. */
+  function parseRunSetting(token, target, sel, catalog) {
+    if (target !== "sweep") return false;
+    const at = token.indexOf("=");
+    if (at < 0) return false;
+    const key = token.slice(0, at);
+    const raw = token.slice(at + 1);
+    if (key === "agents" && !has(sel.choices, "agent") && AGENT_LIST.test(raw)) {
+      const names = raw.split(",");
+      const known = new Set(catalog.groups.agent.options.map((o) => o.name));
+      if (new Set(names).size === names.length && names.every((n) => known.has(n))) {
+        sel.choices.agent = names;
+        return true;
+      }
+      return false;
+    }
+    if (key === "parallel_tasks.repeats" && sel.repeats === null) {
+      sel.repeats = positiveInt(raw);
+      return sel.repeats !== null;
+    }
+    if (key === "max_parallel" && sel.max_parallel === null) {
+      sel.max_parallel = positiveInt(raw);
+      return sel.max_parallel !== null;
+    }
+    return false;
   }
 
   /** [a,b] (Hydra's list grammar) -> its options; a plain value is one. */
@@ -801,7 +812,6 @@
       if (prefix !== (group.append ? "+" : "")) return false;
       const values = group.combinable ? combinedValues(raw) : [raw];
       if (!values.length || !values.every((v) => group.options.some((o) => o.name === v))) return false;
-      if (key === "mode" && POOL_TARGETS.includes(target)) return false;
       choices[key] = values;
       return true;
     }
@@ -1006,7 +1016,7 @@
   const engine = {
     CommandError,
     ALL_TASKS,
-    POOL_TARGETS,
+    LEGACY_TARGETS,
     shlexSplit,
     shlexQuote,
     hydraValue,
@@ -1306,10 +1316,8 @@
       for (const [k, values] of Object.entries(d.choices || {})) {
         parts.push(`${enc(k)}=${values.map((v) => enc(formatValue(v))).join(",")}`);
       }
-      for (const k of ["count", "max_parallel"]) if (d[k] != null) parts.push(`${k}=${d[k]}`);
-      for (const [k, field] of [["extra", "extra"], ["env", "env"], ["sbatch", "sbatch_args"]]) {
-        for (const v of d[field] || []) parts.push(`${k}=${enc(v)}`);
-      }
+      for (const k of ["repeats", "max_parallel"]) if (d[k] != null) parts.push(`${k}=${d[k]}`);
+      for (const k of ["extra", "env"]) for (const v of d[k] || []) parts.push(`${k}=${enc(v)}`);
       const hash = parts.join("&");
       this.writtenHash = hash;
       const url = location.pathname + location.search + (hash ? "#" + hash : "");
@@ -1320,7 +1328,9 @@
       const raw = location.hash.slice(1);
       // A plain #anchor (a heading link) is not composer state.
       if (!raw.includes("=")) return;
-      const sel = fromDict({});
+      // Gathered as a Selection dict, so fromDict upgrades an old worker-pool
+      // link (#target=pool&count=6, #target=slurm_pool&sbatch=...) to the sweep.
+      const data = { choices: {}, extra: [], env: [] };
       for (const part of raw.split("&")) {
         const at = part.indexOf("=");
         if (at < 0) continue;
@@ -1328,34 +1338,36 @@
         try { key = decodeURIComponent(part.slice(0, at)); } catch (e) { continue; }
         const value = part.slice(at + 1);
         const dec = (v) => { try { return decodeURIComponent(v); } catch (e) { return v; } };
-        if (key === "target") sel.target = has(this.catalog.targets, dec(value)) ? dec(value) : null;
-        else if (key === "count" || key === "max_parallel") {
-          if (/^\d+$/.test(value)) sel[key] = Number(value);
-        } else if (key === "extra") sel.extra.push(dec(value));
-        else if (key === "env") sel.env.push(dec(value));
-        else if (key === "sbatch") sel.sbatch_args.push(dec(value));
+        if (key === "target") {
+          const target = dec(value);
+          data.target = has(this.catalog.targets, target) || LEGACY_TARGETS.includes(target) ? target : null;
+        } else if (key === "repeats" || key === "count" || key === "max_parallel") {
+          if (/^\d+$/.test(value)) data[key] = Number(value);
+        } else if (key === "extra") data.extra.push(dec(value));
+        else if (key === "env") data.env.push(dec(value));
         // Written under the catalog's own path, never the link's string: the
         // key is only ever one the catalog already has.
         else if (has(this.catalog.groups, key)) {
           const group = this.catalog.groups[key];
           const names = group.options.map((o) => o.name);
           const values = value.split(",").map(dec).filter((v) => names.includes(v));
-          if (values.length) sel.choices[group.path] = values;
+          if (values.length) data.choices[group.path] = values;
         } else if (has(this.catalog.scalars, key)) {
           const scalar = this.catalog.scalars[key];
           const values = [];
           for (const v of value.split(",").map(dec)) {
             try { values.push(parseScalar(v, scalar.type)); } catch (e) { /* skip */ }
           }
-          if (values.length) sel.choices[scalar.path] = values;
+          if (values.length) data.choices[scalar.path] = values;
         }
       }
+      const sel = fromDict(data);
       this.raw = this.normalized(sel);
       this.writtenHash = raw;
-      // Locally, a link's extras, env and sbatch options reach a process, and
-      // anyone can craft a link: hold Preview / Record / Run until the user
-      // has looked at them (compose.py re-checks them all the same).
-      const brought = [...sel.extra, ...sel.env, ...sel.sbatch_args];
+      // Locally, a link's extras and env reach a process, and anyone can
+      // craft a link: hold Preview / Record / Run until the user has looked
+      // at them (compose.py re-checks them all the same).
+      const brought = [...sel.extra, ...sel.env];
       this.linkReview = this.catalog.capabilities === "local" && brought.length ? brought : null;
       // A shared link: inset the last per-app axis it sets.
       for (const key of Object.keys(this.raw.choices)) this.noteTouched(key);
@@ -1526,9 +1538,13 @@
       const changed = (keys) => keys.filter((k) => has(this.sel.choices, k)).length;
       const appKeys = Object.keys(catalog.groups).filter((p) => p.startsWith("apps/") && !placed.has(p));
       const runFields = RUN_KEYS.filter((k) => has(catalog.scalars, k)).map((k) => this.scalarField(k));
-      runFields.push(this.countField("count", "Count", "Worker pools: total runs, round-robin over the agents."));
-      runFields.push(this.countField("max_parallel", "Max parallel", "Worker pools: how many runs at once."));
-      const runChanged = changed(RUN_KEYS) + (this.sel.count !== null) + (this.sel.max_parallel !== null);
+      runFields.push(this.countField("repeats", "Repeats",
+        "Runs per job, seed fixed, to measure run-to-run variance (parallel_tasks.repeats)."));
+      // SLURM schedules its own jobs; max_parallel is the local launcher's.
+      const slurm = this.current("mode").includes("slurm_cluster");
+      runFields.push(this.countField("max_parallel", "Max parallel",
+        slurm ? "Local sweeps only: on SLURM the scheduler decides." : "Local jobs at once (max_parallel).", slurm));
+      const runChanged = changed(RUN_KEYS) + (this.sel.repeats !== null) + (this.sel.max_parallel !== null);
 
       return [
         h("div", { class: "grid" }, main),
@@ -1538,7 +1554,7 @@
             h("div", { class: "grid" }, row.fields))),
           shell.length ? h("div", { class: "app-row" }, h("h3", { class: "app-name", text: "Shell" }), h("div", { class: "grid" }, shell)) : null,
         ]),
-        this.section("run", "Run settings", "steps, seed, logging, worker pool", runChanged, [h("div", { class: "grid" }, runFields)]),
+        this.section("run", "Run settings", "steps, seed, logging, repeats", runChanged, [h("div", { class: "grid" }, runFields)]),
         more.length ? this.section("more", "More options", "", 0, [h("div", { class: "grid" }, more)]) : null,
         this.extrasField(),
         this.pasteField(),
@@ -1866,12 +1882,13 @@
       return this.field(key, scalar.label, control);
     }
 
-    countField(name, label, summary) {
+    countField(name, label, summary, disabled = false) {
       return this.field(name, label, h("input", {
         type: "number", class: "text-input", inputmode: "numeric", min: "1",
         "aria-labelledby": `label-${name}`, "data-fk": `input:${name}`, title: summary,
-        // MAX_PARALLEL: conduct.sh and conduct_slurm.sh both default to 4.
-        placeholder: name === "count" ? "agents" : "4",
+        // Both default to 1 (config_parallel_tasks.yaml).
+        placeholder: "1",
+        disabled: disabled || null,
         value: this.sel[name] === null ? "" : String(this.sel[name]),
         oninput: (event) => {
           const raw = event.target.value.trim();
@@ -1892,7 +1909,6 @@
       const chips = [
         ...this.sel.extra.map((t) => chip("extra override", "extra", t)),
         ...this.sel.env.map((t) => chip("env", "env", t)),
-        ...this.sel.sbatch_args.map((t) => chip("sbatch", "sbatch_args", t)),
       ];
       const input = h("input", {
         type: "text", class: "text-input mono", placeholder: "agent.hostname=node-001",
@@ -2004,7 +2020,7 @@
     /** The overrides a link brought in that are still selected and unreviewed. */
     pendingReview() {
       if (!this.linkReview) return [];
-      const present = new Set([...this.raw.extra, ...this.raw.env, ...this.raw.sbatch_args]);
+      const present = new Set([...this.raw.extra, ...this.raw.env]);
       return this.linkReview.filter((t) => present.has(t));
     }
 
@@ -2448,7 +2464,7 @@
     });
   }
 
-  /** "Worker pool on SLURM" -> "worker pool on SLURM": acronyms survive. */
+  /** "Sweep" -> "sweep", "Single run" -> "single run". */
   const lowerFirst = (text) => text.charAt(0).toLowerCase() + text.slice(1);
 
   function humanAxis(text) {

@@ -129,11 +129,12 @@ def test_inexpressible_selections_raise(catalog, case):
         ({"choices": {"apps/theme": ["dark", "mono"]}}, "sweep"),
         ({"choices": {"task_name": ["a", "b"]}}, "sweep"),
         ({"choices": {"task_name": ["all"]}}, "sweep"),
-        ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}}, "pool"),
-        ({"count": 3}, "pool"),
-        ({"max_parallel": 2}, "pool"),
-        ({"choices": {"mode": ["slurm_cluster"]}, "count": 3}, "slurm_pool"),
-        ({"choices": {"mode": ["slurm_cluster"]}}, "slurm_pool"),
+        ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}}, "sweep"),
+        ({"repeats": 3}, "sweep"),
+        ({"max_parallel": 2}, "sweep"),
+        ({"choices": {"mode": ["slurm_cluster"]}, "repeats": 3}, "sweep"),
+        # launch_agent.py runs in this process; SLURM is the sweep launcher's.
+        ({"choices": {"mode": ["slurm_cluster"]}}, "sweep"),
         (
             {"choices": {"mode": ["slurm_cluster"], "apps/theme": ["dark", "mono"]}},
             "sweep",
@@ -143,7 +144,7 @@ def test_inexpressible_selections_raise(catalog, case):
         ({"choices": {"tasks": ["all_tasks", "openbanking"]}}, "single"),
         (
             {"choices": {"tasks": ["all_tasks", "openbanking"], "agent": ["a", "b"]}},
-            "pool",
+            "sweep",
         ),
     ],
 )
@@ -151,57 +152,59 @@ def test_resolve_target(catalog, selection, target):
     assert resolve_target(Selection.from_dict(selection), catalog) == target
 
 
-def test_the_worker_pool_pill_follows_the_mode_row(catalog):
-    """There is no separate SLURM-pool pill: Worker pool + Mode=slurm_cluster
-    is the SLURM pool, so forcing ``pool`` never fights the Mode row."""
-    forced = Selection.from_dict(
-        {
-            "target": "pool",
-            "choices": {
-                "mode": ["slurm_cluster"],
-                "agent": ["gemma-4-2B-computer-use"],
+def test_there_is_one_interface_for_parallel_runs(catalog):
+    """Single run and sweep: the worker pools are not targets any more."""
+    assert set(catalog.targets) == {"single", "sweep"}
+    for target in catalog.targets.values():
+        assert "conduct" not in target.command
+
+
+@pytest.mark.parametrize(
+    "legacy,upgraded",
+    [
+        # Worker pool -> the sweep; its count over two agents -> 3 repeats each.
+        (
+            {"target": "pool", "choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 6},
+            {"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "repeats": 3},
+        ),
+        # A count that does not divide still covers every run it asked for.
+        (
+            {"target": "pool", "choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 5},
+            {"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "repeats": 3},
+        ),
+        # SLURM pool -> the sweep on SLURM; sbatch options have nowhere to go.
+        (
+            {
+                "target": "slurm_pool",
+                "choices": {"agent": ["gemma-4-2B-computer-use"]},
+                "sbatch_args": ["--qos=q"],
+                "max_parallel": 4,
             },
-        }
-    )
-    assert resolve_target(forced, catalog) == "slurm_pool"
-    assert (
-        render(forced, catalog)
-        == "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh"
-    )
-    # Auto-selection lands there anyway, so the forced target is redundant.
-    assert normalize(forced, catalog).target is None
+            {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"]}},
+        ),
+        # A forced pool with one agent and nothing else is a sweep of one job.
+        ({"target": "pool", "choices": {"agent": ["claude_4_sonnet"]}},
+         {"target": "sweep", "choices": {"agent": ["claude_4_sonnet"]}}),
+    ],
+)
+def test_old_worker_pool_links_load_as_the_sweep(catalog, legacy, upgraded):
+    sel = Selection.from_dict(legacy)
+    if "slurm_cluster" in sel.choices.get("mode", []):
+        sel = replace(sel, max_parallel=None)  # the UI drops it on SLURM
+    assert normalize(sel, catalog).to_dict() == upgraded
+    render(sel, catalog)  # and it renders
 
 
-def test_a_forced_slurm_pool_normalizes_to_the_pool_pill(catalog):
-    """Old links (``#target=slurm_pool``) keep working, spelled the new way."""
-    sel = Selection.from_dict({"target": "slurm_pool", "choices": {"seed": [1, 2]}})
-    with pytest.raises(CommandError):
-        render(sel, catalog)  # a pool still cannot vary the seed
-    old = Selection.from_dict({"target": "slurm_pool"})
-    assert normalize(old, catalog) == Selection(
-        choices={"mode": ["slurm_cluster"], "agent": ["default"]}
-    )
+def test_max_parallel_is_refused_on_slurm(catalog):
+    sel = Selection.from_dict({"choices": {"mode": ["slurm_cluster"]}, "max_parallel": 4})
+    with pytest.raises(CommandError, match="max_parallel"):
+        render(sel, catalog)
 
 
-def test_a_pool_agent_survives_the_switch_to_slurm(catalog):
-    """The UI holds the normalized selection. If the pool dropped agent=dummy
-    as conduct.sh's default, Mode=Slurm would then render no AGENTS and run
-    conduct_slurm.sh's own default -- an agent nobody picked."""
-    pool = normalize(
-        Selection.from_dict({"target": "pool", "choices": {"agent": ["dummy"]}}),
-        catalog,
-    )
-    assert pool.choices == {"agent": ["dummy"]}
-    on_slurm = replace(pool, choices={**pool.choices, "mode": ["slurm_cluster"]})
-    assert render(on_slurm, catalog) == "AGENTS=dummy sbatch scripts/conduct_slurm.sh"
-
-
-@pytest.mark.parametrize("target", ["pool", "slurm_pool"])
-def test_worker_pools_always_spell_out_agents(catalog, target):
-    """Whatever is (or is not) chosen, the agent on screen is in AGENTS."""
-    sel = normalize(Selection(target=target), catalog)
-    shown = sel.choices["agent"]
-    assert render(sel, catalog).startswith(f"AGENTS={shown[0]} ")
+@pytest.mark.parametrize("script", ["./scripts/conduct.sh", "sbatch scripts/conduct_slurm.sh"])
+def test_a_worker_pool_command_points_at_the_sweep(catalog, script):
+    with pytest.raises(CommandError, match="launch_parallel_agents.py"):
+        parse(f"AGENTS=dummy {script}", catalog)
 
 
 def test_unknown_target_is_an_error(catalog):
@@ -233,13 +236,12 @@ def test_sweep_app_defaults_come_from_config_yaml(catalog):
 
 def test_selection_json_round_trip():
     data = {
-        "target": "pool",
+        "target": "sweep",
         "choices": {"agent": ["dummy"], "seed": [3]},
-        "count": 2,
+        "repeats": 2,
         "max_parallel": 1,
         "extra": ["a.b=c"],
         "env": ["X=1"],
-        "sbatch_args": ["--qos=q"],
     }
     assert Selection.from_dict(data).to_dict() == data
     assert Selection().to_dict() == {}
@@ -254,10 +256,20 @@ def test_selection_json_round_trip():
             6,
         ),
         ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}}, 2),
-        ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 6}, 6),
+        ({"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "repeats": 3}, 6),
+        (
+            {
+                "choices": {
+                    "agent": ["dummy", "claude_4_sonnet"],
+                    "apps/theme": ["dark", "mono"],
+                    "task_name": ["a", "b", "c"],
+                },
+                "repeats": 2,
+            },
+            24,  # 2 themes x 3 tasks x 2 agents x 2 repeats
+        ),
         ({"choices": {"mode": ["slurm_cluster"]}}, 1),
         ({"choices": {"mode": ["slurm_cluster"], "agent": ["a", "b"]}}, 2),
-        ({"choices": {"mode": ["slurm_cluster"], "agent": ["a", "b"]}, "count": 1}, 1),
     ],
 )
 def test_run_count(catalog, selection, runs):
@@ -299,8 +311,12 @@ COMBINED = "tasks=[all_tasks,openbanking]"
             }
         },
         {"target": "sweep", "choices": {"tasks": ["all_tasks", "openbanking"]}},
-        {"choices": {"tasks": ["all_tasks", "openbanking"], "agent": ["a", "b"]}},
-        {"target": "pool", "choices": {"tasks": ["all_tasks", "openbanking"]}},
+        {
+            "choices": {
+                "tasks": ["all_tasks", "openbanking"],
+                "agent": ["dummy", "claude_4_sonnet"],
+            }
+        },
         {
             "choices": {
                 "tasks": ["all_tasks", "openbanking"],
@@ -345,6 +361,17 @@ def _overrides_after_script(command: str) -> tuple[str, list[str]]:
     raise AssertionError(command)
 
 
+def _launcher_overrides(script: str, overrides: list[str]) -> list[str]:
+    """What Hydra composes for ``overrides``: the sweep launcher first turns
+    its ``agents=a,b`` selector into ``agent=a`` plus
+    ``parallel_tasks.agent_configs`` (Hydra has no ``agents`` key)."""
+    if script == "launch_parallel_agents.py":
+        from open_apps.parallel_launcher import normalize_cli_args
+
+        return normalize_cli_args(overrides)
+    return overrides
+
+
 def _compose_ok(config_name: str, overrides: list[str]) -> None:
     fast = [] if any("apps/onlineshop/content" in o for o in overrides) else _FAST
     compose(config_name=config_name, overrides=[*overrides, *fast])
@@ -354,7 +381,7 @@ def _compose_ok(config_name: str, overrides: list[str]) -> None:
 def test_rendered_overrides_compose(catalog, case):
     selection = Selection.from_dict(case["selection"])
     script, overrides = _overrides_after_script(render(selection, catalog))
-    agents = selection.choices.get("agent") or [None]
+    overrides = _launcher_overrides(script, overrides)
     with hydra_context():
         if script == "launch_agent.py":
             _compose_ok("config", overrides)
@@ -367,16 +394,11 @@ def test_rendered_overrides_compose(catalog, case):
             first = next(iter(cfg.tasks)) if names == "all" else names[0]
             for cell in cfg.parallel_tasks.app_variations:
                 _compose_ok("config", [*cell, f"task_name={first}"])
+            # Every agent of an agents=a,b sweep composes too.
+            for agent in cfg.parallel_tasks.get("agent_configs") or []:
+                _compose_ok("config", [f"agent={agent}"])
         else:
-            # What conduct.sh (and conduct_slurm.sh before it) put in front of
-            # the forwarded overrides for each run.
-            if script.endswith("conduct_slurm.sh"):
-                overrides = ["agent.hostname=node", "use_wandb=True", *overrides]
-            for agent in agents:
-                injected = ["browsergym_env_args.headless=True", "wandb.group=g"]
-                if agent:
-                    injected = [f"agent={agent}", *injected, f"wandb.job_type={agent}"]
-                _compose_ok("config", [*injected, *overrides])
+            raise AssertionError(f"unexpected script {script}")
 
 
 COMBINED_CASES = [
@@ -391,12 +413,23 @@ def test_combined_commands_compose_the_union(catalog, case):
     composes."""
     selection = Selection.from_dict(case["selection"])
     script, overrides = _overrides_after_script(render(selection, catalog))
+    overrides = _launcher_overrides(script, overrides)
     config_name = (
         "config_parallel_tasks" if script == "launch_parallel_agents.py" else "config"
     )
     union = {t.name for t in catalog.tasks_in(selection.choices["tasks"])}
     with hydra_context():
         cfg = compose(config_name=config_name, overrides=[*overrides, *_FAST])
+    configs = cfg.get("parallel_tasks", {}).get("task_configs")
+    if configs:
+        # With agents=a,b the launcher reads tasks=[a,b] as task files run
+        # side by side, and parallel_tasks.task_names picks across them.
+        assert list(configs) == selection.choices["tasks"]
+        with hydra_context():
+            union_cfg = compose(
+                config_name="config", overrides=[f"tasks=[{','.join(configs)}]", *_FAST]
+            )
+        cfg = union_cfg
     assert set(cfg.tasks) == union
     for name in selection.choices.get("task_name", []):
         assert name == "all" or name in cfg.tasks
@@ -450,10 +483,9 @@ def test_a_benchmark_command_parses_back(bench):
     assert render(parse(SUITE_COMMAND, bench), bench) == SUITE_COMMAND
 
 
-@pytest.mark.parametrize("target", ["single", "pool"])
-def test_a_benchmark_runs_only_as_a_sweep(bench, target):
+def test_a_benchmark_runs_only_as_a_sweep(bench):
     with pytest.raises(CommandError, match="benchmark runs only as a sweep"):
-        render(replace(SUITE, target=target), bench)
+        render(replace(SUITE, target="single"), bench)
 
 
 def test_a_benchmark_on_another_script_stays_an_extra(bench):

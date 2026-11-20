@@ -234,7 +234,9 @@ srun --overlap --jobid=<vllm-job> --pty curl -s http://localhost:8000/v1/models
 ### 2. Submit the eval job
 
 `scripts/conduct_slurm.sh` requests a CPU allocation, finds the vLLM node, and
-runs `scripts/conduct.sh` pointed at it with `use_wandb=True`:
+runs `scripts/conduct.sh` pointed at it with `use_wandb=True`. For sweeps across
+task files, tasks, variations or several agents, use `launch_parallel_agents.py`
+instead (below):
 
 ```bash
 # smoke test (1 run)
@@ -290,6 +292,69 @@ srun --overlap --jobid=<vllm-job> \
   env AGENTS=gemma-4-e2b-it COUNT=1 VLLM_HOST=localhost \
   ./scripts/conduct.sh agent.hostname=localhost use_wandb=True
 ```
+
+### 2b. Or launch a sweep
+
+`launch_parallel_agents.py` is the one entry point for sweeps, locally and on
+SLURM. The sweep is task files × agents × app variations × tasks × repeats, and
+every job gets its own port window, `logs_dir` and databases.
+`agent.hostname=auto` points the agents at the node serving their model (see
+*Discovery* above); `agent.hostname=<node>` pins it instead.
+
+**On SLURM, one job per run** (`mode=slurm_cluster`): the launcher submits the
+sweep through submitit, one CPU job per run, with the `slurm_sweep_launcher`
+settings from `config/mode/slurm_cluster.yaml`. Its account, QOS, partition and
+`logs_dir` are placeholders; set them on the command line (or in your own copy
+of that file). `logs_dir` must be on storage the compute nodes share.
+
+```bash
+uv run launch_parallel_agents.py mode=slurm_cluster \
+  logs_dir=/shared/$USER/logs/open_apps \
+  slurm_sweep_launcher.slurm_account=... \
+  slurm_sweep_launcher.slurm_qos=... \
+  slurm_sweep_launcher.slurm_partition=... \
+  agents=gemma-4-31B-computer-use agent.hostname=auto \
+  'parallel_tasks.task_names=[add_meeting_with_dennis]' 'parallel_tasks.app_variations=[[]]'
+```
+
+**Inside one allocation** (`mode=local`): run the sweep from a single CPU
+allocation, `max_parallel` runs at a time, each writing to its
+`<logs_dir>/run-<id>/<job_id>/run.log`:
+
+```bash
+srun --account=... --qos=... --partition=... --cpus-per-task=8 --mem=40G --time=400 \
+  uv run launch_parallel_agents.py mode=local max_parallel=8 \
+  agents=gemma-4-31B-computer-use agent.hostname=auto tasks=longer_horizon.yaml \
+  parallel_tasks.repeats=3 browsergym_env_args.max_steps=40
+```
+
+- `agent.hostname=auto` lists your running jobs (`squeue --me`), expands their
+  nodelists and probes `http://<node>:<agent.port>/v1/models` (port 8000 by
+  default, with `agent.api_key` if the server needs one) for the agent's
+  `model_name`. Every job of one model goes to the node found for it.
+- With `use_wandb=True`, a sweep's runs share one W&B group (the `run-<id>`
+  name) with the agent as `job_type`.
+
+**Check the pipeline first with the dummy agent** (no model server):
+
+```bash
+# locally: 2 tasks x 2 variations, 2 at a time
+uv run launch_parallel_agents.py agent=dummy max_parallel=2 browsergym_env_args.max_steps=3 \
+  'parallel_tasks.task_names=[add_call_mom_to_my_todo,message_bob_to_meet]' \
+  'parallel_tasks.app_variations=[[],["apps/theme=dark"]]'
+
+# on SLURM: the same sweep, one job per run
+uv run launch_parallel_agents.py mode=slurm_cluster agent=dummy browsergym_env_args.max_steps=3 \
+  logs_dir=/shared/$USER/logs/open_apps \
+  slurm_sweep_launcher.slurm_account=... slurm_sweep_launcher.slurm_qos=... \
+  slurm_sweep_launcher.slurm_partition=... \
+  'parallel_tasks.task_names=[add_call_mom_to_my_todo,message_bob_to_meet]' \
+  'parallel_tasks.app_variations=[[],["apps/theme=dark"]]'
+```
+
+The SLURM sweep prints the submitted job ids; submitit's logs are in
+`<logs_dir>/run-<id>/slurm/`, and each run's `summary_info.json` is under
+`<logs_dir>/run-<id>/<job_id>/`.
 
 ### 3. Check results
 

@@ -156,9 +156,21 @@ def test_facts_overlay_order(catalog):
     assert f["target"] == ["single"]
 
 
-def test_slurm_pool_turns_wandb_on(catalog):
+def test_slurm_is_the_sweep_launcher(catalog):
     f = facts(Selection.from_dict({"choices": {"mode": ["slurm_cluster"]}}), catalog)
-    assert f["use_wandb"] == [True]
+    assert f["target"] == ["sweep"]
+    assert f["use_wandb"] == [False]  # no script turns it on behind your back
+
+
+def test_the_slurm_host_fix_is_agent_hostname_auto(catalog):
+    sel = Selection.from_dict(
+        {"choices": {"agent": ["gemma-4-2B-computer-use"], "mode": ["slurm_cluster"]}}
+    )
+    (finding,) = evaluate(sel, catalog)
+    assert finding.rule_id == "vllm_agent_on_slurm_finds_host"
+    fixed = apply_fix(sel, finding.fix, catalog)
+    assert fixed.extra == ["agent.hostname=auto"]
+    assert evaluate(fixed, catalog) == []
 
 
 # --------------------------------------------------------------------------
@@ -203,6 +215,14 @@ def test_premise_vllm_url_uses_the_hostname(monkeypatch):
     monkeypatch.setattr(vLLM_agent, "VLLMChatModel", lambda **kwargs: kwargs)
     args = vLLM_agent.ModelArgs(client_type="vllm", hostname="node-9", port="8000")
     assert args.make_model()["client_args"]["base_url"] == "http://node-9:8000/v1"
+
+
+def test_premise_the_sweep_launcher_resolves_hostname_auto():
+    """vllm_agent_on_slurm_finds_host's fix is a value launch_parallel_agents.py
+    understands (it looks the node up in squeue)."""
+    from open_apps import parallel_launcher
+
+    assert parallel_launcher.AUTO_HOST == "auto"
 
 
 # --------------------------------------------------------------------------

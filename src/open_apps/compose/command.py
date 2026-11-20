@@ -9,32 +9,35 @@ LICENSE file in the root directory of this source tree.
 
 A :class:`Selection` is what the UI holds: chosen values per group/scalar
 (several values on an axis means "vary this"), an optional forced target, a
-repeat count, and whatever it did not understand, kept verbatim. Four targets,
-picked automatically unless forced:
+repeat count and a parallelism cap, and whatever it did not understand, kept
+verbatim. Two targets, picked automatically unless forced:
 
 * one value per axis                       -> ``uv run launch_agent.py ...``
-* several values on an ``apps/*`` axis or
-  several tasks (or ``task_name=all``)     -> ``uv run launch_parallel_agents.py
-  parallel_tasks.app_variations=[[...]] parallel_tasks.task_names=[...]``
-* several agents, a repeat count or a
-  parallelism cap                          -> ``AGENTS=... COUNT=n ./scripts/conduct.sh``
-* any of the above (but a sweep) with
-  ``mode=slurm_cluster``                   -> ``AGENTS=... sbatch scripts/conduct_slurm.sh``
+* anything else: several values on an
+  ``apps/*`` axis, several tasks (or
+  ``task_name=all``), several agents, a
+  repeat count, a parallelism cap, or
+  ``mode=slurm_cluster``                   -> ``uv run launch_parallel_agents.py
+  [agents=a,b] parallel_tasks.app_variations=[[...]] parallel_tasks.task_names=[...]
+  [parallel_tasks.repeats=n] [max_parallel=n]``
+
+launch_parallel_agents.py is the one interface for parallel runs: several
+agents are its ``agents=a,b`` selector, repeats are ``parallel_tasks.repeats``
+(every job N times, seed fixed), and ``max_parallel`` runs that many local jobs
+at once (SLURM schedules its own, so it is refused there).
 
 Several ``tasks`` groups are not a sweep: they combine into one inventory,
 ``'tasks=[all_tasks,openbanking]'`` (catalog option order), on any target --
 see :data:`open_apps.compose.catalog.COMBINABLE_GROUPS`.
 
-A sweep on SLURM stays ``launch_parallel_agents.py mode=slurm_cluster``
-(submitit). Only non-default values are emitted, with deliberate exceptions.
+A sweep on SLURM is ``launch_parallel_agents.py mode=slurm_cluster``
+(submitit), a single run on SLURM a sweep of one job. Only non-default values
+are emitted, with deliberate exceptions.
 Sweeps always spell out ``app_variations`` and ``task_names``:
 config_parallel_tasks.yaml's built-in lists are a demo grid, and
 create_configs rebuilds each job's ``apps`` from config.yaml plus the cell's
 overrides only, so an ``apps/*`` choice anywhere but inside every cell would
-be silently dropped. Worker pools always spell out ``AGENTS`` (and the SLURM
-pool ``COUNT`` for several agents): a script's env-var default is not the
-Hydra config's -- conduct_slurm.sh's AGENTS default has named a config that
-no longer exists -- so leaving one out would run something not on screen.
+be silently dropped.
 
 ``parse(render(s)) == s`` for any normalized selection; ``render(parse(cmd))``
 keeps every token of ``cmd`` except values the target applies by default.
@@ -52,7 +55,10 @@ from hydra.errors import HydraException
 from open_apps.compose.catalog import TARGETS, Catalog
 
 ALL_TASKS = "all"  # mirrors open_apps.tasks.parallel_tasks.ALL_TASKS
-POOL_TARGETS = ("pool", "slurm_pool")
+#: Targets an old share link may name: the worker pools the composer used to
+#: render (``scripts/conduct*.sh``). Both load as the sweep, which now does
+#: what they did -- several agents, repeats, a parallelism cap, SLURM.
+LEGACY_TARGETS = ("pool", "slurm_pool")
 
 #: A shell variable name. The one copy in Python: parse, the server's env
 #: check and its argv split all use :data:`ENV_ASSIGNMENT` (the JS port spells
@@ -71,20 +77,18 @@ class CommandError(ValueError):
 class Selection:
     """What the composer has selected. JSON-shaped; see :meth:`to_dict`."""
 
-    #: group path or scalar path -> chosen values (several = sweep / pool).
+    #: group path or scalar path -> chosen values (several = a sweep axis).
     choices: dict[str, list[Any]] = field(default_factory=dict)
     #: Forced target; ``None`` picks one automatically (:func:`resolve_target`).
     target: str | None = None
-    #: Worker pools: total runs, round-robin over the agents (``COUNT``).
-    count: int | None = None
-    #: Worker pools: concurrent runs (``MAX_PARALLEL``).
+    #: Sweeps: runs per job, seed fixed (``parallel_tasks.repeats``).
+    repeats: int | None = None
+    #: Local sweeps: jobs at once (``max_parallel``).
     max_parallel: int | None = None
     #: Hydra overrides the composer does not model, passed through verbatim.
     extra: list[str] = field(default_factory=list)
     #: ``NAME=value`` environment assignments it does not model.
     env: list[str] = field(default_factory=list)
-    #: ``sbatch`` options (``--account=...``) for the SLURM worker pool.
-    sbatch_args: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """The JSON form, with empty fields omitted (what the fixtures store)."""
@@ -93,24 +97,42 @@ class Selection:
             out["target"] = self.target
         if self.choices:
             out["choices"] = {k: list(v) for k, v in self.choices.items()}
-        for key in ("count", "max_parallel"):
+        for key in ("repeats", "max_parallel"):
             if getattr(self, key) is not None:
                 out[key] = getattr(self, key)
-        for key in ("extra", "env", "sbatch_args"):
+        for key in ("extra", "env"):
             if getattr(self, key):
                 out[key] = list(getattr(self, key))
         return out
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Selection":
+        """The selection ``data`` describes, upgrading the worker-pool form.
+
+        A pool target loads as the sweep (``slurm_pool`` adds
+        ``mode=slurm_cluster``); a pool's ``count`` -- total runs, round-robin
+        over the agents -- becomes enough ``repeats`` per agent to cover it;
+        ``sbatch_args`` are dropped (submitit reads the SLURM settings from
+        ``mode``).
+        """
+        choices = {k: list(v) for k, v in (data.get("choices") or {}).items()}
+        target = data.get("target")
+        repeats = data.get("repeats")
+        if target in LEGACY_TARGETS:
+            if target == "slurm_pool":
+                choices.setdefault("mode", ["slurm_cluster"])
+            target = "sweep"
+        count = data.get("count")
+        if repeats is None and isinstance(count, int) and count > 1:
+            agents = max(1, len(choices.get("agent") or []))
+            repeats = -(-count // agents)  # ceil
         return cls(
-            choices={k: list(v) for k, v in (data.get("choices") or {}).items()},
-            target=data.get("target"),
-            count=data.get("count"),
+            choices=choices,
+            target=target,
+            repeats=repeats,
             max_parallel=data.get("max_parallel"),
             extra=list(data.get("extra") or []),
             env=list(data.get("env") or []),
-            sbatch_args=list(data.get("sbatch_args") or []),
         )
 
 
@@ -158,34 +180,32 @@ def suite(selection: Selection, catalog: Catalog) -> str | None:
 
 
 def resolve_target(selection: Selection, catalog: Catalog) -> str:
-    """Which command runs this selection: single, sweep, pool or slurm_pool.
+    """Which command runs this selection: single or sweep.
 
     A group only one target binds (``benchmark``: the sweep) picks that one.
+    Anything parallel -- several values on an axis, repeats, a parallelism
+    cap -- and anything on SLURM is the sweep: launch_agent.py runs one
+    episode in this process.
     """
     choices = selection.choices
-    slurm = "slurm_cluster" in choices.get("mode", [])
     if selection.target:
         if selection.target not in TARGETS:
             raise CommandError(
                 f"unknown target {selection.target!r}; one of {', '.join(TARGETS)}"
             )
-        if selection.target == "pool" and slurm:
-            # The Worker pool pill on the SLURM mode (see Target.pill).
-            return "slurm_pool"
         return selection.target
     bound = _bound(choices, catalog)
     if bound:
         return catalog.groups[bound[0]].targets[0]
     if (
-        len(choices.get("agent", [])) > 1
-        or (selection.count or 0) > 1
-        or selection.max_parallel is not None
+        _varied(choices, catalog)
+        or choices.get("task_name") == [ALL_TASKS]
+        or (selection.repeats or 0) > 1
+        or (selection.max_parallel or 0) > 1
+        or "slurm_cluster" in choices.get("mode", [])
     ):
-        return "slurm_pool" if slurm else "pool"
-    varied = [k for k in _varied(choices, catalog) if k != "agent"]
-    if varied or choices.get("task_name") == [ALL_TASKS]:
         return "sweep"
-    return "slurm_pool" if slurm else "single"
+    return "single"
 
 
 def default_for(key: str, target: str, catalog: Catalog) -> Any:
@@ -225,38 +245,18 @@ def normalize(selection: Selection, catalog: Catalog) -> Selection:
         if unique:
             choices[key] = unique
     sel = replace(selection, choices=choices)
-    if sel.target == "slurm_pool":
-        # Not a pill: spell it the way the UI does, Worker pool + the SLURM
-        # mode. Keeps old `#target=slurm_pool` links working.
-        choices.setdefault("mode", ["slurm_cluster"])
-        sel = replace(sel, target="pool")
+    # 1 is each one's default (config_parallel_tasks.yaml), so it says nothing.
+    if sel.repeats is not None and sel.repeats <= 1:
+        sel = replace(sel, repeats=None)
+    if sel.max_parallel is not None and sel.max_parallel <= 1:
+        sel = replace(sel, max_parallel=None)
 
     target = resolve_target(sel, catalog)
-    if target == "slurm_pool" and "mode" not in choices:
-        # The canonical way to say "SLURM worker pool" is mode=slurm_cluster.
-        choices["mode"] = ["slurm_cluster"]
-    if target in POOL_TARGETS:
-        # render always spells out AGENTS, so the agent is never dropped as a
-        # default: that would lose it on a switch to the other pool, whose
-        # script defaults differ. Fill in the one the UI shows instead.
-        choices.setdefault("agent", [default_for("agent", target, catalog)])
-        if target == "slurm_pool" and sel.count == len(choices["agent"]):
-            sel = replace(sel, count=None)  # what render emits without one
-    if target not in POOL_TARGETS:
-        sel = replace(sel, count=None, max_parallel=None, sbatch_args=[])
-    if target != "slurm_pool":
-        sel = replace(sel, sbatch_args=[])
+    if target != "sweep":
+        sel = replace(sel, repeats=None, max_parallel=None)
 
     for key in list(choices):
         values = choices[key]
-        if key == "mode" and target in POOL_TARGETS:
-            # mode picks the pool script; slurm_cluster is how auto-selection
-            # finds the SLURM pool, so it stays even though it is not emitted.
-            if values == ["local"]:
-                del choices[key]
-            continue
-        if key == "agent" and target in POOL_TARGETS:
-            continue  # always emitted, see above
         if len(values) == 1 and values[0] == default_for(key, target, catalog):
             del choices[key]
 
@@ -304,21 +304,16 @@ def _check_expressible(sel: Selection, target: str, catalog: Catalog) -> None:
     varied = _varied(sel.choices, catalog)
     if target == "single":
         allowed: set[str] = set()
-    elif target == "sweep":
-        allowed = {k for k, g in catalog.groups.items() if g.sweepable} | {"task_name"}
     else:
-        allowed = {"agent"}
+        allowed = {k for k, g in catalog.groups.items() if g.sweepable}
+        allowed |= {"task_name", "agent"}
     for key in varied:
         if key in allowed:
             continue
-        if key == "agent":
-            why = "several agents run as a worker pool, which cannot also sweep"
-        elif target in POOL_TARGETS:
-            why = "a worker pool varies only the agent; run one sweep per agent"
-        elif key in catalog.groups and target == "sweep":
+        if key in catalog.groups and target == "sweep":
             why = (
-                "a sweep varies only apps/* groups and task_name -- create_configs "
-                "copies just `apps` out of each cell"
+                "a sweep varies only apps/* groups, task_name and the agent -- "
+                "create_configs copies just `apps` out of each cell"
             )
         else:
             why = f"a {TARGETS[target].label.lower()} takes one value per axis"
@@ -342,10 +337,10 @@ def _check_expressible(sel: Selection, target: str, catalog: Catalog) -> None:
                 f"{pinned}={sel.choices[pinned][0]}: the frozen suite pins the tasks "
                 f"and app variations; drop {', '.join(axes)}"
             )
-    if target in POOL_TARGETS:
-        expected = "slurm_cluster" if target == "slurm_pool" else "local"
-        if sel.choices.get("mode", [expected]) != [expected]:
-            raise CommandError(f"mode must be {expected!r} for the {target} target")
+    if sel.max_parallel is not None and "slurm_cluster" in sel.choices.get("mode", []):
+        raise CommandError(
+            "max_parallel runs local jobs at once; on SLURM the scheduler decides"
+        )
 
 
 def _hydra_list(items: list[str], quote: bool) -> str:
@@ -371,17 +366,12 @@ def render(selection: Selection, catalog: Catalog) -> str:
     target = resolve_target(sel, catalog)
     _check_expressible(sel, target, catalog)
 
-    env: list[str] = []
     overrides: list[str] = []
-    pool = target in POOL_TARGETS
     for key in _ordered_keys(sel.choices, catalog):
         values = sel.choices[key]
-        if pool and key == "agent":
-            env.append("AGENTS=" + " ".join(values))
-        elif pool and key == "mode":
-            continue  # chose the script
-        elif pool and key in catalog.scalars and catalog.scalars[key].pool_env:
-            env.append(f"{catalog.scalars[key].pool_env}={format_value(values[0])}")
+        if key == "agent" and len(values) > 1:
+            # launch_parallel_agents.py's selector: every job once per agent.
+            overrides.append("agents=" + ",".join(values))
         elif target == "sweep" and (
             key == "task_name"
             or (key in catalog.groups and catalog.groups[key].sweepable)
@@ -389,19 +379,6 @@ def render(selection: Selection, catalog: Catalog) -> str:
             continue  # inside app_variations / task_names below
         else:
             overrides.append(_choice_override(key, values, catalog))
-
-    if pool:
-        count = sel.count
-        if count is None and target == "slurm_pool" and len(sel.choices["agent"]) > 1:
-            # conduct_slurm.sh defaults COUNT to 1, not to one run per agent.
-            count = len(sel.choices["agent"])
-        if count is not None:
-            env.append(f"COUNT={count}")
-        if sel.max_parallel is not None:
-            env.append(f"MAX_PARALLEL={sel.max_parallel}")
-        # AGENTS, COUNT, MAX_PARALLEL, HEADLESS: the order conduct.sh reads them.
-        order = ("AGENTS=", "COUNT=", "MAX_PARALLEL=", "HEADLESS=")
-        env.sort(key=lambda a: next(i for i, p in enumerate(order) if a.startswith(p)))
 
     if target == "sweep" and not suite(sel, catalog):
         if not _has_extra(sel, "parallel_tasks.app_variations"):
@@ -414,12 +391,14 @@ def render(selection: Selection, catalog: Catalog) -> str:
             ]
             value = ALL_TASKS if names == [ALL_TASKS] else _hydra_list(names, False)
             overrides.append(f"parallel_tasks.task_names={value}")
+    if sel.repeats is not None:
+        overrides.append(f"parallel_tasks.repeats={sel.repeats}")
+    if sel.max_parallel is not None:
+        overrides.append(f"max_parallel={sel.max_parallel}")
 
     program = TARGETS[target].command.split()
-    if target == "slurm_pool":
-        program = [program[0], *sel.sbatch_args, *program[1:]]
     words = [shlex.quote(t) for t in [*program, *overrides, *sel.extra]]
-    env_words = [_quote_assignment(a) for a in env + sel.env]
+    env_words = [_quote_assignment(a) for a in sel.env]
     return " ".join(env_words + words)
 
 
@@ -437,15 +416,12 @@ def run_count(selection: Selection, catalog: Catalog) -> int | None:
     target = resolve_target(sel, catalog)
     if suite(sel, catalog):
         return None
-    if target in POOL_TARGETS:
-        if sel.count is not None:
-            return sel.count
-        return len(sel.choices["agent"])  # COUNT, rendered or the default
     if target == "sweep":
         names = sel.choices.get("task_name") or [None]
         if names == [ALL_TASKS]:
             names = task_names(sel, target, catalog)
-        return len(_sweep_cells(sel, catalog)) * len(names)
+        agents = len(sel.choices.get("agent") or [None])
+        return len(_sweep_cells(sel, catalog)) * len(names) * agents * (sel.repeats or 1)
     return 1
 
 
@@ -456,10 +432,10 @@ def run_count(selection: Selection, catalog: Catalog) -> int | None:
 _SCRIPTS = {
     "launch_agent.py": "single",
     "launch_parallel_agents.py": "sweep",
-    "conduct.sh": "pool",
-    "conduct_slurm.sh": "slurm_pool",
 }
-_POOL_ENV = ("AGENTS", "COUNT", "MAX_PARALLEL")
+#: The worker-pool scripts the composer no longer writes, and what replaced them.
+_RETIRED_SCRIPTS = ("conduct.sh", "conduct_slurm.sh")
+_AGENT_LIST = re.compile(r"^[\w.\-]+(,[\w.\-]+)+$")
 
 
 def _parse_scalar(raw: str, kind: str) -> Any:
@@ -493,6 +469,12 @@ def _split_program(tokens: list[str]) -> tuple[str, list[str], list[str]]:
     if i >= len(tokens):
         raise CommandError("no launch script found")
     script = tokens[i].rsplit("/", 1)[-1]
+    if script in _RETIRED_SCRIPTS:
+        raise CommandError(
+            f"{tokens[i]} is a worker pool; the composer runs parallel jobs with "
+            "launch_parallel_agents.py (agents=a,b, parallel_tasks.repeats=N, "
+            "max_parallel=N, mode=slurm_cluster)"
+        )
     if script not in _SCRIPTS:
         raise CommandError(f"unknown launch script {tokens[i]!r}")
     return _SCRIPTS[script], sbatch, tokens[i + 1 :]
@@ -551,31 +533,58 @@ def parse(command: str, catalog: Catalog) -> Selection:
         env.append((name, value))
         tokens = tokens[1:]
     target, sbatch_args, rest = _split_program(tokens)
-    pool = target in POOL_TARGETS
+    if sbatch_args:
+        raise CommandError(
+            "sbatch submits a script; a sweep goes to SLURM with mode=slurm_cluster"
+        )
 
-    sel = Selection(sbatch_args=sbatch_args)
+    sel = Selection(env=[f"{name}={value}" for name, value in env])
     choices = sel.choices
-    for name, value in env:
-        if pool and name == "AGENTS" and "agent" not in choices:
-            choices["agent"] = value.split()
-        elif pool and name in ("COUNT", "MAX_PARALLEL") and value.isdigit():
-            setattr(sel, name.lower(), int(value))
-        elif pool and name == "HEADLESS" and value.lower() in ("true", "false"):
-            choices["browsergym_env_args.headless"] = [value.lower() == "true"]
-        else:
-            sel.env.append(f"{name}={value}")
-    if target == "slurm_pool":
-        choices["mode"] = ["slurm_cluster"]
-        if sel.count is None:
-            sel.count = 1  # conduct_slurm.sh: COUNT="${COUNT:-1}"
-
     for token in rest:
-        if not _parse_override(token, target, choices, catalog):
+        if not (
+            _parse_run_setting(token, target, sel, catalog)
+            or _parse_override(token, target, choices, catalog)
+        ):
             sel.extra.append(token)
+    if sel.max_parallel is not None and "slurm_cluster" in choices.get("mode", []):
+        # Not something the composer can show (it refuses the pair): keep it
+        # as the launcher would see it.
+        sel.extra.append(f"max_parallel={sel.max_parallel}")
+        sel.max_parallel = None
 
     auto = resolve_target(sel, catalog)
     sel.target = None if auto == target else target
     return normalize(sel, catalog)
+
+
+def _positive_int(raw: str) -> int | None:
+    return int(raw) if raw.isdigit() and int(raw) >= 1 else None
+
+
+def _parse_run_setting(
+    token: str, target: str, sel: Selection, catalog: Catalog
+) -> bool:
+    """Record a sweep's ``agents=``, ``parallel_tasks.repeats=`` or
+    ``max_parallel=`` in ``sel``; False for anything else (or a repeat)."""
+    if target != "sweep":
+        return False
+    key, sep, raw = token.partition("=")
+    if not sep:
+        return False
+    if key == "agents" and "agent" not in sel.choices and _AGENT_LIST.match(raw):
+        names = raw.split(",")
+        known = {o.name for o in catalog.groups["agent"].options}
+        if len(set(names)) == len(names) and all(n in known for n in names):
+            sel.choices["agent"] = names
+            return True
+        return False
+    if key == "parallel_tasks.repeats" and sel.repeats is None:
+        sel.repeats = _positive_int(raw)
+        return sel.repeats is not None
+    if key == "max_parallel" and sel.max_parallel is None:
+        sel.max_parallel = _positive_int(raw)
+        return sel.max_parallel is not None
+    return False
 
 
 def _combined_values(token: str, raw: str) -> list[str]:
@@ -641,8 +650,6 @@ def _parse_override(
         names = {o.name for o in group.options}
         if not values or any(v not in names for v in values):
             return False
-        if key == "mode" and target in POOL_TARGETS:
-            return False  # the script decides; a forwarded mode is just an extra
         choices[key] = values
         return True
     if key in catalog.scalars and prefix == "":

@@ -37,7 +37,13 @@ class ParallelTasksConfig(ABC):
 
 
 class AppVariationParallelTasksConfig(ParallelTasksConfig):
-    """Runs each task per app variation"""
+    """Runs each task per app variation, for each task file, agent and repeat.
+
+    Args:
+        repeats: Runs per job, to measure an agent's run-to-run variance. The
+            seed is not varied: a different seed can change the environment's
+            own randomness, and a repeat is meant to measure the agent's.
+    """
 
     def __init__(
         self,
@@ -45,6 +51,7 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
         task_names: Union[str, list[str]],
         task_configs: Sequence[str] | None = None,
         agent_configs: Sequence[str] | None = None,
+        repeats: int = 1,
     ) -> None:
         self.app_variations = app_variations
         self.task_names = task_names
@@ -52,6 +59,9 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
         self.agent_configs = list(agent_configs) if agent_configs is not None else None
         if self.task_configs == [] or self.agent_configs == []:
             raise ValueError("Task and agent config selections must not be empty")
+        if int(repeats) < 1:
+            raise ValueError(f"repeats must be at least 1, got {repeats!r}")
+        self.repeats = int(repeats)
 
     def _resolve_task_names(self, default_config: DictConfig) -> list[str]:
         """Resolves task_names to a concrete list of task names.
@@ -90,7 +100,9 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
             config_name: The root config to compose each run from.
         """
         if self.task_configs is not None or self.agent_configs is not None:
-            return self._create_matrix_configs(default_config, cli_overrides, config_name)
+            return self._repeated(
+                self._create_matrix_configs(default_config, cli_overrides, config_name)
+            )
         task_names = self._resolve_task_names(default_config)
         raw = OmegaConf.to_container(default_config, resolve=False)
         inherited = {key: raw[key] for key in INHERITED_KEYS if key in raw}
@@ -105,7 +117,7 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
                 # for logging, track app overrides
                 config.app_overrides = app_variation
             configs.append(config)
-        return configs
+        return self._repeated(configs)
 
     def _create_matrix_configs(
         self,
@@ -145,3 +157,18 @@ class AppVariationParallelTasksConfig(ParallelTasksConfig):
             if missing_tasks:
                 raise ValueError(f"Unknown task names: {sorted(missing_tasks)}")
         return configs
+
+    def _repeated(self, configs: list[DictConfig]) -> list[DictConfig]:
+        """Each config ``repeats`` times, side by side, numbered by ``repeat``.
+
+        ``repeat`` stays None for a single run, so a run's name only grows a
+        ``-r<N>`` suffix when there is something to tell apart.
+        """
+        out = []
+        for config in configs:
+            for repeat in range(self.repeats):
+                copy = deepcopy(config) if repeat else config
+                with open_dict(copy):
+                    copy.repeat = repeat if self.repeats > 1 else None
+                out.append(copy)
+        return out
