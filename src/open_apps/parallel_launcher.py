@@ -1,9 +1,21 @@
 """Shared entry points for task and agent sweeps, locally or on SLURM."""
 
+import collections
+import functools
 import json
+import multiprocessing
+import multiprocessing.connection
+import os
 from pathlib import Path
+import signal
+import socket
+import subprocess
+import sys
 import tempfile
-from typing import Sequence
+import time
+import traceback
+from typing import Callable, Optional, Sequence
+import urllib.request
 import warnings
 
 import hydra
@@ -118,10 +130,116 @@ def create_job_configs(
     return jobs
 
 
+#: ``agent.hostname=auto``: find the node serving the agent's model.
+AUTO_HOST = "auto"
+
+
+def running_job_nodes() -> list[str]:
+    """The nodes of this user's running SLURM jobs."""
+    listing = subprocess.run(
+        ["squeue", "--me", "-t", "R", "-h", "-o", "%N"],
+        capture_output=True, text=True, check=True,
+    ).stdout  # fmt: skip
+    nodes: set[str] = set()
+    for nodelist in filter(None, (line.strip() for line in listing.splitlines())):
+        expanded = subprocess.run(
+            ["scontrol", "show", "hostnames", nodelist],
+            capture_output=True, text=True, check=True,
+        ).stdout  # fmt: skip
+        nodes.update(expanded.split())
+    return sorted(nodes)
+
+
+def serves_model(
+    host: str, port: str | int, model: str, api_key: Optional[str] = None, timeout: float = 5
+) -> bool:
+    """Whether ``http://host:port/v1/models`` lists ``model``. Probed
+    directly: a proxy in the environment cannot reach cluster nodes."""
+    request = urllib.request.Request(f"http://{host}:{port}/v1/models")
+    if api_key:
+        request.add_header("Authorization", f"Bearer {api_key}")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            listed = json.load(response).get("data") or []
+    except (OSError, ValueError, AttributeError):
+        return False
+    return any(isinstance(m, dict) and m.get("id") == model for m in listed)
+
+
+def find_vllm_host(
+    model: str,
+    port: str | int = 8000,
+    api_key: Optional[str] = None,
+    nodes: Optional[Sequence[str]] = None,
+    probe: Callable[..., bool] = serves_model,
+) -> str:
+    """The first of this user's running job nodes serving ``model`` on
+    ``port``. It probes what each node serves, so it does not matter how the
+    vLLM job was started."""
+    if nodes is None:
+        try:
+            nodes = running_job_nodes()
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RuntimeError(f"agent.hostname=auto needs SLURM's squeue: {exc}") from exc
+    own = socket.gethostname().split(".")[0]
+    for node in [n for n in nodes if n != own] + [n for n in nodes if n == own]:
+        if probe(node, port, model, api_key):
+            return node
+    raise RuntimeError(
+        f"agent.hostname=auto: none of your running jobs ({', '.join(nodes) or 'none'}) "
+        f"serves {model!r} on port {port}. Is the vLLM job running (squeue --me)? "
+        "Or set agent.hostname=<node>."
+    )
+
+
+def resolve_auto_hostnames(
+    jobs: Sequence[DictConfig], find: Callable[..., str] = find_vllm_host
+) -> dict[tuple[str, str], str]:
+    """Point every job whose agent says ``hostname: auto`` at the node serving
+    its model, one lookup per (model, port). Returns what was found."""
+    found: dict[tuple[str, str], str] = {}
+    for job in jobs:
+        agent = job.get("agent")
+        if agent is None or agent.get("hostname") != AUTO_HOST:
+            continue
+        key = (str(agent.get("model_name")), str(agent.get("port") or 8000))
+        if key not in found:
+            found[key] = find(key[0], key[1], agent.get("api_key"))
+        with open_dict(agent):
+            agent.hostname = found[key]
+    return found
+
+
+def label_wandb_runs(jobs: Sequence[DictConfig], group: str) -> str:
+    """Give every run in a sweep the same W&B group, and its agent as job_type.
+
+    A value already set (``wandb.group=...`` or ``wandb.job_type=...`` on the
+    command line) is kept. Returns the group the runs ended up in.
+    """
+    for job in jobs:
+        with open_dict(job):
+            if not job.wandb.get("group"):
+                job.wandb.group = group
+            if not job.wandb.get("job_type"):
+                agent = job.get("agent") or {}
+                job.wandb.job_type = (
+                    job.get("agent_config_name")
+                    or agent.get("model_pretty_name")
+                    or agent.get("model_name")
+                    or "agent"
+                )
+    return jobs[0].wandb.group if jobs else group
+
+
 def run_task(
     config: DictConfig, launcher_class: type[AgentLauncher] = AgentLauncher
 ) -> None:
     launcher_class(config).launch()
+
+
+#: File each concurrent local job's stdout and stderr go to, inside its logs_dir.
+RUN_LOG = "run.log"
 
 
 def run_locally(
@@ -130,10 +248,268 @@ def run_locally(
     num_jobs: int,
     launcher_class: type[AgentLauncher] = AgentLauncher,
 ) -> None:
-    for job_config in parallel_configs:
-        print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
-        run_task(job_config, launcher_class)
-    print(f"\nFinished {num_jobs} local jobs.")
+    """Run the jobs on this machine: one at a time in this process, streaming
+    to the terminal (``max_parallel=1``, the default), or ``max_parallel`` at
+    a time, each in its own process writing to ``<job logs_dir>/run.log``."""
+    max_parallel = int(config.get("max_parallel", 1) or 1)
+    if max_parallel <= 1:
+        try:
+            # SIGTERM too, so `kill` unwinds through the job's `finally` (which
+            # stops its web app) instead of leaving the web app serving.
+            with _Interrupts():
+                for job_config in parallel_configs:
+                    print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
+                    run_task(job_config, launcher_class)
+        except KeyboardInterrupt as stopped:
+            # The job's own `finally` has stopped its web app; the rest never start.
+            raise _sweep_stopped_exit(stopped) from None
+        print(f"\nFinished {num_jobs} local jobs.")
+        return
+    print(f"Running {num_jobs} local jobs, {max_parallel} at a time; each logs to <job>/{RUN_LOG}")
+    task = functools.partial(run_task, launcher_class=launcher_class)
+    try:
+        failures = run_concurrently(parallel_configs, max_parallel, task)
+    except KeyboardInterrupt as stopped:
+        # The jobs are already stopped; spare the user a traceback.
+        raise _sweep_stopped_exit(stopped) from None
+    print(f"\nFinished {num_jobs} local jobs: {num_jobs - len(failures)} ok, {len(failures)} failed.")
+    if failures:
+        raise SystemExit(1)
+
+
+def _run_logged(task: Callable[[DictConfig], None], config: DictConfig) -> Optional[str]:
+    """Run ``task`` with this process's output sent to the job's run log.
+
+    Redirects the file descriptors, not just ``sys.stdout``, so output from the
+    web app subprocess and from BrowserGym lands in the log too. Returns the
+    traceback on failure instead of raising, so one bad job is a line in the
+    summary rather than a broken pool.
+    """
+    log_path = Path(config.logs_dir) / RUN_LOG
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    with open(log_path, "a", buffering=1) as log:
+        os.dup2(log.fileno(), sys.stdout.fileno())
+        os.dup2(log.fileno(), sys.stderr.fileno())
+        try:
+            task(config)
+            return None
+        except Exception:
+            trace = traceback.format_exc()
+            print(trace, file=sys.stderr, flush=True)
+            return trace
+
+
+def run_concurrently(
+    configs: Sequence[DictConfig],
+    max_parallel: int,
+    task: Callable[[DictConfig], None] = run_task,
+) -> list[DictConfig]:
+    """Run every config, at most ``max_parallel`` at once. Returns the failures.
+
+    Each job runs in a fresh spawned process:
+
+    * **spawn, not fork** -- by the time jobs start, this process has imported
+      Playwright and may have started wandb, both of which run threads, and
+      forking a process with live threads is unsafe.
+    * **one job per process** -- a job leaves state behind: BrowserGym task
+      registrations, SQLite handles, wandb's run. A fresh process starts clean,
+      the same as a separate ``launch_agent.py`` would.
+
+    Each config already carries its own ``job_id``, ``logs_dir`` and
+    ``databases_dir`` (``create_job_configs``), which keep concurrent jobs off
+    each other's ports and databases. ``task`` must be importable by name, since
+    a spawned process receives it by reference.
+
+    A plain process per job rather than a ``ProcessPoolExecutor``, so Ctrl-C
+    can stop the sweep: the executor queues a job beyond its workers that can
+    no longer be cancelled, replaces a worker that exits, and its own shutdown
+    waits for every queued job to run. Here a job that has not started is just
+    a list entry. On Ctrl-C (or any error in this loop) no further job starts,
+    and the running ones are stopped -- see :func:`_stop_jobs`.
+    """
+    context = multiprocessing.get_context("spawn")
+    queued = collections.deque(configs)
+    running: dict = {}
+    failures: list[DictConfig] = []
+    with _Interrupts() as interrupts:
+        try:
+            while queued or running:
+                while queued and len(running) < max_parallel:
+                    config = queued.popleft()
+                    process = context.Process(
+                        target=_run_job_process,
+                        args=(task, config, interrupts.installed),
+                        name=f"job-{config.job_id}",
+                    )
+                    process.start()
+                    running[process] = config
+                finished = multiprocessing.connection.wait([p.sentinel for p in running])
+                for process in [p for p in running if p.sentinel in finished]:
+                    process.join()
+                    config = running.pop(process)
+                    if process.exitcode == JOB_INTERRUPTED:
+                        # Only possible off the main thread, where the jobs
+                        # take Ctrl-C themselves: a job stopped by it means
+                        # the user pressed it, so stop the sweep.
+                        raise SweepStopped(signal.SIGINT)
+                    log_path = Path(config.logs_dir) / RUN_LOG
+                    if process.exitcode == 0:
+                        status = "ok"
+                    else:
+                        status = f"FAILED (exit {process.exitcode})"
+                        failures.append(config)
+                    print(f"[done] job {config.job_id} {config.task_name}: {status} -> {log_path}", flush=True)
+        except BaseException:
+            _stop_jobs(list(running), len(queued), interrupts)
+            raise
+    return failures
+
+
+#: Repeat signals within this many seconds of the first are the same stop.
+#: ``uv run`` forwards the SIGINT its child already got from the terminal, so
+#: one Ctrl-C arrives twice; a later one is the user asking to kill now.
+SAME_CTRL_C_S = 1.0
+
+#: Exit status of a job that Ctrl-C reached directly (128 + SIGINT).
+JOB_INTERRUPTED = 130
+
+
+class SweepStopped(KeyboardInterrupt):
+    """The sweep was stopped by a signal: Ctrl-C (SIGINT) or SIGTERM."""
+
+    def __init__(self, signum: int) -> None:
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _sweep_stopped_exit(stopped: BaseException) -> SystemExit:
+    signum = getattr(stopped, "signum", signal.SIGINT)
+    name = "Ctrl-C" if signum == signal.SIGINT else signal.Signals(signum).name
+    print(f"Sweep stopped by {name}.", file=sys.stderr)
+    return SystemExit(128 + signum)
+
+
+class _Interrupts:
+    """SIGINT/SIGTERM handler for a local sweep, as a context manager.
+
+    The first signal raises :class:`SweepStopped`; an echo of it is ignored;
+    a later one asks :func:`_stop_jobs` to kill the running jobs now. Signal
+    handlers can only be set from the main thread; elsewhere ``installed`` is
+    False, signals are left alone, and the jobs take Ctrl-C themselves (see
+    :func:`_run_job_process`).
+    """
+
+    def __init__(self) -> None:
+        self.first: Optional[float] = None
+        self.kill_now = False
+        self.installed = False
+        self._previous: dict = {}
+
+    def __call__(self, signum, _frame) -> None:
+        now = time.monotonic()
+        if self.first is None:
+            self.first = now
+            raise SweepStopped(signum)
+        if now - self.first > SAME_CTRL_C_S:
+            self.kill_now = True
+
+    def __enter__(self) -> "_Interrupts":
+        try:
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                self._previous[signum] = signal.signal(signum, self)
+            self.installed = True
+        except ValueError:  # not the main thread
+            pass
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        for signum, previous in self._previous.items():
+            signal.signal(signum, previous)
+
+
+#: Seconds a running job gets to clean up (stop its web app) after Ctrl-C
+#: before it is killed. ``stop_process_group`` alone allows 10 s + 10 s.
+STOP_GRACE_S = 30.0
+
+
+def _run_job_process(
+    task: Callable[[DictConfig], None], config: DictConfig, parent_handles_ctrl_c: bool = True
+) -> None:
+    """Body of one job's process: exit 0 if ``task`` succeeded, 1 if it raised.
+
+    Ctrl-C belongs to the parent when it can take it (``parent_handles_ctrl_c``,
+    i.e. the sweep runs on the main thread). A terminal Ctrl-C signals the
+    whole foreground process group, so every job would otherwise raise its own
+    KeyboardInterrupt at an arbitrary point. Jobs swallow SIGINT instead (with
+    a Python handler rather than ``SIG_IGN``, which every process a job starts
+    would inherit), and the parent stops them with SIGTERM, which becomes
+    ``SystemExit``: it unwinds through ``AgentLauncher.launch``'s ``finally``,
+    so the job's web app is stopped rather than orphaned.
+
+    Off the main thread the parent cannot install a handler, so a job takes
+    Ctrl-C itself, unwinds the same way, and exits with
+    :data:`JOB_INTERRUPTED`, which tells the parent to stop the sweep.
+    """
+    stop = _JobStop()
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, (lambda *_: None) if parent_handles_ctrl_c else stop)
+    try:
+        ok = _run_logged(task, config) is None
+    except KeyboardInterrupt:
+        sys.exit(JOB_INTERRUPTED)
+    sys.exit(0 if ok else 1)
+
+
+class _JobStop:
+    """A job's SIGTERM (and, off the main thread, SIGINT) handler.
+
+    The first signal unwinds the job -- ``SystemExit`` for SIGTERM,
+    ``KeyboardInterrupt`` for SIGINT -- and later ones are ignored, so the
+    parent's SIGTERM arriving after a Ctrl-C cannot cut the cleanup short. A
+    job that hangs anyway is killed after :data:`STOP_GRACE_S`.
+    """
+
+    def __init__(self) -> None:
+        self.stopping = False
+
+    def __call__(self, signum, _frame) -> None:
+        if self.stopping:
+            return
+        self.stopping = True
+        if signum == signal.SIGINT:
+            raise KeyboardInterrupt
+        raise SystemExit(128 + signum)
+
+
+def _stop_jobs(
+    processes: list, queued: int, interrupts: Optional[_Interrupts] = None, grace: float = STOP_GRACE_S
+) -> None:
+    """SIGTERM the running jobs and wait ``grace`` seconds for them to clean up.
+
+    A job still alive after that, or every job on a second Ctrl-C, is killed.
+    """
+    print(
+        f"\nInterrupted: cancelled {queued} queued job(s), stopping {len(processes)} "
+        f"running (Ctrl-C again to kill them now)...",
+        file=sys.stderr,
+        flush=True,
+    )
+    for process in processes:
+        process.terminate()
+    deadline = time.monotonic() + grace
+    try:
+        while any(p.is_alive() for p in processes) and time.monotonic() < deadline:
+            if interrupts is not None and interrupts.kill_now:
+                break
+            multiprocessing.connection.wait([p.sentinel for p in processes if p.is_alive()], timeout=0.2)
+    except KeyboardInterrupt:  # no handler installed (not the main thread)
+        pass
+    for process in processes:
+        if process.is_alive():
+            process.kill()
+        process.join()
 
 
 def run_via_slurm(
@@ -179,6 +555,10 @@ def launch_parallel(
     Path(config.logs_dir).chmod(0o755)
     print(f"Run directory: {config.logs_dir}")
     jobs = create_job_configs(config)
+    for (model, port), host in resolve_auto_hostnames(jobs).items():
+        print(f"agent.hostname=auto: {model} is served on {host}:{port}")
+    if config.get("use_wandb"):
+        print(f"W&B group: {label_wandb_runs(jobs, Path(config.logs_dir).name)}")
     for job_config in jobs:
         catalog = job_config.get("task_config_name")
         task_label = f"{catalog}/{job_config.task_name}" if catalog else job_config.task_name

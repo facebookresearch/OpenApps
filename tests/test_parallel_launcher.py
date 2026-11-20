@@ -1,6 +1,7 @@
 """Real Hydra composition and backend boundaries for shared sweeps."""
 
 from contextlib import contextmanager
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -340,3 +341,104 @@ def test_local_uses_the_supplied_launcher(catalogs, monkeypatch):
     )
     parallel_launcher.run_locally(config, jobs, len(jobs), OpenAppsLauncher)
     assert calls == [(job, OpenAppsLauncher) for job in jobs]
+
+
+def test_repeats_multiply_every_job_with_the_seed_fixed(catalogs):
+    _, jobs = compose_jobs(catalogs, "parallel_tasks.repeats=2")
+    assert len(jobs) == 32
+    assert len({job.logs_dir for job in jobs}) == 32
+    assert [job.repeat for job in jobs[:4]] == [0, 1, 0, 1]
+    assert {job.seed for job in jobs} == {jobs[0].seed}
+    # A repeat is the same job again: only its id and storage differ.
+    first, again = jobs[0], jobs[1]
+    assert (first.task_name, first.agent_config_name, list(first.app_overrides)) == (
+        again.task_name, again.agent_config_name, list(again.app_overrides)
+    )
+
+
+def test_repeats_apply_to_the_single_file_sweep_too(tmp_path):
+    overrides = [
+        f"logs_dir={tmp_path}/logs",
+        "parallel_tasks.task_names=[navigate_to_todo]",
+        "parallel_tasks.app_variations=[[]]",
+        "parallel_tasks.repeats=3",
+    ]
+    with initialize_config_dir(config_dir=str(config_dir()), version_base=None):
+        config = compose(config_name="config_parallel_tasks", overrides=overrides)
+        jobs = create_job_configs(config, overrides, "config_parallel_tasks")
+    assert [job.repeat for job in jobs] == [0, 1, 2]
+
+
+def test_a_single_run_has_no_repeat_number(catalogs):
+    _, jobs = compose_jobs(catalogs)
+    assert {job.repeat for job in jobs} == {None}
+
+
+def test_repeats_must_be_positive(catalogs):
+    with pytest.raises(Exception, match="repeats must be at least 1"):
+        compose_jobs(catalogs, "parallel_tasks.repeats=0")
+
+
+def test_wandb_runs_share_the_sweep_group_and_are_typed_by_agent(catalogs):
+    _, jobs = compose_jobs(catalogs)
+    assert parallel_launcher.label_wandb_runs(jobs, "run-abc") == "run-abc"
+    assert {job.wandb.group for job in jobs} == {"run-abc"}
+    assert {job.wandb.job_type for job in jobs} == {"dummy", "other"}
+
+
+def test_wandb_labels_set_on_the_command_line_are_kept(catalogs):
+    _, jobs = compose_jobs(catalogs, "wandb.group=mine", "wandb.job_type=baseline")
+    assert parallel_launcher.label_wandb_runs(jobs, "run-abc") == "mine"
+    assert {(job.wandb.group, job.wandb.job_type) for job in jobs} == {("mine", "baseline")}
+
+
+def test_auto_hostname_points_each_model_at_the_node_serving_it():
+    jobs = [
+        OmegaConf.create({"agent": {"hostname": "auto", "model_name": "org/a", "port": "8000"}}),
+        OmegaConf.create({"agent": {"hostname": "auto", "model_name": "org/a", "port": "8000"}}),
+        OmegaConf.create({"agent": {"hostname": "auto", "model_name": "org/b", "port": "9000"}}),
+        OmegaConf.create({"agent": {"hostname": "pinned", "model_name": "org/c"}}),
+    ]
+    looked_up = []
+
+    def find(model, port, api_key):
+        looked_up.append((model, port))
+        return {"org/a": "node-1", "org/b": "node-2"}[model]
+
+    found = parallel_launcher.resolve_auto_hostnames(jobs, find=find)
+    assert [j.agent.hostname for j in jobs] == ["node-1", "node-1", "node-2", "pinned"]
+    assert looked_up == [("org/a", "8000"), ("org/b", "9000")]  # once per model and port
+    assert found == {("org/a", "8000"): "node-1", ("org/b", "9000"): "node-2"}
+
+
+def test_find_vllm_host_picks_the_node_serving_the_model_and_says_when_none_does():
+    serving = {"gpu-2": "org/a"}
+    probe = lambda node, port, model, key: serving.get(node) == model  # noqa: E731
+    assert parallel_launcher.find_vllm_host("org/a", nodes=["gpu-1", "gpu-2"], probe=probe) == "gpu-2"
+    with pytest.raises(RuntimeError, match="none of your running jobs"):
+        parallel_launcher.find_vllm_host("org/z", nodes=["gpu-1", "gpu-2"], probe=probe)
+
+
+def test_serves_model_reads_the_vllm_model_list():
+    import http.server
+    import threading
+
+    class Models(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            body = json.dumps({"data": [{"id": "org/a"}]}).encode()
+            self.send_response(200 if self.path == "/v1/models" else 404)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Models)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        port = server.server_port
+        assert parallel_launcher.serves_model("127.0.0.1", port, "org/a")
+        assert not parallel_launcher.serves_model("127.0.0.1", port, "org/other")
+    finally:
+        server.shutdown()
+    assert not parallel_launcher.serves_model("127.0.0.1", port, "org/a", timeout=1)  # gone
