@@ -226,6 +226,10 @@ def start_apps(
         "--config-name",
         launcher.config_path.name,
         *BASE_OVERRIDES,
+        # The port polled below. Without it launch.py picks its own, which
+        # only matches while nothing else is starting a server on this host
+        # (launcher.launch_apps_via_shell passes it for the same reason).
+        f"++web_app_port={launcher.web_app_port}",
     ]
     # A file, never an unread PIPE: a full pipe buffer blocks the server on
     # write (the deadlock launcher.launch_apps_via_shell documents). Closed

@@ -316,6 +316,10 @@ def launch_variation(
         # This harness drives its own Playwright browser; launch.py must not
         # also pop one per variation.
         "headless=True",
+        # The port this process picked and will poll. Without it launch.py
+        # picks its own, which only matches while nothing else is starting a
+        # server -- under `pytest -n` a sibling worker often is.
+        f"++web_app_port={launcher.web_app_port}",
     ]
 
     process = subprocess.Popen(
