@@ -23,6 +23,7 @@ from starlette.testclient import TestClient
 
 from open_apps.apps.onlineshop_app import main as shop
 from open_apps.apps.openbanking_app import main as bank
+from open_apps.apps.shop_catalog import shop_products
 from open_apps.apps.start_page.main import onlineshop_has_catalog
 
 # The credit card seeded in `config/apps/openbanking/content/default.yaml`.
@@ -570,9 +571,45 @@ class TestCatalogGate:
 
     def test_shipped_catalog_has_no_free_products(self, tmp_path):
         """89 source records had no price and were written out as $0.00."""
-        prices = [p["price"] for p in self._apps_config(tmp_path).onlineshop.products]
+        products = shop_products(self._apps_config(tmp_path).onlineshop)
+        prices = [p["price"] for p in products]
         assert len(prices) == 999
         assert min(prices) >= 1.0
+
+    def test_the_default_composition_does_not_inline_the_catalog(self, tmp_path):
+        """The catalog stays out of Hydra's tree -- see `shop_catalog`.
+
+        Inline, its 999 products made every composition of `config.yaml`
+        ~3 s: every launch, sweep child and config-composing test paid it.
+        """
+        shop = self._apps_config(tmp_path).onlineshop
+        assert not shop.products
+        assert shop.catalog == "webshop"
+
+    def test_an_inline_list_wins_over_the_catalog(self, tmp_path):
+        shop = self._apps_config(
+            tmp_path, ["apps/onlineshop/content=fixture", "apps.onlineshop.catalog=webshop"]
+        ).onlineshop
+        products = shop_products(shop)
+        assert len(products) == len(shop.products) < 999
+
+    def test_a_catalog_can_be_a_path(self, tmp_path):
+        catalog = tmp_path / "tiny.json"
+        catalog.write_text('[{"sku": "t-1", "title": "Tiny", "price": 2.5}]')
+        shop = self._apps_config(
+            tmp_path, ["apps/onlineshop/content=default", f"apps.onlineshop.catalog={catalog}"]
+        ).onlineshop
+        assert [p["sku"] for p in shop_products(shop)] == ["t-1"]
+
+    def test_a_missing_catalog_fails_with_its_path(self, tmp_path):
+        config = self._apps_config(tmp_path, ["apps.onlineshop.catalog=nope"])
+        with pytest.raises(FileNotFoundError, match="catalogs/nope.json"):
+            onlineshop_has_catalog(config)
+
+    def test_products_are_copies(self, tmp_path):
+        shop = self._apps_config(tmp_path).onlineshop
+        shop_products(shop)[0]["title"] = "changed"
+        assert shop_products(shop)[0]["title"] != "changed"
 
     def test_a_content_pack_with_products_opens_the_shop(self, tmp_path):
         config = self._apps_config(tmp_path, ["apps/onlineshop/content=fixture"])

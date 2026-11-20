@@ -54,6 +54,11 @@ categories:
 
 products: []
 
+# A catalog too big to inline: the name of a JSON file under `../catalogs/`
+# (`catalog: webshop` -> `catalogs/webshop.json`), or a path to one. Read only
+# when `products` is empty -- see `open_apps.apps.shop_catalog`.
+catalog: null
+
 cart: []
 
 orders: []

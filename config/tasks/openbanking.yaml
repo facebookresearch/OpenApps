@@ -226,10 +226,11 @@ report_the_card_statement_balance_and_headroom:
 #
 # Three things to know before editing:
 #
-#   * The product is from `content/webshop.yaml`, the shop's default pack. Its
-#     price is pinned here as `unit_price` because `/onlineshop_all` omits the
-#     catalog, so the reward cannot look it up -- if you re-generate the
-#     catalog with `scripts/fetch_webshop.py`, re-check this figure.
+#   * The product is from `catalogs/webshop.json`, the default pack's
+#     catalog. Its price is pinned here as `unit_price` because
+#     `/onlineshop_all` omits the catalog, so the reward cannot look it up
+#     -- if you re-generate the catalog with `scripts/fetch_webshop.py`,
+#     re-check this figure.
 #   * `descriptor` and `charge_type` mirror `apps.onlineshop.card_descriptor`
 #     and `apps.openbanking.purchase_type`. Override either at run time and
 #     these have to move with it.
