@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -128,34 +129,55 @@ def test_run_locally_exits_non_zero_when_a_pooled_job_fails(monkeypatch, tmp_pat
 
 _SWEEP = textwrap.dedent(
     """
-    import sys
+    import sys, threading
     from omegaconf import OmegaConf
     from open_apps.parallel_launcher import run_concurrently
     from tests.test_parallel_local_concurrency import interruptible_job
 
-    if __name__ == "__main__":
-        root = sys.argv[1]
+    def sweep(root):
         configs = [
             OmegaConf.create({"job_id": i, "task_name": f"task_{i}", "logs_dir": f"{root}/{i}", "sleep": 60})
             for i in range(4)
         ]
         run_concurrently(configs, 2, interruptible_job)
+
+    if __name__ == "__main__":
+        root, where = sys.argv[1], sys.argv[2]
+        if where == "main":
+            sweep(root)
+        else:
+            # As a downstream package embedding the launcher might: the sweep
+            # off the main thread, where it cannot install signal handlers.
+            stopped, done = [], threading.Event()
+            def run():
+                try:
+                    sweep(root)
+                except KeyboardInterrupt:
+                    stopped.append(True)
+                finally:
+                    done.set()
+            threading.Thread(target=run).start()
+            # An Event, not Thread.join: a join interrupted by Ctrl-C can leave
+            # is_alive() reporting False for a thread that is still running.
+            while not done.is_set():
+                try:
+                    done.wait(0.1)
+                except KeyboardInterrupt:
+                    pass  # the main thread's Ctrl-C; the jobs got theirs too
+            print("sweep thread stopped" if stopped else "sweep thread finished", flush=True)
     """
 )
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
-def test_ctrl_c_stops_the_sweep_without_starting_queued_jobs(tmp_path):
-    """Ctrl-C used to leave through the executor's shutdown(wait=True), which
-    started and finished every queued job before the sweep exited."""
+def _start_sweep(tmp_path, where: str):
     script = tmp_path / "sweep.py"
     script.write_text(_SWEEP)
     root = tmp_path / "runs"
     repo = Path(__file__).resolve().parent.parent
-    # Its own session, so the SIGINT below reaches it and its workers -- the
+    # Its own session, so a SIGINT to the group reaches it and its jobs -- the
     # foreground process group a terminal Ctrl-C signals -- and not pytest.
     sweep = subprocess.Popen(
-        [sys.executable, str(script), str(root)],
+        [sys.executable, str(script), str(root), where],
         cwd=repo,
         env={**os.environ, "PYTHONPATH": str(repo)},
         start_new_session=True,
@@ -163,25 +185,72 @@ def test_ctrl_c_stops_the_sweep_without_starting_queued_jobs(tmp_path):
         stderr=subprocess.STDOUT,
         text=True,
     )
+    deadline = time.monotonic() + 60
+    while len(list(root.glob("*/started"))) < 2:
+        if sweep.poll() is not None or time.monotonic() > deadline:
+            sweep.kill()
+            pytest.fail(f"the first two jobs never started:\n{sweep.communicate()[0]}")
+        time.sleep(0.1)
+    return sweep, root
+
+
+def _stop_and_collect(sweep, root, send) -> str:
     try:
-        deadline = time.monotonic() + 60
-        while len(list(root.glob("*/started"))) < 2:
-            assert sweep.poll() is None, sweep.stdout.read()
-            assert time.monotonic() < deadline, "the first two jobs never started"
-            time.sleep(0.1)
-        os.killpg(sweep.pid, signal.SIGINT)
-        # `uv run` forwards the SIGINT its child already got from the
-        # terminal: one Ctrl-C, delivered twice. The echo must not escalate
-        # to "kill now" and skip the jobs' cleanup.
-        time.sleep(0.05)
-        os.kill(sweep.pid, signal.SIGINT)
+        send(sweep.pid)
         output, _ = sweep.communicate(timeout=20)
     finally:
         if sweep.poll() is None:
             os.killpg(sweep.pid, signal.SIGKILL)
-    assert sweep.returncode != 0
-    assert "cancelled 2 queued job(s), stopping 2 running" in output
+    # Off the main thread a job that stopped on its own Ctrl-C has already
+    # exited, so "stopping" may count only the other one.
+    assert re.search(r"cancelled 2 queued job\(s\), stopping [12] running", output), output
     assert sorted(p.parent.name for p in root.glob("*/started")) == ["0", "1"]
     # The running jobs unwound through their `finally` -- where AgentLauncher
     # stops its web app -- rather than being killed outright.
     assert sorted(p.parent.name for p in root.glob("*/cleaned_up")) == ["0", "1"]
+    return output
+
+
+def _ctrl_c(pid: int) -> None:
+    os.killpg(pid, signal.SIGINT)
+    # `uv run` forwards the SIGINT its child already got from the terminal:
+    # one Ctrl-C, delivered twice. The echo must not escalate to "kill now"
+    # and skip the jobs' cleanup.
+    time.sleep(0.05)
+    os.kill(pid, signal.SIGINT)
+
+
+posix_only = pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+
+
+@posix_only
+def test_ctrl_c_stops_the_sweep_without_starting_queued_jobs(tmp_path):
+    """Ctrl-C used to leave through the executor's shutdown(wait=True), which
+    started and finished every queued job before the sweep exited."""
+    sweep, root = _start_sweep(tmp_path, "main")
+    _stop_and_collect(sweep, root, _ctrl_c)
+    assert sweep.returncode != 0
+
+
+@posix_only
+def test_sigterm_to_the_launcher_stops_the_sweep_the_same_way(tmp_path):
+    """`kill <pid>` reaches only the launcher, not the jobs: it has to stop them."""
+    sweep, root = _start_sweep(tmp_path, "main")
+    _stop_and_collect(sweep, root, lambda pid: os.kill(pid, signal.SIGTERM))
+
+
+@posix_only
+def test_ctrl_c_stops_a_sweep_running_off_the_main_thread(tmp_path):
+    """No signal handler can be installed there, so the jobs take Ctrl-C
+    themselves; the first to stop on it stops the sweep."""
+    sweep, root = _start_sweep(tmp_path, "thread")
+    output = _stop_and_collect(sweep, root, _ctrl_c)
+    assert "sweep thread stopped" in output
+
+
+def test_a_stopped_sweep_exits_with_its_signal():
+    from open_apps.parallel_launcher import SweepStopped, _sweep_stopped_exit
+
+    assert _sweep_stopped_exit(SweepStopped(signal.SIGINT)).code == 130
+    assert _sweep_stopped_exit(SweepStopped(signal.SIGTERM)).code == 143
+    assert _sweep_stopped_exit(KeyboardInterrupt()).code == 130
