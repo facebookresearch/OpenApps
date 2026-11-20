@@ -254,23 +254,24 @@ def run_locally(
     max_parallel = int(config.get("max_parallel", 1) or 1)
     if max_parallel <= 1:
         try:
-            for job_config in parallel_configs:
-                print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
-                run_task(job_config, launcher_class)
-        except KeyboardInterrupt:
+            # SIGTERM too, so `kill` unwinds through the job's `finally` (which
+            # stops its web app) instead of leaving the web app serving.
+            with _Interrupts():
+                for job_config in parallel_configs:
+                    print(f"\n=== Running local job {job_config.job_id + 1}/{num_jobs} ===")
+                    run_task(job_config, launcher_class)
+        except KeyboardInterrupt as stopped:
             # The job's own `finally` has stopped its web app; the rest never start.
-            print("Sweep stopped by Ctrl-C.", file=sys.stderr)
-            raise SystemExit(130) from None
+            raise _sweep_stopped_exit(stopped) from None
         print(f"\nFinished {num_jobs} local jobs.")
         return
     print(f"Running {num_jobs} local jobs, {max_parallel} at a time; each logs to <job>/{RUN_LOG}")
     task = functools.partial(run_task, launcher_class=launcher_class)
     try:
         failures = run_concurrently(parallel_configs, max_parallel, task)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as stopped:
         # The jobs are already stopped; spare the user a traceback.
-        print("Sweep stopped by Ctrl-C.", file=sys.stderr)
-        raise SystemExit(130) from None
+        raise _sweep_stopped_exit(stopped) from None
     print(f"\nFinished {num_jobs} local jobs: {num_jobs - len(failures)} ok, {len(failures)} failed.")
     if failures:
         raise SystemExit(1)
@@ -332,67 +333,100 @@ def run_concurrently(
     queued = collections.deque(configs)
     running: dict = {}
     failures: list[DictConfig] = []
-    interrupts = _Interrupts()
-    previous = interrupts.install()
-    try:
-        while queued or running:
-            while queued and len(running) < max_parallel:
-                config = queued.popleft()
-                process = context.Process(
-                    target=_run_job_process, args=(task, config), name=f"job-{config.job_id}"
-                )
-                process.start()
-                running[process] = config
-            finished = multiprocessing.connection.wait([p.sentinel for p in running])
-            for process in [p for p in running if p.sentinel in finished]:
-                process.join()
-                config = running.pop(process)
-                log_path = Path(config.logs_dir) / RUN_LOG
-                if process.exitcode == 0:
-                    status = "ok"
-                else:
-                    status = f"FAILED (exit {process.exitcode})"
-                    failures.append(config)
-                print(f"[done] job {config.job_id} {config.task_name}: {status} -> {log_path}", flush=True)
-    except BaseException:
-        _stop_jobs(list(running), len(queued), interrupts)
-        raise
-    finally:
-        interrupts.restore(previous)
+    with _Interrupts() as interrupts:
+        try:
+            while queued or running:
+                while queued and len(running) < max_parallel:
+                    config = queued.popleft()
+                    process = context.Process(
+                        target=_run_job_process,
+                        args=(task, config, interrupts.installed),
+                        name=f"job-{config.job_id}",
+                    )
+                    process.start()
+                    running[process] = config
+                finished = multiprocessing.connection.wait([p.sentinel for p in running])
+                for process in [p for p in running if p.sentinel in finished]:
+                    process.join()
+                    config = running.pop(process)
+                    if process.exitcode == JOB_INTERRUPTED:
+                        # Only possible off the main thread, where the jobs
+                        # take Ctrl-C themselves: a job stopped by it means
+                        # the user pressed it, so stop the sweep.
+                        raise SweepStopped(signal.SIGINT)
+                    log_path = Path(config.logs_dir) / RUN_LOG
+                    if process.exitcode == 0:
+                        status = "ok"
+                    else:
+                        status = f"FAILED (exit {process.exitcode})"
+                        failures.append(config)
+                    print(f"[done] job {config.job_id} {config.task_name}: {status} -> {log_path}", flush=True)
+        except BaseException:
+            _stop_jobs(list(running), len(queued), interrupts)
+            raise
     return failures
 
 
-#: Repeat SIGINTs within this many seconds of the first are the same Ctrl-C.
+#: Repeat signals within this many seconds of the first are the same stop.
 #: ``uv run`` forwards the SIGINT its child already got from the terminal, so
-#: one keypress arrives twice; a later one is the user asking to kill now.
+#: one Ctrl-C arrives twice; a later one is the user asking to kill now.
 SAME_CTRL_C_S = 1.0
+
+#: Exit status of a job that Ctrl-C reached directly (128 + SIGINT).
+JOB_INTERRUPTED = 130
+
+
+class SweepStopped(KeyboardInterrupt):
+    """The sweep was stopped by a signal: Ctrl-C (SIGINT) or SIGTERM."""
+
+    def __init__(self, signum: int) -> None:
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _sweep_stopped_exit(stopped: BaseException) -> SystemExit:
+    signum = getattr(stopped, "signum", signal.SIGINT)
+    name = "Ctrl-C" if signum == signal.SIGINT else signal.Signals(signum).name
+    print(f"Sweep stopped by {name}.", file=sys.stderr)
+    return SystemExit(128 + signum)
 
 
 class _Interrupts:
-    """SIGINT handler for the sweep's loop: the first raises KeyboardInterrupt,
-    an echo of it is ignored, and a later one asks :func:`_stop_jobs` to kill."""
+    """SIGINT/SIGTERM handler for a local sweep, as a context manager.
+
+    The first signal raises :class:`SweepStopped`; an echo of it is ignored;
+    a later one asks :func:`_stop_jobs` to kill the running jobs now. Signal
+    handlers can only be set from the main thread; elsewhere ``installed`` is
+    False, signals are left alone, and the jobs take Ctrl-C themselves (see
+    :func:`_run_job_process`).
+    """
 
     def __init__(self) -> None:
         self.first: Optional[float] = None
         self.kill_now = False
+        self.installed = False
+        self._previous: dict = {}
 
-    def __call__(self, _signum, _frame) -> None:
+    def __call__(self, signum, _frame) -> None:
         now = time.monotonic()
         if self.first is None:
             self.first = now
-            raise KeyboardInterrupt
+            raise SweepStopped(signum)
         if now - self.first > SAME_CTRL_C_S:
             self.kill_now = True
 
-    def install(self):
+    def __enter__(self) -> "_Interrupts":
         try:
-            return signal.signal(signal.SIGINT, self)
-        except ValueError:  # not the main thread: leave signals alone
-            return None
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                self._previous[signum] = signal.signal(signum, self)
+            self.installed = True
+        except ValueError:  # not the main thread
+            pass
+        return self
 
-    def restore(self, previous) -> None:
-        if previous is not None:
-            signal.signal(signal.SIGINT, previous)
+    def __exit__(self, *_exc) -> None:
+        for signum, previous in self._previous.items():
+            signal.signal(signum, previous)
 
 
 #: Seconds a running job gets to clean up (stop its web app) after Ctrl-C
@@ -400,27 +434,53 @@ class _Interrupts:
 STOP_GRACE_S = 30.0
 
 
-def _run_job_process(task: Callable[[DictConfig], None], config: DictConfig) -> None:
+def _run_job_process(
+    task: Callable[[DictConfig], None], config: DictConfig, parent_handles_ctrl_c: bool = True
+) -> None:
     """Body of one job's process: exit 0 if ``task`` succeeded, 1 if it raised.
 
-    Ctrl-C belongs to the parent. A terminal Ctrl-C signals the whole
-    foreground process group, so every job would otherwise raise its own
+    Ctrl-C belongs to the parent when it can take it (``parent_handles_ctrl_c``,
+    i.e. the sweep runs on the main thread). A terminal Ctrl-C signals the
+    whole foreground process group, so every job would otherwise raise its own
     KeyboardInterrupt at an arbitrary point. Jobs swallow SIGINT instead (with
     a Python handler rather than ``SIG_IGN``, which every process a job starts
     would inherit), and the parent stops them with SIGTERM, which becomes
     ``SystemExit``: it unwinds through ``AgentLauncher.launch``'s ``finally``,
     so the job's web app is stopped rather than orphaned.
+
+    Off the main thread the parent cannot install a handler, so a job takes
+    Ctrl-C itself, unwinds the same way, and exits with
+    :data:`JOB_INTERRUPTED`, which tells the parent to stop the sweep.
     """
-    signal.signal(signal.SIGINT, lambda *_: None)
-    signal.signal(signal.SIGTERM, _exit_on_sigterm)
-    sys.exit(0 if _run_logged(task, config) is None else 1)
+    stop = _JobStop()
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, (lambda *_: None) if parent_handles_ctrl_c else stop)
+    try:
+        ok = _run_logged(task, config) is None
+    except KeyboardInterrupt:
+        sys.exit(JOB_INTERRUPTED)
+    sys.exit(0 if ok else 1)
 
 
-def _exit_on_sigterm(signum, _frame) -> None:
-    # Once only: a second SIGTERM must not interrupt the cleanup the first
-    # one started. A job that hangs anyway is killed after STOP_GRACE_S.
-    signal.signal(signal.SIGTERM, signal.SIG_IGN)
-    raise SystemExit(128 + signum)
+class _JobStop:
+    """A job's SIGTERM (and, off the main thread, SIGINT) handler.
+
+    The first signal unwinds the job -- ``SystemExit`` for SIGTERM,
+    ``KeyboardInterrupt`` for SIGINT -- and later ones are ignored, so the
+    parent's SIGTERM arriving after a Ctrl-C cannot cut the cleanup short. A
+    job that hangs anyway is killed after :data:`STOP_GRACE_S`.
+    """
+
+    def __init__(self) -> None:
+        self.stopping = False
+
+    def __call__(self, signum, _frame) -> None:
+        if self.stopping:
+            return
+        self.stopping = True
+        if signum == signal.SIGINT:
+            raise KeyboardInterrupt
+        raise SystemExit(128 + signum)
 
 
 def _stop_jobs(
