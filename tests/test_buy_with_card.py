@@ -30,6 +30,7 @@ from omegaconf import OmegaConf
 from starlette.testclient import TestClient
 
 from open_apps import config_dir, files_store
+from open_apps.apps.shop_catalog import shop_products
 from open_apps.apps.openbanking_app import main as bank
 from open_apps.tasks.tasks import (
     AddToDoTask,
@@ -712,9 +713,9 @@ class TestShippedTaskConfigs:
 
     def test_the_priced_product_is_in_the_default_catalog(self, tasks_cfg, apps_cfg):
         cfg = tasks_cfg["buy_the_console_table_with_the_business_card"]
-        catalog = {p.sku: p for p in apps_cfg.apps.onlineshop.products}
+        catalog = {p["sku"]: p for p in shop_products(apps_cfg.apps.onlineshop)}
         assert cfg.sku in catalog, "the default catalog no longer carries this sku"
-        assert catalog[cfg.sku].price == cfg.unit_price
+        assert catalog[cfg.sku]["price"] == cfg.unit_price
 
     def test_the_test_constants_match_the_seeded_card(self, apps_cfg):
         """`HEADROOM` and `GRACE` at the top of this file are the real thing."""
@@ -731,17 +732,17 @@ class TestShippedTaskConfigs:
     ):
         """Both figures and the copier's title are pinned, so a catalog
         regeneration has to break here rather than silently rescore."""
-        catalog = {p.sku: p for p in apps_cfg.apps.onlineshop.products}
+        catalog = {p["sku"]: p for p in shop_products(apps_cfg.apps.onlineshop)}
         grace = tasks_cfg["buy_the_mirrors_just_over_the_card_limit"]
         declined = tasks_cfg["attempt_the_copier_far_over_the_card_limit"].subtasks[0]
 
         for cfg in (grace, declined):
             assert cfg.sku in catalog, f"{cfg.sku} is no longer in the catalog"
-            assert catalog[cfg.sku].price == cfg.unit_price
+            assert catalog[cfg.sku]["price"] == cfg.unit_price
 
         # The declined task carries the title too -- `/onlineshop_all` joins it
         # onto the cart line the refused checkout leaves behind.
-        assert catalog[declined.sku].title.strip() == declined.title.strip()
+        assert catalog[declined.sku]["title"].strip() == declined.title.strip()
 
     def test_the_mirrors_land_inside_the_grace_band(self, tasks_cfg, apps_cfg):
         cfg = tasks_cfg["buy_the_mirrors_just_over_the_card_limit"]
