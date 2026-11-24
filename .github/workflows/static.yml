@@ -62,8 +62,10 @@ jobs:
           uv sync
       # As in test_playground.yml: not `--with-deps`, since Playwright 1.44
       # predates 24.04 and asks apt for pre-t64 names (libasound2).
-      # fonts-noto-cjk because the runner has no CJK font, and without one
+      # fonts-droid-fallback because the runner has no CJK font, and without one
       # Chromium draws every character of the Mandarin language pack as a box.
+      # Droid Sans Fallback is the CJK font our cluster's compute nodes have, so
+      # a clip shows Mandarin as the agents there see it.
       - name: Install Chromium for Playwright
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -71,7 +73,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libasound2t64 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
             libgbm1 libnss3 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
-            libxkbcommon0 libpango-1.0-0 libcairo2 fonts-noto-cjk
+            libxkbcommon0 libpango-1.0-0 libcairo2 fonts-droid-fallback
           uv run playwright install chromium
       # The manifest is checkpointed after every clip, so a shard that fails or
       # hits the time limit still uploads what it rendered.
