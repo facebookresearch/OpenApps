@@ -73,9 +73,10 @@ class TestEditorBinding:
 
     def test_highlight_mode_uses_codemirror(self, monkeypatch):
         """With highlighting on the binding is a real CodeMirror instance."""
-        monkeypatch.setattr(
-            codeeditor_main.app.config.code_editor, "highlight", True, raising=False
-        )
+        # setitem, not setattr: pytest 9's setattr records the old value from
+        # the instance __dict__, where a DictConfig keeps no keys, so its undo
+        # deletes `highlight` from the shared config for every later test.
+        monkeypatch.setitem(codeeditor_main.app.config.code_editor, "highlight", True)
         binding = codeeditor_main.editor_binding("{mode: 'python'}")
         assert binding.startswith(
             "var editor = CodeMirror.fromTextArea(document.getElementById('editor')"
@@ -101,9 +102,10 @@ class TestEditorOptions:
 
     @pytest.fixture
     def highlighting(self, client, monkeypatch):
-        monkeypatch.setattr(
-            codeeditor_main.app.config.code_editor, "highlight", True, raising=False
-        )
+        # setitem, not setattr: pytest 9's setattr records the old value from
+        # the instance __dict__, where a DictConfig keeps no keys, so its undo
+        # deletes `highlight` from the shared config for every later test.
+        monkeypatch.setitem(codeeditor_main.app.config.code_editor, "highlight", True)
         return client
 
     def theme_options(self, html: str) -> list:
