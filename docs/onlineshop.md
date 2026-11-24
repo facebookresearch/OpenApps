@@ -10,11 +10,26 @@ uv run launch.py apps.onlineshop.enable=False     # turn it off entirely
 uv run launch.py apps/onlineshop/content=default  # chrome only: no products, no shop
 ```
 
-`config/apps/onlineshop/content/webshop.yaml` holds 999 products converted
-from the WebShop item dump, and is the shop's default `content` pack. The
-catalog is a property of the pack rather than of the app, so a pack with an
-empty `products` list yields no `/onlineshop` route and no start-page tile —
-the app is absent rather than empty.
+`config/apps/onlineshop/content/webshop.yaml` is the shop's default `content`
+pack. Its 999 products, converted from the WebShop item dump, live next to it
+in `config/apps/onlineshop/catalogs/webshop.json`, which the pack names with
+`catalog: webshop`. The catalog is a property of the pack rather than of the
+app, so a pack with no products yields no `/onlineshop` route and no
+start-page tile — the app is absent rather than empty.
+
+A pack gives its products one of two ways:
+
+* inline, as a `products:` list — small catalogs such as `content/fixture.yaml`
+  (the test suite's) or a one-off override;
+* by name, as `catalog: <name>` (`catalogs/<name>.json`), or a path to a
+  `.json` file: `apps.onlineshop.catalog=/data/my_catalog.json`.
+
+A non-empty `products` list wins. The big catalog is JSON, outside the YAML
+tree, because Hydra parses every YAML file in the defaults list on every
+composition: inline, it made each composition of `config.yaml` take ~3 s, for
+every launch, sweep child and config-composing test, shop or no shop. The
+shop reads the file once, when it seeds its products
+(`open_apps.apps.shop_catalog`).
 
 The `webshop` pack sets `product_images: hotlink`, because it is the one
 catalog whose image URLs point at real photos. **The default configuration
@@ -226,28 +241,29 @@ and the same options in a different order is one.
 
 ## Rebuilding the catalog
 
-`scripts/fetch_webshop.py` generated the committed pack and can regenerate it
-— a different dump, more products, synthesized ratings. Nothing requires it to
-run, and it overwrites `webshop.yaml` in place, discarding hand-edits. It
-pulls from
+`scripts/fetch_webshop.py` generated the committed catalog and can regenerate
+it — a different dump, more products, synthesized ratings. Nothing requires it
+to run, and it overwrites `catalogs/webshop.json` in place, discarding
+hand-edits to it; the pack (`content/webshop.yaml`: image mode, seeded cart
+and orders) is left alone. It pulls from
 [a HuggingFace mirror](https://huggingface.co/datasets/YWZBrandon/webshop-data)
 of the item dump.
 
 ```bash
 uv run scripts/fetch_webshop.py --inspect          # print the real schema; writes nothing
-uv run scripts/fetch_webshop.py                    # rebuild the committed pack as it stands
+uv run scripts/fetch_webshop.py                    # rebuild the committed catalog as it stands
 uv run scripts/fetch_webshop.py --file items_shuffle.json --limit 5000   # bigger (~1.5 GB download)
 uv run scripts/fetch_webshop.py --synth-ratings    # stable, invented ratings when the dump has none
-uv run scripts/fetch_webshop.py --out /tmp/webshop.yaml                  # e.g. to diff two conversions
+uv run scripts/fetch_webshop.py --out /tmp/webshop.json                  # e.g. to diff two conversions
 ```
 
 | Flag | Default | Effect |
 | --- | --- | --- |
 | `--inspect` | off | Print the real schema and exit without writing |
 | `--file` | first of `items_shuffle_1000.json`, `items_human_ins.json`, `items_shuffle.json` | Which dump in the HF repo to convert |
-| `--limit` | `1000` | Products to keep (the committed pack's size; also all of `items_shuffle_1000.json`) |
+| `--limit` | `1000` | Products to keep (the committed catalog's size; also all of `items_shuffle_1000.json`) |
 | `--synth-ratings` | off | Derive stable ratings from the sku when the data has none |
-| `--out` | `config/apps/onlineshop/content/webshop.yaml` | Destination |
+| `--out` | `config/apps/onlineshop/catalogs/webshop.json` | Destination |
 
 It downloads through `huggingface_hub` when that is importable, so re-runs hit
 the shared HF cache.

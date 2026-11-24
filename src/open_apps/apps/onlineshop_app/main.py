@@ -53,6 +53,7 @@ from open_apps import files_store
 from open_apps import i18n
 from open_apps.apps.availability import require_files
 from open_apps.apps.onlineshop_app import receipts
+from open_apps.apps.shop_catalog import shop_products
 from open_apps.apps.start_page.helper import create_logo_header
 from open_apps.frontend import local_hdrs
 from open_apps.theme import theme_asset, theme_style
@@ -905,7 +906,7 @@ def _build_fts():
 
 
 def _seed_products(config):
-    for raw in _plain(getattr(config.onlineshop, "products", [])) or []:
+    for raw in shop_products(config.onlineshop):
         products.insert(
             Product(
                 sku=str(raw["sku"]),

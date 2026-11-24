@@ -17,8 +17,9 @@ shows up in the composer with no code change.
 
     uv run -m open_apps.compose.catalog --out catalog.json
 
-Build cost is dominated by the online shop's 999-product content pack, which
-every full composition of ``config.yaml`` loads (~3 s). The build composes the
+Full compositions used to be dominated by the online shop's 999-product
+catalog (~3 s each); it now lives outside the YAML tree (see
+:mod:`open_apps.apps.shop_catalog`), so a composition is ~0.5 s. The build composes the
 two primary configs in full once each and does everything else with isolated
 or shop-less compositions; :func:`build_catalog` caches its result per process
 so the test suite pays for it once.

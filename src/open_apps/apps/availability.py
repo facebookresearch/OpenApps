@@ -10,7 +10,8 @@ Files is the one app that can never be absent (``require_files``); the shop
 is the only one that can. Two independent things switch the shop off:
 
 * ``apps.onlineshop.enable=False`` -- hidden on purpose;
-* a ``content`` pack with no ``products`` (``apps/onlineshop/content=default``)
+* a ``content`` pack with no products, inline or by ``catalog``
+  (``apps/onlineshop/content=default``)
   -- nothing to sell, so it is absent rather than an empty storefront.
 
 Either way its routes are not registered, so anything that lists apps (start
@@ -50,12 +51,13 @@ def onlineshop_has_catalog(apps_cfg) -> bool:
     """Whether the selected ``content`` pack has any products.
 
     The catalog belongs to the pack, not the app: the default ``webshop`` pack
-    has 999 products and the chrome-only ``default`` pack has none.
+    has 999 products (named by ``catalog``, read from a JSON file -- see
+    :mod:`open_apps.apps.shop_catalog`) and the chrome-only ``default`` pack
+    has none.
     """
-    shop_cfg = getattr(apps_cfg, "onlineshop", None)
-    if shop_cfg is None:
-        return False
-    return bool(shop_cfg.get("products"))
+    from open_apps.apps.shop_catalog import has_products
+
+    return has_products(getattr(apps_cfg, "onlineshop", None))
 
 
 def onlineshop_unavailable_reason(apps_cfg) -> str | None:
