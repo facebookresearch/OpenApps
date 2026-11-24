@@ -154,7 +154,10 @@ uv run launch_parallel_agents.py mode=slurm_cluster \
 
 **Stopping a local sweep.** Ctrl-C stops it: queued runs never start, and
 running ones stop their web apps and exit (Ctrl-C again kills them at once).
-The launcher exits with status 130. Any failed run makes it exit non-zero too.
+The launcher exits with status 130, or 143 on `kill`. Any failed run makes it
+exit non-zero too. A web app never outlives its run: one killed outright
+(`kill -9`, the OOM killer, that second Ctrl-C) still has its web app stop
+itself within a second or so, freeing the port.
 
 SLURM setup (account, QOS, a shared `logs_dir`, the vLLM serve job) is in the
 [agents docs](docs/agents.md). Existing `agent=...`, `tasks=...` and Hydra

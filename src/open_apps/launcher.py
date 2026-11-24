@@ -46,6 +46,7 @@ from open_apps.apps.availability import (
     task_needs_onlineshop,
 )
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+from open_apps.lifeline import LIFELINE_FD_ENV, open_lifeline, watch_lifeline_from_env
 from open_apps.preview import open_preview
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
 from open_apps.tasks.tasks import Task
@@ -317,6 +318,11 @@ class OpenAppsLauncher:
 
     def launch_apps(self):
         print("Browser Gym will start at this localhost: ", self.web_app_host)
+        # Started by an agent run (launch_apps_via_shell): stop when it is
+        # gone, even if it never gets to stop us (open_apps.lifeline).
+        # launch.py already started watching before its imports, which took
+        # the variable; this covers launch_apps() called any other way.
+        watch_lifeline_from_env()
 
         initialize_routes_and_configure_task(self.config.apps)
 
@@ -359,14 +365,23 @@ class OpenAppsLauncher:
         # on write, wedging the whole run so the process never exits.
         webapp_log_path = Path(self.config.logs_dir) / "webapp.log"
         self._webapp_log_fh = open(webapp_log_path, "a")
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=self._webapp_log_fh,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-            executable="/bin/bash",  # Use bash explicitly for 'source' command
-        )
+        # The web app's lifeline: it stops itself once this process is gone
+        # (open_apps.lifeline), so a run that is killed outright -- and so
+        # never reaches cleanup() -- does not leave it serving.
+        lifeline_read, self._lifeline = open_lifeline()
+        try:
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=self._webapp_log_fh,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                executable="/bin/bash",  # Use bash explicitly for 'source' command
+                pass_fds=(lifeline_read,),
+                env={**os.environ, LIFELINE_FD_ENV: str(lifeline_read)},
+            )
+        finally:
+            os.close(lifeline_read)
         return process
 
     def is_app_running(self) -> bool:
@@ -632,6 +647,10 @@ class AgentLauncher(OpenAppsLauncher):
         with sigint_deferred():
             stop_process_group(apps_process)
         print("OpenApps successfully stopped.")
+        lifeline = getattr(self, "_lifeline", None)
+        if lifeline is not None:
+            os.close(lifeline)
+            self._lifeline = None
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
             webapp_log_fh.close()

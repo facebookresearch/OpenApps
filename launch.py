@@ -8,6 +8,14 @@ LICENSE file in the root directory of this source tree.
 """
 Launches OpenApps.
 """
+# First, before the imports below spend seconds loading every app: started by
+# an agent run, stop once it is gone (open_apps.lifeline). A run killed while
+# this server is still starting would otherwise leave it to finish starting
+# and serve.
+from open_apps.lifeline import watch_lifeline_from_env
+
+watch_lifeline_from_env()
+
 # Third-party imports
 import hydra
 from omegaconf import DictConfig

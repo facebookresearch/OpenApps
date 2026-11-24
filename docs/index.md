@@ -826,7 +826,10 @@ uv run launch_parallel_agents.py agents=GPT-5.5-computer-use max_parallel=4
   failed.
 - **Ctrl-C stops the sweep**: queued runs never start, and running ones stop
   their web apps and exit (Ctrl-C again kills them at once). The launcher
-  exits with status 130.
+  exits with status 130, or 143 on `kill`.
+- A web app never outlives its run. Each one watches the run that started it
+  and stops itself once that run is gone, however it went (`kill -9`, the OOM
+  killer, a second Ctrl-C), so no server is left holding a port.
 
 Each run has its own web app and browser, so size `max_parallel` to the
 machine's cores and memory.
