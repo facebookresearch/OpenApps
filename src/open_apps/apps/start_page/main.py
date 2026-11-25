@@ -6,6 +6,7 @@ LICENSE file in the root directory of this source tree.
 """
 # assets come from https://html5up.net/story
 from fasthtml.common import *
+from dataclasses import replace
 import json
 import random
 from datetime import datetime
@@ -245,14 +246,33 @@ def reset_desktop_state(start_page_cfg=None, variant: str = "shell") -> None:
 # of where the agent has been, not of anything it did, so it is deliberately
 # absent from /desktop_all and from every reward. Reset alongside the shell.
 # ---------------------------------------------------------------------------
-_chrome_state: dict[str, list[str]] = {"running": [], "maximized": []}
+#
+# `last_page` is where each running app was left, so its dock icon reopens it
+# there, as macOS brings back an app's window rather than a fresh one.
+_chrome_state: dict = {"running": [], "maximized": [], "last_page": {}}
 
 
 def reset_chrome_state() -> None:
-    # Fresh lists, not a shallow copy of a defaults dict: these are mutated in
-    # place, and a shared list would carry one episode's dots into the next.
+    # Fresh containers, not a shallow copy of a defaults dict: these are
+    # mutated in place, and a shared one would carry an episode into the next.
     _chrome_state["running"] = []
     _chrome_state["maximized"] = []
+    _chrome_state["last_page"] = {}
+
+
+def _resumed(apps: list, current: str | None) -> list:
+    """``apps`` with each running app linking to the page it was left on.
+
+    The app on screen keeps its root link: clicking the app you are in is the
+    way back to its start. A closed app has no last page (closing forgets it),
+    so reopening one starts fresh.
+    """
+    last = _chrome_state["last_page"]
+    running = set(_chrome_state["running"])
+    return [
+        replace(a, href=last[a.key]) if a.key in last and a.key in running and a.key != current else a
+        for a in apps
+    ]
 
 # Define available apps and their route getters
 AVAILABLE_APPS = {
@@ -1136,7 +1156,7 @@ def _desktop_dock_oob():
     apps = _chrome_apps()
     dock = configured_dock(
         cfg,
-        apps=apps,
+        apps=_resumed(apps, None),
         current=None,
         docked=_docked_keys(cfg.get("dock") or {}, apps),
         running=list(_chrome_state["running"]),
@@ -1146,21 +1166,27 @@ def _desktop_dock_oob():
     return dock
 
 
-def render_chrome(path: str) -> ChromeParts | None:
+def render_chrome(target: str, status: int = 200) -> ChromeParts | None:
     """The chrome for one page. Called by ChromeMiddleware on every full-page GET.
 
-    Opening an app page marks it running -- the only side effect, and the
-    reason this is not a pure function of config.
+    Opening an app page marks it running and records it as where that app was
+    left (``target`` keeps the query: a selected file, a calendar week) -- the
+    side effects, and the reason this is not a pure function of config. A page
+    that failed is not recorded, so the dock never reopens an app on an error.
     """
     cfg = _chrome_config()
     if cfg is None:
         return None
 
+    path = target.split("?", 1)[0]
     apps = _chrome_apps()
     current = _app_for_path(path, apps)
     running = _chrome_state["running"]
     if current is not None and current not in running:
         running.append(current)
+    if current is not None and status == 200:
+        _chrome_state["last_page"][current] = target
+    apps = _resumed(apps, current)
 
     # On the desktop shell the dock floats over the wallpaper -- except on a
     # home screen, which already has a dock of its own in that spot.
@@ -1220,6 +1246,7 @@ def window_action(action: str, app_key: str, req):
             running.remove(app_key)
         if app_key in maximized:
             maximized.remove(app_key)
+        _chrome_state["last_page"].pop(app_key, None)
         return RedirectResponse("/", status_code=303)
     if action == "minimize":
         if app_key not in running:
@@ -1343,21 +1370,29 @@ def _theme_stylesheets(path: str) -> list[str]:
     return urls
 
 
-def render_page(path: str) -> ChromeParts | None:
+def render_page(target: str, status: int = 200) -> ChromeParts | None:
     """Everything spliced into a full page: the ``<html>`` attributes, then
     the window chrome.
+
+    ``target`` is the path plus any ``?query``. The document layer only needs
+    the path; the chrome gets the whole target and the status, to record
+    where each app was left (see ``render_chrome``).
 
     Each layer fails on its own: a chrome bug must not cost every page its
     ``lang``, and a document bug must not cost every page its dock.
     """
+    path = target.split("?", 1)[0]
     layers = []
-    for render in (render_document, render_chrome):
+    for name, render in (
+        ("render_document", lambda: render_document(path)),
+        ("render_chrome", lambda: render_chrome(target, status)),
+    ):
         try:
-            layers.append(render(path))
+            layers.append(render())
         except Exception:  # noqa: BLE001 -- see docstring; logged, and tested
             import logging
 
-            logging.getLogger(__name__).exception("%s failed on %s", render.__name__, path)
+            logging.getLogger(__name__).exception("%s failed on %s", name, target)
     return merge_parts(*layers)
 
 
