@@ -748,8 +748,11 @@ def get_events_for_month(year, month):
         # Parse the original event date
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
 
-        # If the original event is in this month, it's already included
-        if event_date.year == year and event_date.month == month:
+        # Weekly repeats can fall in the start month and are checked by day below.
+        if event.recurring != "weekly" and (year, month) <= (
+            event_date.year,
+            event_date.month,
+        ):
             continue
 
         # Handle different recurrence types
@@ -800,8 +803,8 @@ def get_events_for_month(year, month):
             for day in range(1, month_days + 1):
                 check_date = datetime(year, month, day).date()
 
-                # If it's the same weekday, add a recurring instance
-                if check_date.weekday() == event_weekday:
+                # The original date is already in the direct events.
+                if check_date > event_date and check_date.weekday() == event_weekday:
                     recurring_date = f"{year}-{month:02d}-{day:02d}"
                     recurring_event = Event(
                         id=event.id,
@@ -841,7 +844,7 @@ def get_upcoming_events(start_date=None, end_date=None):
         event_date = datetime.strptime(event.date, "%Y-%m-%d").date()
 
         # Get the date range to check
-        current_date = start_date
+        current_date = max(start_date, event_date)
         while current_date <= end_date:
             include_event = False
             recurring_date = None
