@@ -26,6 +26,21 @@ class ActionParser:
     def default_prompts(self) -> dict:
         return {}
 
+    def render_system_prompt(self, system_prompt: str, viewport: tuple[int, int]) -> str:
+        """Fill viewport-dependent placeholders in the yaml's system prompt.
+
+        Most families need none; a model told its screen size in the prompt
+        (Fara) overrides this.
+        """
+        return system_prompt
+
+    def render_history(self, actions: list, thoughts: list) -> str | None:
+        """The user message's history section, from the displayed actions and
+        thoughts of earlier steps. None keeps the shared format (vLLM_prompt.History);
+        a model trained on its own step template (OpenCUA) overrides this.
+        """
+        return None
+
     def parse(self, response: str, viewport: tuple[int, int]) -> ActionParserResult:
         """``viewport`` is (width, height) px. Raise ParseError on bad output."""
         raise NotImplementedError

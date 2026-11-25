@@ -85,8 +85,69 @@ def goto(url: str):
     page.goto(href)  # noqa: F821
 
 
+def click_and_type(
+    x: float = None,
+    y: float = None,
+    text: str = "",
+    press_enter: bool = False,
+    clear: bool = False,
+):
+    """
+    Click at (x, y) unless they are None, optionally select and delete the existing text, type the text, and optionally press Enter.
+
+    Examples:
+        click_and_type(620, 85, 'call mom', press_enter=True)
+        click_and_type(None, None, 'new title', clear=True)
+    """
+    # One action for Fara-style typing, which targets a field and submits in a
+    # single step; BrowserGym runs one action per step.
+    if x is not None and y is not None:
+        page.mouse.click(x, y)  # noqa: F821 -- `page` is injected by BrowserGym
+    if clear:
+        page.keyboard.press("ControlOrMeta+a")  # noqa: F821
+        page.keyboard.press("Backspace")  # noqa: F821
+    page.keyboard.type(text)  # noqa: F821
+    if press_enter:
+        page.keyboard.press("Enter")  # noqa: F821
+
+
+def mouse_tripleclick(x: float, y: float):
+    """
+    Move the mouse to a location and triple click, which selects the whole line or field text there.
+
+    Examples:
+        mouse_tripleclick(620, 85)
+    """
+    page.mouse.click(x, y, click_count=3)  # noqa: F821
+
+
+def scroll_at(x: float, y: float, delta_x: float, delta_y: float):
+    """
+    Move the mouse to a location and scroll there. Amounts in pixels, positive for right or down scrolling, negative for left or up scrolling.
+
+    Examples:
+        scroll_at(960, 540, 0, 300)
+        scroll_at(195, 600, 0, -200)
+    """
+    page.mouse.move(x, y)  # noqa: F821
+    page.mouse.wheel(delta_x, delta_y)  # noqa: F821
+
+
+def keyboard_press_repeat(key: str, count: int = 1):
+    """
+    Press a key or key combination several times in a row.
+
+    Examples:
+        keyboard_press_repeat('Backspace', 5)
+        keyboard_press_repeat('ArrowDown', 3)
+    """
+    for _ in range(max(1, min(int(count), 100))):
+        page.keyboard.press(key)  # noqa: F821
+
+
 action_map = {
     "clear": clear,
+    "click_and_type": click_and_type,
     "click": click,
     "dblclick": dblclick,
     "drag_and_drop": drag_and_drop,
@@ -99,6 +160,7 @@ action_map = {
     "keyboard_down": keyboard_down,
     "keyboard_insert_text": keyboard_insert_text,
     "keyboard_press": keyboard_press,
+    "keyboard_press_repeat": keyboard_press_repeat,
     "keyboard_type": keyboard_type,
     "keyboard_up": keyboard_up,
     "mouse_click": mouse_click,
@@ -106,6 +168,7 @@ action_map = {
     "mouse_down": mouse_down,
     "mouse_drag_and_drop": mouse_drag_and_drop,
     "mouse_move": mouse_move,
+    "mouse_tripleclick": mouse_tripleclick,
     "mouse_up": mouse_up,
     "mouse_upload_file": mouse_upload_file,
     "new_tab": new_tab,
@@ -113,7 +176,7 @@ action_map = {
     "press": press,
     "report_infeasible": report_infeasible,
     "scroll": scroll,
-    # "scroll_at": scroll_at,
+    "scroll_at": scroll_at,
     "select_option": select_option,
     "send_msg_to_user": send_msg_to_user,
     "tab_close": tab_close,
