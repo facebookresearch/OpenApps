@@ -828,9 +828,10 @@ uv run -m open_apps.results_preview --out results.html # a self-contained file t
 
 Each row is one model: success rate with its 95% interval, episodes, tasks, errored runs, steps
 and tokens. A model's page breaks it down per task and app variation and gives the command that
-reproduces its runs. A local sweep opens the page by itself; a SLURM sweep prints the command.
-[Viewing your runs](results-preview.md) covers the rest: filters, what it reads, how re-runs
-count, and viewing cluster runs on a laptop.
+reproduces its runs. A local sweep opens the page by itself (`open_leaderboard=false` turns that
+off); a SLURM sweep prints the command. On a cluster login node it prints the `ssh -N -L` line
+that brings the page to your laptop. [Viewing your runs](results-preview.md) covers the rest:
+filters, what it reads, how re-runs count, and copying runs off a cluster.
 
 ## Testing
 

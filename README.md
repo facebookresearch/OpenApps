@@ -175,10 +175,10 @@ uv run -m open_apps.results_preview log_outputs --agent 'Qwen*' --task 'todo_*'
 uv run -m open_apps.results_preview --out results.html # a self-contained file to share
 ```
 
-A local sweep opens it by itself when it finishes; a SLURM sweep prints the command. On a
-cluster login node it prints the `ssh -N -L` line that brings the page to your laptop. See
-[Viewing your runs](https://facebookresearch.github.io/OpenApps/results-preview/) for what it
-reads, how re-runs count, and copying runs off a cluster.
+A local sweep opens it by itself when it finishes (`open_leaderboard=false` turns that off); a
+SLURM sweep prints the command. On a cluster login node it prints the `ssh -N -L` line that
+brings the page to your laptop. See [docs/results-preview.md](docs/results-preview.md) for what
+it reads, how re-runs count, and copying runs off a cluster.
 
 ## Environment variables
 

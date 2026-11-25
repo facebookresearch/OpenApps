@@ -1,7 +1,7 @@
 # Viewing your own runs locally
 
-To see how your models compare, point the results preview at the directory your runs are in.
-It finds every run below it, however the sweeps are nested, and ranks one row per model by
+To see how your models compare, point the results preview at the directory your runs are in:
+an ad-hoc leaderboard of your own runs, no W&B needed. It finds every run below it, however the sweeps are nested, and ranks one row per model by
 task success across every task it ran:
 
 ```bash
