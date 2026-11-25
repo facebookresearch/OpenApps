@@ -189,8 +189,20 @@ def launch_parallel(
             f"job {job_config.job_id}: {task_label} {agent_label} "
             f"{list(job_config.app_overrides)}"
         )
+    # The configured root's parent holds this sweep beside earlier ones
+    # (log_outputs/ by default), so the preview ranks the new runs among them.
+    preview_root = logs_root.parent
     if cluster == "local":
         run_locally(config, jobs, len(jobs), launcher_class)
+        if config.get("open_leaderboard", True):
+            from open_apps.results_preview import launch
+
+            launch([preview_root])
         return []
     sweep_dir = Path(config.logs_dir) / "slurm"
-    return run_via_slurm(config, jobs, len(jobs), sweep_dir, launcher_class)
+    submitted = run_via_slurm(config, jobs, len(jobs), sweep_dir, launcher_class)
+    if config.get("open_leaderboard", True):
+        from open_apps.results_preview.cli import command
+
+        print(f"When the jobs finish, rank every model's runs with:\n  {command([preview_root])}")
+    return submitted

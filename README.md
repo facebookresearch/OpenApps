@@ -163,6 +163,23 @@ or stopped. A single comma-selector sweep already gives its jobs distinct
 preferred port ranges. Separate run directories protect storage but do not
 reserve ports. Hydra's own parent-level logs can still append in the logs root.
 
+### Compare your runs: an ad-hoc leaderboard
+
+Point the results preview at your logs and it ranks one row per model by task success, with a
+95% interval, episodes, tasks, errored runs, steps and tokens. Click a model for its runs per
+task and variation, and the command that reproduces them:
+
+```bash
+uv run -m open_apps.results_preview                    # everything under log_outputs/
+uv run -m open_apps.results_preview log_outputs --agent 'Qwen*' --task 'todo_*'
+uv run -m open_apps.results_preview --out results.html # a self-contained file to share
+```
+
+A local sweep opens it by itself when it finishes (`open_leaderboard=false` turns that off); a
+SLURM sweep prints the command. On a cluster login node it prints the `ssh -N -L` line that
+brings the page to your laptop. See [docs/results-preview.md](docs/results-preview.md) for what
+it reads, how re-runs count, and copying runs off a cluster.
+
 ## Environment variables
 
 Copy [`.env.example`](.env.example) and fill in what you need — `launch_agent.py` and

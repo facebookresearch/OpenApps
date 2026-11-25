@@ -298,3 +298,5 @@ srun --overlap --jobid=<vllm-job> \
 - Per-run logs: `log_outputs/<stamp>/run-*.log` — confirm an action is produced.
 - W&B: a run should appear in `open_apps_${USER}` (i.e. `open_apps_aaronsmulktis`)
   with the expected `group`/`job_type` and a logged `web_app_url`.
+- All of a sweep's runs ranked by model, without W&B:
+  `uv run -m open_apps.results_preview <logs_dir>` (see [Viewing Your Runs](results-preview.md)).

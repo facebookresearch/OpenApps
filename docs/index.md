@@ -816,6 +816,23 @@ Use `mode=local` to run the jobs sequentially in the current process instead of
 on SLURM. This expands to one isolated job per goal phrasing, letting you
 measure how robust an agent is to how the same task is worded.
 
+### Comparing your runs
+
+Once a sweep finishes, rank every model it ran (and any earlier runs beside it) by task success:
+
+```bash
+uv run -m open_apps.results_preview                    # everything under log_outputs/
+uv run -m open_apps.results_preview /checkpoint/$USER/logs/open_apps
+uv run -m open_apps.results_preview --out results.html # a self-contained file to share
+```
+
+Each row is one model: success rate with its 95% interval, episodes, tasks, errored runs, steps
+and tokens. A model's page breaks it down per task and app variation and gives the command that
+reproduces its runs. A local sweep opens the page by itself (`open_leaderboard=false` turns that
+off); a SLURM sweep prints the command. On a cluster login node it prints the `ssh -N -L` line
+that brings the page to your laptop. [Viewing your runs](results-preview.md) covers the rest:
+filters, what it reads, how re-runs count, and copying runs off a cluster.
+
 ## Testing
 
 Run all tests via:
