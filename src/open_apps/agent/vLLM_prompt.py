@@ -251,6 +251,10 @@ class VllmMainPrompt(dp.PromptElement):
         super().__init__()
         self.flags = flags
         self.history = History(actions, thoughts)
+        render_history = getattr(action_parser, "render_history", None)
+        native_history = render_history(actions, thoughts) if render_history else None
+        if native_history is not None:
+            self.history._prompt = native_history
         obs = obs_history[-1]
 
         self.goal = obs["goal_object"]
