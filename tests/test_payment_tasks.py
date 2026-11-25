@@ -208,3 +208,38 @@ class TestPaySam:
         client.post("/contacts", data={"first_name": "Sam", "last_name": "Ortiz",
                                        "email_label_0": "home", "email_value_0": "sam.ortiz@example.com"})
         assert _passes(task, initial, fresh())
+
+
+class TestTranslatedBank:
+    """A payment's description and type are the bank pack's own words
+    ("Zahlung an Bob", "Zahlung"), so the reward must not read them: the same
+    payment has to score under every language pack."""
+
+    @pytest.fixture(params=["german", "mandarin"])
+    def translated(self, request, fresh):
+        from open_apps.apps.openbanking_app import main as bank
+
+        with initialize(version_base=None, config_path="../config/"):
+            packed = compose(config_name="config", overrides=[f"apps/openbanking/content={request.param}"])
+        cfg = OmegaConf.create(OmegaConf.to_container(app.config, resolve=True))
+        # The pack's labels and ledger over the live node, which keeps this
+        # run's database_path (a Hydra-runtime interpolation in the pack).
+        pack = OmegaConf.to_container(packed.apps.openbanking, resolve=False)
+        pack.pop("database_path", None)
+        cfg.openbanking = OmegaConf.merge(cfg.openbanking, pack)
+        bank.set_environment(cfg)
+        return cfg.openbanking.send_type, fresh
+
+    def test_correct_episode(self, client, translated):
+        send_type, fresh = translated
+        task, initial = _task("send_bob_lunch_money"), fresh()
+        _pay(client, "Bob", "18", memo="lunch")
+        (row,) = [t for t in fresh()["openbanking"]["transactions"] if t.get("counterparty")]
+        assert row["type"] == send_type != "Payment"
+        assert _passes(task, initial, fresh())
+
+    def test_the_wrong_amount_still_fails(self, client, translated):
+        _, fresh = translated
+        task, initial = _task("send_bob_lunch_money"), fresh()
+        _pay(client, "Bob", "19", memo="lunch")
+        assert not _passes(task, initial, fresh())

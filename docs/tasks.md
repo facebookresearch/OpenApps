@@ -292,7 +292,7 @@ somehow *did* buy the thing fails the diff with its ids intact.
 ## Payment tasks
 
 `config/tasks/payments.yaml` (`tasks=payments`) pays people with the bank's
-**Send money**: a Zelle-style payment from a deposit account to an email
+**Send money**: a person-to-person payment from a deposit account to an email
 address or a phone number. Every task pays from `EVERYDAY CHECKING (...4417)`,
 Dana's own account; the three business accounts keep their ids and figures.
 
@@ -334,16 +334,17 @@ How the reward reads a payment:
   `samortiz@example.com` pass for `sam.ortiz@example.com`, so payments are
   paired first: same account, same amount, payee equal to the target's handle
   (or one of the contact's handles, for `to_contact`).
-* The row's date, description, memo and running balance are not compared as
-  text: the date is the pack's spelling of the pinned day, the description
-  carries the payee's name however it resolved ("Zelle to Bob"), and the memo
-  is checked only for `memo_includes`. The account's balances are compared.
+* The row's date, description, type, memo and running balance are not
+  compared as text: the date is the pack's spelling of the pinned day, the
+  description carries the payee's name however it resolved ("Payment to Bob"),
+  the type is the pack's word for a payment ("Payment", "Zahlung", "付款"), and
+  the memo is checked only for `memo_includes`. The account's balances are
+  compared, so a payment task scores the same under every language pack.
 * Payments are paired as a matching, not first-fit, so overlapping payees
   ("pay Bob" and "pay bob@example.com") or two payments that differ only in
   their memo still pair up.
 * A refused send (a typo in the address, more than the balance) writes
   nothing, so an agent can fix it and try again. Two payments fail.
-* `send_type` mirrors `apps.openbanking.send_type` ("Zelle").
 
 Payments compose: a `CompositeTask` of two `SendMoneyTask`s scores whichever
 order the agent paid in.
