@@ -319,9 +319,20 @@ def translate_uitars_type_action(action: str) -> str:
         )
     raw_content = match.group(2)
     # Models usually emit Python-source-style escapes (\\n, \\', ...).
-    # Decode them so keyboard_type receives the intended characters.
+    # Decode escape sequences only: decoding UTF-8 bytes as unicode_escape
+    # would corrupt literal non-ASCII text.
     try:
-        content = raw_content.encode("utf-8").decode("unicode_escape")
+        content = re.sub(
+            r"\\(?:N\{[^}]*\}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}"
+            r"|x[0-9a-fA-F]{2}|[0-7]{1,3}|.|$)",
+            lambda escape: (
+                escape.group().encode("ascii").decode("unicode_escape")
+                if escape.group().isascii()
+                else escape.group()
+            ),
+            raw_content,
+            flags=re.DOTALL,
+        )
     except UnicodeDecodeError:
         content = raw_content
     # Re-quote with repr so the resulting Python call survives downstream exec.
