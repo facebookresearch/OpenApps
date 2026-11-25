@@ -28,7 +28,7 @@ from starlette.testclient import TestClient
 
 from open_apps.compose.catalog import build_catalog
 from open_apps.compose.command import Selection
-from open_apps.compose.live import REPO_ROOT, group_alive
+from open_apps.compose.live import group_alive
 from open_apps.compose.server import (
     PREVIEW_TTL_S,
     Composer,
@@ -299,9 +299,8 @@ def test_run_refuses_slurm_and_returns_the_command(client, composer):
     assert response.status_code == 409
     result = response.json()
     assert result["refused"]
-    assert (
-        result["command"]
-        == "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh"
+    assert result["command"].startswith(
+        "uv run launch_parallel_agents.py mode=slurm_cluster agent=gemma-4-2B-computer-use"
     )
     assert composer.jobs == before  # nothing was started
 
@@ -318,7 +317,7 @@ def test_run_refuses_a_slurm_sweep_too(client, composer):
 @pytest.mark.parametrize(
     "selection",
     [
-        # Forced target: renders `sbatch scripts/conduct_slurm.sh`.
+        # An old SLURM-pool request: loads as the sweep on SLURM.
         {"target": "slurm_pool"},
         {"target": "slurm_pool", "choices": {"agent": ["dummy"]}},
         # The config key launch_parallel_agents.py actually reads.
@@ -392,10 +391,10 @@ def test_run_refusal_needs_a_known_program(catalog, monkeypatch):
         {"extra": ["apps.todo.title=a\nb"]},
         {"extra": ["seed=1 && curl evil"]},
         {"extra": ["apps.todo.title='a\x00b'"]},
-        {"env": ["VLLM_HOST=node\nid"]},
+        {"env": ["WANDB_GROUP=node\nid"]},
         {"env": ["LD_PRELOAD=/tmp/x.so"]},
         {"env": ["PATH=/tmp"]},
-        {"sbatch_args": ["--qos=q\x1b[2J"]},
+        {"env": ["WANDB_NOTES=q\x1b[2J"]},
     ],
 )
 def test_token_validation_rejects_control_characters_and_bad_grammar(
@@ -433,7 +432,7 @@ def test_valid_hydra_values_with_shell_characters_pass(catalog, client, token):
     assert any(d["key"] == "apps.todo.title" for d in response.json()["diff"])
 
 
-@pytest.mark.parametrize("assignment", ["VLLM_HOST=a|b", "WANDB_NOTES=Q&A; v2"])
+@pytest.mark.parametrize("assignment", ["WANDB_GROUP=a|b", "WANDB_NOTES=Q&A; v2"])
 def test_env_values_with_shell_characters_pass(catalog, assignment):
     sel = checked_selection({"env": [assignment]}, catalog)
     name, value = assignment.split("=", 1)
@@ -501,6 +500,10 @@ def test_safe_interpolations_pass(catalog, token):
         "WANDB_BASE_URL=http://evil.example",
         "WANDB_API_KEY=someone-elses",
         "UV_PYTHON=/tmp/python",
+        # The worker-pool knobs: not read by either launcher.
+        "AGENTS=dummy",
+        "COUNT=2",
+        "VLLM_HOST=node-007",
     ],
 )
 def test_env_outside_the_allowlist_is_refused(catalog, client, assignment):
@@ -512,29 +515,28 @@ def test_env_outside_the_allowlist_is_refused(catalog, client, assignment):
 @pytest.mark.parametrize(
     "assignment",
     [
-        "AGENTS=dummy",
-        "COUNT=2",
-        "MAX_PARALLEL=1",
-        "HEADLESS=False",
-        "LOG_DIR=runs",
         "WANDB_GROUP=g",
         "WANDB_PROJECT=p",
         "WANDB_MODE=offline",
-        "VLLM_HOST=node-007",
     ],
 )
 def test_allowlisted_env_passes(catalog, assignment):
     assert checked_selection({"env": [assignment]}, catalog).env == [assignment]
 
 
-def test_the_env_allowlist_covers_what_the_scripts_read():
-    """Derived from the scripts: every ``${NAME:-default}`` they read is
-    settable (and nothing else from them, beyond the documented W&B list)."""
-    read = set()
-    for script in (REPO_ROOT / "scripts").glob("conduct*.sh"):
-        read |= set(re.findall(r"\$\{([A-Z_][A-Z0-9_]*):-", script.read_text()))
-    assert read and read <= ENV_ALLOWLIST
-    assert ENV_ALLOWLIST - read <= WANDB_ENV
+def test_the_env_allowlist_is_the_wandb_labels():
+    """Both launchers are configured by Hydra overrides; the environment a
+    request may set is only where its W&B run is filed and how it is labelled."""
+    assert ENV_ALLOWLIST == WANDB_ENV
+
+
+def test_an_old_worker_pool_request_loads_as_the_sweep(catalog):
+    sel = checked_selection(
+        {"target": "pool", "choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 4},
+        catalog,
+    )
+    assert sel.target == "sweep" and sel.repeats == 2
+    assert plan(sel, catalog).argv[:3] == ["uv", "run", "launch_parallel_agents.py"]
 
 
 @pytest.mark.parametrize(
@@ -548,6 +550,8 @@ def test_the_env_allowlist_covers_what_the_scripts_read():
         {"extra": ["not an override"]},
         {"target": "cluster"},
         {"count": -1},
+        {"repeats": -1},
+        {"max_parallel": True},
     ],
 )
 def test_values_must_come_from_the_catalog(catalog, selection):
@@ -560,13 +564,14 @@ def test_interpolations_and_known_env_pass(catalog):
         {
             "choices": {"agent": ["dummy", "claude_4_sonnet"], "seed": [3]},
             "extra": ["logs_dir=${oc.env:HOME}/runs", "apps.todo.title=Super Todo"],
-            "env": ["VLLM_HOST=node-007"],
+            "env": ["WANDB_GROUP=nightly"],
         },
         catalog,
     )
     p = plan(sel, catalog)
-    assert p.env == {"AGENTS": "dummy claude_4_sonnet", "VLLM_HOST": "node-007"}
-    assert p.argv[:1] == ["./scripts/conduct.sh"]
+    assert p.env == {"WANDB_GROUP": "nightly"}
+    assert p.argv[:3] == ["uv", "run", "launch_parallel_agents.py"]
+    assert "agents=dummy,claude_4_sonnet" in p.overrides
     # One argv word per override, quoting already undone: no shell needed.
     assert "apps.todo.title=Super Todo" in p.overrides
 

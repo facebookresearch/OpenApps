@@ -10,6 +10,7 @@ Orchestrates the configs to launch the web envirnoment,
 task, and agent.
 """
 
+import contextlib
 import os
 import random
 import re
@@ -45,6 +46,7 @@ from open_apps.apps.availability import (
     task_needs_onlineshop,
 )
 from open_apps.apps.start_page.main import initialize_routes_and_configure_task
+from open_apps.lifeline import LIFELINE_FD_ENV, open_lifeline, watch_lifeline_from_env
 from open_apps.preview import open_preview
 from open_apps.tasks.add_tasks_to_browsergym import register_tasks_with_browsergym
 from open_apps.tasks.tasks import Task
@@ -106,6 +108,25 @@ def _group_alive(pgid: int) -> bool:
     except PermissionError:
         # Something in the group belongs to another user; it still exists.
         return True
+
+
+@contextlib.contextmanager
+def sigint_deferred():
+    """Ignore Ctrl-C for the duration (main thread only; elsewhere a no-op).
+
+    For cleanup that must not be cut short: one Ctrl-C under ``uv run``
+    arrives twice (the terminal signals the group and uv forwards it again),
+    and the echo would otherwise land in the middle of stopping the web app.
+    """
+    try:
+        previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    except ValueError:  # not the main thread
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, previous)
 
 
 def stop_process_group(process: subprocess.Popen, timeout: float = 10.0) -> None:
@@ -207,6 +228,9 @@ class OpenAppsLauncher:
         task_name = self.config.get("task_name")
         if task_name:
             run_name = f"{run_name}-{task_name}"
+        # Set only by a sweep with parallel_tasks.repeats > 1.
+        if self.config.get("repeat") is not None:
+            run_name = f"{run_name}-r{self.config.repeat}"
 
         logger = wandb.init(
             **self.config.wandb,
@@ -239,10 +263,17 @@ class OpenAppsLauncher:
     def _job_port_offset(self) -> int:
         """Offset port ranges per parallel job so siblings don't collide.
 
-        Each job gets a 100-port window starting at ``5001 + job_id*100``.
+        Each job gets a 100-port window starting at ``5001 + job_id*100``,
+        wrapping every 500 jobs. Unwrapped, job 606 and up would start the
+        search above 65535 and get no window of its own -- only a random
+        OS-assigned port, which then sits unbound until the app subprocess
+        binds it -- and agent and task-file sweeps reach that size easily
+        (longer_horizon x 2 agents x 2 variations is 400+ jobs). Jobs 500
+        apart sharing a window only matters if both are alive on one machine
+        at once, and the sibling-job guard catches that case.
         """
         job_id = int(self.config.get("job_id", 0) or 0)
-        return job_id * 100
+        return (job_id % 500) * 100
 
     def pick_empty_port(self, start_port=5001) -> int:
         """
@@ -287,6 +318,11 @@ class OpenAppsLauncher:
 
     def launch_apps(self):
         print("Browser Gym will start at this localhost: ", self.web_app_host)
+        # Started by an agent run (launch_apps_via_shell): stop when it is
+        # gone, even if it never gets to stop us (open_apps.lifeline).
+        # launch.py already started watching before its imports, which took
+        # the variable; this covers launch_apps() called any other way.
+        watch_lifeline_from_env()
 
         initialize_routes_and_configure_task(self.config.apps)
 
@@ -329,15 +365,23 @@ class OpenAppsLauncher:
         # on write, wedging the whole run so the process never exits.
         webapp_log_path = Path(self.config.logs_dir) / "webapp.log"
         self._webapp_log_fh = open(webapp_log_path, "a")
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            stdout=self._webapp_log_fh,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-            executable="/bin/bash",  # Use bash explicitly for 'source' command
-        )
-        sleep(30)
+        # The web app's lifeline: it stops itself once this process is gone
+        # (open_apps.lifeline), so a run that is killed outright -- and so
+        # never reaches cleanup() -- does not leave it serving.
+        lifeline_read, self._lifeline = open_lifeline()
+        try:
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=self._webapp_log_fh,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                executable="/bin/bash",  # Use bash explicitly for 'source' command
+                pass_fds=(lifeline_read,),
+                env={**os.environ, LIFELINE_FD_ENV: str(lifeline_read)},
+            )
+        finally:
+            os.close(lifeline_read)
         return process
 
     def is_app_running(self) -> bool:
@@ -598,8 +642,15 @@ class AgentLauncher(OpenAppsLauncher):
     def cleanup(self, apps_process: subprocess.Popen):
         if self.config.use_wandb:
             wandb.finish()
-        stop_process_group(apps_process)
+        # Bounded (SIGKILL after 2 x 10 s), so it is safe to make it
+        # uninterruptible: a Ctrl-C mid-stop would leave the web app serving.
+        with sigint_deferred():
+            stop_process_group(apps_process)
         print("OpenApps successfully stopped.")
+        lifeline = getattr(self, "_lifeline", None)
+        if lifeline is not None:
+            os.close(lifeline)
+            self._lifeline = None
         webapp_log_fh = getattr(self, "_webapp_log_fh", None)
         if webapp_log_fh is not None:
             webapp_log_fh.close()
@@ -662,6 +713,11 @@ class AgentLauncher(OpenAppsLauncher):
         # never came up, an agent error, and Ctrl-C, which raises
         # KeyboardInterrupt and so slips past `except Exception`.
         try:
+            # `serve()` blocks, so there is no ready signal to wait on: give the
+            # app a head start before polling. Inside the `try`, so a Ctrl-C (or
+            # a sweep's SIGTERM) during the wait still stops the web app --
+            # outside it, the first 30 s of every run leaked one.
+            sleep(30)
             self.wait_until_apps_start(apps_process)
             # TODO: check if agent model is available in case of VLLM or API
             self.launch_agent()

@@ -121,72 +121,104 @@
       "labels": {"apps/theme": ["Dark"]}
     },
     {
-      "name": "worker pool over two agents",
-      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 6, "max_parallel": 2},
-      "command": "AGENTS='dummy claude_4_sonnet' COUNT=6 MAX_PARALLEL=2 ./scripts/conduct.sh",
+      "name": "several agents are one sweep",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "repeats": 3, "max_parallel": 2},
+      "command": "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' parallel_tasks.repeats=3 max_parallel=2",
       "labels": {"agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"]}
     },
     {
-      "name": "repeat count with a visible browser",
+      "name": "repeats with a visible browser",
       "selection": {
-        "choices": {"agent": ["UI-TARS-1.5-7B"], "browsergym_env_args.headless": [false], "seed": [1], "use_wandb": [true]},
-        "count": 3,
+        "choices": {
+          "agent": ["UI-TARS-1.5-7B"],
+          "browsergym_env_args.headless": [false],
+          "seed": [1],
+          "use_wandb": [true]
+        },
+        "repeats": 3,
         "extra": ["agent.hostname=node-001"]
       },
-      "command": "AGENTS=UI-TARS-1.5-7B COUNT=3 HEADLESS=False ./scripts/conduct.sh seed=1 use_wandb=True agent.hostname=node-001",
+      "command": "uv run launch_parallel_agents.py agent=UI-TARS-1.5-7B seed=1 use_wandb=True browsergym_env_args.headless=False 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' parallel_tasks.repeats=3 agent.hostname=node-001",
       "labels": {"agent": ["UI-TARS 1.5 7B"]}
     },
     {
-      "name": "worker pool on SLURM",
-      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"]}, "count": 20},
-      "command": "AGENTS=gemma-4-2B-computer-use COUNT=20 sbatch scripts/conduct_slurm.sh",
+      "name": "a sweep on SLURM finds its vLLM node",
+      "selection": {
+        "choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"]},
+        "repeats": 20,
+        "extra": ["agent.hostname=auto"]
+      },
+      "command": "uv run launch_parallel_agents.py mode=slurm_cluster agent=gemma-4-2B-computer-use 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' parallel_tasks.repeats=20 agent.hostname=auto",
       "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
     },
     {
-      "name": "single run on SLURM goes through the worker pool",
-      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "device": ["laptop"]}},
-      "command": "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh device=laptop",
+      "name": "a single run on SLURM is a sweep of one job",
+      "selection": {
+        "choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "device": ["laptop"]}
+      },
+      "command": "uv run launch_parallel_agents.py mode=slurm_cluster agent=gemma-4-2B-computer-use device=laptop 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
       "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"], "device": ["Laptop"]}
     },
     {
-      "name": "SLURM pool defaults to W&B on, so turning it off is explicit",
-      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "use_wandb": [false]}},
-      "command": "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh use_wandb=False",
-      "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
-    },
-    {
-      "name": "unknown env vars and sbatch flags are kept",
+      "name": "unknown env vars are kept",
       "selection": {
         "choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"]},
-        "env": ["VLLM_HOST=node-007"],
-        "sbatch_args": ["--account=my_account", "--qos=my_qos"]
+        "env": ["WANDB_GROUP=nightly"]
       },
-      "command": "AGENTS=gemma-4-2B-computer-use VLLM_HOST=node-007 sbatch --account=my_account --qos=my_qos scripts/conduct_slurm.sh",
+      "command": "WANDB_GROUP=nightly uv run launch_parallel_agents.py mode=slurm_cluster agent=gemma-4-2B-computer-use 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
       "labels": {"mode": ["Slurm cluster"], "agent": ["Gemma 4 2B computer use"]}
     },
     {
-      "name": "worker pool on SLURM spells out the agent, even conduct.sh's default",
-      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy"]}},
-      "command": "AGENTS=dummy sbatch scripts/conduct_slurm.sh",
-      "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test"]}
-    },
-    {
-      "name": "worker pool spells out the agent equal to the script's default",
-      "selection": {"target": "pool", "choices": {"agent": ["dummy"]}},
-      "command": "AGENTS=dummy ./scripts/conduct.sh",
-      "labels": {"agent": ["Dummy / smoke test"]}
-    },
-    {
-      "name": "worker pool on SLURM with no agent picked runs config.yaml's, not the script's",
-      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["default"]}},
-      "command": "AGENTS=default sbatch scripts/conduct_slurm.sh",
-      "labels": {"mode": ["Slurm cluster"], "agent": ["Base agent (no model)"]}
-    },
-    {
-      "name": "worker pool on SLURM runs every agent once, not conduct_slurm.sh's COUNT=1",
+      "name": "a SLURM sweep over two agents",
       "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["dummy", "claude_4_sonnet"]}},
-      "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
+      "command": "uv run launch_parallel_agents.py mode=slurm_cluster agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
       "labels": {"mode": ["Slurm cluster"], "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"]}
+    },
+    {
+      "name": "several agents run a combined inventory",
+      "selection": {
+        "choices": {
+          "agent": ["dummy", "claude_4_sonnet"],
+          "tasks": ["longer_horizon", "openbanking"],
+          "task_name": ["message_bob_the_savings_balance"]
+        }
+      },
+      "command": "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet 'tasks=[longer_horizon,openbanking]' 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[message_bob_the_savings_balance]'",
+      "labels": {
+        "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"],
+        "tasks": ["Longer horizon", "OpenBanking"],
+        "task_name": [
+          "In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."
+        ]
+      }
+    },
+    {
+      "name": "a SLURM sweep runs a combined inventory",
+      "selection": {
+        "choices": {
+          "mode": ["slurm_cluster"],
+          "agent": ["gemma-4-2B-computer-use"],
+          "tasks": ["all_tasks", "openbanking"],
+          "task_name": ["navigate_to_openbanking"]
+        },
+        "repeats": 4
+      },
+      "command": "uv run launch_parallel_agents.py mode=slurm_cluster agent=gemma-4-2B-computer-use 'tasks=[all_tasks,openbanking]' 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[navigate_to_openbanking]' parallel_tasks.repeats=4",
+      "labels": {
+        "mode": ["Slurm cluster"],
+        "agent": ["Gemma 4 2B computer use"],
+        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
+        "task_name": ["Navigate to the OpenBanking app."]
+      }
+    },
+    {
+      "name": "several agents and an app sweep are one sweep",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "apps/theme": ["default", "dark"]}},
+      "command": "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[\"apps/theme=default\"],[\"apps/theme=dark\"]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+      "labels": {
+        "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"],
+        "apps/theme": ["Default", "Dark"]
+      }
     },
     {
       "name": "two task groups combine into one inventory",
@@ -218,27 +250,6 @@
         "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
         "apps/theme": ["Default", "Dark"],
         "task_name": ["Add 'Call Mom' to my todo list.", "In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
-      }
-    },
-    {
-      "name": "a worker pool runs a combined inventory",
-      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "tasks": ["longer_horizon", "openbanking"], "task_name": ["message_bob_the_savings_balance"]}},
-      "command": "AGENTS='dummy claude_4_sonnet' ./scripts/conduct.sh 'tasks=[longer_horizon,openbanking]' task_name=message_bob_the_savings_balance",
-      "labels": {
-        "agent": ["Dummy / smoke test", "Claude 4 Sonnet (Bedrock)"],
-        "tasks": ["Longer horizon", "OpenBanking"],
-        "task_name": ["In the OpenBanking app, look up the available balance of the 'BUS SELECT SAVINGS (...8891)' account."]
-      }
-    },
-    {
-      "name": "a SLURM worker pool runs a combined inventory",
-      "selection": {"choices": {"mode": ["slurm_cluster"], "agent": ["gemma-4-2B-computer-use"], "tasks": ["all_tasks", "openbanking"], "task_name": ["navigate_to_openbanking"]}, "count": 4},
-      "command": "AGENTS=gemma-4-2B-computer-use COUNT=4 sbatch scripts/conduct_slurm.sh 'tasks=[all_tasks,openbanking]' task_name=navigate_to_openbanking",
-      "labels": {
-        "mode": ["Slurm cluster"],
-        "agent": ["Gemma 4 2B computer use"],
-        "tasks": ["Paper tasks (original + goal variations)", "OpenBanking"],
-        "task_name": ["Navigate to the OpenBanking app."]
       }
     }
   ],
@@ -272,28 +283,31 @@
       "rendered": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[]]' parallel_tasks.task_names=all apps/theme=dark"
     },
     {
-      "name": "COUNT=1 pins the worker-pool target",
-      "command": "COUNT=1 AGENTS=dummy ./scripts/conduct.sh",
-      "selection": {"target": "pool", "choices": {"agent": ["dummy"]}, "count": 1},
-      "rendered": "AGENTS=dummy COUNT=1 ./scripts/conduct.sh"
+      "name": "agents= is the several-agents selector; repeats and max_parallel at 1 are defaults",
+      "command": "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet parallel_tasks.repeats=1 max_parallel=1",
+      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"]}},
+      "rendered": "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'"
     },
     {
-      "name": "a bare conduct.sh runs its own AGENTS default, now spelled out",
-      "command": "COUNT=2 ./scripts/conduct.sh",
-      "selection": {"choices": {"agent": ["dummy"]}, "count": 2},
-      "rendered": "AGENTS=dummy COUNT=2 ./scripts/conduct.sh"
+      "name": "repeats and max_parallel are run settings",
+      "command": "uv run launch_parallel_agents.py agent=dummy parallel_tasks.repeats=5 max_parallel=3",
+      "selection": {"repeats": 5, "max_parallel": 3},
+      "rendered": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' parallel_tasks.repeats=5 max_parallel=3"
     },
     {
-      "name": "a SLURM pool without COUNT runs once, as conduct_slurm.sh does, now spelled out",
-      "command": "AGENTS='dummy claude_4_sonnet' sbatch scripts/conduct_slurm.sh",
-      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}, "count": 1},
-      "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=1 sbatch scripts/conduct_slurm.sh"
+      "name": "max_parallel on SLURM stays an extra override",
+      "command": "uv run launch_parallel_agents.py mode=slurm_cluster agents=dummy,claude_4_sonnet max_parallel=4",
+      "selection": {
+        "choices": {"mode": ["slurm_cluster"], "agent": ["dummy", "claude_4_sonnet"]},
+        "extra": ["max_parallel=4"]
+      },
+      "rendered": "uv run launch_parallel_agents.py mode=slurm_cluster agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' max_parallel=4"
     },
     {
-      "name": "COUNT equal to the agents is the SLURM pool's default",
-      "command": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh",
-      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "mode": ["slurm_cluster"]}},
-      "rendered": "AGENTS='dummy claude_4_sonnet' COUNT=2 sbatch scripts/conduct_slurm.sh"
+      "name": "an agents= list naming an unknown agent stays verbatim",
+      "command": "uv run launch_parallel_agents.py agents=dummy,no_such_agent",
+      "selection": {"target": "sweep", "extra": ["agents=dummy,no_such_agent"]},
+      "rendered": "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' agents=dummy,no_such_agent"
     },
     {
       "name": "a combined tasks list in any order reads back in catalog order",
@@ -327,9 +341,9 @@
       "match": "device"
     },
     {
-      "name": "several agents and an app sweep need one sweep per agent",
-      "selection": {"choices": {"agent": ["dummy", "claude_4_sonnet"], "apps/theme": ["default", "dark"]}},
-      "match": "apps/theme"
+      "name": "max_parallel is local only",
+      "selection": {"choices": {"mode": ["slurm_cluster"]}, "max_parallel": 4},
+      "match": "max_parallel"
     },
     {
       "name": "a forced single run cannot hold several values",

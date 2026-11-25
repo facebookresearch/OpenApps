@@ -14,8 +14,7 @@
 #             task_app       config/apps apps the selected task(s) touch
 #             task_in_tasks  every selected task_name is in the selected tasks
 #                            group(s) -- several combine into one inventory
-#             target         single | sweep | pool | slurm_pool (the resolved
-#                            target: Worker pool + mode=slurm_cluster is slurm_pool)
+#             target         single | sweep (the resolved target)
 #             sweep_axes     apps/* groups and task_name chosen away from
 #                            their default (what a frozen suite pins itself)
 #           Values: a literal, a list (any of), null, or a comparison string
@@ -61,12 +60,21 @@
   fix: {apps.onlineshop.enable: true}
 
 - id: vllm_agent_needs_host
-  when: {agent.client_type: vllm, agent.hostname: null, target: [single, sweep, pool]}
+  when: {agent.client_type: vllm, agent.hostname: null, mode: local}
   then: require
   reason: >-
     This agent talks to a self-hosted vLLM server at http://<agent.hostname>:<agent.port>/v1.
-    Pass agent.hostname=<node> as an extra override, or use the SLURM worker
-    pool, which discovers the node serving the model.
+    Pass agent.hostname=<node> as an extra override (localhost if you serve it
+    here).
+
+- id: vllm_agent_on_slurm_finds_host
+  when: {agent.client_type: vllm, agent.hostname: null, mode: slurm_cluster}
+  then: require
+  reason: >-
+    This agent talks to a self-hosted vLLM server. On SLURM,
+    agent.hostname=auto finds the node serving its model among your running
+    jobs (start the vLLM serve job first); agent.hostname=<node> pins one.
+  fix: {agent.hostname: auto}
 
 - id: gpt55_agent_needs_key
   when: {agent: [GPT-5.5-computer-use, GPT-5.5-screen-and-text, GPT-5.5-text-only]}

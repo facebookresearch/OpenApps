@@ -19,18 +19,21 @@ descriptions come from each file's leading comment. The command only spells out 
 from the defaults, and the composer picks the launcher for you:
 
 - one value per axis runs `launch_agent.py`;
-- several themes, layouts, content packs or tasks become a `launch_parallel_agents.py` sweep
-  (only `apps/*` groups and the task can vary in one sweep);
+- anything parallel is a `launch_parallel_agents.py` sweep, the one interface for parallel runs:
+  several themes, layouts, content packs or tasks; several agents (`agents=a,b`); **Repeats**
+  (`parallel_tasks.repeats=N`, every job N times with the seed fixed); **Max parallel**
+  (`max_parallel=N`, local jobs at once); and the SLURM mode (`mode=slurm_cluster`, where
+  `agent.hostname=auto` finds the node serving a self-hosted model). Only `apps/*` groups, the
+  task and the agent can vary in one sweep;
 - several task groups are not a sweep: they combine into one inventory,
   `'tasks=[all_tasks,openbanking]'`, on any launcher, and the Task list offers the union
   ("Paper tasks" is the paper's set only; OpenBanking and longer-horizon tasks are separate);
-- several agents, a repeat count or a parallelism cap use the `scripts/conduct.sh` worker pool,
-  or `sbatch scripts/conduct_slurm.sh` with the SLURM mode;
 - a frozen benchmark suite (`benchmark=<name>`, from `config/benchmark/`) is a sweep of its own,
   `uv run launch_parallel_agents.py benchmark=<name> agent=…`: the suite pins its tasks and app
   variations, so those choices are disabled while it is selected.
 
-The selection lives in the page URL, so a link reproduces it. Paste an existing command into
+The selection lives in the page URL, so a link reproduces it (a link from before the sweep took
+over parallel runs, with `target=pool`, opens as the equivalent sweep). Paste an existing command into
 **Paste a command** to load it; anything the composer does not model is kept as an extra
 override and stays in the output. Warnings come from `config/compose_rules.yaml`, and the
 **Fix** button applies the suggested change. With focus anywhere in the composer, press `c` to
@@ -85,5 +88,5 @@ Because a link can carry extra overrides and environment variables, the local pa
 Record and Run until you confirm the ones a link brought in. The server refuses anything that could
 run code regardless: Hydra's own settings (`hydra.*`, `hydra/launcher=...`), instantiation keys
 (`_target_` and friends), resolvers other than `oc.env`, `oc.select`, `now` and `hydra`, and
-environment variables other than the worker-pool knobs and W&B labels.
+environment variables other than the W&B labels.
 

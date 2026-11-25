@@ -78,9 +78,20 @@ EDGE_COMMANDS = [
     'uv run launch_parallel_agents.py \'parallel_tasks.app_variations=[["apps/todo/layout=kanban_board","apps/theme=dark"]]\'',
     "uv run launch_parallel_agents.py 'parallel_tasks.app_variations=[[apps/theme=dark],[apps/theme=mono]]'",
     "uv run launch_parallel_agents.py task_name=x agent=dummy",
+    # The sweep's run settings: agents=, repeats, max_parallel, and near misses.
+    "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet agents=dummy,default",
+    "uv run launch_parallel_agents.py agents=dummy,dummy",
+    "uv run launch_parallel_agents.py agents=dummy",
+    "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet agent=dummy",
+    "uv run launch_parallel_agents.py parallel_tasks.repeats=0 max_parallel=x",
+    "uv run launch_parallel_agents.py parallel_tasks.repeats=2 parallel_tasks.repeats=3",
+    "uv run launch_agent.py parallel_tasks.repeats=2 max_parallel=2 agents=dummy,default",
+    "uv run launch_parallel_agents.py mode=slurm_cluster max_parallel=2",
+    # Retired worker pools: refused, pointing at the sweep.
     "AGENTS='dummy  claude_4_sonnet' MAX_PARALLEL=x FOO=1 ./scripts/conduct.sh mode=local",
     "HEADLESS=false bash scripts/conduct.sh",
     "sbatch --qos=q scripts/conduct_slurm.sh device=phone",
+    "sbatch --qos=q launch_parallel_agents.py",
     "python3 launch_agent.py",
     # Combined task groups: any order, repeats, and lists that are not groups.
     "uv run launch_agent.py tasks=[openbanking,all_tasks] task_name=navigate_to_openbanking",
@@ -100,10 +111,13 @@ EDGE_SELECTIONS = [
     {"target": "sweep", "choices": {"agent": ["dummy"]}},
     {"target": "sweep", "choices": {"apps/theme": ["default"]}},
     {"target": "cluster"},
+    # Old worker-pool links: upgraded to the sweep.
     {"target": "pool", "choices": {"mode": ["slurm_cluster"]}},
     {"target": "pool", "choices": {"mode": ["slurm_cluster"], "agent": ["dummy"]}},
     {"target": "slurm_pool"},
     {"target": "slurm_pool", "choices": {"mode": ["local"]}},
+    {"target": "pool", "choices": {"agent": ["dummy", "claude_4_sonnet"]}, "count": 5},
+    {"count": 1},
     {"choices": {"task_name": ["all"]}, "target": "single"},
     {"choices": {"agent": ["dummy", "dummy"]}},
     {"choices": {"agent": ["dummy", "claude_4_sonnet"], "seed": [1, 2]}},
@@ -119,6 +133,11 @@ EDGE_SELECTIONS = [
     {"choices": {"tasks": ["all_tasks", "longer_horizon"], "task_name": ["all"]}},
     {"count": 3},
     {"max_parallel": 2, "sbatch_args": ["--qos=q"]},
+    {"repeats": 3},
+    {"repeats": 1, "max_parallel": 1},
+    {"choices": {"mode": ["slurm_cluster"]}, "max_parallel": 2},
+    {"choices": {"agent": ["dummy", "claude_4_sonnet"], "apps/theme": ["dark", "mono"]}, "repeats": 2},
+    {"choices": {"agent": ["dummy", "claude_4_sonnet"]}, "target": "single"},
 ]
 
 
@@ -328,6 +347,7 @@ BENCH_SELECTIONS = [
     {"choices": {"benchmark": ["align_v1"], "mode": ["slurm_cluster"]}},
     {"choices": {"benchmark": ["align_v1"]}, "target": "single"},
     {"choices": {"benchmark": ["align_v1"]}, "target": "pool"},
+    {"choices": {"benchmark": ["align_v1"]}, "repeats": 3},
     {"choices": {"benchmark": ["align_v1"], "apps/theme": ["dark"]}},
     {"choices": {"benchmark": ["align_v1"], "task_name": ["all"]}},
     {"choices": {"benchmark": ["align_v1"], "agent": ["dummy", "claude_4_sonnet"]}},
@@ -802,58 +822,62 @@ def test_the_unset_theme_reads_app_defaults(ui):
     assert listbox.get_by_role("option", name="None", exact=True).count() == 0
 
 
-def test_target_pills_leave_slurm_to_the_mode_row(ui):
-    page = ui("index.html#mode=slurm_cluster&agent=dummy")
+def test_target_pills_are_single_run_and_sweep(ui):
+    """One interface for parallel runs: no worker-pool pills, and SLURM is the
+    sweep launcher with the Mode row."""
+    page = ui("index.html#mode=slurm_cluster&agent=claude_4_sonnet")
     targets = page.get_by_role("radiogroup", name="Target", exact=True)
     labels = [t.strip() for t in targets.get_by_role("radio").all_inner_texts()]
-    assert labels == [
-        "Auto (worker pool on SLURM)",
-        "Single run",
-        "Sweep",
-        "Worker pool",
-    ]
-    expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
-
-    page = ui("index.html#agent=gemma-4-2B-computer-use")
-    pill(page, "Target", "Worker pool").click()
-    expect_command(page, "AGENTS=gemma-4-2B-computer-use ./scripts/conduct.sh")
-    pill(page, "Mode", "Slurm cluster").click()
+    assert labels == ["Auto (sweep)", "Single run", "Sweep"]
     expect_command(
-        page, "AGENTS=gemma-4-2B-computer-use sbatch scripts/conduct_slurm.sh"
+        page,
+        "uv run launch_parallel_agents.py mode=slurm_cluster agent=claude_4_sonnet "
+        "'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
     )
 
 
-def test_a_pool_agent_equal_to_the_script_default_carries_over_to_slurm(ui):
-    """agent=dummy is conduct.sh's own default; it must still reach
-    conduct_slurm.sh, whose AGENTS default is a different (stale) name."""
-    page = ui("index.html#agent=dummy")
-    pill(page, "Target", "Worker pool").click()
-    expect_command(page, "AGENTS=dummy ./scripts/conduct.sh")
-    pill(page, "Mode", "Slurm cluster").click()
-    expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
+def test_several_agents_are_one_sweep(ui):
+    page = ui("index.html#agent=dummy,claude_4_sonnet")
+    expect_command(
+        page,
+        "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+    )
+
+
+def test_an_old_worker_pool_link_opens_as_the_sweep(ui):
+    page = ui("index.html#target=pool&agent=dummy,claude_4_sonnet&count=6&max_parallel=2")
+    expect_command(
+        page,
+        "uv run launch_parallel_agents.py agents=dummy,claude_4_sonnet 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]' "
+        "parallel_tasks.repeats=3 max_parallel=2",
+    )
+    page = ui("index.html#target=slurm_pool&agent=claude_4_sonnet&sbatch=--qos%3Dq")
+    expect_command(
+        page,
+        "uv run launch_parallel_agents.py mode=slurm_cluster agent=claude_4_sonnet "
+        "'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'",
+    )
 
 
 def wandb_switch(page):
     return page.get_by_role("switch", name="W&B logging", exact=True)
 
 
-def test_a_choice_equal_to_a_target_default_survives_a_mode_round_trip(ui):
-    """use_wandb=True is the SLURM pool's default. Setting it under Worker
-    pool, then Slurm and back, must not quietly turn it off again."""
-    page = ui("index.html#agent=dummy")
-    pill(page, "Target", "Worker pool").click()
+def test_a_run_setting_survives_a_mode_round_trip(ui):
+    page = ui("index.html#agent=dummy,claude_4_sonnet")
     page.locator("openapps-composer details.section summary").filter(
         has_text="Run settings"
     ).click()
     wandb_switch(page).click()
-    expect_command(page, "AGENTS=dummy ./scripts/conduct.sh use_wandb=True")
+    base = "uv run launch_parallel_agents.py"
+    expect_command(page, f"{base} agents=dummy,claude_4_sonnet use_wandb=True 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'")
     pill(page, "Mode", "Slurm cluster").click()
-    expect_command(page, "AGENTS=dummy sbatch scripts/conduct_slurm.sh")
-    assert wandb_switch(page).get_attribute("aria-checked") == "true"
+    expect_command(
+        page, f"{base} mode=slurm_cluster agents=dummy,claude_4_sonnet use_wandb=True 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'"
+    )
     pill(page, "Mode", "Local").click()
-    expect_command(page, "AGENTS=dummy ./scripts/conduct.sh use_wandb=True")
+    expect_command(page, f"{base} agents=dummy,claude_4_sonnet use_wandb=True 'parallel_tasks.app_variations=[[]]' 'parallel_tasks.task_names=[add_meeting_with_dennis]'")
     assert wandb_switch(page).get_attribute("aria-checked") == "true"
-    assert pill(page, "Target", "Worker pool").get_attribute("aria-checked") == "true"
 
 
 def test_an_app_choice_survives_a_sweep_single_round_trip(ui):
@@ -869,16 +893,27 @@ def test_an_app_choice_survives_a_sweep_single_round_trip(ui):
     expect_command(page, "uv run launch_agent.py apps/theme=dark")
 
 
-def test_the_count_fields_show_their_values(ui):
-    page = ui("index.html#count=3&max_parallel=2")
+def test_the_run_setting_fields_show_their_values(ui):
+    page = ui("index.html#repeats=3&max_parallel=2")
     page.locator("openapps-composer details.section summary").filter(
         has_text="Run settings"
     ).click()
-    field = page.locator("openapps-composer [data-fk='input:count']")
+    field = page.locator("openapps-composer [data-fk='input:repeats']")
     assert field.input_value() == "3"
     field = page.locator("openapps-composer [data-fk='input:max_parallel']")
     assert field.input_value() == "2"
-    assert field.get_attribute("placeholder") == "4"
+    assert field.get_attribute("placeholder") == "1"
+    assert field.is_enabled()
+
+
+def test_max_parallel_is_off_on_slurm(ui):
+    """SLURM schedules its own jobs; max_parallel is the local launcher's."""
+    page = ui("index.html#mode=slurm_cluster&repeats=2")
+    page.locator("openapps-composer details.section summary").filter(
+        has_text="Run settings"
+    ).click()
+    assert page.locator("openapps-composer [data-fk='input:max_parallel']").is_disabled()
+    assert page.locator("openapps-composer [data-fk='input:repeats']").is_enabled()
 
 
 def test_an_agent_equal_to_the_sweep_default_survives_a_switch_to_single(ui):
@@ -1230,7 +1265,7 @@ RUNNERS = ("Preview", "Record", "Run")
     [
         "extra=apps.todo.title%3DX",
         "env=WANDB_GROUP%3Dg",
-        "mode=slurm_cluster&agent=dummy&sbatch=--qos%3Dq",
+        "mode=slurm_cluster&agent=dummy&extra=agent.hostname%3Dauto",
     ],
 )
 def test_a_link_with_overrides_needs_review_before_running(ui, fragment):

@@ -748,16 +748,17 @@ uv run launch_agent.py agent=dummy tasks=passwords task_name=change_netflix_pass
 ## Launch Agent(s) Across Multiple Tasks
 > launch thousands of app variations to study agent behaviors in parallel
 
-!!! info "Note:"
-    Parallel launching works with SLURM. Be sure to update configs in `config/mode/slurm_cluster.yaml`.
-
-You can launch one (or multiple) agents to solve many tasks in parallel, each in an isolated deployment of OpenApps, using SLURM:
+`launch_parallel_agents.py` is the one entry point for running many episodes,
+on this machine or on SLURM. A sweep is task files × agents × app variations ×
+tasks × repeats, and each run is launched in an isolated deployment of
+OpenApps: its own web app, port window, logs and databases.
 
 ```
-uv run launch_parallel_agents.py mode=slurm_cluster agent=dummy use_wandb=True
+uv run launch_parallel_agents.py agent=dummy
 ```
 
-This launches 6 parallel independent random click agents to solve each task in each app variation as defined in `config_parallel_tasks.yaml`
+runs every task in `parallel_tasks.task_names` in every app variation, as
+defined in `config_parallel_tasks.yaml`:
 
 ```yaml
 parallel_tasks:
@@ -771,27 +772,99 @@ parallel_tasks:
     - [
         "apps/theme=dark",
       ]
+  repeats: 1
 ```
 
-You can modify the set of tasks or app variation by updating the `config_parallel_tasks.yaml`. We ensure:
+Edit that file, or override any of it on the command line. Each deployment can
+have a different theme (global), plus layout and content per app, and each task
+runs in an isolated environment for reproducible results.
 
-* Each deployment of OpenApps can have a different theme (global), plus layout and content per app.
-* Each task is launched in an isolated environment for reproducible results.
-
-To run **every** task in the loaded tasks config (rather than listing a subset by
-hand), set `task_names` to `all`. This expands to all task names defined in the
-selected `tasks=` group, so it composes with any tasks file:
+### Choosing tasks, agents and repeats
 
 ```
-uv run launch_parallel_agents.py \
-  mode=slurm_cluster agent=dummy tasks=longer_horizon \
-  parallel_tasks.task_names=all use_wandb=True
+# every task in two files, with two agents
+uv run launch_parallel_agents.py tasks=original_tasks.yaml,longer_horizon.yaml \
+    agents=dummy,GPT-5.5-computer-use
+
+# a subset of tasks, in two variations, each run three times
+uv run launch_parallel_agents.py agent=dummy \
+    'parallel_tasks.task_names=[add_call_mom_to_my_todo,message_bob_to_meet]' \
+    'parallel_tasks.app_variations=[[],["apps/theme=dark"]]' \
+    parallel_tasks.repeats=3
 ```
 
-Passing an explicit list (e.g. `parallel_tasks.task_names=[task_a,task_b]`) still
-runs only that subset.
+| Option | Effect |
+| --- | --- |
+| `tasks=a.yaml,b.yaml` | Task files to sweep (`.yaml` optional). The same task name in two files is two runs. |
+| `agents=a,b` | Agents to sweep. Not combinable with `agent=...` or `--multirun`. |
+| `parallel_tasks.task_names=[x,y]` | A subset of tasks across the files; `all` for every task in the selected files. |
+| `parallel_tasks.app_variations=[...]` | App variations; each inner list is one variation's overrides (`[]` is the default apps). |
+| `parallel_tasks.repeats=N` | Every run N times with the seed fixed. The environment is identical across repeats, so the spread in results is the agent's own run-to-run variance. |
 
-You can also select a task group to run via `tasks=longer_horizon parallel_tasks.task_names=all`.
+To run **every** task in the loaded tasks config rather than a hand-picked
+list, set `task_names` to `all`. It expands to all task names in the selected
+`tasks=` group, so it composes with any tasks file:
+
+```
+uv run launch_parallel_agents.py agent=dummy tasks=longer_horizon parallel_tasks.task_names=all
+```
+
+### Running locally
+
+By default (`mode=local`) runs go one at a time in the launcher's own process,
+streaming to the terminal. `max_parallel=N` runs N at once instead, each in its
+own process:
+
+```
+uv run launch_parallel_agents.py agents=GPT-5.5-computer-use max_parallel=4
+```
+
+- Each run's output, including its web app's and the browser's, goes to
+  `<logs_dir>/run-<id>/<job_id>/run.log`; the terminal shows one line per
+  finished run and a summary at the end.
+- A failed run does not stop the others. The launcher exits non-zero if any
+  failed.
+- **Ctrl-C stops the sweep**: queued runs never start, and running ones stop
+  their web apps and exit (Ctrl-C again kills them at once). The launcher
+  exits with status 130, or 143 on `kill`.
+- A web app never outlives its run. Each one watches the run that started it
+  and stops itself once that run is gone, however it went (`kill -9`, the OOM
+  killer, a second Ctrl-C), so no server is left holding a port.
+
+Each run has its own web app and browser, so size `max_parallel` to the
+machine's cores and memory.
+
+### Running on SLURM
+
+!!! info "Note:"
+    Set the account, QOS, partition and a `logs_dir` on storage the compute nodes share, in `config/mode/slurm_cluster.yaml` or on the command line.
+
+`mode=slurm_cluster` submits the same sweep through submitit, one CPU job per
+run, with the `slurm_sweep_launcher` settings:
+
+```
+uv run launch_parallel_agents.py mode=slurm_cluster agent=dummy use_wandb=True
+```
+
+For a self-hosted model, `agent.hostname=auto` finds the node serving it among
+your running SLURM jobs (`agent.hostname=<node>` pins one). The vLLM serve job
+and the discovery details are in [Agents: launch a sweep](agents.md#2b-or-launch-a-sweep):
+
+```
+uv run launch_parallel_agents.py mode=slurm_cluster \
+    agents=gemma-4-31B-computer-use agent.hostname=auto tasks=longer_horizon.yaml
+```
+
+Or run a local sweep inside one CPU allocation, `max_parallel` at a time:
+`srun ... uv run launch_parallel_agents.py mode=local max_parallel=8 ...`.
+
+### Tracking a sweep in W&B
+
+With `use_wandb=True`, every run in a sweep joins one W&B group, named after
+the sweep's `run-<id>` directory (the launcher prints it as `W&B group: ...`),
+and each run's `job_type` is its agent. Group by `job_type` in a W&B report to
+compare agents across one sweep. `wandb.group=...` and `wandb.job_type=...` on
+the command line override either.
 
 ### Running across goal variations
 
@@ -812,9 +885,10 @@ uv run launch_parallel_agents.py \
   --config-name=config_parallel_tasks_across_goal_variations mode=slurm_cluster
 ```
 
-Use `mode=local` to run the jobs sequentially in the current process instead of
-on SLURM. This expands to one isolated job per goal phrasing, letting you
-measure how robust an agent is to how the same task is worded.
+Drop `mode=slurm_cluster` to run the jobs on this machine instead (add
+`max_parallel=N` to run N at once). This expands to one isolated job per goal
+phrasing, letting you measure how robust an agent is to how the same task is
+worded.
 
 ## Testing
 

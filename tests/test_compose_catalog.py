@@ -65,8 +65,15 @@ def test_every_group_on_disk_is_discovered(catalog):
 
 
 def test_every_option_on_disk_is_discovered(catalog):
+    """Every option on disk is listed, except the few the catalog hides on
+    purpose (``_HIDDEN_OPTIONS``) -- and those must exist, so the list cannot
+    rot into names nobody has."""
+    from open_apps.compose.catalog import _HIDDEN_OPTIONS
+
     for path, stems in _group_dirs_on_disk().items():
-        assert {o.name for o in catalog.groups[path].options} == stems, path
+        hidden = _HIDDEN_OPTIONS.get(path, frozenset())
+        assert hidden <= stems, path
+        assert {o.name for o in catalog.groups[path].options} == stems - hidden, path
 
 
 def test_hydra_internal_groups_are_excluded(catalog):
@@ -392,16 +399,24 @@ def test_option_sets_record_watched_values(catalog):
 
 
 def test_targets(catalog):
-    assert set(catalog.targets) == {"single", "sweep", "pool", "slurm_pool"}
-    # The SLURM pool is the Worker pool pill with Mode=slurm_cluster, not a
-    # pill of its own.
-    assert [t.name for t in catalog.targets.values() if t.pill] == [
-        "single",
-        "sweep",
-        "pool",
-    ]
+    # One interface for parallel runs: launch_parallel_agents.py.
+    assert [t.name for t in catalog.targets.values() if t.pill] == ["single", "sweep"]
     assert catalog.targets["sweep"].config_name == "config_parallel_tasks"
+    assert catalog.targets["sweep"].command == "uv run launch_parallel_agents.py"
     assert catalog.targets["single"].config_name == "config"
+
+
+def test_abstention_is_not_offered(catalog):
+    """Ongoing research: the configs stay (launch_agent.py takes them by
+    name), the composer does not list them."""
+    from open_apps import config_dir
+
+    agents = {o.name for o in catalog.groups["agent"].options}
+    tasks = {o.name for o in catalog.groups["tasks"].options}
+    assert "GPT-5.5-computer-use-abstention" not in agents
+    assert "abstention_examples" not in tasks and "abstention_examples" not in catalog.tasks
+    assert (config_dir() / "agent" / "GPT-5.5-computer-use-abstention.yaml").exists()
+    assert (config_dir() / "tasks" / "abstention_examples.yaml").exists()
 
 
 def test_capabilities_default_to_static(catalog):
