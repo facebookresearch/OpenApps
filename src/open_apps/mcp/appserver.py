@@ -19,6 +19,7 @@ upstream, so only one ``AppServer`` can be alive per Python process
 
 from __future__ import annotations
 
+import random
 import shutil
 import socket
 import tempfile
@@ -125,6 +126,9 @@ class AppServer:
         self.base_url = f"http://{host}:{self.port}"
 
         self.config, self._tmp_logs = _load_hydra_config(extra_overrides)
+        # Same as OpenAppsLauncher: seed the module-level RNG the apps draw
+        # from (tile reorder, messenger replies) so a run is reproducible.
+        random.seed(self.config.seed)
 
         # Called exactly once per process. Upstream's route getters all
         # return the shared global ``app.routes`` and this extends it, so
@@ -150,8 +154,17 @@ class AppServer:
         self._thread.start()
         _wait_until_healthy(self.base_url)
 
-    def reset(self) -> None:
-        """Reset every app's state (drop sqlite/filesystem, re-seed from config)."""
+    def reset(self, seed: int | None = None) -> None:
+        """Reset every app's state (drop sqlite/filesystem, re-seed from config).
+
+        Args:
+            seed: If given, becomes the config seed and re-seeds the RNG the
+                apps draw from before they are reset.
+        """
+        if seed is not None:
+            with open_dict(self.config):
+                self.config.seed = int(seed)
+            random.seed(self.config.seed)
         reset_all_apps(self.config.apps)
 
     def reconfigure(
@@ -220,6 +233,9 @@ class AppServer:
         # FastHTML app at it, otherwise the page keeps rendering the
         # pre-reconfigure theme/layout/content.
         _fasthtml_app.config = self.config.apps
+
+        if seed is not None:
+            random.seed(self.config.seed)
 
         shutil.rmtree(new_tmp_logs, ignore_errors=True)
 
