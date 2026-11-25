@@ -1,0 +1,12 @@
+# Qwen3.8-Flash-Next (180B MoE vision-language model, Qwen4Exp architecture)
+# via the Qwen3.6-VL tool_call action_parser. bf16 weights are ~360 GB: four
+# H200s or eight H100s (Qwen/Qwen3.8-Flash-Next-FP8 halves that).
+# Set hostname/port to your served model before running.
+defaults:
+- Qwen3.6-VL-computer-use
+- _self_
+model_name: Qwen/Qwen3.8-Flash-Next
+model_pretty_name: Qwen3.8-Flash-Next
+hostname: null
+host_name_updated_on: null
+client_type: vllm
