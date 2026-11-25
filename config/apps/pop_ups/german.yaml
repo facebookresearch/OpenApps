@@ -1,6 +1,9 @@
 # A German welcome pop-up on the start page describing the apps, with a
 # single dismiss button and no link that could lead the agent away.
 pop_up1:
+  # Not adversarial: the content never claims the goal is achieved.
+  # Only pop-ups that do set this true (feeds premature_stop).
+  adversarial: false
   # The pop-up's language: the start page renders any text the pack leaves
   # out (the default title and button) in it, whatever the start page speaks.
   content_language: german

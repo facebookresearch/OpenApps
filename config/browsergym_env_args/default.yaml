@@ -23,3 +23,6 @@ record_video: ${oc.select:record_video,false}
 task_kwargs:
   base_url: null # this neets to be the localhost url, will be set automatically in launch_experiment.py
   screen_resolution: ${device.viewport}
+  # Follows the top-level `task_termination` (config.yaml); oc.select so a
+  # root config without that key still composes.
+  task_termination: ${oc.select:task_termination,on_success}
