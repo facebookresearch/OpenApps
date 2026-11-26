@@ -168,6 +168,72 @@ class TestQuestionGeneration:
         questions = generate_questions_from_state(state)
         assert len(questions) > 0
 
+    @pytest.mark.parametrize(
+        "recurring, current_month, visible",
+        [
+            ("weekly", (2030, 1), False),
+            ("weekly", (2030, 2), True),
+            ("weekly", (2030, 3), True),
+            ("monthly", (2030, 1), False),
+            ("monthly", (2030, 2), True),
+            ("monthly", (2030, 3), True),
+            ("yearly", (2029, 2), False),
+            ("yearly", (2030, 2), True),
+            ("yearly", (2031, 2), True),
+        ],
+    )
+    def test_calendar_questions_respect_recurrence_start(
+        self, recurring, current_month, visible
+    ):
+        title = "Recurring project check-in"
+        state = {
+            "calendar": [{"title": title, "date": "2030-02-12", "recurring": recurring}]
+        }
+        questions = generate_questions_from_state(
+            state, apps=["calendar"], current_month=current_month
+        )
+        answers = [
+            q.choices[q.correct]
+            for q in questions
+            if q.question.startswith("Which of the following events appears")
+        ]
+        assert answers == ([title] if visible else [])
+
+    @pytest.mark.parametrize(
+        "current_month, expected_days",
+        [
+            ((2030, 2), {"12", "19", "26"}),
+            ((2030, 3), {"5", "12", "19", "26"}),
+        ],
+    )
+    def test_calendar_questions_use_weekly_occurrences(
+        self, current_month, expected_days
+    ):
+        title = "Recurring project check-in"
+        state = {
+            "calendar": [{"title": title, "date": "2030-02-12", "recurring": "weekly"}]
+        }
+        questions = generate_questions_from_state(
+            state, apps=["calendar"], current_month=current_month
+        )
+
+        (count_question,) = [
+            q for q in questions if q.question.startswith("How many events are shown")
+        ]
+        assert count_question.choices[count_question.correct] == str(len(expected_days))
+
+        (appearance_question,) = [
+            q
+            for q in questions
+            if q.question.startswith("Which of the following events appears")
+        ]
+        assert appearance_question.choices[appearance_question.correct] == title
+
+        (day_question,) = [q for q in questions if q.question.startswith("On which")]
+        correct_day = day_question.choices[day_question.correct]
+        assert correct_day in expected_days
+        assert set(day_question.choices.values()) & expected_days == {correct_day}
+
     def test_category_coverage(self, client_and_config):
         client, config = client_and_config
         questions = generate_questions_from_client(client, config)

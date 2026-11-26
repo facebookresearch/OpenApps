@@ -197,6 +197,63 @@ class TestAgenda:
         assert soup.find("a") is None, "no second 'Add Event' control"
 
 
+@pytest.mark.parametrize(
+    "view, event_selector, day_class, day_selector",
+    [
+        ("calendar", ".event-chip", "calendar-cell", ".day-number"),
+        ("agenda", ".agenda-event-link", "agenda-day", ".agenda-day-number"),
+    ],
+    ids=["calendar", "agenda"],
+)
+@pytest.mark.parametrize(
+    "recurring, year, month, expected_days",
+    [
+        pytest.param("weekly", 2030, 1, [], id="weekly-before-start"),
+        pytest.param("weekly", 2030, 2, [12, 19, 26], id="weekly-start-month"),
+        pytest.param("weekly", 2030, 3, [5, 12, 19, 26], id="weekly-next-month"),
+        pytest.param("monthly", 2030, 1, [], id="monthly-before-start"),
+        pytest.param("monthly", 2030, 2, [12], id="monthly-start-month"),
+        pytest.param("monthly", 2030, 3, [12], id="monthly-next-month"),
+        pytest.param("yearly", 2029, 2, [], id="yearly-before-start"),
+        pytest.param("yearly", 2030, 2, [12], id="yearly-start-month"),
+        pytest.param("yearly", 2031, 2, [12], id="yearly-next-year"),
+    ],
+)
+def test_recurring_event_dates(
+    render,
+    view,
+    event_selector,
+    day_class,
+    day_selector,
+    recurring,
+    year,
+    month,
+    expected_days,
+):
+    form = render(path="/calendar/create_event").find(
+        "form", action="/calendar/create_event/save_text"
+    )
+    client = TestClient(cal.app)
+    title = "Recurring project check-in"
+    saved = client.post(
+        form["action"],
+        data={"title": title, "date": "2030-02-12", "recurring": recurring},
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    assert saved.headers["location"] == "/calendar"
+
+    response = client.get(f"/calendar/calendar_content/{year}/{month}?view={view}")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    days = [
+        int(link.find_parent(class_=day_class).select_one(day_selector).get_text())
+        for link in soup.select(event_selector)
+        if link.get_text() == title
+    ]
+    assert days == expected_days
+
+
 class TestLayoutsStayDistinct:
 
     def test_default_is_one_toolbar_with_actions_in_the_footer(self, render):

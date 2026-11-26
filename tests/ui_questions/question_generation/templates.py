@@ -99,7 +99,7 @@ def _resolve_current_month(current_month) -> tuple[int, int]:
 
 
 def _events_in_month(events: list[dict], year: int, month: int) -> list[dict]:
-    """Return events whose date (or yearly/monthly recurrence) lands in (year, month)."""
+    """Return event occurrences in (year, month)."""
     visible = []
     for e in events:
         d = e.get("date")
@@ -109,15 +109,20 @@ def _events_in_month(events: list[dict], year: int, month: int) -> list[dict]:
             ev_date = datetime.strptime(d, "%Y-%m-%d").date()
         except ValueError:
             continue
-        recurring = (e.get("recurring") or "").lower()
-        if ev_date.year == year and ev_date.month == month:
+        if (year, month) < (ev_date.year, ev_date.month):
+            continue
+        recurring = e.get("recurring") or ""
+        if recurring == "weekly":
+            event_weekday = ev_date.weekday()
+            for day in range(1, cal_mod.monthrange(year, month)[1] + 1):
+                occurrence = date(year, month, day)
+                if occurrence >= ev_date and occurrence.weekday() == event_weekday:
+                    visible.append({**e, "date": occurrence.isoformat()})
+        elif ev_date.year == year and ev_date.month == month:
             visible.append(e)
-        elif recurring == "yearly" and ev_date.month == month:
+        elif recurring.lower() == "yearly" and ev_date.month == month:
             visible.append(e)
-        elif recurring == "monthly":
-            visible.append(e)
-        elif recurring == "weekly":
-            # weekly events show up every week of every month
+        elif recurring.lower() == "monthly":
             visible.append(e)
     return visible
 
@@ -516,7 +521,7 @@ def calendar_event_exists_in_month(state, config, rng, current_month=None, **_):
     visible = _events_in_month(state.get("calendar", []), year, month)
     if len(visible) < 1:
         return []
-    visible_titles = [e["title"] for e in visible]
+    visible_titles = dict.fromkeys(e["title"] for e in visible)
     fake_events = [
         "NeurIPS 2026 Deadline",
         "Team Standup Meeting",
@@ -548,29 +553,38 @@ def calendar_event_exists_in_month(state, config, rng, current_month=None, **_):
 
 
 def calendar_event_day_in_month(state, config, rng, current_month=None, **_):
-    """For each visible event, ask which day-of-month its cell falls on."""
+    """For each visible title, ask for a day on which the event appears."""
     year, month = _resolve_current_month(current_month)
     visible = _events_in_month(state.get("calendar", []), year, month)
     if len(visible) < 1:
         return []
     last_day = cal_mod.monthrange(year, month)[1]
-    questions = []
+    days_by_title = {}
     for ev in visible:
         try:
             ev_date = datetime.strptime(ev["date"], "%Y-%m-%d").date()
         except (KeyError, ValueError):
             continue
-        correct_day = ev_date.day
-        if correct_day > last_day:
-            continue
-        other_days = [d for d in range(1, last_day + 1) if d != correct_day]
+        if ev_date.day <= last_day:
+            days_by_title.setdefault(ev["title"], set()).add(ev_date.day)
+
+    questions = []
+    for title, days in days_by_title.items():
+        correct_day = min(days)
+        other_days = [d for d in range(1, last_day + 1) if d not in days]
         distractors = [str(d) for d in rng.sample(other_days, min(3, len(other_days)))]
         if len(distractors) < 3:
             continue
         choices, correct_letter = _shuffle_choices(str(correct_day), distractors, rng)
+        if len(days) == 1:
+            question = (
+                f"On which day of the displayed month is the event '{title}' shown?"
+            )
+        else:
+            question = f"On which of these days is the event '{title}' shown in the displayed month?"
         questions.append(
             MCQuestion(
-                question=f"On which day of the displayed month is the event '{ev['title']}' shown?",
+                question=question,
                 choices=choices,
                 correct=correct_letter,
                 category="element_content",
